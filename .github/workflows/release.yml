@@ -73,6 +73,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ inputs.version }}
+          PYTHONPATH: ${{ github.workspace }}\src
         run: |
           $ErrorActionPreference = 'Stop'
           $distDir = Join-Path $env:GITHUB_WORKSPACE 'dist\ExileLens'
