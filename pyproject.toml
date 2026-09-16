@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "poe2-value-overlay"
+version = "0.2.0b2"
+description = "ExileLens — real Path of Building 2 evaluation engine for Path of Exile 2"
+readme = "packaging/README.txt"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pyinstaller>=6.0", "pillow>=10.0"]
+
+[project.scripts]
+poe2value = "poe2value.cli:main"
+poe2value-gui = "poe2value.app.main:main"
+exilelens = "poe2value.cli:main"
+exilelens-gui = "poe2value.app.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Default = fast inner loop: item-check units only (~10s, no PoB2 checkout needed).
+# Integration runs against the real PoB2 engine and is opt-in:
+#   pytest -m integration          # engine/parity/loadout suite (~4 min)
+#   pytest -m itemcheck            # everything item-check, units + integration
+#   pytest -m parked               # parked Tree/Market/Gear features
+#
+# The canonical TEST-HEALTH selection is this addopts expression itself.
+# `parked`/`live_market` still use the older mechanism
+# (never granted `itemcheck` — see tests/conftest.py); `windows_gui` and
+# `pob_required` (TEST_HEALTH_01_TRIAGE.md §4, rows F/G) are not implemented.
+addopts = "-m 'itemcheck and not integration'"
+markers = [
+    "integration: tests that require a real PoB2 engine checkout",
+    "itemcheck: item evaluation, overlay, clipboard, baseline, and MOD-01 item-check scope",
+    "parked: tests for parked Tree/Market/Gear/Build Analysis features (excluded from default suite)",
+    "build_corpus: frozen real-world Build Corpus compatibility gate (real PoB worker, slow; run with -m build_corpus)",
+    "smoke: fast deterministic offline production-ops smoke (no live APIs, no PoB worker)",
+    "ops: operational infrastructure unit tests",
+    "live_market: opt-in live trade2 canary; excluded from the default suite",
+]

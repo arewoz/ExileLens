@@ -1,0 +1,133 @@
+EXILELENS CHANGELOG
+===================
+
+
+0.2.0b1
+-------
+
+- Item Check now evaluates items across multiple build areas instead of relying
+  mainly on a single damage number: OFFENSE, DEFENSE, RECOVERY, and UTILITY.
+- Items with meaningful trade-offs are now identified more accurately. An item
+  that gains damage but loses important defenses can now show SIDEGRADE instead
+  of a misleading UPGRADE.
+- Build-breaking changes and other hard constraints are now considered before a
+  directional verdict is shown.
+- Resistance evaluation is more build-aware. Losing an important resistance cap
+  or defensive threshold can prevent an item from being called an upgrade.
+- Item comparisons now preserve the active Path of Building context more
+  reliably, including equipment, active skill, skill configuration, stat set,
+  loadout, passive tree, and other build state used for the comparison.
+- Improved comparisons for weapon-dependent builds, including bows, quivers,
+  crossbows, and other cases where changing equipment can change the skill or
+  damage calculation used by Path of Building.
+- ExileLens now tracks the exact build and item context associated with each
+  evaluation. Results from an older build state or previous item are discarded
+  instead of being shown for the wrong comparison.
+- Clipboard duplicate detection is now separated from item comparison identity,
+  reducing cases where a legitimate new comparison could be confused with an
+  earlier clipboard event.
+- Partial or unsupported Path of Building results now fail safely. When there is
+  not enough reliable evidence for a verdict, ExileLens shows UNCERTAIN or
+  Couldn't evaluate instead of guessing.
+- Known zero values are now distinguished from missing or unsupported values,
+  reducing false UNCERTAIN results when Path of Building legitimately reports
+  zero.
+- Improved detection of the damage components that actually matter to the active
+  build, including builds where the relevant damage is split across multiple PoB
+  outputs.
+- Reduced unnecessary Path of Building recalculation during Item Check by
+  batching more of the comparison work and reusing safe intermediate state.
+- Improved restoration of Path of Building state after comparisons, reducing
+  the chance that one Item Check affects the next one.
+- Diagnostics now include the ExileLens version, build revision, runtime mode,
+  and other safe build information to make bug reports easier to identify.
+- Diagnostic and clipboard handling was hardened for privacy. Raw copied item
+  text and other unnecessary clipboard contents are no longer included in
+  persistent diagnostic output.
+- Expanded real-Path-of-Building regression coverage for equipment changes,
+  build context, damage composition, stale-result handling, and multi-axis item
+  evaluation.
+
+
+0.1.1b1
+-------
+
+- Item Check now measures the same main skill before and after an item swap,
+  so comparisons are less likely to use the wrong skill.
+- When damage cannot be measured reliably, the overlay now shows UNCERTAIN
+  (Partial comparison) instead of calling the item a SIDEGRADE.
+- Mods like "+1 to skill gem levels" now count as real offense.
+- More items that Path of Building actually measured now get a real upgrade
+  or downgrade instead of "unmeasured".
+- DoT and similar builds (for example Essence Drain / Contagion) now pick the
+  right PoB damage number more often.
+- More Info now shows a DAMAGE REFERENCE section: which skill and which PoB
+  damage number was used for the comparison.
+- Item Check tooltip text stays readable on Windows Light mode (no black text
+  on the dark overlay).
+- The overlay has a close (×) button. Esc first closes More Info, then hides
+  the overlay.
+- Starting ExileLens no longer flashes a blank window on the desktop.
+- The dashboard no longer pops up unexpectedly when the app starts from the
+  tray.
+- Items that would leave the build unable to meet attribute requirements are
+  now marked NOT VIABLE instead of showing a misleading upgrade or downgrade.
+- Losing elemental resistance cap no longer shows as UPGRADE; verdicts cap at
+  SIDEGRADE, or DOWNGRADE when max hit drops.
+- Resistance lines in Item Check now distinguish effective values from uncapped
+  totals when the cap applies.
+- Tiny sub-1% offense drift no longer triggers false upgrade verdicts.
+
+
+0.1.0b3
+-------
+
+- Fixed Settings page readability: the scrollable Settings view now stays on the
+  ExileLens dark theme instead of falling back to Windows Light (cream text on
+  white panels).
+- Fixed Item Check hotkey release tracking so Shift+C (and other bindings) are
+  detected more reliably after the key is released.
+
+
+0.1.0b2
+-------
+
+- Fixed item analysis after clicking "Copy Item" in the in-game trade/market UI.
+  ExileLens now opens the comparison tooltip automatically when Path of Exile 2
+  copies a listing to the clipboard, without pressing Shift+C.
+- Fixed stale PoB build state: saved build changes are now actually reloaded
+  instead of reusing old in-memory equipment.
+- Added safer build revision tracking, last-known-good fallback, and build reload
+  diagnostics.
+- Fixed app lifecycle issues where ExileLens could keep running without a visible
+  tray icon or accessible window.
+- Relaunching ExileLens now brings the existing instance back instead of silently
+  exiting.
+- Improved Settings recovery for invalid PoB/build paths, including reset and
+  clearer status/error messages.
+- Added support for normal installed Path of Building Community (PoE2) layouts
+  instead of requiring a developer/source checkout.
+- Fixed invalid or incompatible PoB paths so ExileLens recovers into Settings
+  with a clear error instead of crashing with a PyInstaller traceback.
+- Reworked Item Check hotkey handling: Shift+C remains the default, is now
+  foreground-aware, configurable, and no longer blocks capital C outside PoE2.
+- Added Hotkey Change/Test UI, validation, conflict detection, and better
+  diagnostics.
+- Fixed cases where Item Check could stay on "Analyzing..." forever; requests now
+  always reach a terminal state or clear error.
+- Improved overlay reliability, error visibility, positioning, and multi-monitor
+  recovery.
+- Improved worker stability with timeouts, stderr draining, crash detection, and
+  recovery.
+- Added better tray controls: Open, Settings, Reload Build, Diagnostics, Logs,
+  and Exit.
+- Added broader regression coverage for all major equipment slots, build reloads,
+  hotkeys, clipboard capture, lifecycle, and overlay behavior.
+- Added a public-beta smoke test covering broken config, restart/recovery, build
+  reload, hotkeys, market Copy Item, and clean shutdown.
+
+
+0.1.0b1
+-------
+
+- Initial closed beta release.
