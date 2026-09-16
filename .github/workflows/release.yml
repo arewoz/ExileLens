@@ -45,22 +45,25 @@ jobs:
           if ($env:RELEASE_VERSION -notmatch '^v\d+\.\d+\.\d+(b\d+)?$') {
             throw "Version must use the ExileLens release format, for example v0.2.0b2: $env:RELEASE_VERSION"
           }
-
           $remoteTag = & git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_VERSION" 2>$null
-          if ($LASTEXITCODE -eq 0) {
+          $tagExitCode = $LASTEXITCODE
+          if ($tagExitCode -eq 0) {
             throw "Remote tag already exists and will not be reused: $env:RELEASE_VERSION"
           }
-          if ($LASTEXITCODE -ne 2) {
+          if ($tagExitCode -ne 2) {
             throw "Could not check whether remote tag exists: $env:RELEASE_VERSION"
           }
-
           $releaseResult = & gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_VERSION" 2>&1
-          if ($LASTEXITCODE -eq 0) {
+          $releaseExitCode = $LASTEXITCODE
+          if ($releaseExitCode -eq 0) {
             throw "A release already exists for tag $env:RELEASE_VERSION and will not be reused."
           }
           if (($releaseResult -join "`n") -notmatch '404') {
             throw "Could not check whether a release exists for $env:RELEASE_VERSION: $($releaseResult -join ' ')"
           }
+          Write-Host "Tag and release are available: $env:RELEASE_VERSION"
+          # The non-zero gh exit code is expected for a missing release; clear it so the pwsh wrapper passes.
+          $global:LASTEXITCODE = 0
 
       - name: Build the official Windows onedir distribution
         shell: pwsh
