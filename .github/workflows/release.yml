@@ -1,0 +1,136 @@
+name: Draft Windows release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag (for example: v0.2.0b2)"
+        required: true
+        type: string
+
+# Keep the repository default token read-only.  This workflow needs write access
+# only to create the new tag and its draft release after all checks succeed.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Reject dispatches outside main
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main') {
+            throw 'Draft releases may only be created from main.'
+          }
+
+      - name: Check out the exact workflow commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up the pinned release Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Validate release request and existing remote state
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RELEASE_VERSION -notmatch '^v\d+\.\d+\.\d+(b\d+)?$') {
+            throw "Version must use the ExileLens release format, for example v0.2.0b2: $env:RELEASE_VERSION"
+          }
+          $remoteTag = & git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_VERSION" 2>$null
+          $tagExitCode = $LASTEXITCODE
+          if ($tagExitCode -eq 0) {
+            throw "Remote tag already exists and will not be reused: $env:RELEASE_VERSION"
+          }
+          if ($tagExitCode -ne 2) {
+            throw "Could not check whether remote tag exists: $env:RELEASE_VERSION"
+          }
+          $releaseResult = & gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_VERSION" 2>&1
+          $releaseExitCode = $LASTEXITCODE
+          if ($releaseExitCode -eq 0) {
+            throw "A release already exists for tag $env:RELEASE_VERSION and will not be reused."
+          }
+          if (($releaseResult -join "`n") -notmatch '404') {
+            throw "Could not check whether a release exists for $env:RELEASE_VERSION: $($releaseResult -join ' ')"
+          }
+          Write-Host "Tag and release are available: $env:RELEASE_VERSION"
+          # The non-zero gh exit code is expected for a missing release; clear it so the pwsh wrapper passes.
+          $global:LASTEXITCODE = 0
+
+      - name: Build the official Windows onedir distribution
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -SkipShortcut
+
+      - name: Package and verify release assets
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $distDir = Join-Path $env:GITHUB_WORKSPACE 'dist\ExileLens'
+          $exePath = Join-Path $distDir 'ExileLens.exe'
+          $expectedSourceVersion = $env:RELEASE_VERSION.Substring(1)
+          $sourceVersion = (& .\.release-venv\Scripts\python.exe -c "from poe2value._version import __version__; print(__version__)").Trim()
+          if ($LASTEXITCODE -ne 0 -or $sourceVersion -ne $expectedSourceVersion) {
+            throw "Requested tag $env:RELEASE_VERSION does not match the checked-out source version v$sourceVersion."
+          }
+          if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+            throw "Expected packaged executable is missing: $exePath"
+          }
+
+          $archiveName = "ExileLens-$env:RELEASE_VERSION-win64.zip"
+          $archivePath = Join-Path $env:RUNNER_TEMP $archiveName
+          $sumsPath = Join-Path $env:RUNNER_TEMP 'SHA256SUMS.txt'
+          if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
+          Push-Location (Join-Path $env:GITHUB_WORKSPACE 'dist')
+          try {
+            Compress-Archive -LiteralPath 'ExileLens' -DestinationPath $archivePath -CompressionLevel Optimal
+          }
+          finally {
+            Pop-Location
+          }
+          if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf) -or (Get-Item -LiteralPath $archivePath).Length -eq 0) {
+            throw "Release ZIP is missing or empty: $archivePath"
+          }
+
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $sumLine = "$hash  $archiveName"
+          [System.IO.File]::WriteAllText($sumsPath, "$sumLine`n", [System.Text.UTF8Encoding]::new($false))
+          if (-not (Test-Path -LiteralPath $sumsPath -PathType Leaf) -or (Get-Item -LiteralPath $sumsPath).Length -eq 0) {
+            throw "SHA256SUMS.txt is missing or empty: $sumsPath"
+          }
+          $verifiedHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $writtenLine = [System.IO.File]::ReadAllText($sumsPath, [System.Text.UTF8Encoding]::new($false)).TrimEnd("`r", "`n")
+          if ($verifiedHash -ne $hash -or $writtenLine -ne $sumLine) {
+            throw 'SHA256SUMS.txt does not verify the exact release ZIP.'
+          }
+          Write-Host $sumLine
+          "ARCHIVE_PATH=$archivePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SUMS_PATH=$sumsPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Create draft prerelease
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $commit = (git rev-parse HEAD).Trim()
+          if ($commit -notmatch '^[0-9a-f]{40}$') { throw 'Could not determine the exact checked-out commit.' }
+          & gh release create $env:RELEASE_VERSION $env:ARCHIVE_PATH $env:SUMS_PATH `
+            --target $commit `
+            --title "ExileLens $env:RELEASE_VERSION - Beta" `
+            --draft `
+            --prerelease `
+            --latest=false `
+            --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the draft prerelease.' }
