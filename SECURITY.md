@@ -175,15 +175,9 @@ Do not disable security software globally in order to run ExileLens.
 
 ## Release integrity
 
-Official ExileLens releases should publish SHA-256 checksums alongside downloadable Windows builds.
+Official ExileLens releases publish a Windows ZIP package and `SHA256SUMS.txt` alongside it. Download and verify the ZIP; do not download a standalone executable.
 
 When a checksum is available, you can verify a downloaded file in PowerShell:
-
-```powershell
-Get-FileHash .\ExileLens.exe -Algorithm SHA256
-```
-
-For an archive:
 
 ```powershell
 Get-FileHash .\ExileLens-<version>-win64.zip -Algorithm SHA256
