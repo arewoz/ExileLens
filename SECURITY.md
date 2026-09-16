@@ -1,168 +1,257 @@
-
-### `SECURITY.md`
-
-```md
 # Security
 
-This document describes ExileLens's security model in plain terms: what the application does, what it deliberately does not do, what data it interacts with, and what to expect from Windows and antivirus software when running an unsigned beta build.
+This document describes ExileLens's security model in plain terms: what it does, what it deliberately does not do, the trust boundaries involved, and what to expect from Windows and antivirus software around an unsigned beta build.
 
 ## Official source and downloads
 
-The only official source repository for ExileLens is:
+The official source code and official Windows builds of ExileLens are published through this GitHub repository:
 
 https://github.com/arewoz/ExileLens
 
-Official Windows builds are published through GitHub Releases:
+Official binaries are attached to:
 
 https://github.com/arewoz/ExileLens/releases
 
-Do not download ExileLens from unofficial mirrors, file-sharing sites, reposted executables or unsolicited links.
+Do not trust copies distributed through unofficial mirrors, file-sharing sites, reposted archives, or unsolicited links.
 
-Do not disable antivirus protection simply to run ExileLens.
+Do **not** disable antivirus protection in order to run ExileLens.
 
-If you receive an antivirus warning or suspect a false positive, report the ExileLens version, antivirus product, detection name and any other useful details through GitHub Issues or Discord.
+If you suspect a false positive, report:
 
-GitHub Issues:
+- the ExileLens version
+- the antivirus product
+- the detection name
+- the affected filename
+- the file's SHA-256 hash, when available
 
-https://github.com/arewoz/ExileLens/issues
+Use GitHub Issues or Discord for suspected false positives unless the report contains security-sensitive information.
 
-Discord:
-
-https://discord.gg/4jrhBbSwEn
+---
 
 ## Security model
 
-ExileLens is a local Windows desktop overlay.
+ExileLens is a **local desktop overlay**.
 
-It runs on your own machine as a normal user process. ExileLens has no account system and no ExileLens-operated server component.
+It runs entirely on your own Windows machine as a normal user process. It has no account system of its own and no ExileLens server component.
 
-Its main job is to:
+Its normal job is to:
 
-1. Detect when you request an item evaluation using the configured hotkey.
-2. Use Path of Exile 2's normal copy-item functionality to copy the hovered item's text.
-3. Read that item text from the Windows clipboard.
-4. Evaluate the item against the Path of Building 2 build you configured.
-5. Display the result in the ExileLens overlay.
+1. detect when you request an item check through the configured hotkey
+2. copy the hovered Path of Exile 2 item using the game's normal copy-item behavior
+3. read the resulting item text from the Windows clipboard
+4. evaluate the item against the Path of Building 2 installation and build you configured
+5. show the result in an overlay
+6. optionally query the official Path of Exile trade service for live market information
 
-The main trust boundaries are described below.
+The important trust boundaries are described below.
 
-### Path of Exile 2
+---
+
+## Path of Exile 2
 
 ExileLens does not read Path of Exile 2 process memory.
 
-ExileLens does not inject code or DLLs into the game process.
+It does not inject code or DLLs into the game process.
 
-ExileLens does not intercept or modify Path of Exile 2 network traffic.
+It does not intercept or modify the game's network traffic.
 
-Item capture is based on Path of Exile 2's normal copy-item behavior and the Windows clipboard.
+The item-capture workflow uses the game's normal copy-item behavior. When the ExileLens hotkey is used while Path of Exile 2 is the active foreground window, ExileLens sends a single synthetic `Ctrl+C` input and reads the resulting clipboard text.
 
-The ExileLens hotkey is gated so item capture is intended to act only while Path of Exile 2 is the active foreground application.
+The hotkey action is gated on Path of Exile 2 being the active, focused window.
 
-### Path of Building 2
+---
 
-ExileLens uses Path of Building 2 as its build calculation engine.
+## Path of Building 2
 
-During setup, you select a Path of Building Community PoE2 installation that you trust.
+ExileLens uses a local Path of Building Community installation for Path of Exile 2.
 
-ExileLens loads PoB2 calculation components from that installation so it can reuse PoB2's build calculations when evaluating candidate items.
+It loads PoB2 calculation components from the installation directory you select during setup and runs them locally to reuse PoB2's calculation logic.
 
-ExileLens does not cryptographically verify the Path of Building 2 installation you select.
+ExileLens therefore trusts the selected PoB2 installation directory.
 
-Only point ExileLens at a Path of Building 2 installation obtained from a source you trust.
+ExileLens does not independently verify a cryptographic signature for that installation. Only point ExileLens at a Path of Building installation you trust.
 
-Official Path of Building Community PoE2 repository:
+Path of Building 2 is not bundled with ExileLens.
 
-https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2
+---
 
-### Network access
-
-Most ExileLens build evaluation happens locally.
-
-When the optional live market pricing functionality is used, ExileLens may communicate with the official Path of Exile trade service over HTTPS.
-
-Market queries use structured item information required to search for comparable listings.
-
-ExileLens does not operate its own telemetry or analytics backend.
-
-### Clipboard access
+## Clipboard access
 
 ExileLens uses the Windows clipboard as part of item capture.
 
-The application may observe clipboard changes while it is running because its item-capture system relies on clipboard state.
+Its clipboard listener may remain active while the application is running, not only at the exact moment the hotkey is pressed.
 
-The hotkey-triggered capture flow sends a single synthetic `Ctrl+C` input to Path of Exile 2 while the game is in the foreground and then reads the resulting item text.
+The intended workflow is to process copied Path of Exile 2 item text. For the exact rules around what is read, retained, logged, or transmitted, see:
 
-See [`PRIVACY.md`](PRIVACY.md) for the detailed clipboard, storage and network privacy model.
+[PRIVACY.md](PRIVACY.md)
+
+Do not assume that the system clipboard is private from other applications running on your computer.
+
+---
+
+## Network access
+
+Normal ExileLens item evaluation runs locally.
+
+The optional live market pricing feature can communicate over HTTPS with the official Path of Exile trade service.
+
+For market lookups, ExileLens sends structured search information derived from the item being evaluated, such as:
+
+- item category
+- rarity
+- matched stat information
+- search ranges used to find comparable listings
+
+ExileLens does not use a proprietary ExileLens account or telemetry backend.
+
+For the precise privacy behavior of network requests, see:
+
+[PRIVACY.md](PRIVACY.md)
+
+---
 
 ## What ExileLens does
 
-ExileLens currently uses the following capabilities:
+Based on the current source code, ExileLens uses:
 
-- A global hotkey, `Shift+C` by default
-- Windows clipboard access
-- A synthetic `Ctrl+C` input used for Path of Exile 2's normal copy-item functionality
-- Foreground-window detection
-- Local Path of Building 2 integration
-- Local application logs
-- Optional HTTPS requests to official Path of Exile trade services for live market pricing
-- Overlay windows shown on the user's desktop
+- a global hotkey, `Shift+C` by default
+- clipboard-based item capture
+- one synthetic `Ctrl+C` input for item capture
+- foreground-window checks so item capture only acts while Path of Exile 2 is focused
+- a local Path of Building 2 installation for build calculations
+- an overlay window for results
+- optional HTTPS requests to the official Path of Exile trade service
+- local application logs for diagnostics
+- Windows input hooks used for overlay and hotkey behavior
+
+---
 
 ## What ExileLens does not do
 
-Based on the current source code and intended architecture:
+Based on the current source code:
 
-- **No game-memory reading.** ExileLens does not open or inspect Path of Exile 2 process memory.
-- **No process injection.** ExileLens does not inject code, DLLs or other components into the game process.
-- **No packet interception.** ExileLens does not sniff, intercept or modify Path of Exile 2 network traffic.
-- **No gameplay automation.** ExileLens does not move the player, use skills, interact with inventory items, navigate menus or perform gameplay actions.
-- **No automated trading.** ExileLens does not automatically contact players, purchase items or execute trades.
-- **No telemetry or analytics.** ExileLens does not send usage analytics or behavioral telemetry to the developers.
-- **No ExileLens account system.** ExileLens does not require an account with the project.
-- **No automatic download-and-execute updater.** ExileLens does not silently download and execute replacement application binaries.
-- **No administrator privilege requirement.** ExileLens is intended to run as a normal Windows user without elevation.
+- **No game-memory reading.** ExileLens does not open or read Path of Exile 2 process memory.
+- **No process injection.** ExileLens does not inject code or DLLs into the game process.
+- **No packet interception.** ExileLens does not sniff, intercept, or modify Path of Exile 2 network traffic.
+- **No gameplay automation.** ExileLens does not move your character, use skills, interact with inventory, or perform gameplay actions for you.
+- **No telemetry or analytics.** ExileLens does not send usage analytics or behavioral telemetry to the project maintainers.
+- **No automatic download-and-execute updater.** ExileLens does not silently download and execute new ExileLens versions.
+- **No administrator privilege requirement.** ExileLens is designed to run as a normal Windows user without elevation.
 
-The synthetic `Ctrl+C` input used for item capture is limited to the copy-item workflow described above.
+The only synthetic game-directed input used by the normal item-capture workflow is the single `Ctrl+C` copy action described above.
 
-## Windows security and antivirus notes
+---
 
-ExileLens Windows beta builds are currently not Authenticode code-signed.
+## Windows SmartScreen and antivirus
 
-Because of this, Windows SmartScreen may display a warning such as:
+ExileLens is currently **not Authenticode code-signed**.
+
+Because the application is unsigned and has limited reputation with Windows security services, Windows SmartScreen may display a warning such as:
 
 > Windows protected your PC
 
-This is common for new or unsigned Windows applications with limited reputation.
+This can occur with legitimate unsigned Windows applications and does not by itself prove that a file is malicious.
 
-Some antivirus products may also produce heuristic detections.
+ExileLens also uses Windows APIs that antivirus products may treat as security-sensitive, including:
 
-ExileLens uses Windows functionality that security software may consider sensitive, including:
+- a global keyboard hook for the hotkey
+- a global mouse hook used for overlay behavior
+- synthetic input for the single `Ctrl+C` item-copy action
 
-- a global keyboard hook used for the ExileLens hotkey
-- a global mouse hook used for overlay interaction and dismissal
-- foreground-window detection
-- Windows clipboard access
-- synthetic `Ctrl+C` input
-- a packaged Python application executable
+These categories of APIs are also used by malicious software, which means heuristic or machine-learning antivirus systems may flag an unsigned ExileLens build even when the detection is a false positive.
 
-Some of these APIs are also used by malware, keyloggers and automation tools. Security products therefore sometimes classify unfamiliar unsigned applications using them as suspicious.
+An antivirus result by itself is not proof of safety or proof of malware.
 
-An antivirus detection by itself is not proof that software is malicious.
+If a release is flagged:
 
-Likewise, the absence of an antivirus warning is not proof that software is safe.
+1. confirm that it came from the official GitHub Releases page
+2. verify its SHA-256 checksum when one is provided
+3. check whether the reported hash matches the official release asset
+4. report the detection so it can be investigated
 
-Users who want additional assurance can inspect the public source code, compare release information and verify published checksums.
+Do not disable security software globally in order to run ExileLens.
 
-Do not disable your antivirus software simply to run ExileLens.
+---
 
 ## Release integrity
 
-Official ExileLens builds are published through GitHub Releases.
+Official ExileLens releases should publish SHA-256 checksums alongside downloadable Windows builds.
 
-Each official release should include SHA-256 checksum information for distributed Windows packages.
+When a checksum is available, you can verify a downloaded file in PowerShell:
 
-A SHA-256 checksum allows you to verify that a downloaded file is byte-for-byte identical to the file published with that release.
+```powershell
+Get-FileHash .\ExileLens.exe -Algorithm SHA256
+```
 
-On Windows PowerShell, a file can be checked with:
+For an archive:
 
 ```powershell
 Get-FileHash .\ExileLens-<version>-win64.zip -Algorithm SHA256
+```
+
+Compare the resulting hash with the SHA-256 value published in the corresponding GitHub Release.
+
+A matching SHA-256 value confirms that the file you downloaded is byte-for-byte identical to the file for which that checksum was published.
+
+It does **not** prove that the software itself is safe, and it does not replace code signing.
+
+---
+
+## Reporting a security vulnerability
+
+Please do **not** open a normal public GitHub issue for a security vulnerability before the maintainers have had a chance to review it.
+
+If GitHub private vulnerability reporting is enabled for this repository, use it as the preferred reporting method.
+
+Otherwise, contact the maintainers through:
+
+https://discord.gg/4jrhBbSwEn
+
+and ask for a private channel to report a security issue.
+
+Please include, when relevant:
+
+- affected ExileLens version
+- affected component or file
+- clear reproduction steps
+- expected and observed behavior
+- security impact
+- logs or screenshots only after removing unrelated sensitive information
+
+Do **not** post any of the following publicly:
+
+- passwords
+- credentials
+- session tokens
+- API tokens
+- private keys
+- authentication cookies
+- raw logs containing private information
+- exploit details that would unnecessarily expose users before a fix is available
+
+---
+
+## Responsible disclosure
+
+If you discover a security issue, please give the maintainers a reasonable opportunity to understand, reproduce, and address it before publishing technical exploit details.
+
+Clear, reproducible, private reports are the most useful.
+
+Once a fix is available, the project can coordinate public disclosure when appropriate.
+
+---
+
+## Security scope
+
+Security reports are especially useful when they involve issues such as:
+
+- unintended access to sensitive local data
+- unsafe handling of clipboard contents
+- unexpected network transmission
+- arbitrary code execution
+- unsafe update or release behavior
+- dependency or packaging vulnerabilities
+- bypasses of the Path of Exile foreground gating
+- behavior that contradicts the guarantees documented in this file or in `PRIVACY.md`
+
+Normal gameplay-calculation bugs, incorrect upgrade/downgrade results, unsupported mechanics, and market-pricing inaccuracies should be reported through normal GitHub Issues rather than as security vulnerabilities.
