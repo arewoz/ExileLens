@@ -3,14 +3,62 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from poe2value import SUPPORTED_POB_HEAD
 from poe2value._paths import bridge_lua_path, pob_headless_wrapper_path, pob_simplegraphic_def_path
 from poe2value.errors import PobPathInvalid, UnsupportedPobRevision
+
+_POB_VERSION = re.compile(r"\d+\.\d+\.\d+(?:[A-Za-z0-9.+-]*)?")
+
+
+@dataclass(frozen=True)
+class PobIdentity:
+    """Bounded, local metadata about a selected Path of Building installation."""
+
+    version: str = "unknown"
+    layout: str = "unknown"
+    revision: str = "unknown"
+
+
+@lru_cache(maxsize=32)
+def _manifest_version(path: str, modified_ns: int, size: int) -> str:
+    """Parse one observed manifest revision; cache prevents repeated UI XML reads."""
+    try:
+        manifest = ET.parse(path)
+        node = manifest.find("./PoBVersion/Version")
+        version = str(node.get("number", "") if node is not None else "").strip()
+    except (ET.ParseError, OSError, ValueError):
+        return "unknown"
+    return version if _POB_VERSION.fullmatch(version) else "unknown"
+
+
+def detect_pob_identity(path: Path | str) -> PobIdentity:
+    """Read the human-readable PoB version from its root manifest, safely.
+
+    Identity is informational: malformed or absent metadata never prevents PoB
+    from being used and no path or manifest content is returned to callers.
+    """
+    root = Path(path)
+    if (root / "src" / "Launch.lua").is_file():
+        layout = "source"
+    elif (root / "Launch.lua").is_file():
+        layout = "installed"
+    else:
+        layout = "unknown"
+    manifest = root / "manifest.xml"
+    try:
+        stat = manifest.stat()
+        version = _manifest_version(str(manifest), stat.st_mtime_ns, stat.st_size)
+    except (ET.ParseError, OSError, ValueError):
+        version = "unknown"
+    return PobIdentity(version=version, layout=layout)
 
 
 @dataclass(frozen=True)
@@ -20,11 +68,7 @@ class PobConfig:
 
     @property
     def layout(self) -> str:
-        if (self.pob_path / "src" / "Launch.lua").is_file():
-            return "source"
-        if (self.pob_path / "Launch.lua").is_file():
-            return "installed"
-        return "unknown"
+        return detect_pob_identity(self.pob_path).layout
 
     @property
     def program_path(self) -> Path:
@@ -149,6 +193,7 @@ def validate_pob_path(config: PobConfig) -> dict:
         "program_path": str(config.program_path),
         "runtime_path": str(config.runtime_path),
         "head": head,
+        "version": detect_pob_identity(config.pob_path).version,
         "supported_head": config.supported_head,
         "bridge_lua": str(config.bridge_lua),
     }
