@@ -789,7 +789,7 @@ Corrupted
 		</ItemSet>
 	</Items>
 	<Notes>
-		
+
 	</Notes>
 	<Party ShowAdvanceTools="false" append="false" destination="All"/>
 	<Skills activeSkillSet="1" defaultGemLevel="normalMaximum" defaultGemQuality="nil" showLegacyGems="false" showSupportGemTypes="ALL" sortGemsByDPS="true" sortGemsByDPSField="CombinedDPS">

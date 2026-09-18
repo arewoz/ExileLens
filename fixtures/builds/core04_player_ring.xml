@@ -210,7 +210,7 @@
 			<Placeholder name="enemyLevel" number="85"/>
 			<Placeholder name="enemyArmour" number="5375"/>
 			<CustomModifierBlock enabled="true" title="Default">
-				
+
 			</CustomModifierBlock>
 		</ConfigSet>
 	</Config>
