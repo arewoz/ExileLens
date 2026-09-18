@@ -21,6 +21,7 @@ class TrayManager(QSystemTrayIcon):
         controller: EvaluationController,
         overlay,
         dashboard: DashboardWindow,
+        on_setup=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -28,6 +29,7 @@ class TrayManager(QSystemTrayIcon):
         self.controller = controller
         self.overlay = overlay
         self.dashboard = dashboard
+        self._on_setup = on_setup
 
         self.setToolTip(APP_NAME)
         self.setIcon(create_tray_icon())
@@ -68,6 +70,10 @@ class TrayManager(QSystemTrayIcon):
         settings_action = QAction("Settings…", self)
         settings_action.triggered.connect(self._open_settings)
         menu.addAction(settings_action)
+
+        setup_action = QAction("Setup ExileLens…", self)
+        setup_action.triggered.connect(self._open_setup)
+        menu.addAction(setup_action)
 
         self._build_action = QAction(self._build_label(), self)
         self._build_action.triggered.connect(self._open_build_page)
@@ -261,6 +267,10 @@ class TrayManager(QSystemTrayIcon):
     def _open_settings(self) -> None:
         self.dashboard.navigate("settings")
         self.dashboard.show_dashboard()
+
+    def _open_setup(self) -> None:
+        if self._on_setup is not None:
+            self._on_setup()
 
     def _open_diagnostics(self) -> None:
         self.dashboard.navigate("diagnostics")

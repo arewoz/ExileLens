@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any
 
 
-CURRENT_SCHEMA_VERSION = 20
+CURRENT_SCHEMA_VERSION = 21
+ONBOARDING_VERSION = 1
 DEFAULT_PRICE_CHECK_HOTKEY = "shift+c"
 DEFAULT_REFINE_PRICE_HOTKEY = "ctrl+shift+r"
 DEFAULT_POB_PATH = (os.environ.get("POB2_PATH") or "").strip()
@@ -69,6 +70,8 @@ class AppSettings:
     dedup_window_seconds: float = 3.0
     debug: bool = False
     first_run_complete: bool = False
+    # Versioned separately from the settings schema: an app update does not replay setup.
+    onboarding_version_completed: int = 0
     selected_loadout: str = ""
     item_set_follow_loadout: bool = True
     selected_item_set_id: str = ""
@@ -144,6 +147,11 @@ class AppSettings:
             x=pos.get("x"),
             y=pos.get("y"),
         )
+        completed = int(data.get("onboarding_version_completed", 0) or 0)
+        # Existing configured installations have already passed the old setup gate.
+        # Do not interrupt them solely because this field was introduced.
+        if version < 21 and not completed and (data.get("first_run_complete") or (data.get("pob_path") and data.get("build_path"))):
+            completed = ONBOARDING_VERSION
         return cls(
             schema_version=version,
             pob_path=_resolve_pob_path(data.get("pob_path")),
@@ -159,6 +167,7 @@ class AppSettings:
             dedup_window_seconds=float(data.get("dedup_window_seconds", 3.0)),
             debug=bool(data.get("debug", False)),
             first_run_complete=bool(data.get("first_run_complete", False)),
+            onboarding_version_completed=completed,
             selected_loadout=str(data.get("selected_loadout") or ""),
             item_set_follow_loadout=bool(data.get("item_set_follow_loadout", True)),
             selected_item_set_id=str(data.get("selected_item_set_id") or ""),
@@ -325,6 +334,17 @@ def save_settings(settings: AppSettings) -> None:
     tmp_path = path.with_suffix(".json.tmp")
     tmp_path.write_text(payload, encoding="utf-8")
     tmp_path.replace(path)
+
+
+def onboarding_required(settings: AppSettings) -> bool:
+    return int(getattr(settings, "onboarding_version_completed", 0) or 0) < ONBOARDING_VERSION
+
+
+def complete_onboarding(settings: AppSettings) -> None:
+    """Persist an explained/dismissed setup flow without changing actual readiness."""
+    settings.onboarding_version_completed = ONBOARDING_VERSION
+    settings.first_run_complete = True  # compatibility with pre-v21 profiles
+    save_settings(settings)
 
 
 _BACKUPS_KEPT = 5

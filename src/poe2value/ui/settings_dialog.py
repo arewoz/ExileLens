@@ -228,6 +228,10 @@ class SetupDialog(_GeometryLockedDialog):
             return
         self.settings.pob_path = pob
         self.settings.build_path = build
-        self.settings.first_run_complete = True
+        # Legacy dialog remains available to integrations, but completion uses the
+        # versioned onboarding marker rather than implying a merely configured path
+        # is a ready runtime/build.
+        from poe2value.app.settings import complete_onboarding
+        complete_onboarding(self.settings)
         self.persist_geometry()
         self.accept()
