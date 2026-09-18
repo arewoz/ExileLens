@@ -11,12 +11,12 @@ import json
 import re
 from pathlib import Path
 
-RELEASES_URL = "https://github.com/arewoz/ExileLens/releases"
-CHANGELOG_URL = "https://github.com/arewoz/ExileLens/blob/main/packaging/CHANGELOG.txt"
+REPOSITORY_URL = "https://github.com/arewoz/ExileLens"
+CHANGELOG_URL = f"{REPOSITORY_URL}/blob/main/packaging/CHANGELOG.txt"
 _VERSION = re.compile(r"^\d+\.\d+\.\d+(?:b\d+)?$")
 _HEADING = re.compile(r"^(\d+\.\d+\.\d+(?:b\d+)?)\s*$")
 _BULLET = re.compile(r"^\s*-\s+(.+?)\s*$")
-_MENTION = re.compile(r"@(everyone|here|[!&]\d+)", re.IGNORECASE)
+_MENTION = re.compile(r"@(everyone|here|[!&]?\d+)", re.IGNORECASE)
 
 
 def _safe_text(value: str) -> str:
@@ -45,7 +45,7 @@ def extract_highlights(changelog: Path, version: str, *, limit: int = 4) -> list
         if bullet:
             text = _safe_text(bullet.group(1))
             if text:
-                highlights.append(text[:280])
+                highlights.append(text[:220])
         if len(highlights) >= limit:
             break
     return highlights
@@ -53,20 +53,24 @@ def extract_highlights(changelog: Path, version: str, *, limit: int = 4) -> list
 
 def build_payload(version: str, changelog: Path) -> dict[str, object]:
     """Return a webhook payload containing only fixed official links and safe text."""
+    version = version.removeprefix("v")
     if not _VERSION.fullmatch(version):
         raise ValueError("version must use the canonical ExileLens format")
     highlights = extract_highlights(changelog, version)
-    description = "\n".join(f"• {item}" for item in highlights)
-    if description:
-        description += "\n\n"
-    description += f"[Download]({RELEASES_URL}) · [Full changelog]({CHANGELOG_URL})"
+    release_url = f"{REPOSITORY_URL}/releases/tag/v{version}"
+    whats_new = "\n".join(f"• {item}" for item in highlights) or "See the full changelog for release details."
     return {
         "allowed_mentions": {"parse": []},
         "embeds": [
             {
                 "title": f"🚀 ExileLens {version} is out!",
-                "description": description,
+                "description": "A new ExileLens beta is available.",
                 "color": 0x5865F2,
+                "fields": [
+                    {"name": "What's new", "value": whats_new, "inline": False},
+                    {"name": "Download", "value": f"[Download from GitHub Releases]({release_url})", "inline": True},
+                    {"name": "Full changelog", "value": f"[View the full changelog]({CHANGELOG_URL})", "inline": True},
+                ],
                 "footer": {"text": "ExileLens · Free & Open Source"},
             }
         ],
