@@ -2,6 +2,22 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.2.1b1
+-------
+
+- Improved supportability with safer early logging and crash diagnostics, plus
+  privacy-safe diagnostic reports that can be copied manually when asking for help.
+- Diagnostics now provide clearer recovery guidance, explicit access to local logs,
+  and updated troubleshooting guidance for reproduction steps and screenshots.
+- Packaged builds now identify their version and build more reliably, and can check
+  the official GitHub Releases page for a newer version. You can check manually;
+  ExileLens only notifies about updates and never installs them automatically.
+- Improved compatibility with older PoB2 build/loadout APIs. ExileLens now falls
+  back to the legacy synchronized tree, item, skill, and configuration set model
+  when newer managed-loadout methods are unavailable, with an actionable error for
+  unsupported partial representations instead of a raw Lua failure.
+
+
 0.2.0b1
 -------
 

@@ -144,14 +144,14 @@ def test_notification_is_once_per_newer_version(monkeypatch) -> None:
     monkeypatch.setattr(update_check, "save_settings", lambda _settings: None)
     notifications = []
     service.update_available.connect(lambda remote, installed: notifications.append((remote, installed)))
-    newer = update_check.Release(update_check.ExileLensVersion.parse("0.2.0b3"), update_check.GITHUB_RELEASES_URL)
-    later = update_check.Release(update_check.ExileLensVersion.parse("0.2.0b4"), update_check.GITHUB_RELEASES_URL)
+    newer = update_check.Release(update_check.ExileLensVersion.parse("0.2.1b2"), update_check.GITHUB_RELEASES_URL)
+    later = update_check.Release(update_check.ExileLensVersion.parse("0.2.1b3"), update_check.GITHUB_RELEASES_URL)
 
     service._finish(newer, manual=False)
     service._finish(newer, manual=False)
     service._finish(later, manual=False)
 
-    assert notifications == [("0.2.0b3", "0.2.0b2"), ("0.2.0b4", "0.2.0b2")]
+    assert notifications == [("0.2.1b2", "0.2.1b1"), ("0.2.1b3", "0.2.1b1")]
 
 
 def test_source_builds_never_start_a_request(monkeypatch) -> None:
