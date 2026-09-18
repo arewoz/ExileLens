@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-__version__ = "0.2.1b1"
+__version__ = "0.2.1b2"
 
 _STAMP_NAME = "build_stamp.json"
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")

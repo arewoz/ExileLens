@@ -16,9 +16,9 @@ SPEC.loader.exec_module(announcement)
 
 
 def test_payload_uses_canonical_version_and_official_links() -> None:
-    payload = announcement.build_payload("0.2.1b1", ROOT / "packaging" / "CHANGELOG.txt")
+    payload = announcement.build_payload("0.2.1b2", ROOT / "packaging" / "CHANGELOG.txt")
     embed = payload["embeds"][0]
-    assert embed["title"] == "🚀 ExileLens 0.2.1b1 is out!"
+    assert embed["title"] == "🚀 ExileLens 0.2.1b2 is out!"
     assert announcement.RELEASES_URL in embed["description"]
     assert announcement.CHANGELOG_URL in embed["description"]
     assert payload["allowed_mentions"] == {"parse": []}

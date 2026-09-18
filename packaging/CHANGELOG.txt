@@ -2,10 +2,15 @@ EXILELENS CHANGELOG
 ===================
 
 
-0.2.1b1
+0.2.1b2
 -------
 
 - Connection status and diagnostics now show the detected Path of Building 2 version.
+
+
+0.2.1b1
+-------
+
 - Improved supportability with safer early logging and crash diagnostics, plus
   privacy-safe diagnostic reports that can be copied manually when asking for help.
 - Diagnostics now provide clearer recovery guidance, explicit access to local logs,
