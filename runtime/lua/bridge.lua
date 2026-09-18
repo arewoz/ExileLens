@@ -553,6 +553,115 @@ local function active_loadout_name()
 	return spec and (spec.title or "Default") or nil
 end
 
+-- PoB2 added GetLoadoutByName/SetActiveLoadout together with the managed
+-- loadouts API (upstream 425f8a30). Older PoB2 builds expose the same
+-- loadout semantics through the tab set lists and the link maps populated by
+-- SyncLoadouts. Keep that implementation here rather than selecting a tree
+-- alone: a loadout is only valid when its tree, item, skill, and config sets
+-- all resolve together.
+function M.resolve_loadout_compat(build_mode, name)
+	if type(build_mode.GetLoadoutByName) == "function" and type(build_mode.SetActiveLoadout) == "function" then
+		return build_mode:GetLoadoutByName(name), "native"
+	end
+
+	local tree_tab = build_mode.treeTab
+	local items_tab = build_mode.itemsTab
+	local skills_tab = build_mode.skillsTab
+	local config_tab = build_mode.configTab
+	if not (tree_tab and items_tab and skills_tab and config_tab
+		and type(tree_tab.GetSpecList) == "function"
+		and type(tree_tab.SetActiveSpec) == "function"
+		and type(items_tab.SetActiveItemSet) == "function"
+		and type(skills_tab.SetActiveSkillSet) == "function"
+		and type(config_tab.SetActiveConfigSet) == "function") then
+		return nil, "unsupported"
+	end
+
+	local function linked_set_id(special_links, value)
+		local link_id = string.match(value, "%{(%w+)%}")
+		local linked = link_id and special_links and special_links[link_id]
+		return linked and linked.setId or nil
+	end
+
+	local function find_set_id(order_list, value, sets, special_links)
+		for _, set_id in ipairs(order_list or {}) do
+			local set = sets and sets[set_id]
+			if set and value == (set.title or "Default") then
+				return set_id
+			end
+		end
+		return linked_set_id(special_links, value)
+	end
+
+	local function find_tree_id(tree_list, value, special_links)
+		for id, title in ipairs(tree_list or {}) do
+			if value == title then
+				return id
+			end
+		end
+		return linked_set_id(special_links, value)
+	end
+
+	local one_skill = #skills_tab.skillSetOrderList == 1
+	local one_item = #items_tab.itemSetOrderList == 1
+	local one_config = #config_tab.configSetOrderList == 1
+	local spec_id = find_tree_id(tree_tab:GetSpecList(), name, build_mode.treeListSpecialLinks)
+	local item_id = one_item and items_tab.itemSetOrderList[1]
+		or find_set_id(items_tab.itemSetOrderList, name, items_tab.itemSets, build_mode.itemListSpecialLinks)
+	local skill_id = one_skill and skills_tab.skillSetOrderList[1]
+		or find_set_id(skills_tab.skillSetOrderList, name, skills_tab.skillSets, build_mode.skillListSpecialLinks)
+	local config_id = one_config and config_tab.configSetOrderList[1]
+		or find_set_id(config_tab.configSetOrderList, name, config_tab.configSets, build_mode.configListSpecialLinks)
+
+	if not (spec_id and item_id and skill_id and config_id) then
+		return nil, "not_found"
+	end
+	return {
+		specId = spec_id,
+		itemSetId = item_id,
+		skillSetId = skill_id,
+		configSetId = config_id,
+	}, "legacy"
+end
+
+function M.activate_loadout_compat(build_mode, loadout, api)
+	if api == "native" then
+		build_mode:SetActiveLoadout(loadout)
+		return
+	end
+
+	-- This is the pre-managed-loadouts selection sequence from PoB2 Build.lua.
+	if loadout.specId ~= build_mode.treeTab.activeSpec then
+		build_mode.treeTab:SetActiveSpec(loadout.specId)
+	end
+	if loadout.itemSetId ~= build_mode.itemsTab.activeItemSetId then
+		build_mode.itemsTab:SetActiveItemSet(loadout.itemSetId)
+	end
+	if loadout.skillSetId ~= build_mode.skillsTab.activeSkillSetId then
+		build_mode.skillsTab:SetActiveSkillSet(loadout.skillSetId)
+	end
+	if loadout.configSetId ~= build_mode.configTab.activeConfigSetId then
+		build_mode.configTab:SetActiveConfigSet(loadout.configSetId)
+	end
+	if type(build_mode.SyncLoadouts) == "function" then
+		build_mode:SyncLoadouts(true)
+	end
+end
+
+local function legacy_loadouts()
+	local loadouts = {}
+	local seen = {}
+	local controls = build.controls and build.controls.buildLoadouts
+	for _, name in ipairs((controls and controls.list) or {}) do
+		local loadout, api = M.resolve_loadout_compat(build, name)
+		if loadout and api == "legacy" and not seen[name] then
+			loadouts[#loadouts + 1] = { name = name, index = #loadouts + 1 }
+			seen[name] = true
+		end
+	end
+	return loadouts
+end
+
 local function list_tree_sets()
 	local tab = build.treeTab
 	local sets = {}
@@ -594,6 +703,9 @@ local function list_loadouts()
 			name = spec.title or "Default",
 			index = index,
 		}
+	end
+	if #loadouts == 0 then
+		loadouts = legacy_loadouts()
 	end
 	local active = active_loadout_name()
 	STATE.active_loadout = active
@@ -646,11 +758,17 @@ local function set_active_loadout(name)
 		return list_loadouts()
 	end
 	sync_loadouts()
-	local loadout = build:GetLoadoutByName(name)
+	local loadout, api = M.resolve_loadout_compat(build, name)
 	if not loadout then
+		if api == "unsupported" then
+			error({
+				code = "POB_LOADOUT_API_UNSUPPORTED",
+				message = "Installed Path of Building version is incompatible with loadout switching. Update Path of Building and reload the build.",
+			})
+		end
 		error({ code = "LOADOUT_NOT_FOUND", message = "unknown loadout: " .. tostring(name), details = { name = name } })
 	end
-	build:SetActiveLoadout(loadout)
+	M.activate_loadout_compat(build, loadout, api)
 	recalc()
 	STATE.active_loadout = active_loadout_name()
 	STATE.active_item_set_id = build.itemsTab.activeItemSetId
