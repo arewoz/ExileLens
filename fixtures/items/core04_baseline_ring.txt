@@ -1,0 +1,12 @@
+Rarity: RARE
+Arcane Loop
+Sapphire Ring
+LevelReq: 80
+Implicits: 1
++30% to Cold Resistance
++179 to maximum Mana
++89 to maximum Energy Shield
+30% increased Lightning Damage
++45% to Fire Resistance
+69% increased Mana Regeneration Rate
++27% to Chaos Resistance

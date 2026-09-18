@@ -39,6 +39,7 @@ testpaths = ["tests"]
 addopts = "-m 'itemcheck and not integration'"
 markers = [
     "integration: tests that require a real PoB2 engine checkout",
+    "real_pob: strategic public validation against a local supported PoB2 runtime",
     "itemcheck: item evaluation, overlay, clipboard, baseline, and MOD-01 item-check scope",
     "parked: tests for parked Tree/Market/Gear/Build Analysis features (excluded from default suite)",
     "build_corpus: frozen real-world Build Corpus compatibility gate (real PoB worker, slow; run with -m build_corpus)",
