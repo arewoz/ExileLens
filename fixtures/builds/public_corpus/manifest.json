@@ -1,0 +1,32 @@
+{
+  "format": 1,
+  "fixtures": [
+    {
+      "id": "CORE04-BOW-QUIVER",
+      "file": "fixtures/builds/public_corpus/core04_bow_quiver.xml",
+      "class": "Ranger",
+      "ascendancy": "Deadeye",
+      "primary_skill": "Ice Shot",
+      "actor": "PLAYER",
+      "purpose": "player bow and quiver replacement semantics"
+    },
+    {
+      "id": "CORE04-MINION-ACTOR",
+      "file": "fixtures/builds/public_corpus/core04_minion_actor.xml",
+      "class": "Witch",
+      "ascendancy": "Infernalist",
+      "primary_skill": "Summon Infernal Hound",
+      "actor": "MINION",
+      "purpose": "minion-owned primary offense semantics"
+    },
+    {
+      "id": "CORE04-STAGE-CONTEXT",
+      "file": "fixtures/builds/public_corpus/core04_stage_context.xml",
+      "class": "Mercenary",
+      "ascendancy": "Gemling Legionnaire",
+      "primary_skill": "Flameblast",
+      "actor": "PLAYER",
+      "purpose": "selected channel stage and calculation context"
+    }
+  ]
+}
