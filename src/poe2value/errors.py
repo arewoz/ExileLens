@@ -31,6 +31,11 @@ class UnsupportedPobRevision(EngineError):
         super().__init__("UNSUPPORTED_POB_REVISION", message, details)
 
 
+class PobLoadoutApiUnsupported(EngineError):
+    def __init__(self, message: str, details: dict | None = None):
+        super().__init__("POB_LOADOUT_API_UNSUPPORTED", message, details)
+
+
 class BuildNotFound(EngineError):
     def __init__(self, message: str, details: dict | None = None):
         super().__init__("BUILD_NOT_FOUND", message, details)
@@ -161,6 +166,7 @@ ERROR_MAP = {
     "POB_PATH_INVALID": PobPathInvalid,
     "POB_BOOT_FAILED": PobBootFailed,
     "UNSUPPORTED_POB_REVISION": UnsupportedPobRevision,
+    "POB_LOADOUT_API_UNSUPPORTED": PobLoadoutApiUnsupported,
     "BUILD_NOT_FOUND": BuildNotFound,
     "BUILD_PARSE_FAILED": BuildParseFailed,
     "BUILD_SOURCE_INCOMPLETE": BuildSourceIncomplete,
