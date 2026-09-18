@@ -103,6 +103,9 @@ class GlobalDiagnostics:
     pob_available: str
     pob_layout: str
     pob_version: str
+    pob_manifest_version: str
+    pob_version_status: str
+    pob_version_reason: str
     supported_pob_revision: str
     build_state: str
     worker: str
@@ -129,6 +132,9 @@ class GlobalDiagnostics:
                 "Path of Building",
                 f"Available: {self.pob_available}",
                 f"Version: {self.pob_version}",
+                f"Manifest reported version (raw): {self.pob_manifest_version}",
+                f"Version status: {self.pob_version_status}",
+                f"Version reason: {self.pob_version_reason or 'none'}",
                 f"Layout: {self.pob_layout}",
                 f"Supported revision: {self.supported_pob_revision}",
                 f"Build state: {self.build_state}",
@@ -147,22 +153,30 @@ class GlobalDiagnostics:
 
 def build_global_diagnostics(controller: Any) -> GlobalDiagnostics:
     """Create a global report solely from explicit, bounded support facts."""
-    identity = build_identity()
+    app_identity = build_identity()
     settings = getattr(controller, "settings", None)
     engine = _engine_state(controller)
     build = _build_state(controller)
     pob_available, pob_layout, pob_version = _pob_state(settings)
+    pob_identity = (
+        detect_pob_identity(Path(str(getattr(settings, "pob_path", "") or "")))
+        if getattr(settings, "pob_path", "")
+        else None
+    )
     error_subsystem, error_status = _recent_error(engine, build)
     return GlobalDiagnostics(
-        version=identity.version,
-        build=_commit(identity.git_commit),
-        mode=identity.execution_mode,
-        python=identity.python_version,
+        version=app_identity.version,
+        build=_commit(app_identity.git_commit),
+        mode=app_identity.execution_mode,
+        python=app_identity.python_version,
         windows=_windows(),
         architecture=_architecture(),
         pob_available=pob_available,
         pob_layout=pob_layout,
         pob_version=pob_version,
+        pob_manifest_version=pob_identity.manifest_version if pob_identity else "unknown",
+        pob_version_status=pob_identity.status if pob_identity else "unknown",
+        pob_version_reason=pob_identity.reason if pob_identity else "",
         supported_pob_revision=SUPPORTED_POB_HEAD[:12] if SUPPORTED_POB_HEAD else "unknown",
         build_state=build,
         worker=engine,

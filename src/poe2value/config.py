@@ -25,18 +25,78 @@ class PobIdentity:
     version: str = "unknown"
     layout: str = "unknown"
     revision: str = "unknown"
+    status: str = "unknown"
+    manifest_version: str = "unknown"
+    reason: str = ""
+
+
+_POB2_REPO_MARKER = "PathOfBuildingCommunity/PathOfBuilding-PoE2/"
+_POB1_REPO_MARKER = "PathOfBuildingCommunity/PathOfBuilding/"
+
+
+def _manifest_provenance(root: ET.Element) -> str:
+    """Return whether a manifest looks like official PoB2 metadata or mismatches.
+
+    Official PoB2 manifests embed a canonical source URL in a ``Source`` element.
+    When present, a mismatch is a stronger signal than a missing version number:
+    it indicates stale or unrelated metadata, but it does not prove the runtime is
+    invalid. The app keeps using the running PoB2 install while showing the version
+    as unverified.
+    """
+    tags = {"Source", "Repository", "Repo", "RepositoryUrl", "App", "Application"}
+    candidates: list[str] = []
+    for node in root.iter():
+        tag = node.tag.rsplit("}", 1)[-1]
+        if tag not in tags:
+            continue
+        for key in ("url", "href", "value", "name"):
+            value = str(node.get(key) or "").strip()
+            if value:
+                candidates.append(value)
+        text = str(node.text or "").strip()
+        if text:
+            candidates.append(text)
+    for value in candidates:
+        lower = value.lower()
+        if _POB2_REPO_MARKER.lower() in lower:
+            return "official"
+        if _POB1_REPO_MARKER.lower() in lower:
+            return "mismatch"
+        if value and ("://" in value or "/" in value or "@" in value or "." in value):
+            return "mismatch"
+    return "none"
 
 
 @lru_cache(maxsize=32)
-def _manifest_version(contents: bytes) -> str:
+def _manifest_identity(contents: bytes) -> PobIdentity:
     """Parse one bounded manifest body; caching avoids repeated XML parsing."""
     try:
         manifest_root = ET.fromstring(contents)
-        node = manifest_root.find("./Version")
-        version = str(node.get("number", "") if node is not None else "").strip()
     except (ET.ParseError, OSError, ValueError):
-        return "unknown"
-    return version if _POB_VERSION.fullmatch(version) else "unknown"
+        return PobIdentity(status="malformed", reason="manifest.xml is malformed or unreadable")
+
+    tag = manifest_root.tag.rsplit("}", 1)[-1]
+    if tag != "PoBVersion":
+        return PobIdentity(status="malformed", reason="manifest.xml does not contain a PoBVersion root")
+
+    node = manifest_root.find("./Version")
+    version = str(node.get("number", "") if node is not None else "").strip()
+    if not _POB_VERSION.fullmatch(version):
+        return PobIdentity(version="unknown", status="malformed", manifest_version=version or "unknown", reason="manifest.xml version is missing or malformed")
+
+    provenance = _manifest_provenance(manifest_root)
+    if provenance != "official":
+        return PobIdentity(
+            version="unknown",
+            status="unverified",
+            manifest_version=version,
+            reason=(
+                "manifest identity does not match a validated PoB2 installation"
+                if provenance == "mismatch"
+                else "manifest has no trusted PoB2 provenance field"
+            ),
+        )
+    return PobIdentity(version=version, status="verified", manifest_version=version)
 
 
 def detect_pob_identity(path: Path | str) -> PobIdentity:
@@ -56,12 +116,19 @@ def detect_pob_identity(path: Path | str) -> PobIdentity:
     try:
         stat = manifest.stat()
         if stat.st_size > 1_000_000:
-            version = "unknown"
+            metadata = PobIdentity(layout=layout, status="unverified", reason="manifest.xml is larger than the safe size limit")
         else:
-            version = _manifest_version(manifest.read_bytes())
+            metadata = _manifest_identity(manifest.read_bytes())
     except (ET.ParseError, OSError, ValueError):
-        version = "unknown"
-    return PobIdentity(version=version, layout=layout)
+        metadata = PobIdentity(layout=layout, status="missing", reason="manifest.xml is missing or unreadable")
+    return PobIdentity(
+        version=metadata.version,
+        layout=layout,
+        revision="unknown",
+        status=metadata.status,
+        manifest_version=metadata.manifest_version,
+        reason=metadata.reason,
+    )
 
 
 @dataclass(frozen=True)

@@ -175,9 +175,16 @@ class SetupDialog(_GeometryLockedDialog):
             with Engine(config, use_subprocess=True) as engine:
                 engine.ping()
             self._verified_pob_path = str(config.pob_path.resolve())
-            version = info.get("head")
-            version_text = f"revision {version[:8]}" if version else f"{info['layout']} layout"
-            self._status.setText(f"PoB engine ready — {version_text}")
+            from poe2value.config import detect_pob_identity
+
+            pob_identity = detect_pob_identity(config.pob_path)
+            revision = info.get("head")
+            revision_text = f"revision {revision[:8]}" if revision else f"{info['layout']} layout"
+            if pob_identity.status == "verified":
+                version_text = f"v{pob_identity.version}"
+            else:
+                version_text = "version unverified"
+            self._status.setText(f"PoB engine ready — {version_text} — {revision_text}")
             return True
         except Exception as exc:
             self._verified_pob_path = ""
@@ -224,4 +231,3 @@ class SetupDialog(_GeometryLockedDialog):
         self.settings.first_run_complete = True
         self.persist_geometry()
         self.accept()
-
