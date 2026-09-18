@@ -13,14 +13,11 @@ feature roadmap. Statuses mean the following:
 
 ## Evidence and scope
 
-The public integration base contains the Item Check production contracts, but was
-published without tracked `tests/`, `fixtures/`, or Build Corpus files.
-`pyproject.toml` still documents the canonical `pytest -m build_corpus` marker, so
-strategic real-PoB and corpus rows cannot be represented as passing public tests yet.
-CORE-04 adds deterministic, worker-shaped adversarial cases in
-`tests/test_core_04_adversarial_item_check.py`.
-They test semantic policy and malformed-output safety without claiming a live PoB
-validation that is not available in this repository.
+CORE-04A supplies sanitized, repository-relative real-PoB fixtures and a deterministic
+Build Corpus. The strategic public gate is `pytest -m real_pob`; the corpus gate is
+`pytest -m build_corpus`. CORE-04 adds deterministic worker-shaped adversarial cases
+in `tests/test_core_04_adversarial_item_check.py`, complementing those end-to-end
+fixtures with exact malformed-output and policy-boundary assertions.
 
 ## Slots and categories
 
@@ -35,10 +32,10 @@ validation that is not available in this repository.
 | Rings / `Ring 1`, `Ring 2` | COVERED | Winner, tie-break, FULL vs PARTIAL/UNSUPPORTED ordering. |
 | One-hand weapon / `Weapon 1` | COVERED | Canonical mapping; live replacement/restore is PARTIAL. |
 | Two-hand weapon / `Weapon 1` | COVERED | Same current PoB slot as one-hand; live 2H compatibility is PARTIAL. |
-| Bow / `Weapon 1` | COVERED | Canonical mapping; bow/quiver end-to-end fixture is PARTIAL. |
+| Bow / `Weapon 1` | COVERED | Public bow/quiver fixture retains the player skill and validates the quiver replacement path. |
 | Shield / `Weapon 2` | COVERED | Maps to `OFFHAND_1`; live replacement/restore is PARTIAL. |
 | Focus / `Weapon 2` | COVERED | Maps to `OFFHAND_1`; live replacement/restore is PARTIAL. |
-| Quiver / `Weapon 2` | COVERED | Maps to `OFFHAND_1`; bow/quiver live fixture is PARTIAL. |
+| Quiver / `Weapon 2` | COVERED | Maps to `OFFHAND_1`; public bow/quiver gate covers replacement and restore. |
 | Weapon 2 weapon / `Weapon 2` | COVERED | Maps to `WEAPON_2`, avoiding offhand conflation. |
 | Weapon-set swap / `Weapon 2 Swap` | PARTIAL | Identity contains loadout/item-set state; no public real-PoB fixture. |
 | Empty supported slot | COVERED | Empty is distinct from an unknown baseline; live apply/restore is PARTIAL. |
@@ -48,10 +45,10 @@ validation that is not available in this repository.
 
 | Dimension | Positive / downgrade / neutral | PARTIAL | UNSUPPORTED | Failure / malformed | Gap |
 | --- | --- | --- | --- | --- | --- |
-| Public verdict | COVERED | COVERED: cannot become directional | COVERED: cannot win a valid slot | COVERED: `NOT_EVALUATED` | Real-PoB assertions are PARTIAL. |
-| Slot ranking | COVERED: rings and stable tie | COVERED | COVERED | COVERED: explicit restore failure | Multi-slot live transaction is PARTIAL. |
+| Public verdict | COVERED | COVERED: cannot become directional | COVERED: cannot win a valid slot | COVERED: `NOT_EVALUATED` | Public ring fixture covers measured offense, defense, trade-off, and empty-slot behavior. |
+| Slot ranking | COVERED: rings and stable tie | COVERED | COVERED | COVERED: explicit restore failure | Public ring fixture covers a two-slot transaction; broader multi-slot classes remain PARTIAL. |
 | Primary offense | COVERED: score boundaries and trade-off | COVERED | COVERED | COVERED: non-numeric, NaN, infinity, bool fail closed | Skill-derived real output is PARTIAL. |
-| EHP / max hit | COVERED: cross-axis trade-off | PARTIAL | NOT APPLICABLE | COVERED through shared malformed-score gate | Real-PoB fixture absent. |
+| EHP / max hit | COVERED: cross-axis trade-off | PARTIAL | NOT APPLICABLE | COVERED through shared malformed-score gate | Public ring fixture covers a measured defense improvement; broader real-build boundary coverage is PARTIAL. |
 | Known zero | COVERED | NOT APPLICABLE | NOT APPLICABLE | NOT APPLICABLE | Legitimate zero remains `available`. |
 | Missing / unavailable | COVERED: score contributes no synthetic value | COVERED | NOT APPLICABLE | COVERED: malformed is not reclassified as zero | All raw metric kinds are not individually enumerated. |
 | Resistance | COVERED: below cap, cap reached/lost, capped, buffer loss, missing | PARTIAL | NOT APPLICABLE | COVERED through numeric ingestion | Multi-resistance live fixture absent. |
@@ -68,9 +65,9 @@ validation that is not available in this repository.
 | Resistances | COVERED | State-machine boundaries and missing state. |
 | Requirements | PARTIAL | Current guardrail contract is present; no public bridge fixture. |
 | Gem level / local weapon stats / sockets / runes / enchantments | PARTIAL | Candidate fingerprint distinguishes meaningful text; no public parser/PoB fixture corpus. |
-| Player actor | PARTIAL | Context identity retains actor/skill components; no public real-PoB fixture. |
-| Verified minion actor | PARTIAL | Product has minion provenance/coverage paths; no public fixture. |
-| Stage, stat set, skill part | PARTIAL | Primary-skill guard detects semantic changes; no public fixture. |
+| Player actor | COVERED | Public ring and bow/quiver fixtures retain the player skill identity. |
+| Verified minion actor | COVERED | Public corpus verifies minion actor identity. |
+| Stage, stat set, skill part | COVERED | Public corpus verifies channel-release stage context; stat-set and skill-part variants remain PARTIAL. |
 | Loadout / weapon set | PARTIAL | Context identity includes loadout/item set; no public transaction fixture. |
 
 ## Threshold and trade-off policy
@@ -92,8 +89,8 @@ validation that is not available in this repository.
 | Meaningful candidate change | COVERED | Modifier value change changes fingerprint. |
 | Evaluation context identity | COVERED | Loadout, item set, worker generation, source revision, calculation context change identity. |
 | Stale/cross-context cache rejection | PARTIAL | Identity is present in production; controller/cache integration test is absent publicly. |
-| One item, one batched PoB transaction | PARTIAL | Production evaluates compatible slots in one `evaluate_item_slots` call; no public instrumentation fixture. |
-| Restore after successful/failing slot evaluation | PARTIAL | Production fails closed and invalidates on restore mismatch; no public worker fault fixture. |
+| One item, one batched PoB transaction | COVERED | Public real-PoB gate counts one `evaluate_item_slots` call for a two-ring Item Check. |
+| Restore after successful/failing slot evaluation | COVERED | Public real-PoB gate proves a corrupt restore is followed by a clean valid evaluation. |
 | A → B → A baseline invariance | PARTIAL | Production contract exists; no public corpus/worker fixture. |
 
 ## Adversarial corpus extension
@@ -116,11 +113,10 @@ the public adversarial extension. Each uses the same shape emitted by the PoB wo
 | Priority | Finding | Disposition |
 | --- | --- | --- |
 | P0 | Malformed numeric worker output could throw while building a metric profile, before `EvaluationOutcome` could fail closed. | Fixed: finite numeric ingestion in metrics/resistance/threshold handling; scored malformed values produce `FAILED`/`NOT_EVALUATED` regression coverage. |
-| P1 | The public integration base has no real-PoB fixtures or Build Corpus despite documented markers. | Deferred as repository-test-data availability, not product behavior. It blocks a claim of strategic real-PoB or corpus PASS. |
-| P2 | Display-threshold, recovery, minion/stage/stat-set/skill-part explanations lack public fixture-level boundary tests. | Deferred pending public deterministic fixtures; no new mechanics proposed. |
+| P1 | Public real-PoB fixtures and Build Corpus were absent when CORE-04 was first authored. | Resolved by CORE-04A: repository-relative strategic fixtures and both public gates are now available. |
+| P2 | Display-threshold, recovery, stat-set, skill-part, and broad multi-slot explanations lack fixture-level boundary tests. | Deferred as bounded public-fixture coverage; no new mechanics proposed. |
 
 Exact deferred items:
 
-1. Publish sanitized real-PoB fixtures for ring winner, empty slot, bow/quiver or weapon/offhand, skill/actor, and fault/recovery paths.
-2. Publish the sanitized current Build Corpus and its canonical invocation, then run it once on this branch and `origin/main` when failures need classification.
-3. Add worker-level transaction instrumentation to assert one batched candidate evaluation and baseline restoration across mixed slot failures.
+1. Add deterministic public coverage for display thresholds, recovery, stat-set/skill-part variants, and broader mixed-slot transactions.
+2. Add worker-level transaction instrumentation only if the existing public batching and corrupt-restore recovery gates cease to cover a future worker change.
