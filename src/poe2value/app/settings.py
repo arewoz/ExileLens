@@ -16,6 +16,13 @@ ONBOARDING_VERSION = 1
 DEFAULT_PRICE_CHECK_HOTKEY = "shift+c"
 DEFAULT_REFINE_PRICE_HOTKEY = "ctrl+shift+r"
 DEFAULT_POB_PATH = (os.environ.get("POB2_PATH") or "").strip()
+APP_DATA_DIRECTORY = "ExileLens"
+LEGACY_APP_DATA_DIRECTORY = "poe2-value-overlay"
+_MIGRATED_PERSISTENT_FILES = (
+    "settings.json", "active_character.json", "market_signatures.json",
+    "item_history.json", "trade2_policy.json",
+)
+_MIGRATED_PERSISTENT_DIRECTORIES = ("build-cache",)
 
 
 class BaselineMode(str, Enum):
@@ -27,9 +34,39 @@ class OverlayPositionMode(str, Enum):
     FIXED_CORNER = "fixed_corner"
 
 
-def app_data_dir() -> Path:
+def _app_data_root() -> Path:
     base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or str(Path.home())
-    path = Path(base) / "poe2-value-overlay"
+    return Path(base)
+
+
+def legacy_app_data_dir() -> Path:
+    return _app_data_root() / LEGACY_APP_DATA_DIRECTORY
+
+
+def _migrate_legacy_app_data(destination: Path, legacy: Path) -> None:
+    """Copy only durable user state once; never remove or merge legacy data."""
+    if destination.exists() or not legacy.is_dir():
+        return
+    try:
+        destination.mkdir(parents=True, exist_ok=False)
+        for name in _MIGRATED_PERSISTENT_FILES:
+            source, target = legacy / name, destination / name
+            if source.is_file() and not target.exists():
+                shutil.copy2(source, target)
+        for name in _MIGRATED_PERSISTENT_DIRECTORIES:
+            source, target = legacy / name, destination / name
+            if source.is_dir() and not target.exists():
+                shutil.copytree(source, target)
+        _log.info("settings_directory_migrated legacy=%s destination=%s", legacy, destination)
+    except OSError:
+        # Preserve both the old directory and any successfully copied data. A later
+        # launch uses the new directory if it now exists; nothing is overwritten.
+        _log.exception("settings_directory_migration_failed legacy=%s", legacy)
+
+
+def app_data_dir() -> Path:
+    path = _app_data_root() / APP_DATA_DIRECTORY
+    _migrate_legacy_app_data(path, legacy_app_data_dir())
     path.mkdir(parents=True, exist_ok=True)
     return path
 
