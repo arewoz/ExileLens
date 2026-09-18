@@ -17,7 +17,7 @@ from poe2value import SUPPORTED_POB_HEAD
 from poe2value._version import build_identity
 from poe2value.app.build_state import BuildState
 from poe2value.app.setup_status import check_pob_folder
-from poe2value.config import PobConfig
+from poe2value.config import detect_pob_identity
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _LAYOUTS = {"source", "installed"}
@@ -72,14 +72,16 @@ def _hotkey_state(controller: Any) -> str:
     return "unavailable"
 
 
-def _pob_state(settings: Any) -> tuple[str, str]:
+def _pob_state(settings: Any) -> tuple[str, str, str]:
     path = str(getattr(settings, "pob_path", "") or "")
     try:
         available = "yes" if check_pob_folder(path).ok else "no"
-        layout = PobConfig(Path(path)).layout if path else "unknown"
+        identity = detect_pob_identity(Path(path)) if path else None
+        layout = identity.layout if identity else "unknown"
+        version = identity.version if identity else "unknown"
     except Exception:  # noqa: BLE001 - a bad configured path is only unavailable
-        return "no", "unknown"
-    return available, layout if layout in _LAYOUTS else "unknown"
+        return "no", "unknown", "unknown"
+    return available, layout if layout in _LAYOUTS else "unknown", version
 
 
 def _recent_error(engine: str, build: str) -> tuple[str, str]:
@@ -100,6 +102,7 @@ class GlobalDiagnostics:
     architecture: str
     pob_available: str
     pob_layout: str
+    pob_version: str
     supported_pob_revision: str
     build_state: str
     worker: str
@@ -125,6 +128,7 @@ class GlobalDiagnostics:
                 "",
                 "Path of Building",
                 f"Available: {self.pob_available}",
+                f"Version: {self.pob_version}",
                 f"Layout: {self.pob_layout}",
                 f"Supported revision: {self.supported_pob_revision}",
                 f"Build state: {self.build_state}",
@@ -147,7 +151,7 @@ def build_global_diagnostics(controller: Any) -> GlobalDiagnostics:
     settings = getattr(controller, "settings", None)
     engine = _engine_state(controller)
     build = _build_state(controller)
-    pob_available, pob_layout = _pob_state(settings)
+    pob_available, pob_layout, pob_version = _pob_state(settings)
     error_subsystem, error_status = _recent_error(engine, build)
     return GlobalDiagnostics(
         version=identity.version,
@@ -158,6 +162,7 @@ def build_global_diagnostics(controller: Any) -> GlobalDiagnostics:
         architecture=_architecture(),
         pob_available=pob_available,
         pob_layout=pob_layout,
+        pob_version=pob_version,
         supported_pob_revision=SUPPORTED_POB_HEAD[:12] if SUPPORTED_POB_HEAD else "unknown",
         build_state=build,
         worker=engine,

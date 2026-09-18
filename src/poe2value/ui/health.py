@@ -95,7 +95,14 @@ def _pob_item(controller, settings) -> HealthItem:
         status = ""
 
     if status == _ENGINE_READY:
-        return HealthItem("pob", "Path of Building", "Connected", OK)
+        try:
+            from poe2value.config import detect_pob_identity
+
+            version = detect_pob_identity(getattr(settings, "pob_path", "")).version
+        except Exception:  # noqa: BLE001 - identity is informational only
+            version = "unknown"
+        value = f"Connected · v{version}" if version != "unknown" else "Connected"
+        return HealthItem("pob", "Path of Building", value, OK)
     if status == _ENGINE_STARTING:
         return HealthItem("pob", "Path of Building", "Connecting…", WARN)
     if status.startswith("failed:"):
@@ -293,7 +300,8 @@ def header_status(health: AppHealth) -> tuple[str, str]:
     """
     pob = health.pob
     if pob.status == OK:
-        return "PoB connected", OK
+        suffix = pob.value.removeprefix("Connected").strip()
+        return f"PoB connected {suffix}".rstrip(), OK
     if pob.value == "Not found":
         return "PoB not found", ERROR
     if pob.value.startswith("Connecting"):

@@ -2,6 +2,12 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.2.1b2
+-------
+
+- Connection status and diagnostics now show the detected Path of Building 2 version.
+
+
 0.2.1b1
 -------
 
