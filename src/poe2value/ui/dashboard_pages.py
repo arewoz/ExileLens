@@ -457,14 +457,19 @@ class SettingsPage(QWidget):
         self._build_file_status.setVisible(not check_build_file(self._build_edit.text()).ok)
 
     def _apply_pob_path(self) -> None:
-        self._persist_pob_path()
-        self.refresh_setup_status()
+        candidate = self._pob_edit.text().strip()
         from poe2value.app.setup_status import check_pob_folder
 
-        check = check_pob_folder(self.settings.pob_path)
+        check = check_pob_folder(candidate)
         if not check.ok:
+            self._pob_edit.setText(self.settings.pob_path)
+            self.refresh_setup_status()
             QMessageBox.warning(self, "Path of Building", check.text())
             return
+
+        self.settings.pob_path = candidate
+        save_settings(self.settings)
+        self.refresh_setup_status()
         self.controller.restart_engine()
         self.refresh_setup_status()
 
@@ -583,8 +588,16 @@ class SettingsPage(QWidget):
         path = self._pob_edit.text().strip()
         if path == self.settings.pob_path:
             return
+        from poe2value.app.setup_status import check_pob_folder
+
+        check = check_pob_folder(path)
+        if not check.ok:
+            self._pob_edit.setText(self.settings.pob_path)
+            self.refresh_setup_status()
+            return
         self.settings.pob_path = path
         save_settings(self.settings)
+        self.refresh_setup_status()
 
     def _browse_pob(self) -> None:
         from poe2value.ui.setup_dialog import pick_pob_directory
