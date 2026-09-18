@@ -676,11 +676,12 @@ class DiagnosticsPage(QWidget):
     #: Health rows, in the order they are shown.
     HEALTH_KEYS = ("app", "pob", "build", "hotkey", "market")
 
-    def __init__(self, controller: EvaluationController, settings: AppSettings, parent: QWidget | None = None) -> None:
+    def __init__(self, controller: EvaluationController, settings: AppSettings, update_service, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("diagnosticsPage")
         self.controller = controller
         self.settings = settings
+        self.update_service = update_service
 
         from poe2value.ui import theme
         from poe2value.ui.components import Disclosure, HealthRow, Section, button_row, make_button
@@ -717,6 +718,17 @@ class DiagnosticsPage(QWidget):
         self._support_hint.setVisible(False)
         health.add_widget(self._support_hint)
 
+        updates = Section("Updates")
+        self._update_status = QLabel("")
+        self._update_status.setObjectName("helperText")
+        self._check_updates_btn = make_button("Check for updates", "secondary")
+        self._check_updates_btn.clicked.connect(self.update_service.check_now)
+        self._open_releases_btn = make_button("Open GitHub Releases", "secondary")
+        self._open_releases_btn.clicked.connect(self._open_github_releases)
+        self._open_releases_btn.setVisible(False)
+        updates.add_widget(self._update_status)
+        updates.add_layout(button_row([self._check_updates_btn, self._open_releases_btn]))
+
         self._details = Disclosure("Technical details")
         self._build_info = QLabel()
         self._build_info.setWordWrap(True)
@@ -743,6 +755,7 @@ class DiagnosticsPage(QWidget):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(theme.SECTION_GAP)
         content_layout.addWidget(health)
+        content_layout.addWidget(updates)
         content_layout.addWidget(self._details)
         content_layout.addStretch(1)
         self._content_layout = content_layout
@@ -766,6 +779,8 @@ class DiagnosticsPage(QWidget):
         layout.addWidget(self._scroll_area, 1)
 
         self._details.toggled.connect(self._on_details_toggled)
+        self.update_service.state_changed.connect(self._on_update_state)
+        self._on_update_state("unchecked", "")
         self.refresh()
 
     def _on_details_toggled(self, expanded: bool) -> None:
@@ -792,6 +807,25 @@ class DiagnosticsPage(QWidget):
         from poe2value.ui.recovery_actions import open_logs_folder
 
         open_logs_folder()
+
+    def _open_github_releases(self) -> None:
+        from poe2value.ui.recovery_actions import open_github_releases
+
+        open_github_releases()
+
+    def _on_update_state(self, state: str, version: str) -> None:
+        text = {
+            "unchecked": "Update status has not been checked yet.",
+            "checking": "Checking for updates…",
+            "current": "Up to date.",
+            "failed": "Could not check for updates.",
+            "unavailable": "Update checking is available only in packaged builds.",
+        }.get(state, "")
+        if state == "available":
+            text = f"Update available: {version}"
+        self._update_status.setText(text)
+        self._open_releases_btn.setVisible(state == "available")
+        self._check_updates_btn.setEnabled(state != "checking")
 
     def refresh(self) -> None:
         from poe2value.app.diagnostics import build_global_diagnostics

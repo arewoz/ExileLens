@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-CURRENT_SCHEMA_VERSION = 19
+CURRENT_SCHEMA_VERSION = 20
 DEFAULT_PRICE_CHECK_HOTKEY = "shift+c"
 DEFAULT_REFINE_PRICE_HOTKEY = "ctrl+shift+r"
 DEFAULT_POB_PATH = (os.environ.get("POB2_PATH") or "").strip()
@@ -125,6 +125,9 @@ class AppSettings:
     show_hotkey_hints: bool = True
     hotkey_hints_dismissed: bool = False
     hotkey_hints_success_count: int = 0
+    update_last_check_at: float = 0.0
+    update_latest_version: str = ""
+    update_notified_version: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -212,6 +215,9 @@ class AppSettings:
             show_hotkey_hints=bool(data.get("show_hotkey_hints", True)),
             hotkey_hints_dismissed=bool(data.get("hotkey_hints_dismissed", False)),
             hotkey_hints_success_count=int(data.get("hotkey_hints_success_count", 0) or 0),
+            update_last_check_at=float(data.get("update_last_check_at") or 0.0),
+            update_latest_version=str(data.get("update_latest_version") or ""),
+            update_notified_version=str(data.get("update_notified_version") or ""),
         )
 
 

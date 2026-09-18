@@ -4,7 +4,7 @@
 
 Free and open-source, build-aware item analysis for Path of Exile 2.
 
-[Download latest release](https://github.com/arewoz/ExileLens/releases/latest) · [Report an issue](https://github.com/arewoz/ExileLens/issues) · [Discord](https://discord.gg/4jrhBbSwEn)
+[Download releases](https://github.com/arewoz/ExileLens/releases) · [Report an issue](https://github.com/arewoz/ExileLens/issues) · [Discord](https://discord.gg/4jrhBbSwEn)
 
 ![ExileLens demo](docs/media/exilelens-demo.jpg)
 
@@ -20,7 +20,7 @@ ExileLens is an unofficial, fan-made project and is not affiliated with or endor
 
 Download the latest Windows build from:
 
-**[GitHub Releases](https://github.com/arewoz/ExileLens/releases/latest)**
+**[GitHub Releases](https://github.com/arewoz/ExileLens/releases)**
 
 Official ExileLens Windows builds are distributed only through GitHub Releases in this repository. Each release provides a ZIP package and `SHA256SUMS.txt` for verifying that ZIP.
 
@@ -31,7 +31,7 @@ See [`SECURITY.md`](SECURITY.md) for details about the application's security mo
 ## Install and use
 
 1. Install [Path of Building Community for Path of Exile 2](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2) separately.
-2. Download the latest ExileLens Windows ZIP package and its `SHA256SUMS.txt` from [GitHub Releases](https://github.com/arewoz/ExileLens/releases/latest).
+2. Download the latest ExileLens Windows ZIP package and its `SHA256SUMS.txt` from [GitHub Releases](https://github.com/arewoz/ExileLens/releases).
 3. Optionally verify the ZIP against `SHA256SUMS.txt`, then extract the ZIP.
 4. Start `ExileLens.exe`.
 5. During setup, select your Path of Building 2 installation and saved build.

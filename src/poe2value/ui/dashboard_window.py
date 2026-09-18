@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from poe2value.branding import window_title
 from poe2value.app.controller import EvaluationController
 from poe2value.app.settings import AppSettings, save_settings
+from poe2value.app.update_check import UpdateCheckService
 from poe2value.app.modules.registry import FeatureModule, is_enabled
 from poe2value.ui import theme
 from poe2value.ui.app_header import AppHeader
@@ -84,6 +85,7 @@ class DashboardWindow(ManagedToolWindow):
         DashboardWindow._instance = self
         self.settings = settings
         self.controller = controller
+        self.update_service = UpdateCheckService(settings)
         self.setObjectName("dashboardRoot")
         self.setWindowTitle(window_title())
         self.setStyleSheet(DASHBOARD_STYLESHEET)
@@ -147,7 +149,7 @@ class DashboardWindow(ManagedToolWindow):
         self._tree = TreeWorkspace(controller, embed_mode=True) if is_enabled(FeatureModule.TREE_TOOLS) else None
         self._gear = GearOptimizerPage(controller) if is_enabled(FeatureModule.GEAR_OPTIMIZER) else None
         self._settings_page = SettingsPage(settings, controller)
-        self._diagnostics = DiagnosticsPage(controller, settings)
+        self._diagnostics = DiagnosticsPage(controller, settings, self.update_service)
         for page_id, widget in (
             ("overview", self._overview),
             ("market", self._market),

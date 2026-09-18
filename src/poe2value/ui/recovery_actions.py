@@ -11,6 +11,13 @@ from PySide6.QtWidgets import QApplication
 logger = logging.getLogger(__name__)
 
 
+def open_github_releases() -> None:
+    """Open the fixed, official ExileLens releases destination on user action."""
+    from poe2value.app.update_check import GITHUB_RELEASES_URL
+
+    QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
+
+
 def open_logs_folder() -> None:
     from poe2value.app.logging_setup import log_dir
 

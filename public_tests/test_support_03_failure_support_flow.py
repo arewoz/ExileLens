@@ -11,6 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from poe2value.app.settings import AppSettings
+from poe2value.app.update_check import UpdateCheckService
 from poe2value.ui import recovery_actions
 from poe2value.ui.dashboard_pages import DiagnosticsPage
 from poe2value.ui.health import derive_health
@@ -55,7 +56,8 @@ def test_copy_diagnostics_uses_explicit_safe_global_renderer(monkeypatch) -> Non
 def test_diagnostics_copy_gives_non_blocking_feedback(monkeypatch) -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None
-    page = DiagnosticsPage(_Controller(), AppSettings())
+    settings = AppSettings()
+    page = DiagnosticsPage(_Controller(), settings, UpdateCheckService(settings))
     monkeypatch.setattr(recovery_actions, "copy_diagnostics", lambda _controller: "SAFE REPORT")
 
     page._copy()
@@ -77,3 +79,5 @@ def test_public_and_packaged_docs_describe_manual_support_sharing() -> None:
         assert "copy diagnostic" in text
         assert "nothing is submitted automatically" in text
         assert "logs stay local" in text
+        assert "github releases" in text
+        assert "itch.io" not in text

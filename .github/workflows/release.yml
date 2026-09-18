@@ -9,7 +9,7 @@ on:
         type: string
 
 # Keep the repository default token read-only.  This workflow needs write access
-# only to create the new tag and its draft release after all checks succeed.
+# only to create the new tag and its published release after all checks succeed.
 permissions:
   contents: write
 
@@ -21,7 +21,7 @@ jobs:
         shell: pwsh
         run: |
           if ($env:GITHUB_REF -ne 'refs/heads/main') {
-            throw 'Draft releases may only be created from main.'
+            throw 'Releases may only be created from main.'
           }
 
       - name: Check out the exact workflow commit
@@ -117,7 +117,7 @@ jobs:
           "ARCHIVE_PATH=$archivePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "SUMS_PATH=$sumsPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Create draft prerelease
+      - name: Create published release
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -129,8 +129,5 @@ jobs:
           & gh release create $env:RELEASE_VERSION $env:ARCHIVE_PATH $env:SUMS_PATH `
             --target $commit `
             --title "ExileLens $env:RELEASE_VERSION - Beta" `
-            --draft `
-            --prerelease `
-            --latest=false `
             --generate-notes
-          if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the draft prerelease.' }
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the release.' }
