@@ -41,8 +41,8 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#e4d8c4; }
         header.addLayout(heading, 1)
         self._overall = StatusValue("Checking setup…", "neutral"); header.addWidget(self._overall, 0, Qt.AlignmentFlag.AlignTop)
         root.addLayout(header)
-        self._pob_card, self._pob_status, self._pob_detail, self._pob_action = self._card("Path of Building 2", "Configure…")
-        self._build_card, self._build_status, self._build_detail, self._build_action = self._card("Current Build", "Choose build…")
+        self._pob_card, self._pob_status, self._pob_detail, self._pob_action = self._card("Path of Building 2", "Configure")
+        self._build_card, self._build_status, self._build_detail, self._build_action = self._card("Current Build", "Choose build")
         self._item_card, self._item_status, self._item_detail, _ = self._card("Item Check", "")
         root.addWidget(self._pob_card); root.addWidget(self._build_card); root.addWidget(self._item_card)
         self._pob_action.clicked.connect(self._choose_pob); self._build_action.clicked.connect(self._choose_build)
@@ -81,17 +81,18 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#e4d8c4; }
         self._overall.set_value("READY" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
         pob_bad = status.state is AppReadiness.POB_NOT_FOUND
         self._pob_status.set_value("Not found" if pob_bad else ("Needs attention" if status.state is AppReadiness.RUNTIME_ERROR else "Detected"), "error" if pob_bad or status.state is AppReadiness.RUNTIME_ERROR else "ok")
-        self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure…" if pob_bad else "Change…")
+        self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure" if pob_bad else "Change")
         build_text = "Ready" if status.ready else "Loading…" if status.state is AppReadiness.BUILD_LOADING else "Couldn’t be loaded" if status.state is AppReadiness.BUILD_ERROR else "Build required"
         self._build_status.set_value(build_text, "ok" if status.ready else tone)
         self._build_detail.setText(status.detail if status.state in {AppReadiness.BUILD_ERROR, AppReadiness.BUILD_LOADING} else (getattr(self.controller.build_info, "name", "") or "Choose the PoB build you play."))
-        self._build_action.setText("Retry" if status.state is AppReadiness.BUILD_ERROR else "Choose build…")
+        self._build_action.setText("Retry" if status.state is AppReadiness.BUILD_ERROR else ("Switch build" if getattr(self.controller.build_info, "name", "") else "Choose build"))
         self._build_action.setEnabled(status.state not in {AppReadiness.INITIALIZING, AppReadiness.POB_NOT_FOUND, AppReadiness.RUNTIME_ERROR})
         self._item_status.set_value("Ready" if status.ready else "Waiting for setup", "ok" if status.ready else "neutral")
-        self._item_detail.setText(f"Hover an item in PoE2 and press {self._hotkey()}." if status.ready else "Item Check will be ready when Path of Building and a build are ready.")
+        self._item_detail.setText(f"Hover an item in PoE2    [ {self._hotkey().replace('+', ' + ')} ]" if status.ready else "Item Check will be ready when Path of Building and a build are ready.")
+        self._item_detail.setStyleSheet("font-weight:700; color:#f0e2c4;" if status.ready else "")
         self._finish.setEnabled(status.ready); self._skip.setVisible(not status.ready); self._diagnostics.setVisible(status.support_action_available)
         if status.ready:
-            self._subtitle.setText("Everything is ready for item checks")
+            self._subtitle.setText("Ready for item checks")
             self._item_card.setStyleSheet("QWidget#onboardingCard { border: 1px solid rgba(203,184,146,110); background: rgba(203,184,146,18); }")
         else:
             self._subtitle.setText("Get ExileLens ready for item checks")
