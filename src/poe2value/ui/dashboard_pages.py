@@ -348,6 +348,7 @@ class SettingsPage(QWidget):
         self._advanced.add_widget(SettingRow("Live market", self._live_market_label))
 
         copy_btn = make_button("Copy diagnostic report", "secondary")
+        self._settings_copy_btn = copy_btn
         copy_btn.clicked.connect(self._copy_diagnostics)
         logs_btn = make_button("Open logs", "secondary")
         logs_btn.clicked.connect(self._open_logs)
@@ -505,6 +506,8 @@ class SettingsPage(QWidget):
         from poe2value.ui.recovery_actions import copy_diagnostics
 
         copy_diagnostics(self.controller)
+        self._settings_copy_btn.setText("Diagnostics copied")
+        QTimer.singleShot(2500, lambda: self._settings_copy_btn.setText("Copy diagnostic report"))
 
     def _open_logs(self) -> None:
         from poe2value.ui.recovery_actions import open_logs_folder
@@ -673,11 +676,12 @@ class DiagnosticsPage(QWidget):
     #: Health rows, in the order they are shown.
     HEALTH_KEYS = ("app", "pob", "build", "hotkey", "market")
 
-    def __init__(self, controller: EvaluationController, settings: AppSettings, parent: QWidget | None = None) -> None:
+    def __init__(self, controller: EvaluationController, settings: AppSettings, update_service, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("diagnosticsPage")
         self.controller = controller
         self.settings = settings
+        self.update_service = update_service
 
         from poe2value.ui import theme
         from poe2value.ui.components import Disclosure, HealthRow, Section, button_row, make_button
@@ -708,6 +712,22 @@ class DiagnosticsPage(QWidget):
         self._reload_btn = make_button("Reload build", "secondary")
         self._reload_btn.clicked.connect(self._reload_build)
         health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn]))
+        self._support_hint = QLabel("")
+        self._support_hint.setObjectName("helperText")
+        self._support_hint.setWordWrap(True)
+        self._support_hint.setVisible(False)
+        health.add_widget(self._support_hint)
+
+        updates = Section("Updates")
+        self._update_status = QLabel("")
+        self._update_status.setObjectName("helperText")
+        self._check_updates_btn = make_button("Check for updates", "secondary")
+        self._check_updates_btn.clicked.connect(self.update_service.check_now)
+        self._open_releases_btn = make_button("Open GitHub Releases", "secondary")
+        self._open_releases_btn.clicked.connect(self._open_github_releases)
+        self._open_releases_btn.setVisible(False)
+        updates.add_widget(self._update_status)
+        updates.add_layout(button_row([self._check_updates_btn, self._open_releases_btn]))
 
         self._details = Disclosure("Technical details")
         self._build_info = QLabel()
@@ -735,6 +755,7 @@ class DiagnosticsPage(QWidget):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(theme.SECTION_GAP)
         content_layout.addWidget(health)
+        content_layout.addWidget(updates)
         content_layout.addWidget(self._details)
         content_layout.addStretch(1)
         self._content_layout = content_layout
@@ -758,6 +779,8 @@ class DiagnosticsPage(QWidget):
         layout.addWidget(self._scroll_area, 1)
 
         self._details.toggled.connect(self._on_details_toggled)
+        self.update_service.state_changed.connect(self._on_update_state)
+        self._on_update_state("unchecked", "")
         self.refresh()
 
     def _on_details_toggled(self, expanded: bool) -> None:
@@ -773,6 +796,8 @@ class DiagnosticsPage(QWidget):
 
         self.refresh()
         copy_diagnostics(self.controller)
+        self._copy_btn.setText("Diagnostics copied")
+        QTimer.singleShot(2500, lambda: self._copy_btn.setText("Copy diagnostic report"))
 
     def _reload_build(self) -> None:
         self.controller.reload_evaluation_build()
@@ -782,6 +807,25 @@ class DiagnosticsPage(QWidget):
         from poe2value.ui.recovery_actions import open_logs_folder
 
         open_logs_folder()
+
+    def _open_github_releases(self) -> None:
+        from poe2value.ui.recovery_actions import open_github_releases
+
+        open_github_releases()
+
+    def _on_update_state(self, state: str, version: str) -> None:
+        text = {
+            "unchecked": "Update status has not been checked yet.",
+            "checking": "Checking for updates…",
+            "current": "Up to date.",
+            "failed": "Could not check for updates.",
+            "unavailable": "Update checking is available only in packaged builds.",
+        }.get(state, "")
+        if state == "available":
+            text = f"Update available: {version}"
+        self._update_status.setText(text)
+        self._open_releases_btn.setVisible(state == "available")
+        self._check_updates_btn.setEnabled(state != "checking")
 
     def refresh(self) -> None:
         from poe2value.app.diagnostics import build_global_diagnostics
@@ -794,6 +838,17 @@ class DiagnosticsPage(QWidget):
             # so a long path can never set the width of the page.
             detail = item.detail if item.status in ("warn", "error") else ""
             self._health_rows[key].set_value(item.value, item.status, detail)
+
+        degraded = [getattr(health, key) for key in self.HEALTH_KEYS if getattr(health, key).status in ("warn", "error")]
+        if degraded:
+            actions = [item.action for item in degraded if item.action]
+            recovery = actions[0] if actions else "the relevant recovery action"
+            self._support_hint.setText(
+                f"Try {recovery} first. If the problem continues, copy this report when asking for help."
+            )
+            self._support_hint.setVisible(True)
+        else:
+            self._support_hint.setVisible(False)
 
         report = build_global_diagnostics(self.controller)
         build_info = f"ExileLens {report.version}  |  build {report.build}  |  {report.mode}"

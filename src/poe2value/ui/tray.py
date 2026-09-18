@@ -46,6 +46,7 @@ class TrayManager(QSystemTrayIcon):
         self._overlay_menu: QMenu | None = None
 
         self.rebuild_menu()
+        dashboard.update_service.update_available.connect(self._show_update_available)
         controller.build_changed.connect(self._on_build_changed)
         controller.loadouts_changed.connect(self._on_loadouts_changed)
         controller.state_message.connect(self._show_message)
@@ -393,6 +394,14 @@ class TrayManager(QSystemTrayIcon):
 
     def _show_message(self, message: str) -> None:
         self.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Information, 3000)
+
+    def _show_update_available(self, remote: str, installed: str) -> None:
+        self.showMessage(
+            APP_NAME,
+            f"ExileLens {remote} is available\nYou're using {installed}",
+            QSystemTrayIcon.MessageIcon.Information,
+            8000,
+        )
 
     def _quit(self) -> None:
         self.dashboard._remember_geometry()

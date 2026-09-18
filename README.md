@@ -4,7 +4,7 @@
 
 Free and open-source, build-aware item analysis for Path of Exile 2.
 
-[Download latest release](https://github.com/arewoz/ExileLens/releases/latest) · [Report an issue](https://github.com/arewoz/ExileLens/issues) · [Discord](https://discord.gg/4jrhBbSwEn)
+[Download releases](https://github.com/arewoz/ExileLens/releases) · [Report an issue](https://github.com/arewoz/ExileLens/issues) · [Discord](https://discord.gg/4jrhBbSwEn)
 
 ![ExileLens demo](docs/media/exilelens-demo.jpg)
 
@@ -20,7 +20,7 @@ ExileLens is an unofficial, fan-made project and is not affiliated with or endor
 
 Download the latest Windows build from:
 
-**[GitHub Releases](https://github.com/arewoz/ExileLens/releases/latest)**
+**[GitHub Releases](https://github.com/arewoz/ExileLens/releases)**
 
 Official ExileLens Windows builds are distributed only through GitHub Releases in this repository. Each release provides a ZIP package and `SHA256SUMS.txt` for verifying that ZIP.
 
@@ -31,7 +31,7 @@ See [`SECURITY.md`](SECURITY.md) for details about the application's security mo
 ## Install and use
 
 1. Install [Path of Building Community for Path of Exile 2](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2) separately.
-2. Download the latest ExileLens Windows ZIP package and its `SHA256SUMS.txt` from [GitHub Releases](https://github.com/arewoz/ExileLens/releases/latest).
+2. Download the latest ExileLens Windows ZIP package and its `SHA256SUMS.txt` from [GitHub Releases](https://github.com/arewoz/ExileLens/releases).
 3. Optionally verify the ZIP against `SHA256SUMS.txt`, then extract the ZIP.
 4. Start `ExileLens.exe`.
 5. During setup, select your Path of Building 2 installation and saved build.
@@ -103,14 +103,14 @@ You can also discuss ExileLens and provide feedback on Discord:
 
 **[Join the ExileLens Discord](https://discord.gg/4jrhBbSwEn)**
 
-When reporting an incorrect evaluation, include as much of the following as possible:
+When asking for help, include as much of the following as possible:
 
-- ExileLens version
-- copied item text
-- expected result
-- result shown by ExileLens
-- relevant build context
-- reproduction steps
+- the **Copy diagnostic report** output from Diagnostics
+- what you expected and what happened instead
+- short reproduction steps
+- a screenshot when it helps explain the problem
+
+Diagnostics are generated locally and copied only when you choose **Copy diagnostic report**. Nothing is submitted automatically. **Open logs** is for deeper troubleshooting: logs stay local unless you explicitly choose to share them, and should be reviewed before sharing.
 
 Do not include credentials, session tokens, private keys or unredacted sensitive logs in a public issue.
 

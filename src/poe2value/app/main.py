@@ -170,6 +170,10 @@ class Poe2ValueApp:
         assert self.clipboard is not None
         self.clipboard.clipboard_event.connect(self._on_clipboard_event)
 
+        # Update discovery is best-effort and starts only after the tray and UI
+        # exist. Source runs are rejected by the service without a request.
+        QTimer.singleShot(0, self.dashboard.update_service.start_automatic)
+
         # Everything that can block (worker boot, build load, network) runs once the
         # event loop is live, so the tray and second-launch activation always respond.
         QTimer.singleShot(0, self._start_engine)

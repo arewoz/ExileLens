@@ -1,4 +1,4 @@
-EXILELENS 0.2.0b2 BETA
+EXILELENS 0.2.1b1 BETA
 =======================
 
 Build-aware item analysis for Path of Exile 2.
@@ -186,11 +186,14 @@ Main log:
 
 When reporting a bug, please include:
 
-- steps to reproduce;
-- screenshot of the item;
-- screenshot of the ExileLens result;
-- More Info -> Copy diagnostics, if available;
-- poe2value.log when relevant.
+- Copy diagnostic report output from Diagnostics;
+- what you expected and what happened instead;
+- short reproduction steps;
+- a screenshot when relevant.
+
+Diagnostics are generated locally and copied only when you choose Copy
+diagnostic report. Nothing is submitted automatically. Open logs is for deeper
+troubleshooting: logs stay local unless you explicitly choose to share them.
 
 Before sharing poe2value.log, a quick skim is still good practice, the
 same as with any local log file - see PRIVACY.md for what it does and
@@ -220,7 +223,7 @@ OPEN SOURCE
 
 ExileLens is free and open source. Source code, license information and
 security guidance are available in the official GitHub repository. Please
-obtain Windows builds only from the official itch.io page.
+obtain Windows builds only from the official GitHub Releases page.
 
 
 DISCLAIMER

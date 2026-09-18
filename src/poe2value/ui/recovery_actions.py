@@ -11,6 +11,13 @@ from PySide6.QtWidgets import QApplication
 logger = logging.getLogger(__name__)
 
 
+def open_github_releases() -> None:
+    """Open the fixed, official ExileLens releases destination on user action."""
+    from poe2value.app.update_check import GITHUB_RELEASES_URL
+
+    QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
+
+
 def open_logs_folder() -> None:
     from poe2value.app.logging_setup import log_dir
 
@@ -20,8 +27,13 @@ def open_logs_folder() -> None:
 
 
 def copy_diagnostics(controller) -> str:  # noqa: ANN001
-    """Put the diagnostic report on the clipboard. Returns the text for display."""
-    report = controller.diagnostic_report()
+    """Put the allowlisted global diagnostic report on the clipboard."""
+    # Keep every support surface on the explicit SUPPORT-02 representation.  In
+    # particular, do not delegate to a controller formatter that could later grow
+    # item, path, worker-stderr, or exception details.
+    from poe2value.app.diagnostics import render_global_diagnostics
+
+    report = render_global_diagnostics(controller)
     clipboard = QApplication.clipboard()
     if clipboard is not None:
         clipboard.setText(report)
