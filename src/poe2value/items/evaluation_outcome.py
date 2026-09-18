@@ -29,6 +29,7 @@ from typing import Any, Iterable
 from poe2value.items.guardrails import AppliedGuardrail, apply_score_ceilings, evaluate_guardrails
 from poe2value.items.item_impact import ItemImpact, interpret_item_impact
 from poe2value.items.value_profiles import CONTRIBUTION_LABELS, SCORE_SCALE, rating_band
+from poe2value.metrics import RAW_METRIC_FIELDS
 
 
 class EvaluationQuality(str, Enum):
@@ -305,8 +306,14 @@ def _reason(code: str, detail: str) -> dict[str, str]:
 
 
 def _finite(value: Any) -> bool:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    # Absent fields are handled as unavailable evidence. A value that is present
+    # but not a finite number is malformed worker output and must fail closed.
+    if value is None:
         return True
+    if isinstance(value, bool):
+        return False
+    if not isinstance(value, (int, float)):
+        return False
     return math.isfinite(float(value))
 
 
@@ -351,9 +358,17 @@ def assess_quality(
     if not isinstance(raw_current, dict) or not raw_current or not isinstance(raw_candidate, dict) or not raw_candidate:
         failed.append(_reason("NO_METRICS", "Path of Building returned no metrics"))
     else:
-        fields = (*SCORED_RAW_FIELDS, primary_field)
+        # A malformed non-score value (for example mana sustain) can reach a
+        # guardrail before scoring. Validate every documented worker metric that
+        # is actually present, while still allowing PoB to omit unsupported fields.
+        fields = (*RAW_METRIC_FIELDS, primary_field)
         bad = sorted(
-            {name for raw in (raw_current, raw_candidate) for name in fields if not _finite(raw.get(name))}
+            {
+                name
+                for raw in (raw_current, raw_candidate)
+                for name in fields
+                if name in raw and not _finite(raw.get(name))
+            }
         )
         if bad:
             failed.append(_reason("INVALID_METRICS", "Path of Building returned invalid values for " + ", ".join(bad)))

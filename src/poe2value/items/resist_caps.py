@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from enum import Enum
 from typing import Any
 
@@ -68,9 +69,13 @@ def _num(raw: dict[str, Any], field: str) -> float | None:
     if field not in raw:
         return None
     value = raw.get(field)
-    if value is None:
+    if value is None or isinstance(value, bool):
         return None
-    return float(value)
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 def effective_cap(raw: dict[str, Any], element: str) -> float | None:
