@@ -31,8 +31,8 @@ class PobIdentity:
 def _manifest_version(path: str, modified_ns: int, size: int) -> str:
     """Parse one observed manifest revision; cache prevents repeated UI XML reads."""
     try:
-        manifest = ET.parse(path)
-        node = manifest.find("./PoBVersion/Version")
+        manifest_root = ET.parse(path).getroot()
+        node = manifest_root.find("./Version")
         version = str(node.get("number", "") if node is not None else "").strip()
     except (ET.ParseError, OSError, ValueError):
         return "unknown"

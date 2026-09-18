@@ -14,7 +14,10 @@ from poe2value.ui.health import derive_health, header_status
 
 
 def _manifest(root: Path, version: str) -> None:
-    (root / "manifest.xml").write_text(f'<Root><PoBVersion><Version number="{version}" /></PoBVersion></Root>', encoding="utf-8")
+    (root / "manifest.xml").write_text(
+        f'<?xml version="1.0" encoding="UTF-8"?>\n<PoBVersion>\n    <Version number="{version}" />\n</PoBVersion>\n',
+        encoding="utf-8",
+    )
 
 
 @pytest.mark.parametrize("source", [False, True])
