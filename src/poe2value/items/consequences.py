@@ -1,9 +1,20 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from poe2value.items.requirement_gates import attribute_requirement_warnings
 from poe2value.items.display_thresholds import DEFAULT_DISPLAY_THRESHOLDS, DisplayThresholds
+
+
+def _number(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _pct(metric: dict[str, Any] | None) -> float:
@@ -12,13 +23,13 @@ def _pct(metric: dict[str, Any] | None) -> float:
     value = metric.get("percent_delta")
     if value is None:
         return 0.0
-    return float(value)
+    return _number(value) or 0.0
 
 
 def _abs(metric: dict[str, Any] | None) -> float:
     if not metric:
         return 0.0
-    return float(metric.get("absolute_delta") or 0.0)
+    return _number(metric.get("absolute_delta")) or 0.0
 
 
 def build_warnings(
@@ -44,7 +55,9 @@ def build_warnings(
         )
 
     offense = metrics.get("primary_offense") or {}
-    if float(offense.get("current") or 0) > 1 and float(offense.get("candidate") or 0) <= 1:
+    offense_current = _number(offense.get("current"))
+    offense_candidate = _number(offense.get("candidate"))
+    if offense_current is not None and offense_candidate is not None and offense_current > 1 and offense_candidate <= 1:
         warnings.append(
             {
                 "code": "MAIN_SKILL_INVALID",
@@ -178,9 +191,9 @@ def build_warnings(
     move = metrics.get("movement_speed") or {}
     move_pct = _pct(move)
     if move_pct == 0 and _abs(move) != 0:
-        current = float(move.get("current") or 0)
-        candidate = float(move.get("candidate") or 0)
-        if 0 < current <= 8 and 0 < candidate <= 8:
+        current = _number(move.get("current"))
+        candidate = _number(move.get("candidate"))
+        if current is not None and candidate is not None and 0 < current <= 8 and 0 < candidate <= 8:
             move_pct = (candidate - current) * 100.0
     if move_pct < 0 and abs(move_pct) >= thresholds.movement_percent:
         warnings.append(
@@ -194,11 +207,19 @@ def build_warnings(
             }
         )
 
-    current_cost = float(raw_current.get("ManaPerSecondCost") or 0)
-    candidate_cost = float(raw_candidate.get("ManaPerSecondCost") or 0)
-    current_regen = float(raw_current.get("ManaRegenRecovery") or 0)
-    candidate_regen = float(raw_candidate.get("ManaRegenRecovery") or 0)
-    if candidate_cost > 0 and "ManaPerSecondCost" in raw_candidate and "ManaRegenRecovery" in raw_candidate:
+    current_cost = _number(raw_current.get("ManaPerSecondCost"))
+    candidate_cost = _number(raw_candidate.get("ManaPerSecondCost"))
+    current_regen = _number(raw_current.get("ManaRegenRecovery"))
+    candidate_regen = _number(raw_candidate.get("ManaRegenRecovery"))
+    if (
+        current_cost is not None
+        and candidate_cost is not None
+        and current_regen is not None
+        and candidate_regen is not None
+        and candidate_cost > 0
+        and "ManaPerSecondCost" in raw_candidate
+        and "ManaRegenRecovery" in raw_candidate
+    ):
         current_ok = current_cost <= current_regen + 0.01
         candidate_fail = candidate_cost > candidate_regen + 0.01
         if current_ok and candidate_fail:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 ATTR_FIELDS = (
@@ -19,12 +20,13 @@ def _num(raw: dict[str, Any], field: str) -> float | None:
     if field not in raw:
         return None
     value = raw.get(field)
-    if value is None:
+    if value is None or isinstance(value, bool):
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return None
+    return number if math.isfinite(number) else None
 
 
 def _first_known(raw: dict[str, Any], *fields: str) -> float | None:

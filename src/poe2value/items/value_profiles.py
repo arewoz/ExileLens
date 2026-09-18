@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -124,9 +125,22 @@ def _metric_pct(metric: dict[str, Any] | None) -> float:
         return 0.0
     pct = metric.get("percent_delta")
     if pct is not None:
-        return float(pct)
-    current = float(metric.get("current") or 0)
-    candidate = float(metric.get("candidate") or 0)
+        try:
+            value = float(pct)
+        except (TypeError, ValueError):
+            return 0.0
+        return value if math.isfinite(value) else 0.0
+    current_raw = metric.get("current")
+    candidate_raw = metric.get("candidate")
+    if current_raw is None or candidate_raw is None:
+        return 0.0
+    try:
+        current = float(current_raw)
+        candidate = float(candidate_raw)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(current) or not math.isfinite(candidate):
+        return 0.0
     if current == 0:
         return 0.0
     return (candidate / current - 1.0) * 100.0
@@ -135,8 +149,17 @@ def _metric_pct(metric: dict[str, Any] | None) -> float:
 def _movement_pct(metric: dict[str, Any] | None) -> float:
     if not metric:
         return 0.0
-    current = float(metric.get("current") or 0)
-    candidate = float(metric.get("candidate") or 0)
+    current_raw = metric.get("current")
+    candidate_raw = metric.get("candidate")
+    if current_raw is None or candidate_raw is None:
+        return 0.0
+    try:
+        current = float(current_raw)
+        candidate = float(candidate_raw)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(current) or not math.isfinite(candidate):
+        return 0.0
     if 0 < current <= 8 and 0 < candidate <= 8:
         return (candidate - current) * 100.0
     return _metric_pct(metric)

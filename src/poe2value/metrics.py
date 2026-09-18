@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 
@@ -240,9 +241,13 @@ def _metric_entry(
 def _optional_raw(metrics: dict[str, Any], field: str) -> float | None:
     if field in metrics:
         value = metrics.get(field)
-        if value is None:
+        if value is None or isinstance(value, bool):
             return None
-        return float(value)
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if math.isfinite(number) else None
     offense = metrics.get("offense") or {}
     defense = metrics.get("defense") or {}
     resources = metrics.get("resources") or {}
@@ -275,9 +280,13 @@ def _optional_raw(metrics: dict[str, Any], field: str) -> float | None:
     if field not in mapping:
         return None
     value = mapping.get(field)
-    if value is None:
+    if value is None or isinstance(value, bool):
         return None
-    return float(value)
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _resolve_metric_value(metrics: dict[str, Any], field: str) -> float:
