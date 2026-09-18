@@ -28,10 +28,10 @@ class PobIdentity:
 
 
 @lru_cache(maxsize=32)
-def _manifest_version(path: str, modified_ns: int, size: int) -> str:
-    """Parse one observed manifest revision; cache prevents repeated UI XML reads."""
+def _manifest_version(contents: bytes) -> str:
+    """Parse one bounded manifest body; caching avoids repeated XML parsing."""
     try:
-        manifest_root = ET.parse(path).getroot()
+        manifest_root = ET.fromstring(contents)
         node = manifest_root.find("./Version")
         version = str(node.get("number", "") if node is not None else "").strip()
     except (ET.ParseError, OSError, ValueError):
@@ -55,7 +55,10 @@ def detect_pob_identity(path: Path | str) -> PobIdentity:
     manifest = root / "manifest.xml"
     try:
         stat = manifest.stat()
-        version = _manifest_version(str(manifest), stat.st_mtime_ns, stat.st_size)
+        if stat.st_size > 1_000_000:
+            version = "unknown"
+        else:
+            version = _manifest_version(manifest.read_bytes())
     except (ET.ParseError, OSError, ValueError):
         version = "unknown"
     return PobIdentity(version=version, layout=layout)
