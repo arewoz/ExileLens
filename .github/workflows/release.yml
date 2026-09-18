@@ -132,3 +132,46 @@ jobs:
             --latest `
             --generate-notes
           if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the release.' }
+
+      - name: Build Discord release announcement
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          try {
+            $payloadPath = Join-Path $env:RUNNER_TEMP 'discord-release-announcement.json'
+            & .\.release-venv\Scripts\python.exe .\scripts\discord_release_announcement.py `
+              --version $env:RELEASE_VERSION `
+              --changelog .\packaging\CHANGELOG.txt `
+              --output $payloadPath
+            if ($LASTEXITCODE -ne 0) { throw 'Could not build the Discord announcement payload.' }
+            "DISCORD_PAYLOAD_PATH=$payloadPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+          catch {
+            Write-Warning 'Discord release announcement could not be prepared; the release remains published.'
+          }
+
+      - name: Announce published release on Discord
+        shell: pwsh
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DISCORD_RELEASE_WEBHOOK)) {
+            Write-Warning 'Discord release announcement skipped: DISCORD_RELEASE_WEBHOOK is not configured.'
+            exit 0
+          }
+          if ([string]::IsNullOrWhiteSpace($env:DISCORD_PAYLOAD_PATH) -or -not (Test-Path -LiteralPath $env:DISCORD_PAYLOAD_PATH -PathType Leaf)) {
+            Write-Warning 'Discord release announcement skipped because its payload was unavailable; the release remains published.'
+            exit 0
+          }
+          try {
+            & curl.exe --fail --silent --show-error --request POST `
+              --header 'Content-Type: application/json' `
+              --data-binary "@$env:DISCORD_PAYLOAD_PATH" `
+              $env:DISCORD_RELEASE_WEBHOOK
+            if ($LASTEXITCODE -ne 0) { throw 'Discord webhook returned a failure status.' }
+          }
+          catch {
+            Write-Warning 'Discord release announcement failed after GitHub Release publication; the release remains published.'
+          }
