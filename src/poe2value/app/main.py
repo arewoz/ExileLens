@@ -42,9 +42,8 @@ from poe2value.app.logging_setup import configure_logging, install_crash_handler
 from poe2value.app.modules.registry import FeatureModule, is_enabled
 from poe2value.app.build_cache import BuildCache
 from poe2value.app.legacy_migration import migrate_character_build
-from poe2value.app.settings import AppSettings, load_settings_result, save_settings
+from poe2value.app.settings import AppSettings, load_settings_result, onboarding_required, save_settings
 from poe2value.app.single_instance import InstanceLock, acquire_single_instance_lock
-from poe2value.config import PobConfig, validate_pob_path
 from poe2value.platform.windows.clipboard import ClipboardEvent, ClipboardWatcher
 from poe2value.tree.calibration_session import CapturePhase
 from poe2value.tree.overlay_frame import OverlayAppearance
@@ -52,7 +51,7 @@ from poe2value.tree.overlay_mode import OverlayMode
 from poe2value.ui.dashboard_window import DashboardWindow
 from poe2value.ui.market_assistant_overlay import MarketAssistantOverlay
 from poe2value.ui.overlay import OverlayWindow
-from poe2value.ui.settings_dialog import SetupDialog
+from poe2value.ui.onboarding_dialog import OnboardingDialog
 from poe2value.ui.tray import TrayManager
 from poe2value.ui.tree_overlay import LiveTreeOverlayWindow, frame_from_model, stack_item_above_tree
 from poe2value.ui.tree_overlay_capture import CalibrationCaptureOverlay
@@ -97,7 +96,7 @@ class Poe2ValueApp:
         self._primary_instance = False
         self._tray_retry_timer: QTimer | None = None
         self._tray_retries_left = 0
-        self._setup_dialog: SetupDialog | None = None
+        self._setup_dialog: OnboardingDialog | None = None
         self._refine_dialog = None
     def run(self) -> int:
         apply_windows_app_id()
@@ -124,9 +123,6 @@ class Poe2ValueApp:
             logger.info("quit requested but no instance is running")
             return 0
         self._start_instance_server()
-
-        if not self._validate_or_setup():
-            return 1
 
         from poe2value.security_audit import overlay_disabled
 
@@ -157,6 +153,7 @@ class Poe2ValueApp:
             self.controller,
             self.overlay,
             self.dashboard,
+            on_setup=lambda: self._show_onboarding(manual=True),
         )
         self._show_tray()
 
@@ -176,6 +173,10 @@ class Poe2ValueApp:
 
         # Everything that can block (worker boot, build load, network) runs once the
         # event loop is live, so the tray and second-launch activation always respond.
+        # The dialog observes this normal startup pipeline. It does not probe PoB or
+        # load a build itself, keeping startup to one worker and one build load.
+        if onboarding_required(self.settings):
+            QTimer.singleShot(0, self._show_onboarding)
         QTimer.singleShot(0, self._start_engine)
         return app.exec()
 
@@ -290,10 +291,12 @@ class Poe2ValueApp:
                 self.settings.build_path = build_path
                 save_settings(self.settings)
             self.controller.load_build(build_path, context=self.settings.context)
-        # No modal prompt here: a missing or broken build opens the (non-modal) Settings
-        # page with the exact reason, which stays usable alongside the tray.
+        # The first-run dialog observes the same controller. Returning users get the
+        # compact recovery page instead of a welcome-flow replay.
         info = self.controller.build_info
         if info.state == BuildState.READY:
+            return
+        if not self.settings.onboarding_version_completed:
             return
         if info.path and info.error_message:
             self._open_recovery_ui(f"Couldn't load your PoB build: {info.error_message}")
@@ -301,7 +304,29 @@ class Poe2ValueApp:
             self._open_recovery_ui("No PoB build is loaded. Choose your build file in Settings.")
 
     def _on_engine_failed(self, message: str) -> None:
+        if not self.settings.onboarding_version_completed:
+            return
         self._open_recovery_ui(f"{message}\n\nCheck the Path of Building installation in Settings.")
+
+    def _show_onboarding(self, manual: bool = False) -> None:
+        """Show one reusable setup window without restarting application services."""
+        if self.controller is None:
+            return
+        if self._setup_dialog is not None:
+            self._setup_dialog.showNormal()
+            self._setup_dialog.raise_()
+            self._setup_dialog.activateWindow()
+            return
+        dialog = OnboardingDialog(
+            self.settings,
+            self.controller,
+            on_diagnostics=lambda: self._surface_dashboard("diagnostics"),
+            parent=self.dashboard,
+        )
+        dialog.finished.connect(lambda _result: setattr(self, "_setup_dialog", None))
+        self._setup_dialog = dialog
+        logger.info("setup_dialog_shown manual=%s", manual)
+        dialog.show()
 
     def _open_recovery_ui(self, message: str) -> None:
         """Startup could not finish on its own: show Settings with the reason."""
@@ -424,41 +449,6 @@ class Poe2ValueApp:
             if cached_path and Path(cached_path).is_file():
                 return cached_path
         return None
-
-    def _validate_or_setup(self) -> bool:
-        pob_ok = False
-        try:
-            config = PobConfig(pob_path=Path(self.settings.pob_path))
-            validate_pob_path(config)
-            pob_ok = True
-        except Exception:
-            pob_ok = False
-
-        build_ok = bool(self._resolve_startup_build_path())
-        if pob_ok and build_ok:
-            if not self.settings.first_run_complete:
-                self.settings.first_run_complete = True
-                save_settings(self.settings)
-            return True
-
-        if self.settings.first_run_complete:
-            # Saved setup lives in %LOCALAPPDATA%; do not re-run the wizard on every rebuild.
-            return True
-
-        dlg = SetupDialog(self.settings)
-        # Tracked so a second launch can bring it forward (it may sit behind the game)
-        # and --quit / Exit can close it.
-        self._setup_dialog = dlg
-        logger.info("first_run_setup_shown")
-        try:
-            accepted = dlg.exec() == SetupDialog.DialogCode.Accepted
-        finally:
-            self._setup_dialog = None
-        if not accepted:
-            logger.info("first_run_setup_cancelled")
-            return False
-        save_settings(self.settings)
-        return True
 
     def _wire_signals(self) -> None:
         assert self.controller is not None

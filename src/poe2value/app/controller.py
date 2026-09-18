@@ -4483,9 +4483,6 @@ class EvaluationController(QObject):
         if self.settings.context != context:
             self.settings.context = context
             changed = True
-        if not self.settings.first_run_complete:
-            self.settings.first_run_complete = True
-            changed = True
         if changed:
             save_settings(self.settings)
 

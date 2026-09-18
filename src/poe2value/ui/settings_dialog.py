@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from poe2value.branding import window_title
+from poe2value.branding import app_icon, window_title
 from poe2value.app.settings import AppSettings, save_settings
 from poe2value.config import PobConfig, detect_common_pob_installation, validate_pob_path
 from poe2value.engine import Engine
@@ -37,6 +37,10 @@ class _GeometryLockedDialog(QDialog):
         self._settings = settings
         self._prefix = prefix
         self._locked_size = QSize()
+        # Top-level dialogs do not reliably inherit QApplication's icon on Windows.
+        # Set the canonical icon explicitly so Setup never falls back to Qt's default.
+        if (icon := app_icon()) is not None:
+            self.setWindowIcon(icon)
         flags = self.windowFlags()
         flags |= Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint
         self.setWindowFlags(flags)
@@ -228,6 +232,10 @@ class SetupDialog(_GeometryLockedDialog):
             return
         self.settings.pob_path = pob
         self.settings.build_path = build
-        self.settings.first_run_complete = True
+        # Legacy dialog remains available to integrations, but completion uses the
+        # versioned onboarding marker rather than implying a merely configured path
+        # is a ready runtime/build.
+        from poe2value.app.settings import complete_onboarding
+        complete_onboarding(self.settings)
         self.persist_geometry()
         self.accept()
