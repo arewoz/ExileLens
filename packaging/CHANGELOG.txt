@@ -2,6 +2,12 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.2.1b3
+-------
+
+- Fixed detection of the installed Path of Building 2 version in connection status and diagnostics.
+
+
 0.2.1b2
 -------
 
