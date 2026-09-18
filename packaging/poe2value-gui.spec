@@ -40,6 +40,8 @@ hiddenimports = [
     "poe2value.ui.tray",
     "poe2value.ui.overlay",
     "poe2value.ui.settings_dialog",
+    "poe2value.ui.onboarding_dialog",
+    "poe2value.app.readiness",
     "poe2value.ui.setup_dialog",
     "poe2value.ui.diagnostics",
     "poe2value.ui.tray_icon",

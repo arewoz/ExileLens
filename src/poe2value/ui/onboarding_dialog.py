@@ -1,153 +1,105 @@
-"""Small first-run setup surface backed by :mod:`poe2value.app.readiness`."""
+"""Reactive dashboard-style setup surface backed by canonical readiness."""
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 from poe2value.app.readiness import AppReadiness, derive_readiness
-from poe2value.app.settings import AppSettings, complete_onboarding, save_settings
-from poe2value.branding import window_title
+from poe2value.app.settings import AppSettings, complete_onboarding, onboarding_required, save_settings
+from poe2value.branding import app_icon, window_title
+from poe2value.ui import theme
+from poe2value.ui.components import StatusValue, make_button
+from poe2value.ui.styles import DASHBOARD_STYLESHEET
 
 
 class OnboardingDialog(QDialog):
-    """A non-modal, reactive setup dialog. It never owns runtime initialization."""
+    """One setup dashboard; it observes the normal controller and starts nothing."""
 
-    def __init__(
-        self,
-        settings: AppSettings,
-        controller,
-        *,
-        on_diagnostics: Callable[[], None] | None = None,
-        parent=None,
-    ) -> None:
+    def __init__(self, settings: AppSettings, controller, *, on_diagnostics: Callable[[], None] | None = None, parent=None) -> None:
         super().__init__(parent)
-        self.settings = settings
-        self.controller = controller
-        self._on_diagnostics = on_diagnostics
-        self.setWindowTitle(window_title("Setup"))
-        self.setMinimumWidth(460)
-        self.setModal(False)
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
+        self.settings, self.controller, self._on_diagnostics = settings, controller, on_diagnostics
+        self.setWindowTitle(window_title("Setup")); self.setMinimumSize(560, 520); self.resize(620, 560)
+        self.setModal(False); self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
+        if (icon := app_icon()) is not None: self.setWindowIcon(icon)
+        self.setStyleSheet(DASHBOARD_STYLESHEET + """
+QDialog { background:#141210; color:#d8cbb6; font-family:'Segoe UI'; }
+QWidget#onboardingCard { background:rgba(255,255,255,10); border:1px solid rgba(255,255,255,18); border-radius:8px; }
+QLabel#onboardingTitle { font-size:22px; font-weight:700; color:#f0e2c4; }
+QLabel#onboardingSubtitle,QLabel#onboardingDetail { font-size:12px; color:#8d8273; }
+QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#e4d8c4; }
+""")
+        root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 24); root.setSpacing(theme.SPACE_LG)
+        title = QLabel("ExileLens Setup"); title.setObjectName("onboardingTitle"); root.addWidget(title)
+        sub = QLabel("Get ExileLens ready for item checks"); sub.setObjectName("onboardingSubtitle"); root.addWidget(sub)
+        self._overall = StatusValue("Checking setup…", "neutral"); root.addWidget(self._overall)
+        self._pob_card, self._pob_status, self._pob_detail, self._pob_action = self._card("Path of Building 2", "Configure…")
+        self._build_card, self._build_status, self._build_detail, self._build_action = self._card("Current Build", "Choose build…")
+        self._item_card, self._item_status, self._item_detail, _ = self._card("Item Check", "")
+        root.addWidget(self._pob_card); root.addWidget(self._build_card); root.addWidget(self._item_card)
+        self._pob_action.clicked.connect(self._choose_pob); self._build_action.clicked.connect(self._choose_build)
+        footer = QHBoxLayout(); self._diagnostics = make_button("Diagnostics", "tertiary"); self._diagnostics.clicked.connect(self._open_diagnostics)
+        footer.addWidget(self._diagnostics); footer.addStretch(1)
+        self._skip = make_button("Skip for now", "tertiary"); self._skip.clicked.connect(self._skip_onboarding); footer.addWidget(self._skip)
+        self._finish = make_button("Start using ExileLens", "primary"); self._finish.clicked.connect(self._finish_onboarding); footer.addWidget(self._finish); root.addLayout(footer)
+        controller.build_changed.connect(lambda _info: self.refresh()); controller.engine_ready.connect(self.refresh); controller.engine_failed.connect(lambda _msg: self.refresh()); self.refresh()
 
-        layout = QVBoxLayout(self)
-        self._progress = QLabel("1  Welcome    2  PoB2    3  Build")
-        layout.addWidget(self._progress)
-        welcome = QLabel("Welcome to ExileLens\n\nExileLens compares the item you hover in Path of Exile 2 against your current build. It uses Path of Building Community for PoE2.\n\nYour Item Check hotkey is " + self._hotkey_label() + ".")
-        welcome.setWordWrap(True)
-        layout.addWidget(welcome)
-        self._status = QLabel()
-        self._status.setWordWrap(True)
-        self._status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        layout.addWidget(self._status)
+    def _card(self, title: str, action: str):
+        card = QFrame(); card.setObjectName("onboardingCard"); row = QHBoxLayout(card); row.setContentsMargins(16, 12, 12, 12)
+        text = QVBoxLayout(); text.setSpacing(4); heading = QLabel(title); heading.setObjectName("onboardingCardTitle"); text.addWidget(heading)
+        status = StatusValue("Checking…", "neutral"); detail = QLabel(); detail.setObjectName("onboardingDetail"); detail.setWordWrap(True); text.addWidget(status); text.addWidget(detail); row.addLayout(text, 1)
+        button = make_button(action, "secondary") if action else None
+        if button: row.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
+        return card, status, detail, button
 
-        actions = QHBoxLayout()
-        self._pob_button = QPushButton("Choose PoB2…")
-        self._pob_button.clicked.connect(self._choose_pob)
-        actions.addWidget(self._pob_button)
-        self._retry_button = QPushButton("Retry")
-        self._retry_button.clicked.connect(self._retry)
-        actions.addWidget(self._retry_button)
-        self._build_button = QPushButton("Choose build XML…")
-        self._build_button.clicked.connect(self._choose_build)
-        actions.addWidget(self._build_button)
-        layout.addLayout(actions)
-
-        footer = QHBoxLayout()
-        self._diagnostics = QPushButton("Diagnostics")
-        self._diagnostics.clicked.connect(self._open_diagnostics)
-        footer.addWidget(self._diagnostics)
-        footer.addStretch(1)
-        self._skip = QPushButton("Skip for now")
-        self._skip.clicked.connect(self._skip_onboarding)
-        footer.addWidget(self._skip)
-        self._finish = QPushButton("Start using ExileLens")
-        self._finish.clicked.connect(self._finish_onboarding)
-        footer.addWidget(self._finish)
-        layout.addLayout(footer)
-
-        controller.build_changed.connect(lambda _info: self.refresh())
-        controller.engine_ready.connect(self.refresh)
-        controller.engine_failed.connect(lambda _message: self.refresh())
-        self.refresh()
-
-    def _hotkey_label(self) -> str:
-        return str(getattr(self.settings, "price_check_hotkey", "shift+c") or "shift+c").replace("+", "+").upper()
-
-    def refresh(self) -> None:
-        status = derive_readiness(self.settings, self.controller)
-        pob_text = self._pob_identity_text()
-        self._status.setText(f"PoB2: {pob_text}\n\n{status.title}\n{status.detail}".strip())
-        self._finish.setEnabled(status.ready)
-        self._build_button.setEnabled(status.state not in {AppReadiness.INITIALIZING, AppReadiness.POB_NOT_FOUND})
-        self._diagnostics.setVisible(status.support_action_available)
-        if status.ready:
-            self._progress.setText("1  Welcome    2  PoB2 ✓    3  Build ✓ — READY")
-        elif status.state is AppReadiness.POB_NOT_FOUND:
-            self._progress.setText("1  Welcome    2  PoB2 needs setup    3  Build")
-        else:
-            self._progress.setText("1  Welcome    2  PoB2 ✓    3  Build")
-
-    def _pob_identity_text(self) -> str:
-        """Show bounded runtime identity, never the user's full local path."""
+    def _hotkey(self) -> str: return str(getattr(self.settings, "price_check_hotkey", "shift+c") or "shift+c").upper()
+    def _pob_text(self) -> str:
         from poe2value.app.setup_status import check_pob_folder
         check = check_pob_folder(self.settings.pob_path)
-        if not check.ok:
-            return check.text()
+        if not check.ok: return check.detail or check.label
         try:
             from poe2value.config import detect_pob_identity
-            identity = detect_pob_identity(self.settings.pob_path)
-            if identity.version != "unknown":
-                return f"detected · v{identity.version}"
-        except Exception:  # informational metadata cannot block readiness
-            pass
-        return "detected"
+            version = detect_pob_identity(self.settings.pob_path).version
+            return f"Version {version}" if version != "unknown" else "Detected"
+        except Exception: return "Detected"
+    @staticmethod
+    def _tone(state: AppReadiness) -> str:
+        if state is AppReadiness.READY: return "ok"
+        if state in {AppReadiness.POB_NOT_FOUND, AppReadiness.BUILD_ERROR, AppReadiness.RUNTIME_ERROR}: return "error"
+        return "warn" if state in {AppReadiness.BUILD_REQUIRED, AppReadiness.BUILD_LOADING} else "neutral"
+
+    def refresh(self) -> None:
+        status = derive_readiness(self.settings, self.controller); tone = self._tone(status.state)
+        self._overall.set_value("READY" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
+        pob_bad = status.state is AppReadiness.POB_NOT_FOUND
+        self._pob_status.set_value("Not found" if pob_bad else ("Needs attention" if status.state is AppReadiness.RUNTIME_ERROR else "Detected"), "error" if pob_bad or status.state is AppReadiness.RUNTIME_ERROR else "ok")
+        self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure…" if pob_bad else "Change…")
+        build_text = "Ready" if status.ready else "Loading…" if status.state is AppReadiness.BUILD_LOADING else "Couldn’t be loaded" if status.state is AppReadiness.BUILD_ERROR else "Build required"
+        self._build_status.set_value(build_text, "ok" if status.ready else tone)
+        self._build_detail.setText(status.detail if status.state in {AppReadiness.BUILD_ERROR, AppReadiness.BUILD_LOADING} else (getattr(self.controller.build_info, "name", "") or "Choose the PoB build you play."))
+        self._build_action.setText("Retry" if status.state is AppReadiness.BUILD_ERROR else "Choose build…")
+        self._build_action.setEnabled(status.state not in {AppReadiness.INITIALIZING, AppReadiness.POB_NOT_FOUND, AppReadiness.RUNTIME_ERROR})
+        self._item_status.set_value("Ready" if status.ready else "Waiting for setup", "ok" if status.ready else "neutral")
+        self._item_detail.setText(f"Hover an item in PoE2 and press {self._hotkey()}." if status.ready else "Item Check will be ready when Path of Building and a build are ready.")
+        self._finish.setEnabled(status.ready); self._diagnostics.setVisible(status.support_action_available)
 
     def _choose_pob(self) -> None:
         from poe2value.ui.setup_dialog import pick_pob_directory
-        path = pick_pob_directory(self.settings.pob_path)
-        if not path:
-            return
-        self.settings.pob_path = path
-        save_settings(self.settings)
-        self.controller.restart_engine()
-        self.refresh()
-
-    def _retry(self) -> None:
-        if self.controller.engine_status() == "ready":
-            self.controller.reload_evaluation_build()
-        else:
-            self.controller.restart_engine()
-        self.refresh()
-
+        if path := pick_pob_directory(self.settings.pob_path): self.settings.pob_path = path; save_settings(self.settings); self.controller.restart_engine(); self.refresh()
     def _choose_build(self) -> None:
+        if derive_readiness(self.settings, self.controller).state is AppReadiness.BUILD_ERROR: self.controller.reload_evaluation_build(); return
         from poe2value.ui.setup_dialog import pick_build_file
-        path = pick_build_file(self.settings.build_path)
-        if not path:
-            return
-        self.settings.build_path = str(Path(path))
-        save_settings(self.settings)
-        if self.controller.engine_status() == "ready":
-            self.controller.load_build(self.settings.build_path, context=self.settings.context)
-        self.refresh()
-
+        if path := pick_build_file(self.settings.build_path):
+            self.settings.build_path = str(Path(path)); save_settings(self.settings)
+            if self.controller.engine_status() == "ready": self.controller.load_build(self.settings.build_path, context=self.settings.context)
+            self.refresh()
     def _open_diagnostics(self) -> None:
-        if self._on_diagnostics is not None:
-            self._on_diagnostics()
-
+        if self._on_diagnostics: self._on_diagnostics()
     def _finish_onboarding(self) -> None:
-        if derive_readiness(self.settings, self.controller).ready:
-            complete_onboarding(self.settings)
-            self.accept()
-
-    def _skip_onboarding(self) -> None:
-        complete_onboarding(self.settings)
-        self.reject()
-
+        if derive_readiness(self.settings, self.controller).ready: complete_onboarding(self.settings); self.accept()
+    def _skip_onboarding(self) -> None: complete_onboarding(self.settings); self.reject()
     def closeEvent(self, event) -> None:  # noqa: N802
-        # Closing is a deliberate dismissal, not a claim that the app is ready.
-        if not self.settings.onboarding_completed:
-            complete_onboarding(self.settings)
+        if onboarding_required(self.settings): complete_onboarding(self.settings)
         super().closeEvent(event)
