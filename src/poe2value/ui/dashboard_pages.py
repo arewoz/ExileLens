@@ -348,6 +348,7 @@ class SettingsPage(QWidget):
         self._advanced.add_widget(SettingRow("Live market", self._live_market_label))
 
         copy_btn = make_button("Copy diagnostic report", "secondary")
+        self._settings_copy_btn = copy_btn
         copy_btn.clicked.connect(self._copy_diagnostics)
         logs_btn = make_button("Open logs", "secondary")
         logs_btn.clicked.connect(self._open_logs)
@@ -505,6 +506,8 @@ class SettingsPage(QWidget):
         from poe2value.ui.recovery_actions import copy_diagnostics
 
         copy_diagnostics(self.controller)
+        self._settings_copy_btn.setText("Diagnostics copied")
+        QTimer.singleShot(2500, lambda: self._settings_copy_btn.setText("Copy diagnostic report"))
 
     def _open_logs(self) -> None:
         from poe2value.ui.recovery_actions import open_logs_folder
@@ -708,6 +711,11 @@ class DiagnosticsPage(QWidget):
         self._reload_btn = make_button("Reload build", "secondary")
         self._reload_btn.clicked.connect(self._reload_build)
         health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn]))
+        self._support_hint = QLabel("")
+        self._support_hint.setObjectName("helperText")
+        self._support_hint.setWordWrap(True)
+        self._support_hint.setVisible(False)
+        health.add_widget(self._support_hint)
 
         self._details = Disclosure("Technical details")
         self._build_info = QLabel()
@@ -773,6 +781,8 @@ class DiagnosticsPage(QWidget):
 
         self.refresh()
         copy_diagnostics(self.controller)
+        self._copy_btn.setText("Diagnostics copied")
+        QTimer.singleShot(2500, lambda: self._copy_btn.setText("Copy diagnostic report"))
 
     def _reload_build(self) -> None:
         self.controller.reload_evaluation_build()
@@ -794,6 +804,17 @@ class DiagnosticsPage(QWidget):
             # so a long path can never set the width of the page.
             detail = item.detail if item.status in ("warn", "error") else ""
             self._health_rows[key].set_value(item.value, item.status, detail)
+
+        degraded = [getattr(health, key) for key in self.HEALTH_KEYS if getattr(health, key).status in ("warn", "error")]
+        if degraded:
+            actions = [item.action for item in degraded if item.action]
+            recovery = actions[0] if actions else "the relevant recovery action"
+            self._support_hint.setText(
+                f"Try {recovery} first. If the problem continues, copy this report when asking for help."
+            )
+            self._support_hint.setVisible(True)
+        else:
+            self._support_hint.setVisible(False)
 
         report = build_global_diagnostics(self.controller)
         build_info = f"ExileLens {report.version}  |  build {report.build}  |  {report.mode}"

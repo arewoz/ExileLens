@@ -20,8 +20,13 @@ def open_logs_folder() -> None:
 
 
 def copy_diagnostics(controller) -> str:  # noqa: ANN001
-    """Put the diagnostic report on the clipboard. Returns the text for display."""
-    report = controller.diagnostic_report()
+    """Put the allowlisted global diagnostic report on the clipboard."""
+    # Keep every support surface on the explicit SUPPORT-02 representation.  In
+    # particular, do not delegate to a controller formatter that could later grow
+    # item, path, worker-stderr, or exception details.
+    from poe2value.app.diagnostics import render_global_diagnostics
+
+    report = render_global_diagnostics(controller)
     clipboard = QApplication.clipboard()
     if clipboard is not None:
         clipboard.setText(report)

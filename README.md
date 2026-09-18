@@ -103,14 +103,14 @@ You can also discuss ExileLens and provide feedback on Discord:
 
 **[Join the ExileLens Discord](https://discord.gg/4jrhBbSwEn)**
 
-When reporting an incorrect evaluation, include as much of the following as possible:
+When asking for help, include as much of the following as possible:
 
-- ExileLens version
-- copied item text
-- expected result
-- result shown by ExileLens
-- relevant build context
-- reproduction steps
+- the **Copy diagnostic report** output from Diagnostics
+- what you expected and what happened instead
+- short reproduction steps
+- a screenshot when it helps explain the problem
+
+Diagnostics are generated locally and copied only when you choose **Copy diagnostic report**. Nothing is submitted automatically. **Open logs** is for deeper troubleshooting: logs stay local unless you explicitly choose to share them, and should be reviewed before sharing.
 
 Do not include credentials, session tokens, private keys or unredacted sensitive logs in a public issue.
 
