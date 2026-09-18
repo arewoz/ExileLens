@@ -176,3 +176,4 @@ def test_release_workflow_publishes_normal_releases() -> None:
     assert "--prerelease" not in workflow
     assert "--draft" not in workflow
     assert "--latest=false" not in workflow
+    assert "--latest" in workflow

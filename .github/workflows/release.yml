@@ -129,5 +129,6 @@ jobs:
           & gh release create $env:RELEASE_VERSION $env:ARCHIVE_PATH $env:SUMS_PATH `
             --target $commit `
             --title "ExileLens $env:RELEASE_VERSION - Beta" `
+            --latest `
             --generate-notes
           if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the release.' }
