@@ -54,6 +54,15 @@
       "primary_skill": "Poisonburst Arrow",
       "actor": "PLAYER",
       "purpose": "ailment-dominant (poison) primary offense selection"
+    },
+    {
+      "id": "CORE04-MIXED-HIT-AILMENT",
+      "file": "fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml",
+      "class": "Witch",
+      "ascendancy": "Infernalist",
+      "primary_skill": "Comet",
+      "actor": "PLAYER",
+      "purpose": "mixed hit and ignite offense: CombinedDPS selection over hit-only or ailment-only"
     }
   ]
 }

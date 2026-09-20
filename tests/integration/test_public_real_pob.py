@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from xml.etree import ElementTree
@@ -320,6 +321,89 @@ def test_poison_ailment_repeated_evaluation_does_not_leak_state(real_pob_engine)
     first_row = first["slot_comparisons"][0]
     second_row = second["slot_comparisons"][0]
     assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "PoisonDPS"
+    assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
+    assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
+    assert first_row["restore"]["pass"] is True
+    assert second_row["restore"]["pass"] is True
+
+
+MIXED_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_mixed_hit_ailment.xml"
+
+
+def test_mixed_hit_and_ailment_offense_selects_combined_dps(real_pob_engine) -> None:
+    """CORE04-MIXED-HIT-AILMENT: a real build where hit AND ignite both matter.
+
+    Witch/Infernalist "Comet" (triggered by Cast on Elemental Ailment): real PoB
+    baseline for this fixture splits almost evenly between hit and ignite --
+    TotalDPS ~545k, IgniteDPS ~387k, CombinedDPS ~932k (~59%/41% hit/ignite split;
+    neither component is negligible, and neither dominates the other the way the
+    poison-ailment fixture's ailment dominates its hit). Selecting only TotalDPS
+    would understate real offense by ~41%; selecting only IgniteDPS would
+    understate it by ~59% and get the direction of "which slot/skill this even
+    measures" wrong. `resolve_primary_metric` is expected to land in its
+    `ailments[dominant] > total_hit` check as False (ignite does not dominate hit
+    here) and fall through to PoB's own already-summed `CombinedDPS`
+    (`DamageQuantity.HIT_PLUS_AILMENT`), not either isolated component.
+
+    The candidate is the build's own equipped Focus (offhand, Weapon 2) plus one
+    added "60% increased Spell Damage" line -- spell damage scales both the
+    Comet hit and the ignite it applies, so it should move TotalDPS, IgniteDPS,
+    and CombinedDPS together, proportionally. Verified against a real PoB run
+    before writing these assertions (see docs/CORPUS_COVERAGE_METHODOLOGY.md,
+    M1.1 mixed hit+ailment slice): +9.69% on all three simultaneously, and
+    CombinedDPS equals TotalDPS + IgniteDPS exactly in both baseline and
+    candidate (no double counting).
+    """
+    baseline_item = _equipped_item(MIXED_BUILD, "Weapon 2")
+    candidate = baseline_item + "\n60% increased Spell Damage\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(MIXED_BUILD))
+
+    assert result["pob_parse"]["item"]["type"] == "Focus"
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 2"}
+
+    row = result["slot_comparisons"][0]
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Comet"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Comet"
+    assert row["candidate"]["item_present"] is True
+
+    baseline_metric = row["baseline_primary_metric"]
+    assert baseline_metric["pob_field"] == "CombinedDPS"
+    assert baseline_metric["selected"] == "PRIMARY_DPS"
+    assert baseline_metric["semantic_quantity"] == "HIT_PLUS_AILMENT"
+
+    baseline_metrics = row["evaluation_outcome"]["baseline_metrics"]
+    candidate_metrics = row["evaluation_outcome"]["candidate_metrics"]
+    assert math.isclose(
+        baseline_metrics["TotalDPS"] + baseline_metrics["IgniteDPS"], baseline_metrics["CombinedDPS"], rel_tol=1e-9
+    )
+    assert math.isclose(
+        candidate_metrics["TotalDPS"] + candidate_metrics["IgniteDPS"], candidate_metrics["CombinedDPS"], rel_tol=1e-9
+    )
+    assert candidate_metrics["TotalDPS"] > baseline_metrics["TotalDPS"]
+    assert candidate_metrics["IgniteDPS"] > baseline_metrics["IgniteDPS"]
+
+    outcome = row["evaluation_outcome"]
+    offense = outcome["item_impact"]["axes"]["OFFENSE"]
+    assert offense["direction"] == "POSITIVE"
+    assert offense["support"] == "MEASURED"
+    assert 5.0 < offense["magnitude_pct"] < 15.0
+    assert outcome["evaluation_quality"] == "FULL"
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
+
+    assert row["restore"]["pass"] is True
+    assert result["recommendation"]["pob_slot"] == "Weapon 2"
+
+
+def test_mixed_hit_and_ailment_repeated_evaluation_does_not_leak_state(real_pob_engine) -> None:
+    baseline_item = _equipped_item(MIXED_BUILD, "Weapon 2")
+    candidate = baseline_item + "\n60% increased Spell Damage\n"
+
+    first = evaluate_item(candidate, real_pob_engine, build_path=str(MIXED_BUILD))
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(MIXED_BUILD))
+
+    first_row = first["slot_comparisons"][0]
+    second_row = second["slot_comparisons"][0]
+    assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "CombinedDPS"
     assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
