@@ -69,3 +69,13 @@ update may use external/public sources during curation, but the resulting regres
 fixtures must be materialized here, sanitized, documented, and runnable without the
 generation environment. Do not add live account, market, or API acquisition to this
 gate.
+
+## Coverage reporting
+
+`docs/CORPUS_COVERAGE_METHODOLOGY.md` and the generated
+`docs/corpus_coverage/COVERAGE_REPORT.md` turn this corpus (plus the strategic and
+adversarial suites) into a graded build-archetype coverage matrix — what percentage
+and which categories of real builds this corpus currently proves Item Check handles
+correctly and safely. Regenerate it with
+`python scripts/generate_corpus_coverage_report.py` whenever a fixture, test, or
+`tests/corpus_coverage/registry.py` entry changes.

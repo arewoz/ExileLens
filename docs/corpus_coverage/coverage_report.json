@@ -1,0 +1,359 @@
+{
+  "cases": [
+    {
+      "archetypes": [
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "BOW-QUIVER-REPLACEMENT",
+      "manifest_id": "CORE04-BOW-QUIVER",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CANDIDATE-FINGERPRINT-NORMALIZATION",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CONTEXT-IDENTITY-CHANGES",
+      "manifest_id": null,
+      "passed_variants": 5,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 5
+    },
+    {
+      "archetypes": [
+        "ranged_attack"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-BOW-QUIVER-IDENTITY",
+      "manifest_id": "CORE04-BOW-QUIVER",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "minion"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-MINION-ACTOR-IDENTITY",
+      "manifest_id": "CORE04-MINION-ACTOR",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "spell",
+        "unusual_skill_part"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-STAGE-CONTEXT-IDENTITY",
+      "manifest_id": "CORE04-STAGE-CONTEXT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORRUPT-RESTORE-RECOVERY",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CROSS-AXIS-TRADEOFF-NOT-FLATTENED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "EMPTY-VS-UNKNOWN-SLOT",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "EXPLICIT-RESTORE-FAILURE-FAILS-CLOSED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker",
+        "mana_scaling"
+      ],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "GUARDRAILS-OVERRIDE-ATTRACTIVE-SCORE",
+      "manifest_id": null,
+      "passed_variants": 2,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "KNOWN-ZERO-VS-MISSING",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "MALFORMED-METRICS-FAIL-CLOSED",
+      "manifest_id": null,
+      "passed_variants": 8,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 8
+    },
+    {
+      "archetypes": [
+        "minion",
+        "unusual_skill_part"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MINION-STAGE-IDENTITY-RETAINED",
+      "manifest_id": "CORE04-MINION-ACTOR",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "MISSING-RESISTANCE-UNKNOWN",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "ONE-BATCHED-TRANSACTION",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "REDUCED-EVIDENCE-NEVER-DIRECTIONAL",
+      "manifest_id": null,
+      "passed_variants": 3,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 3
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "RESISTANCE-CAP-STATE-BOUNDARIES",
+      "manifest_id": null,
+      "passed_variants": 5,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 5
+    },
+    {
+      "archetypes": [
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "RING-EMPTY-SLOT",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "crit",
+        "life_scaling",
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "RING-OFFENSE-DEFENSE-MEASURED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "RING-TRADEOFF-BEST-SLOT",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SCORE-BAND-BOUNDARIES",
+      "manifest_id": null,
+      "passed_variants": 6,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 6
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SLOT-MAPPING-SEMANTIC",
+      "manifest_id": null,
+      "passed_variants": 13,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 13
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SLOT-SELECTION-FULL-OVER-UNSUPPORTED-DOWNGRADE",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SLOT-SELECTION-PREFERS-FULL",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SLOT-TIEBREAK-STABLE",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    }
+  ],
+  "result_counts": {
+    "EXPECTED_UNCERTAIN": 4,
+    "PASS": 22
+  },
+  "supported_count": 26,
+  "total_count": 26,
+  "uncovered_archetypes": [
+    "ailment",
+    "ascendancy",
+    "dot",
+    "es_scaling",
+    "melee",
+    "proxy_totem",
+    "stat_stacker",
+    "trigger",
+    "unique_interaction",
+    "weapon_swap"
+  ]
+}
