@@ -55,6 +55,12 @@ class ItemCheckProSettings:
     upgrade_potential_explicit: bool = False
     recommendation_style: str = "BALANCED"
     popup_density: str = "COMPACT"
+    #: When enabled, Item Check compares the equipped item and the candidate as if
+    #: modifiers contributed by socketed items (runes, soul cores) had been removed
+    #: from both -- so different installed runes never distort the comparison.
+    #: Default OFF: the actual equipped/candidate items, including socketed
+    #: modifiers, are compared unchanged.
+    ignore_socketed_mods: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> ItemCheckProSettings:
@@ -71,6 +77,7 @@ class ItemCheckProSettings:
             upgrade_potential_explicit=explicit,
             recommendation_style=str(data.get("recommendation_style") or "BALANCED"),
             popup_density=str(data.get("popup_density") or "COMPACT"),
+            ignore_socketed_mods=bool(data.get("ignore_socketed_mods", False)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -85,6 +92,7 @@ class ItemCheckProSettings:
             "upgrade_potential_explicit": self.upgrade_potential_explicit,
             "recommendation_style": self.recommendation_style,
             "popup_density": self.popup_density,
+            "ignore_socketed_mods": self.ignore_socketed_mods,
         }
 
     def clamp_history_size(self) -> int:

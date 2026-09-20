@@ -52,6 +52,11 @@ class EvaluationContextIdentity:
     item_set: str = ""
     calculation_context: str = "MAP"
     worker_generation: int = 0
+    #: Folded in so a cached result computed with the opposite setting can never be
+    #: served: this setting changes the measured baseline/candidate metrics, not
+    #: only presentation, so it must vary the identity like any other input that
+    #: changes what got measured.
+    ignore_socketed_mods: bool = False
 
     @property
     def token(self) -> str:
@@ -88,6 +93,7 @@ def identity_from_state(
     item_set: str,
     calculation_context: str,
     worker_generation: int,
+    ignore_socketed_mods: bool = False,
 ) -> EvaluationContextIdentity:
     components = dict(fingerprint_components or {})
     skill = {
@@ -129,4 +135,5 @@ def identity_from_state(
         item_set=item_set,
         calculation_context=calculation_context,
         worker_generation=int(worker_generation),
+        ignore_socketed_mods=bool(ignore_socketed_mods),
     )

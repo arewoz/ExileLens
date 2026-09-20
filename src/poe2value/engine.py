@@ -484,6 +484,7 @@ class Engine:
         component_keys: list[str] | None = None,
         defer_restore: bool = False,
         test_fault: str | None = None,
+        baseline_overrides: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """PERF-02: measure every compatible slot for one item in a single transaction.
 
@@ -492,6 +493,12 @@ class Engine:
         restore is finalised before the next evaluation starts -- see
         :meth:`finalize_transaction`. The worker enforces the same thing independently:
         any later request drains the pending restore before touching the build.
+
+        ``baseline_overrides`` (slot -> raw item text) lets the "ignore socketed
+        modifiers" Item Check setting substitute a normalized version of the
+        currently equipped item for baseline measurement only -- see
+        items/evaluation.py and runtime/lua/bridge.lua's ``tx_begin``. The build is
+        still fully restored to its true, un-overridden equipped items afterward.
         """
         from poe2value.worker import decorate_item_slot_evaluation
 
@@ -499,7 +506,7 @@ class Engine:
         if isinstance(session, WorkerSession) and not test_fault:
             return self._guard_restore(lambda: session.evaluate_item_slots(
                 slots, item_raw, context=context, component_keys=component_keys,
-                defer_restore=defer_restore,
+                defer_restore=defer_restore, baseline_overrides=baseline_overrides,
             ))
         params: dict[str, Any] = {"slots": list(slots), "item_raw": item_raw}
         if context:
@@ -510,6 +517,8 @@ class Engine:
             params["defer_restore"] = True
         if test_fault:
             params["test_fault"] = test_fault
+        if baseline_overrides:
+            params["baseline_overrides"] = dict(baseline_overrides)
         if perf_enabled():
             params["perf"] = True
         result = self._guard_restore(lambda: self._call("evaluate_item_slots", params))

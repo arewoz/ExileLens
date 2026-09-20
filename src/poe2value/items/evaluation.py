@@ -37,6 +37,7 @@ from poe2value.items.ranking import rank_slot_comparisons
 from poe2value.items.raw_input import ItemInputSource, RawItemInput
 from poe2value.items.recognition import ItemClassification
 from poe2value.items.slots import pob_slot_to_product
+from poe2value.items.socket_normalize import strip_socketed_modifiers
 from poe2value.items.value_layer import parse_profile
 
 logger = logging.getLogger(__name__)
@@ -145,6 +146,29 @@ def _evaluate_item_impl(
     cache = cache or ItemPipelineCache()
     raw = RawItemInput.from_text(raw_text, source=source)
 
+    # ITEM-CHECK-SOCKET-NORM: "Ignore socketed modifiers in Item Check" strips
+    # rune/soul-core-granted lines from the candidate before it reaches PoB --
+    # ``engine_raw`` is the text PoB actually parses/measures and the text the
+    # pob-parse cache keys on, so a toggle of this setting can never reuse a cache
+    # entry built under the other setting. ``raw`` (recognition, metadata, the
+    # displayed candidate item and the reported raw_input) stays the true,
+    # unmodified clipboard text throughout: this setting changes what is MEASURED,
+    # never what is truthfully shown to have been on the item. The symmetric half
+    # -- normalizing the currently equipped item -- happens further below, once
+    # the compatible slots (and thus which equipped items are being compared) are
+    # known.
+    ignore_socketed_mods = bool((item_check_pro or {}).get("ignore_socketed_mods"))
+    candidate_normalization = None
+    engine_raw = raw
+    if ignore_socketed_mods:
+        candidate_normalization = strip_socketed_modifiers(raw.raw_text)
+        if candidate_normalization.changed:
+            engine_raw = RawItemInput.from_text(
+                candidate_normalization.text,
+                source=raw.source,
+                detected_format=raw.detected_format,
+            )
+
     t0 = time.perf_counter()
     recognition = cache.get_recognition(raw)
     timings.recognition_ms = (time.perf_counter() - t0) * 1000
@@ -201,7 +225,7 @@ def _evaluate_item_impl(
 
     t0 = time.perf_counter()
     pob_engine_result = cache.get_pob_parse(
-        raw, engine.parse_item, build_fingerprint=str(baseline_fingerprint or ""),
+        engine_raw, engine.parse_item, build_fingerprint=str(baseline_fingerprint or ""),
     )
     pob_parse = PobParseResult.from_engine(pob_engine_result, metadata)
     timings.pob_parse_ms = (time.perf_counter() - t0) * 1000
@@ -260,6 +284,36 @@ def _evaluate_item_impl(
     recovery_used = False
     debug_payload: dict[str, Any] = {"slots": [], "restores": []}
 
+    # ITEM-CHECK-SOCKET-NORM (symmetric half): the currently equipped item in each
+    # compatible slot is read and normalized the same way the candidate was above,
+    # so the PoB baseline measurement itself -- not just the displayed text -- is
+    # recalculated with socketed-item modifiers removed. Never one-sided: a slot is
+    # only overridden when its own equipped item actually has something to strip.
+    baseline_overrides: dict[str, str] = {}
+    baseline_normalization_diagnostics: dict[str, int] = {}
+    if ignore_socketed_mods:
+        try:
+            equipment_payload = engine.get_equipment() or {}
+        except Exception:
+            logger.exception("could not read live equipment for socket-modifier normalization")
+            equipment_payload = {}
+        equipment_by_slot = {
+            str(entry.get("slot")): entry
+            for entry in (equipment_payload.get("equipment") or [])
+            if isinstance(entry, dict)
+        }
+        for slot in compatible_slots:
+            entry = equipment_by_slot.get(slot)
+            if not entry or not entry.get("equipped"):
+                continue
+            current_raw = str(entry.get("raw") or "")
+            if not current_raw:
+                continue
+            normalized = strip_socketed_modifiers(current_raw)
+            if normalized.changed:
+                baseline_overrides[slot] = normalized.text
+                baseline_normalization_diagnostics[slot] = len(normalized.removed_lines)
+
     # PERF-02: every compatible slot for this item is measured inside one PoB
     # transaction -- one baseline, N candidate frames, one restore -- instead of N
     # transactions costing 2N frames. The restore and its verification are shared by
@@ -270,10 +324,11 @@ def _evaluate_item_impl(
     try:
         batch = engine.evaluate_item_slots(
             list(compatible_slots),
-            raw.raw_text,
+            engine_raw.raw_text,
             context=context,
             component_keys=batch_keys or None,
             defer_restore=defer_restore,
+            baseline_overrides=baseline_overrides or None,
         )
     except SlotInvalid as exc:
         raise BaselineItemUnresolved(
@@ -490,6 +545,15 @@ def _evaluate_item_impl(
             "recovery_used": recovery_used,
             "loadout": str(build_info.get("active_loadout") or ""),
             "item_set": str(build_info.get("active_item_set_id") or ""),
+        },
+        # Privacy-safe: counts and slot names only, never the removed mod text --
+        # see items/diagnostics.py's allowlist serializer, which surfaces this block.
+        "socket_normalization": {
+            "enabled": ignore_socketed_mods,
+            "candidate_normalized": bool(candidate_normalization and candidate_normalization.changed),
+            "candidate_removed_count": len(candidate_normalization.removed_lines) if candidate_normalization else 0,
+            "baseline_normalized_slots": sorted(baseline_overrides.keys()),
+            "baseline_removed_counts": dict(baseline_normalization_diagnostics),
         },
     }
     payload["comparison_trace"] = build_comparison_trace(payload)

@@ -1784,15 +1784,28 @@ end
 -- earlier transaction verified, and a failed restore still marks the worker unhealthy so
 -- no later request runs on a corrupt state.
 
+-- ITEM-CHECK-SOCKET-NORM: `params.baseline_overrides` (slot -> raw item text) lets
+-- the "ignore socketed modifiers" Item Check setting substitute a normalized
+-- version of the currently equipped item for BASELINE MEASUREMENT ONLY. The
+-- override is applied here, once, right after the true pre-mutation state is
+-- captured (`true_baseline_*`) and before `ctx.baseline_*` -- the values every
+-- candidate delta and the returned "baseline" block are computed against -- are
+-- read. `ctx.working_selection` is the item-id set the batch reverts to BETWEEN
+-- slot measurements (tx_revert); it includes the override items so they stay
+-- equipped for every slot in this transaction. `ctx.original_selection` (the
+-- true, un-overridden ids) and `ctx.true_baseline_*` are untouched by any of this
+-- and are what the FINAL restore (tx_finish) reverts to and verifies against --
+-- the build is always left exactly as it truly was, override or not.
 local function tx_begin(params)
 	local it = build.itemsTab
 	local ctx = {
 		tolerance = params.tolerance or 0.5,
 		test_fault = params.test_fault,
 		created = {},
-		baseline_fp = M.fingerprint_components(),
-		baseline_metrics = collect_metrics(),
-		baseline_semantic = semantic_state(),
+		baseline_created = {},
+		true_baseline_fp = M.fingerprint_components(),
+		true_baseline_metrics = collect_metrics(),
+		true_baseline_semantic = semantic_state(),
 	}
 	ctx.snap = snapshot_skill_state()
 	-- Every equipment slot, not only the changed ones: equipping one item can unequip
@@ -1802,6 +1815,34 @@ local function tx_begin(params)
 		if not slot.nodeId then
 			ctx.original_selection[slot_name] = slot.selItemId or 0
 		end
+	end
+	ctx.working_selection = {}
+	for slot_name, item_id in pairs(ctx.original_selection) do
+		ctx.working_selection[slot_name] = item_id
+	end
+
+	local overrides = params.baseline_overrides
+	if type(overrides) == "table" and next(overrides) ~= nil then
+		for slot_name, raw in pairs(overrides) do
+			if not it.slots[slot_name] then
+				error({ code = "SLOT_INVALID", message = "unknown slot: " .. tostring(slot_name), details = { slot = slot_name } })
+			end
+			local item_id = set_item(slot_name, raw)
+			if item_id then
+				ctx.baseline_created[#ctx.baseline_created + 1] = item_id
+				ctx.working_selection[slot_name] = item_id
+			end
+		end
+		recalc()
+		ctx.baseline_fp = M.fingerprint_components()
+		ctx.baseline_metrics = collect_metrics()
+		ctx.baseline_semantic = semantic_state()
+		ctx.baseline_overridden = true
+	else
+		ctx.baseline_fp = ctx.true_baseline_fp
+		ctx.baseline_metrics = ctx.true_baseline_metrics
+		ctx.baseline_semantic = ctx.true_baseline_semantic
+		ctx.baseline_overridden = false
 	end
 	return ctx
 end
@@ -1813,13 +1854,22 @@ local function tx_baseline_block(ctx)
 		equipment = ctx.baseline_fp.equipment,
 		primary_skill = ctx.snap.main_identity,
 		semantic = semantic_summary(ctx.baseline_semantic),
+		overridden = ctx.baseline_overridden or false,
 	}
 end
 
--- Put the baseline items and skill groups back WITHOUT recalculating.
+-- Put the batch's working items and skill groups back WITHOUT recalculating. Used
+-- BETWEEN slot measurements (and, when there is no baseline override, at the very
+-- end too): reverts to `ctx.working_selection`, which is the true original items
+-- unless a baseline override is active, in which case it is the override items --
+-- either way, exactly what this transaction's shared baseline measures. Discards
+-- only `ctx.created` (throw-away candidate items); override items are not
+-- throw-away for the life of the transaction and must survive every inter-slot
+-- revert. See `tx_revert_final` for the transaction-closing revert to the TRUE
+-- pre-override state.
 local function tx_revert(ctx)
 	local it = build.itemsTab
-	for slot_name, item_id in pairs(ctx.original_selection) do
+	for slot_name, item_id in pairs(ctx.working_selection) do
 		local slot = it.slots[slot_name]
 		if slot.selItemId ~= item_id then
 			slot:SetSelItemId(item_id)
@@ -1831,6 +1881,30 @@ local function tx_revert(ctx)
 		discard_item(item_id)
 	end
 	ctx.created = {}
+	it:PopulateSlots()
+	restore_skill_state(ctx.snap)
+end
+
+-- The transaction-closing revert: always the TRUE, un-overridden equipped items,
+-- regardless of any baseline override -- the build must never be left holding a
+-- baseline-override item once evaluation is done. Discards both the transient
+-- candidate items and any baseline-override items created in `tx_begin`.
+local function tx_revert_final(ctx)
+	local it = build.itemsTab
+	for slot_name, item_id in pairs(ctx.original_selection) do
+		local slot = it.slots[slot_name]
+		if slot.selItemId ~= item_id then
+			slot:SetSelItemId(item_id)
+		end
+	end
+	for _, item_id in ipairs(ctx.created) do
+		discard_item(item_id)
+	end
+	for _, item_id in ipairs(ctx.baseline_created) do
+		discard_item(item_id)
+	end
+	ctx.created = {}
+	ctx.baseline_created = {}
 	it:PopulateSlots()
 	restore_skill_state(ctx.snap)
 end
@@ -1954,12 +2028,15 @@ local function tx_measure(ctx, changes, params, in_batch)
 	return candidate
 end
 
--- Restore the baseline and prove it: equipment, semantic calc state, then metrics.
--- Raises RESTORE_FAILED (worker marked unhealthy) when the restored state is not A.
+-- Restore the TRUE baseline (discarding any socket-normalization override along
+-- with the candidate) and prove it: equipment, semantic calc state, then metrics
+-- -- always against `ctx.true_baseline_*`, never the (possibly overridden)
+-- `ctx.baseline_*` used for candidate deltas. Raises RESTORE_FAILED (worker marked
+-- unhealthy) when the restored state does not match.
 local function tx_finish(ctx)
 	local t_restore = perf_now()
 	local restore_ok, restore_err = pcall(function()
-		tx_revert(ctx)
+		tx_revert_final(ctx)
 		if ctx.test_fault == "corrupt_restore" then
 			-- Test hook: simulate a restore that lands on another skill.
 			build.mainSocketGroup = (ctx.snap.main_index % #ctx.snap.list) + 1
@@ -1979,15 +2056,15 @@ local function tx_finish(ctx)
 	local restored_fp = M.fingerprint_components()
 	local restored_semantic = semantic_state()
 	local reason, bad_metric, bad_a, bad_b
-	local eq_ok, bad_slot = equipment_equal(restored_fp.equipment, ctx.baseline_fp.equipment)
+	local eq_ok, bad_slot = equipment_equal(restored_fp.equipment, ctx.true_baseline_fp.equipment)
 	if not eq_ok then
 		reason = "RESTORE_EQUIPMENT_MISMATCH"
 	else
-		reason = compare_semantic(ctx.baseline_semantic, restored_semantic)
+		reason = compare_semantic(ctx.true_baseline_semantic, restored_semantic)
 	end
 	if not reason then
 		local metric_ok
-		metric_ok, bad_metric, bad_a, bad_b = metrics_equal(restored_metrics, ctx.baseline_metrics, ctx.tolerance)
+		metric_ok, bad_metric, bad_a, bad_b = metrics_equal(restored_metrics, ctx.true_baseline_metrics, ctx.tolerance)
 		if not metric_ok then
 			reason = "RESTORE_METRICS_MISMATCH"
 		end
@@ -2004,7 +2081,7 @@ local function tx_finish(ctx)
 				bad_metric = bad_metric,
 				baseline_value = bad_a,
 				restored_value = bad_b,
-				baseline = semantic_summary(ctx.baseline_semantic),
+				baseline = semantic_summary(ctx.true_baseline_semantic),
 				restored = semantic_summary(restored_semantic),
 			},
 		})
@@ -2149,6 +2226,7 @@ local function run_item_slot_evaluation(slots, item_raw, params)
 			perf = perf_payload_now(t_perf),
 			context = STATE.context,
 			baseline = tx_baseline_block(ctx),
+			true_baseline = { fingerprint = ctx.true_baseline_fp, metrics = ctx.true_baseline_metrics },
 			slots = measured,
 			restore = { status = "DEFERRED" },
 		}
@@ -2159,6 +2237,7 @@ local function run_item_slot_evaluation(slots, item_raw, params)
 		perf = perf_payload_now(t_perf),
 		context = STATE.context,
 		baseline = tx_baseline_block(ctx),
+		true_baseline = { fingerprint = ctx.true_baseline_fp, metrics = ctx.true_baseline_metrics },
 		slots = measured,
 		restored = restored,
 		restore = { status = "OK" },
@@ -2361,7 +2440,7 @@ function M.dispatch(req)
 		local ctx = STATE.pending
 		STATE.pending = nil
 		if method == "load_build" then
-			pcall(tx_revert, ctx)
+			pcall(tx_revert_final, ctx)
 			STATE.revision = nil
 		else
 			tx_finish(ctx)

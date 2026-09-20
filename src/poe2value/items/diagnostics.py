@@ -346,6 +346,18 @@ def build_item_diagnostics(
         "offense_measurement_state": _safe(_offense_measurement_state(recommendation, outcome)),
         "comparison": _safe(_comparison_identity(recommendation, primary, outcome)),
         "state_integrity": _safe(_state_integrity(result, recommendation)),
+        "socket_normalization": _safe(
+            _pick(
+                result.get("socket_normalization") or {},
+                (
+                    "enabled",
+                    "candidate_normalized",
+                    "candidate_removed_count",
+                    "baseline_normalized_slots",
+                    "baseline_removed_counts",
+                ),
+            )
+        ),
     }
     build = {key: value for key, value in build.items() if value not in (None, "", [], {})}
 
