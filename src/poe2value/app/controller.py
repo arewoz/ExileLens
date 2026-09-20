@@ -2089,6 +2089,7 @@ class EvaluationController(QObject):
             item_set=self._active_item_set_id,
             calculation_context=self.build_info.context or self.settings.context,
             worker_generation=self._worker_generation,
+            ignore_socketed_mods=self.item_check_settings().ignore_socketed_mods,
         )
 
     def submit_clipboard_text(

@@ -12,6 +12,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from poe2value.app.settings import AppSettings
+from poe2value.items.item_check_settings import ItemCheckProSettings
 from poe2value.ui.dashboard_pages import SettingsPage
 
 
@@ -56,6 +57,9 @@ class _DummyController(QObject):
 
     def restart_engine(self) -> None:
         self.restart_calls += 1
+
+    def item_check_settings(self) -> ItemCheckProSettings:
+        return ItemCheckProSettings.from_dict(self.settings.item_check_pro)
 
 
 def _page(settings: AppSettings, controller: _DummyController | None = None) -> SettingsPage:

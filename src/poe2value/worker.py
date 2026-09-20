@@ -99,6 +99,18 @@ def decorate_item_slot_evaluation(result: dict[str, Any]) -> dict[str, Any]:
     baseline["normalized"] = baseline_norm
     baseline["fingerprint_hash"] = fingerprint_hash(baseline["fingerprint"])
 
+    # A socket-normalization baseline override (see items/evaluation.py) makes
+    # ``baseline`` reflect the stripped equipped item, on purpose -- that is what
+    # candidate deltas must be measured against. But the transaction still restores
+    # the TRUE, un-stripped equipped item at the end, so restore verification must
+    # compare against the true pre-override fingerprint the worker returns
+    # separately, never against the (deliberately different) override baseline.
+    true_baseline = result.get("true_baseline") or baseline
+    true_baseline_hash = fingerprint_hash(true_baseline["fingerprint"])
+    true_baseline_norm = (
+        normalize_metrics(true_baseline["metrics"]) if "metrics" in true_baseline else baseline_norm
+    )
+
     restore = result.get("restore") or {}
     status = str(restore.get("status") or "")
     restored = result.get("restored")
@@ -109,9 +121,9 @@ def decorate_item_slot_evaluation(result: dict[str, Any]) -> dict[str, Any]:
         restore = {
             "status": status or "OK",
             "equipment_match": restored["restore_ok"],
-            "fingerprint_match": baseline["fingerprint_hash"] == restored["fingerprint_hash"],
-            "metrics_match": baseline_norm == restored_norm,
-            "pass": restored["restore_ok"] and baseline["fingerprint_hash"] == restored["fingerprint_hash"],
+            "fingerprint_match": true_baseline_hash == restored["fingerprint_hash"],
+            "metrics_match": true_baseline_norm == restored_norm,
+            "pass": restored["restore_ok"] and true_baseline_hash == restored["fingerprint_hash"],
         }
     else:
         # Deferred: the restore has not run yet, so there is nothing to pass or fail.
@@ -285,6 +297,7 @@ class WorkerSession:
         component_keys: list[str] | None = None,
         defer_restore: bool = False,
         test_fault: str | None = None,
+        baseline_overrides: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"slots": list(slots), "item_raw": item_raw, "tolerance": tolerance}
         if context:
@@ -295,6 +308,8 @@ class WorkerSession:
             params["defer_restore"] = True
         if test_fault:
             params["test_fault"] = test_fault
+        if baseline_overrides:
+            params["baseline_overrides"] = dict(baseline_overrides)
         if perf_enabled():
             params["perf"] = True
         return decorate_item_slot_evaluation(self.request("evaluate_item_slots", params))

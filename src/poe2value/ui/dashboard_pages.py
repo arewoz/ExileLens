@@ -189,6 +189,17 @@ class SettingsPage(QWidget):
         self._show_hints.setChecked(bool(getattr(settings, "show_hotkey_hints", True)))
         self._show_hints.toggled.connect(self._on_show_hints_changed)
 
+        self._ignore_socketed_mods = ThemedCheckBox("Ignore socketed modifiers in Item Check")
+        self._ignore_socketed_mods.setToolTip(
+            "Compares the equipped item and the candidate as if modifiers from socketed"
+            " items (runes, soul cores) had been removed from both, so different"
+            " installed runes never distort the comparison."
+        )
+        self._ignore_socketed_mods.setChecked(
+            bool(self.controller.item_check_settings().ignore_socketed_mods)
+        )
+        self._ignore_socketed_mods.toggled.connect(self._on_ignore_socketed_mods_changed)
+
         from poe2value.platform.windows.hotkey_binding import HotkeyBinding
 
         self._hotkey_label = QLabel(HotkeyBinding.parse(settings.price_check_hotkey).display)
@@ -276,6 +287,7 @@ class SettingsPage(QWidget):
         league_row.add_trailing(self._refresh_leagues_btn)
         league_row.set_helper_widget(self._league_status)
         section.add_widget(league_row)
+        section.add_widget(self._ignore_socketed_mods)
         return section
 
     def _build_overlay_section(self):
@@ -627,6 +639,10 @@ class SettingsPage(QWidget):
         self.settings.show_hotkey_hints = bool(enabled)
         if enabled:
             self.settings.hotkey_hints_dismissed = False
+        save_settings(self.settings)
+
+    def _on_ignore_socketed_mods_changed(self, enabled: bool) -> None:
+        self.controller.update_item_check_settings(ignore_socketed_mods=bool(enabled))
         save_settings(self.settings)
 
     def _change_hotkey(self) -> None:
