@@ -398,6 +398,23 @@ def assess_quality(
         )
     elif _unavailable(offense):
         partial.append(_reason("OFFENSE_UNAVAILABLE", "Path of Building reported no damage for the main skill"))
+    if offense.get("substituted_component"):
+        # CORE-01: native discovery only ever substitutes a component here when it has
+        # already established damage_scope=PARTIAL / overall_damage_verdict=UNCERTAIN
+        # for the true primary skill (see native_metric_discovery.
+        # promote_unresolved_primary_with_component) -- the substitute's own field may
+        # be confidently identified and its number genuinely measured, but it is still
+        # one secondary skill standing in for a primary that produced nothing to
+        # measure at all, never full coverage of the build's real damage change. That
+        # must downgrade quality regardless of which delta_kind the substitute carries
+        # or how confidently the substitute skill itself was resolved.
+        partial.append(
+            _reason(
+                "OFFENSE_FALLBACK_COMPONENT",
+                "the main skill produced no usable damage output; a secondary measured "
+                "component stands in for it",
+            )
+        )
     if kind in {"MEASURED", "MEASURED_ZERO"}:
         from poe2value.items.offense_coverage import offense_secondary_mechanics_partial
 
