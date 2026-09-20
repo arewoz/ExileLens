@@ -33,8 +33,13 @@ def _path(case: dict) -> Path:
 
 
 def test_manifest_is_small_complete_and_repository_relative() -> None:
-    assert [case["id"] for case in CASES] == ["CORE04-BOW-QUIVER", "CORE04-MINION-ACTOR", "CORE04-STAGE-CONTEXT"]
-    assert len(CASES) == 3
+    assert [case["id"] for case in CASES] == [
+        "CORE04-BOW-QUIVER",
+        "CORE04-MINION-ACTOR",
+        "CORE04-STAGE-CONTEXT",
+        "CORE04-MELEE-WEAPON",
+    ]
+    assert len(CASES) == 4
     for case in CASES:
         assert set(case) == {"id", "file", "class", "ascendancy", "primary_skill", "actor", "purpose"}
         assert not Path(case["file"]).is_absolute()

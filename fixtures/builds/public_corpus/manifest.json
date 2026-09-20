@@ -27,6 +27,15 @@
       "primary_skill": "Flameblast",
       "actor": "PLAYER",
       "purpose": "selected channel stage and calculation context"
+    },
+    {
+      "id": "CORE04-MELEE-WEAPON",
+      "file": "fixtures/builds/public_corpus/core04_melee_weapon.xml",
+      "class": "Warrior",
+      "ascendancy": "Warbringer",
+      "primary_skill": "Sunder",
+      "actor": "PLAYER",
+      "purpose": "two-handed melee weapon replacement semantics"
     }
   ]
 }

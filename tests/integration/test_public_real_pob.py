@@ -123,3 +123,56 @@ def test_one_item_check_uses_one_batched_candidate_evaluation(real_pob_engine, m
     result = evaluate_item(_item("core04_offense_ring.txt"), real_pob_engine, build_path=str(BUILD))
     assert calls == [("Ring 1", "Ring 2")]
     assert len(result["slot_comparisons"]) == 2
+
+
+MELEE_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_melee_weapon.xml"
+
+
+def test_melee_two_hand_weapon_upgrade_is_measured_and_restored(real_pob_engine) -> None:
+    """CORE04-MELEE-WEAPON: a real two-handed mace replacement on a Sunder build.
+
+    The candidate is the build's own equipped weapon plus one added physical-damage
+    modifier (same "clone the equipped item, add one mod" technique as the bow/quiver
+    fixture). Expected quality/verdict below is not assumed: it was captured from a
+    real PoB run of this exact candidate before this assertion was written (see
+    docs/CORPUS_COVERAGE_METHODOLOGY.md, M1.1 melee slice) — a +11%-ish offense-only
+    gain with an unchanged defense axis produced FULL quality / MEANINGFUL_UPGRADE.
+    """
+    baseline_item = _equipped_item(MELEE_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n40% increased Physical Damage\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(MELEE_BUILD))
+
+    assert result["pob_parse"]["item"]["type"] == "Two Hand Mace"
+    assert result["pob_parse"]["item"]["two_hand"] is True
+    # A two-handed weapon has exactly one legal slot given this build's empty offhand.
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 1"}
+
+    row = result["slot_comparisons"][0]
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Sunder"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Sunder"
+    assert row["candidate"]["item_present"] is True
+
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL"
+    assert outcome["item_impact"]["axes"]["OFFENSE"]["direction"] == "POSITIVE"
+    assert outcome["item_impact"]["axes"]["DEFENSE"]["direction"] == "NEUTRAL"
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
+
+    assert row["restore"]["pass"] is True
+    assert result["recommendation"]["pob_slot"] == "Weapon 1"
+
+
+def test_melee_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine) -> None:
+    baseline_item = _equipped_item(MELEE_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n40% increased Physical Damage\n"
+
+    first = evaluate_item(candidate, real_pob_engine, build_path=str(MELEE_BUILD))
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(MELEE_BUILD))
+
+    first_row = first["slot_comparisons"][0]
+    second_row = second["slot_comparisons"][0]
+    assert first_row["baseline_primary_metric"]["skill_name"] == second_row["baseline_primary_metric"]["skill_name"] == "Sunder"
+    assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
+    assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
+    assert first_row["restore"]["pass"] is True
+    assert second_row["restore"]["pass"] is True
