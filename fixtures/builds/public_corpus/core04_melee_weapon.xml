@@ -312,7 +312,7 @@ Item Level: 80
 Quality: 21
 Sockets: S S S
 Rune: Craiceann&apos;s Rune of Warding
-Rune: The Levelwolf&apos;s Rune of Willpower
+Rune: The Greatwolf&apos;s Rune of Willpower
 Rune: Panther Idol
 LevelReq: 58
 Implicits: 7
@@ -429,7 +429,7 @@ LevelReq: 18
 Implicits: 1
 Used when you start Bleeding
 Gains 0.20 Charges per Second
-Ceveles Consecrated Ground on use
+Creates Consecrated Ground on use
 			<ModRange id="3" range="0.5"/>
 			<ModRange id="4" range="0.5"/>
 		</Item>
