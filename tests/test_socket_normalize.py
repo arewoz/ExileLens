@@ -64,6 +64,33 @@ def test_real_implicits_and_explicits_survive_untouched() -> None:
     assert "+14 to Strength" in lines
 
 
+def test_implicits_header_can_reach_zero_and_stay_valid_item_text() -> None:
+    # Real shape from fixtures/builds/public_corpus/core04_bow_quiver.xml's
+    # "Pandemonium Breeze" (Weapon 1): every one of the counted implicit lines is
+    # rune-derived, so the header must land on exactly "Implicits: 0", not a
+    # negative count or a line PoB's parser would reject.
+    item = """Rarity: RARE
+Test Bow
+Warmonger Bow
+Sockets: S S S
+Rune: A Rune
+Rune: B Rune
+Rune: C Rune
+LevelReq: 1
+Implicits: 3
+{enchant}{rune}Line one
+{enchant}{rune}Bonded: Line two
+{enchant}{rune}Line three
+50% increased Physical Damage"""
+    result = strip_socketed_modifiers(item)
+    assert result.changed is True
+    assert len(result.removed_lines) == 3
+    lines = result.text.splitlines()
+    assert "Implicits: 0" in lines
+    assert not any(line.startswith("Implicits: -") for line in lines)
+    assert "50% increased Physical Damage" in lines
+
+
 def test_item_with_no_socketed_modifiers_is_unchanged() -> None:
     plain = """Rarity: RARE
 Arcane Loop
