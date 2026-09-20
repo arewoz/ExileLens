@@ -48,7 +48,7 @@ fixtures with exact malformed-output and policy-boundary assertions.
 | --- | --- | --- | --- | --- | --- |
 | Public verdict | COVERED | COVERED: cannot become directional | COVERED: cannot win a valid slot | COVERED: `NOT_EVALUATED` | Public ring fixture covers measured offense, defense, trade-off, and empty-slot behavior. |
 | Slot ranking | COVERED: rings and stable tie | COVERED | COVERED | COVERED: explicit restore failure | Public ring fixture covers a two-slot transaction; broader multi-slot classes remain PARTIAL. |
-| Primary offense | COVERED: score boundaries and trade-off | COVERED | COVERED | COVERED: non-numeric, NaN, infinity, bool fail closed | Skill-derived real output is PARTIAL. |
+| Primary offense | COVERED: score boundaries and trade-off | COVERED | COVERED | COVERED: non-numeric, NaN, infinity, bool fail closed | Ailment-dominant real skill-derived output is COVERED (`core04_poison_ailment.xml`); mixed hit+ailment (`DamageQuantity.HIT_PLUS_AILMENT`, `CombinedDPS` already ≥ the dominant single component) has no public fixture yet — PARTIAL. |
 | EHP / max hit | COVERED: cross-axis trade-off | PARTIAL | NOT APPLICABLE | COVERED through shared malformed-score gate | Public ring fixture covers a measured defense improvement; broader real-build boundary coverage is PARTIAL. |
 | Known zero | COVERED | NOT APPLICABLE | NOT APPLICABLE | NOT APPLICABLE | Legitimate zero remains `available`. |
 | Missing / unavailable | COVERED: score contributes no synthetic value | COVERED | NOT APPLICABLE | COVERED: malformed is not reclassified as zero | All raw metric kinds are not individually enumerated. |
@@ -70,6 +70,7 @@ fixtures with exact malformed-output and policy-boundary assertions.
 | Verified minion actor | COVERED | Public corpus verifies minion actor identity. |
 | Stage, stat set, skill part | COVERED | Public corpus verifies channel-release stage context; stat-set and skill-part variants remain PARTIAL. |
 | Loadout / weapon set | PARTIAL | Context identity includes loadout/item set; no public transaction fixture. |
+| Offense quantity selection (hit vs skill-DoT vs ailment) | PARTIAL | `resolve_primary_metric`'s ailment-dominant branch (`DamageQuantity.AILMENT_DPS`, PoisonDPS/IgniteDPS/BleedDPS selected directly over hit DPS) is COVERED by `core04_poison_ailment.xml` — a real Huntress/Ritualist Poisonburst Arrow build where PoB's own PoisonDPS is ~89% of CombinedDPS. A real candidate ("increased Damage with Poison") that produced a reproducible zero-delta at every tested magnitude was investigated and attributed to PoB's own calculation for this stat set (Bursting Plague-detonated poison), not an ExileLens defect — ExileLens never derives a damage number independently (`docs/POB_NATIVE_DAMAGE_POLICY.md`). The skill-native-DoT branch (`DamageQuantity.SKILL_DOT`, `TotalDot`/`FullDotDPS`) and the mixed hit+ailment branch (`DamageQuantity.HIT_PLUS_AILMENT`) remain unfixtured. |
 
 ## Threshold and trade-off policy
 
@@ -116,8 +117,10 @@ the public adversarial extension. Each uses the same shape emitted by the PoB wo
 | P0 | Malformed numeric worker output could throw while building a metric profile, before `EvaluationOutcome` could fail closed. | Fixed: finite numeric ingestion in metrics/resistance/threshold handling; scored malformed values produce `FAILED`/`NOT_EVALUATED` regression coverage. |
 | P1 | Public real-PoB fixtures and Build Corpus were absent when CORE-04 was first authored. | Resolved by CORE-04A: repository-relative strategic fixtures and both public gates are now available. |
 | P2 | Display-threshold, recovery, stat-set, skill-part, and broad multi-slot explanations lack fixture-level boundary tests. | Deferred as bounded public-fixture coverage; no new mechanics proposed. |
+| P2 | `resolve_primary_metric`'s DoT/ailment offense-quantity selection (`OffenseKind.DOT_DPS`, `DamageQuantity.AILMENT_DPS`/`SKILL_DOT`/`HIT_PLUS_AILMENT`) had zero coverage at any level (no unit test, no real-PoB fixture) despite being documented product policy (`docs/POB_NATIVE_DAMAGE_POLICY.md` P1-B). | Partially resolved by M1.1: `core04_poison_ailment.xml` proves the ailment-dominant branch against a real build with correct field selection, a correctly measured directional offense change, and a truthful PARTIAL/UNCERTAIN classification. The skill-native-DoT and mixed-hit+ailment branches remain deferred. |
 
 Exact deferred items:
 
 1. Add deterministic public coverage for display thresholds, recovery, stat-set/skill-part variants, and broader mixed-slot transactions.
 2. Add worker-level transaction instrumentation only if the existing public batching and corrupt-restore recovery gates cease to cover a future worker change.
+3. Add a public fixture for the skill-native-DoT branch (`DamageQuantity.SKILL_DOT`, e.g. a Bleed/Essence-Drain-style build with no separate "ailment" field) and the mixed hit+ailment branch (`DamageQuantity.HIT_PLUS_AILMENT`, `CombinedDPS` selected directly) — a real second candidate for the latter was found (a lower-DPS Huntress/Ritualist Poisonburst Arrow character where PoisonDPS is ~96.5% of hit rather than dominant) but was not added this slice because its active loadout uses `useSecondWeaponSet="true"` (the true equipped weapons are in the "Weapon 1 Swap"/"Weapon 2 Swap" slots), which would have entangled this slice with the separate, still-undocumented weapon-swap-active-set gap.

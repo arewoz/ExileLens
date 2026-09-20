@@ -96,6 +96,21 @@
     },
     {
       "archetypes": [
+        "ailment",
+        "dot"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-POISON-AILMENT-IDENTITY",
+      "manifest_id": "CORE04-POISON-AILMENT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "spell",
         "unusual_skill_part"
       ],
@@ -294,6 +309,36 @@
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "ailment",
+        "dot"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "POISON-AILMENT-OFFENSE-SELECTED-AND-MEASURED",
+      "manifest_id": "CORE04-POISON-AILMENT",
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ailment",
+        "dot"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "POISON-AILMENT-REPEATED-EVALUATION-NO-LEAK",
+      "manifest_id": "CORE04-POISON-AILMENT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
@@ -423,15 +468,13 @@
     }
   ],
   "result_counts": {
-    "EXPECTED_UNCERTAIN": 4,
-    "PASS": 28
+    "EXPECTED_UNCERTAIN": 5,
+    "PASS": 30
   },
-  "supported_count": 32,
-  "total_count": 32,
+  "supported_count": 35,
+  "total_count": 35,
   "uncovered_archetypes": [
-    "ailment",
     "ascendancy",
-    "dot",
     "es_scaling",
     "proxy_totem",
     "stat_stacker",

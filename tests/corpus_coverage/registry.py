@@ -99,6 +99,20 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-ONEHAND-WEAPON",
     ),
+    CoverageCase(
+        id="CORE04-POISON-AILMENT-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORE04-POISON-AILMENT]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Huntress/Ritualist, Poisonburst Arrow (poison-dominant offense: real PoB PoisonDPS "
+            "is ~89% of CombinedDPS), PLAYER actor. Sourced from a real, currently-played public "
+            "poe.ninja Runes of Aldur build."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -224,6 +238,33 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive ambiguous-slot Item Checks produce identical per-slot score/verdict and both slots restore cleanly both times.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-ONEHAND-WEAPON",
+    ),
+    CoverageCase(
+        id="POISON-AILMENT-OFFENSE-SELECTED-AND-MEASURED",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_poison_ailment_dominant_offense_is_selected_and_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "A real poison-dominant build (PoisonDPS ~89% of CombinedDPS) correctly selects "
+            "PoisonDPS/AILMENT_DPS/DOT_DPS as primary offense (not hit DPS or CombinedDPS), "
+            "correctly measures a real +54%-class offense increase from a physical-damage "
+            "candidate, and still reports PARTIAL quality / UNCERTAIN verdict -- a truthful, "
+            "cautious classification is the correct, safe outcome for this ailment mechanic "
+            "today, not a confident directional verdict."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+    ),
+    CoverageCase(
+        id="POISON-AILMENT-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_poison_ailment_repeated_evaluation_does_not_leak_state",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two consecutive Item Checks against the same poison-ailment candidate select the same PoB field and produce identical score/verdict, both restoring cleanly.",
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
     ),
 )
 
