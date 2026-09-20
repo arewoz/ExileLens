@@ -86,6 +86,19 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
     ),
+    CoverageCase(
+        id="CORE04-ONEHAND-WEAPON-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORE04-ONEHAND-WEAPON]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Warrior/Titan, Shield Wall (one-hand mace + tower shield melee build), PLAYER actor. "
+            "Sourced from a real, currently-played public poe.ninja Runes of Aldur build."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-ONEHAND-WEAPON",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -185,6 +198,32 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive Item Checks against the same melee weapon candidate produce identical score/verdict and both restore cleanly.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
+    ),
+    CoverageCase(
+        id="ONEHAND-WEAPON-AMBIGUOUS-SLOT-RESOLVED-SAFELY",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_onehand_weapon_candidate_is_ambiguous_and_resolved_safely",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A one-hand mace candidate legal in both Weapon 1 and Weapon 2 (dual-wield-capable "
+            "layout, tower shield in Weapon 2) is evaluated in both slots: FULL/MEANINGFUL_UPGRADE "
+            "for the correct replacement, guardrail-forced NOT_VIABLE (never a confident verdict) "
+            "for the slot that would remove the shield the main skill needs. Best-slot ranking "
+            "never surfaces the guardrail-blocked slot."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-ONEHAND-WEAPON",
+    ),
+    CoverageCase(
+        id="ONEHAND-WEAPON-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_onehand_weapon_repeated_evaluation_does_not_leak_state",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two consecutive ambiguous-slot Item Checks produce identical per-slot score/verdict and both slots restore cleanly both times.",
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-ONEHAND-WEAPON",
     ),
 )
 

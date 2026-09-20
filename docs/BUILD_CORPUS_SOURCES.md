@@ -22,10 +22,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_minion_actor.xml` | Summon Infernal Hound with minion-owned primary output. |
 | `fixtures/builds/public_corpus/core04_stage_context.xml` | Flameblast channel-release stage context. |
 | `fixtures/builds/public_corpus/core04_melee_weapon.xml` | Warrior/Warbringer Sunder with a two-handed mace; melee weapon replacement semantics. |
+| `fixtures/builds/public_corpus/core04_onehand_weapon.xml` | Warrior/Titan Shield Wall with a one-hand mace + tower shield; one-hand weapon replacement, including the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(4 scenarios as of M1.1). It contains repository-relative paths and expected semantic
+(5 scenarios as of M1.1). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -34,16 +35,22 @@ The `core04_bow_quiver`, `core04_minion_actor`, `core04_stage_context`, and
 `core04_player_ring` fixtures were selected from a prior local development validation
 corpus as calculation inputs only.
 
-`core04_melee_weapon.xml` (added for M1.1) was captured from a real, publicly listed
-character build on poe.ninja (Runes of Aldur league, Warrior/Warbringer, Sunder main
-skill) via its published "Import Code for Path of Building" — the same export string
-a player would paste into PoB themselves. Before publication it was sanitized by:
+`core04_melee_weapon.xml` and `core04_onehand_weapon.xml` (added for M1.1) were each
+captured from a real, publicly listed character build on poe.ninja (Runes of Aldur
+league) via poe.ninja's own `.../api/builds/.../character?...` endpoint, which returns
+the same `pathOfBuildingExport` string as the page's "Import Code for Path of
+Building" field — the same export a player would paste into PoB themselves. **Fetch
+the JSON API directly rather than hand-copying the on-page import-code text field**:
+an earlier hand-copy of this ~13,000-character string (before this endpoint was
+identified) silently corrupted two words inside unrelated item mod text — caught and
+fixed during the one-hand-weapon slice by re-fetching and byte-comparing against the
+committed fixture. Both fixtures were sanitized identically before publication:
 removing every per-item `Unique ID: <hash>` line (GGG-generated identifiers tied to
 the real player's specific item drops, not needed for any test assertion) and
 removing poe.ninja's cached `<PlayerStat>` display block (not part of the PoB build
 definition; the engine recomputes all stats fresh on load regardless). No account
 name, character name, or profile identifier is present in the PoB import code itself
-or in the checked-in fixture.
+or in either checked-in fixture.
 
 All fixtures were screened before publication for filenames and text containing local
 paths, home-directory references, account or character metadata, emails, credentials,

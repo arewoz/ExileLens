@@ -82,6 +82,20 @@
     },
     {
       "archetypes": [
+        "melee"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-ONEHAND-WEAPON-IDENTITY",
+      "manifest_id": "CORE04-ONEHAND-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "spell",
         "unusual_skill_part"
       ],
@@ -252,6 +266,34 @@
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "ONEHAND-WEAPON-AMBIGUOUS-SLOT-RESOLVED-SAFELY",
+      "manifest_id": "CORE04-ONEHAND-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "ONEHAND-WEAPON-REPEATED-EVALUATION-NO-LEAK",
+      "manifest_id": "CORE04-ONEHAND-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
@@ -382,10 +424,10 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 4,
-    "PASS": 25
+    "PASS": 28
   },
-  "supported_count": 29,
-  "total_count": 29,
+  "supported_count": 32,
+  "total_count": 32,
   "uncovered_archetypes": [
     "ailment",
     "ascendancy",

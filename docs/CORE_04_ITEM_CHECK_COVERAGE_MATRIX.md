@@ -30,8 +30,9 @@ fixtures with exact malformed-output and policy-boundary assertions.
 | Belt / `Belt` | COVERED | Canonical slot mapping. |
 | Amulet / `Amulet` | COVERED | Canonical slot mapping. |
 | Rings / `Ring 1`, `Ring 2` | COVERED | Winner, tie-break, FULL vs PARTIAL/UNSUPPORTED ordering. |
-| One-hand weapon / `Weapon 1` | PARTIAL | Canonical mapping is COVERED; no public one-hand-weapon live replacement/restore fixture yet. |
+| One-hand weapon / `Weapon 1`, `Weapon 2` | COVERED | Public fixture (`core04_onehand_weapon.xml`, Shield Wall/one-hand mace + tower shield) validates live replacement, restore, and the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case (below). |
 | Two-hand weapon / `Weapon 1` | COVERED | Public melee fixture (`core04_melee_weapon.xml`, Sunder/two-handed mace) validates single-slot resolution, live replacement, and restore for a real two-handed weapon. |
+| Ambiguous weapon-slot layout (`AMBIGUOUS_WEAPON_LAYOUT`) | COVERED | A one-hand weapon candidate legal in both `Weapon 1` and `Weapon 2` (dual-wield-capable layout) is evaluated in both slots under the same generic batched-transaction/ranking/guardrail path as Ring 1/Ring 2 — no weapon-specific slot-picking logic exists or is needed. The slot that would remove a shield the main skill depends on is correctly forced to `NOT_VIABLE` by the existing `MAIN_SKILL_INVALID` guardrail, never a confident directional verdict; best-slot ranking never surfaces it. |
 | Bow / `Weapon 1` | COVERED | Public bow/quiver fixture retains the player skill and validates the quiver replacement path. |
 | Shield / `Weapon 2` | COVERED | Maps to `OFFHAND_1`; live replacement/restore is PARTIAL. |
 | Focus / `Weapon 2` | COVERED | Maps to `OFFHAND_1`; live replacement/restore is PARTIAL. |
