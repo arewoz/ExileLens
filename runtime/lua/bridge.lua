@@ -1823,15 +1823,47 @@ local function tx_begin(params)
 
 	local overrides = params.baseline_overrides
 	if type(overrides) == "table" and next(overrides) ~= nil then
-		for slot_name, raw in pairs(overrides) do
-			if not it.slots[slot_name] then
-				error({ code = "SLOT_INVALID", message = "unknown slot: " .. tostring(slot_name), details = { slot = slot_name } })
+		-- Applying an override mutates the build (set_item adds/selects an item), so a
+		-- failure partway through -- e.g. a second overridden slot whose normalized
+		-- text fails to parse, after a first slot's override already landed -- must
+		-- not leave that partial mutation in place. tx_begin itself is never called
+		-- under pcall by its callers (it used to be pure reads, so nothing could ever
+		-- need rolling back); now that it can mutate, it must be exception-safe on
+		-- its own. On failure this rolls back to the TRUE original selection created
+		-- above and discards any override items already created, before re-raising.
+		local override_ok, override_err = pcall(function()
+			for slot_name, raw in pairs(overrides) do
+				if not it.slots[slot_name] then
+					error({ code = "SLOT_INVALID", message = "unknown slot: " .. tostring(slot_name), details = { slot = slot_name } })
+				end
+				local item_id = set_item(slot_name, raw)
+				if item_id then
+					ctx.baseline_created[#ctx.baseline_created + 1] = item_id
+					ctx.working_selection[slot_name] = item_id
+				end
 			end
-			local item_id = set_item(slot_name, raw)
-			if item_id then
-				ctx.baseline_created[#ctx.baseline_created + 1] = item_id
-				ctx.working_selection[slot_name] = item_id
+		end)
+		if not override_ok then
+			local cleanup_ok = pcall(function()
+				for slot_name, item_id in pairs(ctx.original_selection) do
+					local slot = it.slots[slot_name]
+					if slot.selItemId ~= item_id then
+						slot:SetSelItemId(item_id)
+					end
+				end
+				for _, item_id in ipairs(ctx.baseline_created) do
+					discard_item(item_id)
+				end
+				ctx.baseline_created = {}
+				it:PopulateSlots()
+			end)
+			if not cleanup_ok then
+				-- The build may still be holding a partial override; never let a later
+				-- request treat it as trustworthy.
+				STATE.healthy = false
 			end
+			if type(override_err) == "table" and override_err.code then error(override_err) end
+			error({ code = "ITEM_INCOMPATIBLE", message = tostring(override_err), details = { slots = overrides } })
 		end
 		recalc()
 		ctx.baseline_fp = M.fingerprint_components()

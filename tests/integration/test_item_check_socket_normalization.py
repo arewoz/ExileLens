@@ -14,11 +14,13 @@ from xml.etree import ElementTree
 
 import pytest
 
+from poe2value.errors import EngineError
 from poe2value.items.evaluation import evaluate_item
 from poe2value.items.socket_normalize import strip_socketed_modifiers
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_bow_quiver.xml"
+RING_BUILD = ROOT / "fixtures" / "builds" / "core04_player_ring.xml"
 SLOT = "Weapon 1"
 pytestmark = [pytest.mark.integration, pytest.mark.real_pob, pytest.mark.itemcheck]
 
@@ -214,3 +216,48 @@ def test_build_state_is_fully_restored_after_a_normalized_evaluation(real_pob_en
     # A subsequent, unrelated evaluation on the same engine still works cleanly.
     follow_up = evaluate_item(_CANDIDATE_NO_RUNE_BOW, real_pob_engine, build_path=str(BUILD))
     assert _weapon1_comparison(follow_up)["restore"]["pass"] is True
+
+
+def test_a_failed_baseline_override_never_leaves_a_partial_mutation_equipped(real_pob_engine) -> None:
+    """PRE-MERGE AUDIT regression: a mid-batch baseline_overrides failure must roll back.
+
+    ``tx_begin`` mutates the build to apply baseline overrides for every compatible
+    slot in ONE transaction (e.g. two rings, or dual-wielded weapons, each needing
+    their own override) -- a real, easily reached shape whenever a candidate is
+    legal in more than one currently-socketed slot. Unlike ``tx_measure``'s
+    candidate changes, this mutation used to have no rollback if a LATER slot's
+    override failed to parse after an EARLIER one had already been applied and
+    equipped. This directly engages that path: the first override (Ring 1) is
+    valid, the second (Ring 2) is deliberately unparseable.
+    """
+    real_pob_engine.load_build(RING_BUILD)
+    before = real_pob_engine.get_equipment()
+    before_by_slot = {e.get("slot"): e for e in before["equipment"]}
+
+    ring_one_raw = before_by_slot["Ring 1"]["raw"]
+    assert ring_one_raw
+    # Deliberately DIFFERENT from the true equipped text (not merely a copy of it),
+    # so that if this override's mutation ever leaks past a failed transaction, the
+    # raw-text comparison below can actually detect it instead of trivially
+    # matching a byte-identical re-application of the same item.
+    ring_one_valid_override = ring_one_raw + "\n200% increased Rarity of Items found\n"
+
+    with pytest.raises(EngineError):
+        real_pob_engine.evaluate_item_slots(
+            ["Ring 1", "Ring 2"],
+            ring_one_raw,
+            baseline_overrides={
+                "Ring 1": ring_one_valid_override,
+                "Ring 2": "this is not a parseable item at all",
+            },
+        )
+
+    after = real_pob_engine.get_equipment()
+    after_by_slot = {e.get("slot"): e for e in after["equipment"]}
+    assert after_by_slot["Ring 1"]["raw"] == before_by_slot["Ring 1"]["raw"]
+    assert after_by_slot["Ring 2"]["raw"] == before_by_slot["Ring 2"]["raw"]
+
+    # The worker must still be healthy: a normal evaluation right after must succeed.
+    recovered = evaluate_item(ring_one_raw, real_pob_engine, build_path=str(RING_BUILD))
+    row = next(r for r in recovered["slot_comparisons"] if r["pob_slot"] == "Ring 1")
+    assert row["restore"]["pass"] is True
