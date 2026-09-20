@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from poe2value.items.offense_coverage import RESPONSE_ABS_EPS
 from poe2value.items.primary_metric import (
     DamageOwner,
     DamageProvenance,
@@ -51,6 +52,23 @@ def _identity(row: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(tuple(row.get(key) or ()) if key == "gems" else row.get(key) for key in _IDENTITY_FIELDS)
 
 
+def _is_significant_offense_value(value: float | None) -> bool:
+    """A PoB offensive output large enough to be real damage, not floating-point noise.
+
+    Reuses the exact threshold ``offense_coverage.RESPONSE_ABS_EPS`` (and
+    ``primary_metric._OFFENSE_EPS``, the same 0.5) already use to decide whether a
+    PoB damage field is usable evidence one layer above this module. A fractional
+    value such as an incidental ignite tick of ``1.3e-6`` is PoB rounding noise, not
+    a real damage source: admitting it as fallback component evidence produces a
+    mathematically valid but semantically meaningless percentage delta (a near-zero
+    denominator turns any change into a manufactured +/-100%). This is the one
+    numerical-significance gate every component-eligibility and percent-delta
+    computation in this module goes through, instead of scattered ad-hoc `> 0` /
+    `!= 0` checks.
+    """
+    return value is not None and value > RESPONSE_ABS_EPS
+
+
 def should_discover_components(build: dict[str, Any], primary: PrimaryMetricSelection) -> bool:
     """Skip ordinary single-skill/full-build paths without a PoB report pass."""
     if primary.provenance == DamageProvenance.POB_FULL_BUILD:
@@ -79,7 +97,7 @@ def _selection(row: dict[str, Any]) -> tuple[dict[str, Any], float] | None:
     if selected.provenance != DamageProvenance.POB_PRIMARY_SKILL:
         return None
     value = _number(metrics.get(selected.pob_field))
-    if value is None or value <= 0:
+    if not _is_significant_offense_value(value):
         return None
     return selected.to_dict(), value
 
@@ -177,7 +195,11 @@ def compare_native_components(
             "status": status,
             "before": before,
             "after": after_value if status == "MEASURED" else None,
-            "percent_delta": ((after_value / before) - 1) * 100 if status == "MEASURED" and before > 0 else None,
+            "percent_delta": (
+                ((after_value / before) - 1) * 100
+                if status == "MEASURED" and _is_significant_offense_value(before)
+                else None
+            ),
             "reason": "" if status == "MEASURED" else "COMPONENT_IDENTITY_OR_OUTPUT_CHANGED",
         })
     name_counts = {row["name"]: sum(other["name"] == row["name"] for other in entries) for row in entries}
@@ -245,6 +267,12 @@ def promote_unresolved_primary_with_component(
             and entry.get("owner") == DamageOwner.PLAYER.value
             and isinstance(entry.get("before"), (int, float))
             and isinstance(entry.get("after"), (int, float))
+            # A component whose OWN baseline output is noise-sized must never win
+            # the fallback slot merely because it is first in PoB group order and
+            # "measured" -- see `_is_significant_offense_value`. Preserved below it:
+            # deterministic PoB-group-order selection among genuinely-eligible
+            # components, unchanged.
+            and _is_significant_offense_value(entry.get("before"))
         ),
         None,
     )
@@ -253,7 +281,7 @@ def promote_unresolved_primary_with_component(
 
     before, after = float(chosen["before"]), float(chosen["after"])
     absolute_delta = after - before
-    percent_delta = ((after / before) - 1.0) * 100.0 if before != 0 else None
+    percent_delta = ((after / before) - 1.0) * 100.0 if _is_significant_offense_value(before) else None
     direction = "neutral" if abs(absolute_delta) < 1e-9 else ("positive" if absolute_delta > 0 else "negative")
     label = str(chosen.get("label") or chosen.get("name") or "Damage")
     metric_profile = dict(metric_profile)
@@ -284,7 +312,14 @@ def promote_unresolved_primary_with_component(
         },
     }
     # native discovery's own `_selection()` only admits HIGH-confidence, identity-matched
-    # rows into `components` -- the substitute is exactly as trustworthy as any other
-    # confidently-identified PoB skill, so quality assessment must not read this as a
-    # low-confidence primary purely because the ORIGINAL (unresolved) selection was.
+    # rows into `components` -- the substitute skill's own resolution is exactly as
+    # trustworthy as any other confidently-identified PoB skill, so this does not
+    # force `primary_confidence` down to "low" purely because the ORIGINAL (unresolved)
+    # selection was low-confidence. That does NOT mean the overall evaluation is FULL
+    # quality, though: a substitution is definitionally partial coverage of the build's
+    # true damage (one secondary skill standing in for a primary that measured nothing
+    # at all). `evaluation_outcome.assess_quality` reads the `substituted_component` key
+    # set above and caps quality at PARTIAL whenever it is present -- that is the
+    # correct, single place this truthfulness signal is enforced, not here and not by
+    # lying about this component's own identification confidence.
     return metric_profile, str(chosen.get("field") or fallback_field), "high"
