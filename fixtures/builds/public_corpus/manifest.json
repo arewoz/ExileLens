@@ -36,6 +36,15 @@
       "primary_skill": "Sunder",
       "actor": "PLAYER",
       "purpose": "two-handed melee weapon replacement semantics"
+    },
+    {
+      "id": "CORE04-ONEHAND-WEAPON",
+      "file": "fixtures/builds/public_corpus/core04_onehand_weapon.xml",
+      "class": "Warrior",
+      "ascendancy": "Titan",
+      "primary_skill": "Shield Wall",
+      "actor": "PLAYER",
+      "purpose": "one-hand weapon replacement in an ambiguous dual-weapon-slot layout"
     }
   ]
 }

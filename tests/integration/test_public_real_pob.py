@@ -176,3 +176,75 @@ def test_melee_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine) -
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
     assert second_row["restore"]["pass"] is True
+
+
+ONEHAND_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_onehand_weapon.xml"
+
+
+def test_onehand_weapon_candidate_is_ambiguous_and_resolved_safely(real_pob_engine) -> None:
+    """CORE04-ONEHAND-WEAPON: a one-hand mace candidate is legal in two weapon slots.
+
+    This build (Warrior/Titan, Shield Wall) has a one-hand mace in Weapon 1 and a
+    tower shield in Weapon 2. A one-hand mace candidate is reported by PoB as legal
+    replacement for BOTH slots: Weapon 1 (a normal weapon swap) and Weapon 2 (which
+    would remove the shield and start dual-wielding). PoB itself decides slot
+    legality (`IsItemValidForSlot`); ExileLens does not second-guess it, it evaluates
+    every legal slot and ranks them under the same guardrail policy as any other
+    multi-slot item (e.g. Ring 1/Ring 2).
+
+    Expected result below is not assumed: it was captured from a real PoB run of this
+    exact candidate before this assertion was written (see
+    docs/CORPUS_COVERAGE_METHODOLOGY.md, M1.1 one-hand-weapon slice). Removing the
+    shield to equip the candidate in Weapon 2 breaks the Shield Wall main skill (it
+    requires an equipped shield), which the guardrail policy correctly downgrades to
+    NOT_VIABLE -- never a confident directional verdict against the wrong slot.
+    """
+    baseline_item = _equipped_item(ONEHAND_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n+300 to maximum Life\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(ONEHAND_BUILD))
+
+    assert result["pob_parse"]["weapon_layout"] == "AMBIGUOUS_WEAPON_LAYOUT"
+    assert result["pob_parse"]["item"]["type"] == "One Hand Mace"
+    assert result["pob_parse"]["item"]["one_hand"] is True
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 1", "Weapon 2"}
+
+    by_slot = {row["pob_slot"]: row for row in result["slot_comparisons"]}
+
+    weapon_1 = by_slot["Weapon 1"]
+    assert weapon_1["baseline"]["primary_skill"]["skill_name"] == "Shield Wall"
+    assert weapon_1["candidate"]["primary_skill"]["skill_name"] == "Shield Wall"
+    assert weapon_1["candidate"]["item_present"] is True
+    outcome_1 = weapon_1["evaluation_outcome"]
+    assert outcome_1["evaluation_quality"] == "FULL"
+    assert outcome_1["item_impact"]["axes"]["DEFENSE"]["direction"] == "POSITIVE"
+    assert outcome_1["verdict"] == "MEANINGFUL_UPGRADE"
+    assert weapon_1["restore"]["pass"] is True
+
+    # Weapon 2 would remove the tower shield the main skill depends on: a guardrail
+    # forces NOT_VIABLE, never a confident up/downgrade against the unintended slot.
+    weapon_2 = by_slot["Weapon 2"]
+    outcome_2 = weapon_2["evaluation_outcome"]
+    assert outcome_2["verdict"] == "NOT_VIABLE"
+    assert "MAIN_SKILL_INVALID" in {g["code"] for g in outcome_2["guardrails_applied"]}
+    assert weapon_2["restore"]["pass"] is True
+
+    # The best-slot ranking never surfaces the guardrail-blocked slot as the pick.
+    assert result["recommendation"]["pob_slot"] == "Weapon 1"
+
+
+def test_onehand_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine) -> None:
+    baseline_item = _equipped_item(ONEHAND_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n+300 to maximum Life\n"
+
+    first = evaluate_item(candidate, real_pob_engine, build_path=str(ONEHAND_BUILD))
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(ONEHAND_BUILD))
+
+    for slot in ("Weapon 1", "Weapon 2"):
+        first_row = next(row for row in first["slot_comparisons"] if row["pob_slot"] == slot)
+        second_row = next(row for row in second["slot_comparisons"] if row["pob_slot"] == slot)
+        assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
+        assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
+        assert first_row["restore"]["pass"] is True
+        assert second_row["restore"]["pass"] is True
+
+    assert first["recommendation"]["pob_slot"] == second["recommendation"]["pob_slot"] == "Weapon 1"
