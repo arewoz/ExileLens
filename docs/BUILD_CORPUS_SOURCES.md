@@ -21,18 +21,33 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_bow_quiver.xml` | Player Ice Shot with a bow/quiver equipment layout. |
 | `fixtures/builds/public_corpus/core04_minion_actor.xml` | Summon Infernal Hound with minion-owned primary output. |
 | `fixtures/builds/public_corpus/core04_stage_context.xml` | Flameblast channel-release stage context. |
+| `fixtures/builds/public_corpus/core04_melee_weapon.xml` | Warrior/Warbringer Sunder with a two-handed mace; melee weapon replacement semantics. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
-`fixtures/builds/public_corpus/manifest.json` is the authoritative three-scenario
-corpus manifest. It contains repository-relative paths and expected semantic identity,
-not captured output snapshots.
+`fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
+(4 scenarios as of M1.1). It contains repository-relative paths and expected semantic
+identity, not captured output snapshots.
 
 ## Provenance and sanitization
 
-The fixtures were selected from a prior local development validation corpus as
-calculation inputs only. They were screened before publication for filenames and text
-containing local paths, home-directory references, account or character metadata,
-emails, credentials, session/cookie/authentication fields, and private links.
+The `core04_bow_quiver`, `core04_minion_actor`, `core04_stage_context`, and
+`core04_player_ring` fixtures were selected from a prior local development validation
+corpus as calculation inputs only.
+
+`core04_melee_weapon.xml` (added for M1.1) was captured from a real, publicly listed
+character build on poe.ninja (Runes of Aldur league, Warrior/Warbringer, Sunder main
+skill) via its published "Import Code for Path of Building" — the same export string
+a player would paste into PoB themselves. Before publication it was sanitized by:
+removing every per-item `Unique ID: <hash>` line (GGG-generated identifiers tied to
+the real player's specific item drops, not needed for any test assertion) and
+removing poe.ninja's cached `<PlayerStat>` display block (not part of the PoB build
+definition; the engine recomputes all stats fresh on load regardless). No account
+name, character name, or profile identifier is present in the PoB import code itself
+or in the checked-in fixture.
+
+All fixtures were screened before publication for filenames and text containing local
+paths, home-directory references, account or character metadata, emails, credentials,
+session/cookie/authentication fields, and private links.
 
 The selected XML files have no retained account or character attributes. Empty
 `itemPbURL` attributes are retained because they are part of the PoB fixture format;

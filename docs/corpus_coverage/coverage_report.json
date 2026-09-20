@@ -54,6 +54,20 @@
     },
     {
       "archetypes": [
+        "melee"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-MELEE-WEAPON-IDENTITY",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "minion"
       ],
       "depth": "IDENTITY_ONLY",
@@ -169,6 +183,34 @@
       "result": "EXPECTED_UNCERTAIN",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 8
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MELEE-TWO-HAND-WEAPON-UPGRADE",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MELEE-WEAPON-REPEATED-EVALUATION-NO-LEAK",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
     },
     {
       "archetypes": [
@@ -340,16 +382,15 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 4,
-    "PASS": 22
+    "PASS": 25
   },
-  "supported_count": 26,
-  "total_count": 26,
+  "supported_count": 29,
+  "total_count": 29,
   "uncovered_archetypes": [
     "ailment",
     "ascendancy",
     "dot",
     "es_scaling",
-    "melee",
     "proxy_totem",
     "stat_stacker",
     "trigger",

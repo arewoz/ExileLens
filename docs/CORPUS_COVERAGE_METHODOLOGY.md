@@ -135,11 +135,11 @@ this slice's blast radius small.
 
 ### Why the percentage in the report is not "% of real builds ExileLens supports"
 
-The report's headline number is **coverage of executed registry cases**
-(currently 26/26 = 100%, see the generated report), not a statistically meaningful
-share of the real PoE2 build population. The repository does not currently contain:
+The report's headline number is **coverage of executed registry cases** (see the
+generated report for the current count), not a statistically meaningful share of the
+real PoE2 build population. The repository does not currently contain:
 - a sampled/weighted inventory of real builds by popularity or archetype,
-- per-mechanic pass/fail data beyond the 4 build fixtures + adversarial unit suite,
+- per-mechanic pass/fail data beyond the build fixtures + adversarial unit suite,
 - any corpus case at all for 10 of the 18 required archetype categories.
 
 Per the M1.1 brief, this is reported honestly as "not computable without arbitrary

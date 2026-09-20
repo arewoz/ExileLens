@@ -73,6 +73,19 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.SPELL, Archetype.UNUSUAL_SKILL_PART),
         manifest_id="CORE04-STAGE-CONTEXT",
     ),
+    CoverageCase(
+        id="CORE04-MELEE-WEAPON-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORE04-MELEE-WEAPON]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Warrior/Warbringer, Sunder (two-handed mace melee attack), PLAYER actor. "
+            "Sourced from a real, currently-played public poe.ninja Runes of Aldur build."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-MELEE-WEAPON",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -149,6 +162,29 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.VERDICT,
         expected=ExpectedResult.CONFIDENT,
         description="One Item Check issues exactly one batched PoB transaction across all compatible slots (perf invariant, not archetype-specific).",
+    ),
+    CoverageCase(
+        id="MELEE-TWO-HAND-WEAPON-UPGRADE",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_melee_two_hand_weapon_upgrade_is_measured_and_restored",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Real two-handed mace replacement on a Warrior/Warbringer Sunder build: single-slot "
+            "resolution, FULL quality, measured offense-only gain, MEANINGFUL_UPGRADE, clean restore."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-MELEE-WEAPON",
+    ),
+    CoverageCase(
+        id="MELEE-WEAPON-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_melee_weapon_repeated_evaluation_does_not_leak_state",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two consecutive Item Checks against the same melee weapon candidate produce identical score/verdict and both restore cleanly.",
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-MELEE-WEAPON",
     ),
 )
 
