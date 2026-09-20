@@ -111,6 +111,21 @@ class TestNumericalSignificance:
     def test_large_value_is_significant(self) -> None:
         assert _is_significant_offense_value(15039.8814) is True
 
+    def test_nan_is_not_significant(self) -> None:
+        # IEEE754: any comparison with NaN is False, so "> eps" already excludes it
+        # with no extra guard needed.
+        assert _is_significant_offense_value(float("nan")) is False
+
+    def test_negative_value_is_not_significant(self) -> None:
+        assert _is_significant_offense_value(-5.0) is False
+
+    def test_infinite_value_passes_this_gate_alone(self) -> None:
+        # Documented gap, not a bug in this function: `inf > eps` is True under
+        # IEEE754. Safe end-to-end only because `evaluation_outcome._unavailable()`
+        # independently requires a finite value before quality can be FULL -- see
+        # TestTruthfulnessPropagation.test_non_finite_substituted_value_is_still_caught_as_partial.
+        assert _is_significant_offense_value(float("inf")) is True
+
 
 class TestFallbackPercentDeltaSignificance:
     def test_noise_sized_component_never_reaches_100_percent_delta(self) -> None:
@@ -232,6 +247,36 @@ class TestTruthfulnessPropagation:
         )
         assert quality == EvaluationQuality.FULL
         assert reasons == []
+
+    def test_non_finite_substituted_value_is_still_caught_as_partial(self) -> None:
+        """Pre-merge-audit finding, locked in as a regression: `_is_significant_offense_value`
+        alone does not exclude +inf (`inf > RESPONSE_ABS_EPS` is True under IEEE754), so a
+        corrupted/non-finite PoB output could in principle pass the significance gate. This
+        is currently safe ONLY because `_unavailable()` below independently requires both
+        sides of the offense delta to be finite (`math.isfinite`) before quality can be
+        FULL. If that independent check is ever weakened or removed, this test must fail.
+        """
+        comparison = _quality_comparison()
+        metric_profile = {
+            "primary_offense": {
+                "delta_kind": "MEASURED",
+                "current": float("inf"),
+                "candidate": 0.0,
+                "availability": "available",
+                "substituted_component": {
+                    "name": "Corrupted", "index": 9, "owner": "PLAYER", "reason": "fallback",
+                },
+            },
+            "ehp": {"current": 1000.0, "candidate": 1000.0, "availability": "available"},
+            "worst_max_hit": {"current": 100.0, "candidate": 100.0, "availability": "available"},
+        }
+        quality, reasons = assess_quality(
+            comparison, metric_profile=metric_profile, resist={},
+            primary_field="CombinedDPS", primary_confidence="high",
+        )
+        assert quality == EvaluationQuality.PARTIAL
+        codes = {reason["code"] for reason in reasons}
+        assert codes & {"OFFENSE_UNAVAILABLE", "OFFENSE_FALLBACK_COMPONENT"}
 
 
 # --------------------------------------------------------------------------- #
