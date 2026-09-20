@@ -24,10 +24,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_melee_weapon.xml` | Warrior/Warbringer Sunder with a two-handed mace; melee weapon replacement semantics. |
 | `fixtures/builds/public_corpus/core04_onehand_weapon.xml` | Warrior/Titan Shield Wall with a one-hand mace + tower shield; one-hand weapon replacement, including the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case. |
 | `fixtures/builds/public_corpus/core04_poison_ailment.xml` | Huntress/Ritualist Poisonburst Arrow; ailment-dominant (poison) primary offense selection. |
+| `fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml` | Witch/Infernalist Comet (Cast on Elemental Ailment); mixed hit+ignite (~59%/41%) `CombinedDPS` offense selection. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(6 scenarios as of M1.1). It contains repository-relative paths and expected semantic
+(7 scenarios as of M1.1). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -36,26 +37,62 @@ The `core04_bow_quiver`, `core04_minion_actor`, `core04_stage_context`, and
 `core04_player_ring` fixtures were selected from a prior local development validation
 corpus as calculation inputs only.
 
-`core04_melee_weapon.xml`, `core04_onehand_weapon.xml`, and `core04_poison_ailment.xml`
-(added for M1.1) were each captured from a real, publicly listed character build on
-poe.ninja (Runes of Aldur league) via poe.ninja's own `.../api/builds/.../character?...`
-endpoint, which returns the same `pathOfBuildingExport` string as the page's "Import
-Code for Path of Building" field — the same export a player would paste into PoB
-themselves. **Fetch the JSON API directly rather than hand-copying the on-page
-import-code text field**: an earlier hand-copy of this ~13,000-character string
-(before this endpoint was identified) silently corrupted two words inside unrelated
-item mod text — caught and fixed during the one-hand-weapon slice by re-fetching and
-byte-comparing against the committed fixture. `core04_poison_ailment.xml` was found by
-querying poe.ninja's per-character API directly for several candidate accounts and
-comparing their raw `PlayerStat` `TotalDPS`/`PoisonDPS`/`IgniteDPS`/`BleedDPS` values —
-never by guessing an ailment-dominant build from its name or popularity. All three
-fixtures were sanitized identically before publication: removing every per-item
-`Unique ID: <hash>` line (GGG-generated identifiers tied to the real player's specific
-item drops, not needed for any test assertion) and removing poe.ninja's cached
-`<PlayerStat>` display block (not part of the PoB build definition; the engine
-recomputes all stats fresh on load regardless). No account name, character name, or
-profile identifier is present in the PoB import code itself or in any checked-in
+`core04_melee_weapon.xml`, `core04_onehand_weapon.xml`, `core04_poison_ailment.xml`,
+and `core04_mixed_hit_ailment.xml` (added for M1.1) were each captured from a real,
+publicly listed character build on poe.ninja (Runes of Aldur league) via poe.ninja's
+own `.../api/builds/.../character?...` endpoint, which returns the same
+`pathOfBuildingExport` string as the page's "Import Code for Path of Building" field —
+the same export a player would paste into PoB themselves. **Fetch the JSON API
+directly rather than hand-copying the on-page import-code text field**: an earlier
+hand-copy of this ~13,000-character string (before this endpoint was identified)
+silently corrupted two words inside unrelated item mod text — caught and fixed during
+the one-hand-weapon slice by re-fetching and byte-comparing against the committed
+fixture. `core04_poison_ailment.xml` and `core04_mixed_hit_ailment.xml` were each
+found by querying poe.ninja's per-character API directly for dozens of candidate
+accounts across several ascendancies and comparing their raw `PlayerStat`
+`TotalDPS`/`PoisonDPS`/`IgniteDPS`/`BleedDPS` values (and, for the latter,
+`<ItemSet useSecondWeaponSet="...">` to exclude active-weapon-swap builds) — never by
+guessing a promising build from its name or popularity. All four fixtures were
+sanitized identically before publication: removing every per-item `Unique ID: <hash>`
+line (GGG-generated identifiers tied to the real player's specific item drops, not
+needed for any test assertion) and removing poe.ninja's cached `<PlayerStat>` display
+block (not part of the PoB build definition; the engine recomputes all stats fresh on
+load regardless). No account name, character name, or profile identifier is present
+in the PoB import code itself or in any checked-in
 fixture.
+
+### Snapshot evidence vs. fresh real-engine evidence
+
+poe.ninja's per-character API response contains two independent things: the
+`pathOfBuildingExport` string (the actual build — gear, tree, gems — used to
+materialize a fixture) and a `<PlayerStat>` block inside that same export, which is
+poe.ninja's own **cached display snapshot** of that character's stats, last computed
+by poe.ninja's own server-side PoB instance at some point before the fetch. This
+snapshot is stripped from every checked-in fixture during sanitization (see above) —
+it is display-only, PoB does not read it back on load, and ExileLens never reads it
+at all.
+
+**Every DPS/offense figure that appears in this repository's docs, test docstrings,
+and registry descriptions is a fresh, live recalculation** performed by loading the
+sanitized fixture into a real local PoB2 engine and reading its output — never
+poe.ninja's cached `<PlayerStat>` numbers. During discovery, the raw snapshot numbers
+were used only to *find* promising candidate builds (e.g. "does this account's
+cached `PoisonDPS` look ailment-dominant?"); every number that then made it into a
+fixture, test, or doc was re-verified against a live engine load before being
+written down.
+
+For `core04_poison_ailment.xml`, poe.ninja's cached snapshot reported `PoisonDPS =
+992,159`; loading the same (sanitized, otherwise byte-identical) fixture fresh into a
+local PoB2 engine reports `PoisonDPS = 793,727` — about 20% lower, and the
+per-component ratios are not uniform (hit `TotalDPS` is *higher* in the fresh
+recompute, `IgniteDPS` is lower). A single scaling/version-drift factor would move
+every component the same way; this doesn't, which points to a genuine state
+difference (e.g. poe.ninja's cached snapshot reflecting the character's gear/tree at
+a slightly different fetch cycle than the exported PoB code) rather than an engine
+or calculation defect. This is expected and out of ExileLens's control either way:
+poe.ninja's own snapshot cache is not something this repository reads or depends on,
+and the fixture's documented numbers are the reproducible, live-recomputed ones any
+future engine run against this exact file should reproduce.
 
 All fixtures were screened before publication for filenames and text containing local
 paths, home-directory references, account or character metadata, emails, credentials,

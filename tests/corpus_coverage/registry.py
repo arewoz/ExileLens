@@ -113,6 +113,21 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.AILMENT, Archetype.DOT),
         manifest_id="CORE04-POISON-AILMENT",
     ),
+    CoverageCase(
+        id="CORE04-MIXED-HIT-AILMENT-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORE04-MIXED-HIT-AILMENT]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Witch/Infernalist, Comet (triggered by Cast on Elemental Ailment): real PoB hit "
+            "TotalDPS and IgniteDPS are both meaningful (~59%/41% split), neither negligible nor "
+            "dominant. PLAYER actor. Sourced from a real, currently-played public poe.ninja Runes "
+            "of Aldur build with no active weapon-swap set."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
+        manifest_id="CORE04-MIXED-HIT-AILMENT",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -265,6 +280,34 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive Item Checks against the same poison-ailment candidate select the same PoB field and produce identical score/verdict, both restoring cleanly.",
         archetypes=(Archetype.AILMENT, Archetype.DOT),
         manifest_id="CORE04-POISON-AILMENT",
+    ),
+    CoverageCase(
+        id="MIXED-HIT-AILMENT-OFFENSE-SELECTS-COMBINED-DPS",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_mixed_hit_and_ailment_offense_selects_combined_dps",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A real build with meaningful hit AND meaningful ignite (~59%/41% split, neither "
+            "negligible nor dominant) correctly selects CombinedDPS/HIT_PLUS_AILMENT rather than "
+            "hit-only or ailment-only, correctly measures a +9.7%-class offense increase across "
+            "TotalDPS, IgniteDPS, and CombinedDPS together (no double counting: CombinedDPS == "
+            "TotalDPS + IgniteDPS exactly in both baseline and candidate), and reaches FULL "
+            "quality / MEANINGFUL_UPGRADE -- a confident verdict is correct here, unlike the "
+            "isolated-ailment-dominant case."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
+        manifest_id="CORE04-MIXED-HIT-AILMENT",
+    ),
+    CoverageCase(
+        id="MIXED-HIT-AILMENT-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_mixed_hit_and_ailment_repeated_evaluation_does_not_leak_state",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two consecutive Item Checks against the same mixed hit+ailment candidate select the same PoB field (CombinedDPS) and produce identical score/verdict, both restoring cleanly.",
+        archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
+        manifest_id="CORE04-MIXED-HIT-AILMENT",
     ),
 )
 

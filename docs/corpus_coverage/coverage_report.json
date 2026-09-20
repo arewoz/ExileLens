@@ -82,6 +82,22 @@
     },
     {
       "archetypes": [
+        "ailment",
+        "dot",
+        "trigger"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-MIXED-HIT-AILMENT-IDENTITY",
+      "manifest_id": "CORE04-MIXED-HIT-AILMENT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "melee"
       ],
       "depth": "IDENTITY_ONLY",
@@ -266,6 +282,38 @@
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ailment",
+        "dot",
+        "trigger"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MIXED-HIT-AILMENT-OFFENSE-SELECTS-COMBINED-DPS",
+      "manifest_id": "CORE04-MIXED-HIT-AILMENT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ailment",
+        "dot",
+        "trigger"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MIXED-HIT-AILMENT-REPEATED-EVALUATION-NO-LEAK",
+      "manifest_id": "CORE04-MIXED-HIT-AILMENT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
@@ -469,16 +517,15 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 5,
-    "PASS": 30
+    "PASS": 33
   },
-  "supported_count": 35,
-  "total_count": 35,
+  "supported_count": 38,
+  "total_count": 38,
   "uncovered_archetypes": [
     "ascendancy",
     "es_scaling",
     "proxy_totem",
     "stat_stacker",
-    "trigger",
     "unique_interaction",
     "weapon_swap"
   ]
