@@ -248,3 +248,79 @@ def test_onehand_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine)
         assert second_row["restore"]["pass"] is True
 
     assert first["recommendation"]["pob_slot"] == second["recommendation"]["pob_slot"] == "Weapon 1"
+
+
+POISON_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_poison_ailment.xml"
+
+
+def test_poison_ailment_dominant_offense_is_selected_and_measured(real_pob_engine) -> None:
+    """CORE04-POISON-AILMENT: a real Huntress/Ritualist build whose damage is poison, not hit.
+
+    Poisonburst Arrow's selected stat set ("Poison Burst") reports PoB's own hit DPS
+    (TotalDPS) as a small fraction of its poison DPS (real PoB baseline for this
+    fixture: TotalDPS ~102k vs PoisonDPS ~794k, i.e. poison is ~89% of CombinedDPS).
+    `resolve_primary_metric` is expected to pick the dominant ailment field directly
+    (`ailments[dominant] > total_hit`) rather than defaulting to hit DPS or the
+    combined figure -- selecting hit DPS here would materially understate the real
+    offense change from an item that scales physical (poison-source) damage.
+
+    The candidate is the build's own equipped bow plus "200% increased Physical
+    Damage" -- physical damage is poison's source damage, so this should move
+    PoisonDPS substantially without touching defense. This was verified against a
+    real PoB run before writing these assertions (see
+    docs/CORPUS_COVERAGE_METHODOLOGY.md, M1.1 DoT/ailment slice): a candidate with
+    "increased Damage with Poison" instead was also tried and produced a
+    reproducible ZERO change in PoisonDPS at every magnitude tested (100%/300%) --
+    that is a PoB-native calculation characteristic of this specific stat set
+    ("Bursting Plague"-detonated poison), not an ExileLens defect: ExileLens only
+    reads PoB's own recomputed number, it never derives one, and the "increased
+    Physical Damage" candidate below proves the pipeline does correctly recompute
+    and thread PoisonDPS end to end.
+    """
+    baseline_item = _equipped_item(POISON_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n200% increased Physical Damage\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(POISON_BUILD))
+
+    assert result["pob_parse"]["item"]["type"] == "Bow"
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 1"}
+
+    row = result["slot_comparisons"][0]
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Poisonburst Arrow"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Poisonburst Arrow"
+    assert row["candidate"]["item_present"] is True
+
+    baseline_metric = row["baseline_primary_metric"]
+    assert baseline_metric["pob_field"] == "PoisonDPS"
+    assert baseline_metric["selected"] == "DOT_DPS"
+    assert baseline_metric["semantic_quantity"] == "AILMENT_DPS"
+    assert baseline_metric["ailment"] == "POISON"
+
+    outcome = row["evaluation_outcome"]
+    offense = outcome["item_impact"]["axes"]["OFFENSE"]
+    assert offense["direction"] == "POSITIVE"
+    assert offense["support"] == "MEASURED"
+    assert offense["magnitude_pct"] > 40.0
+    # Ailment-dominant offense keeps a truthful, cautious classification: a real,
+    # correctly measured and directionally right change still does not earn FULL
+    # quality or a confident directional verdict for this mechanic today.
+    assert outcome["evaluation_quality"] == "PARTIAL"
+    assert outcome["verdict"] == "UNCERTAIN"
+
+    assert row["restore"]["pass"] is True
+    assert result["recommendation"]["pob_slot"] == "Weapon 1"
+
+
+def test_poison_ailment_repeated_evaluation_does_not_leak_state(real_pob_engine) -> None:
+    baseline_item = _equipped_item(POISON_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n200% increased Physical Damage\n"
+
+    first = evaluate_item(candidate, real_pob_engine, build_path=str(POISON_BUILD))
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(POISON_BUILD))
+
+    first_row = first["slot_comparisons"][0]
+    second_row = second["slot_comparisons"][0]
+    assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "PoisonDPS"
+    assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
+    assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
+    assert first_row["restore"]["pass"] is True
+    assert second_row["restore"]["pass"] is True

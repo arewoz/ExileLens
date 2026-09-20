@@ -45,6 +45,15 @@
       "primary_skill": "Shield Wall",
       "actor": "PLAYER",
       "purpose": "one-hand weapon replacement in an ambiguous dual-weapon-slot layout"
+    },
+    {
+      "id": "CORE04-POISON-AILMENT",
+      "file": "fixtures/builds/public_corpus/core04_poison_ailment.xml",
+      "class": "Huntress",
+      "ascendancy": "Ritualist",
+      "primary_skill": "Poisonburst Arrow",
+      "actor": "PLAYER",
+      "purpose": "ailment-dominant (poison) primary offense selection"
     }
   ]
 }
