@@ -19,8 +19,13 @@ from PySide6.QtWidgets import (
 )
 
 from poe2value.items.diagnostics import serialize_item_diagnostics
-from poe2value.items.more_info import more_info_for_choice
-from poe2value.ui.styles import EMPHASIS_DELTA_COLOR, VERDICT_CLASS, VERDICT_COLOR
+from poe2value.items.more_info import ADVANCED_SECTION_IDS, more_info_for_choice
+from poe2value.ui.styles import EMPHASIS_DELTA_COLOR, OVERLAY_WARNING_BODY, VERDICT_CLASS, VERDICT_COLOR
+
+#: Extra vertical gap inserted before each section title beyond the layout's
+#: own item spacing, so major sections read as visually separated without
+#: loosening the spacing between individual lines inside one section.
+_SECTION_GAP = 6
 
 MAX_DRAWER_SECTIONS = 12
 MAX_LINES_PER_SECTION = 12
@@ -81,6 +86,13 @@ class DetailAnalysisDrawer(QWidget):
         self._selected_index = 0
         self._base_model: dict[str, Any] = {}
         self._diagnostics_result: dict[str, Any] = {}
+        # P1.1c: collapsed by default for a new Item Check result (reset in
+        # clear()); preserved across select_choice() (switching which Jewel
+        # socket is shown) since that is the same result, just a different
+        # replacement candidate within it.
+        self._advanced_expanded = False
+        self._advanced_toggle: QPushButton | None = None
+        self._advanced_container: QWidget | None = None
 
     @property
     def section_ids(self) -> list[str]:
@@ -102,6 +114,7 @@ class DetailAnalysisDrawer(QWidget):
         self._selected_index = 0
         self._base_model = {}
         self._diagnostics_result = {}
+        self._advanced_expanded = False
         self._copy_diagnostics.setText("Copy diagnostics")
         self._copy_diagnostics.hide()
         self._ring_host.hide()
@@ -112,6 +125,8 @@ class DetailAnalysisDrawer(QWidget):
             self._line_layout.removeWidget(widget)
             widget.deleteLater()
         self._section_widgets.clear()
+        self._advanced_toggle = None
+        self._advanced_container = None
 
     def _clear_ring_buttons(self) -> None:
         for button in self._ring_buttons:
@@ -229,43 +244,60 @@ class DetailAnalysisDrawer(QWidget):
         palette = EMPHASIS_DELTA_COLOR.get(emphasis, EMPHASIS_DELTA_COLOR["medium"])
         return palette.get(direction, palette["neutral"])
 
-    def _add_section_title(self, title: str, *, advanced: bool = False) -> None:
+    def _target_layout(self, layout: QVBoxLayout | None) -> QVBoxLayout:
+        return layout if layout is not None else self._line_layout
+
+    def _add_section_title(self, title: str, *, advanced: bool = False, layout: QVBoxLayout | None = None) -> None:
+        target = self._target_layout(layout)
+        if target.count() > 0:
+            # Extra breathing room before a new section, on top of the
+            # layout's own item spacing -- separates major sections without
+            # loosening the spacing between lines inside one section (P1.1c).
+            target.addSpacing(_SECTION_GAP)
         label = QLabel(title)
         # P1.1b: advanced/PoB-provenance sections (score drivers, damage
-        # reference, native component detail) get a quieter title style so
-        # they read as secondary detail, not competing with the decision
-        # sections above them -- see items.more_info.ADVANCED_SECTION_IDS.
+        # reference, native component detail, build flexibility) get a
+        # quieter title style so they read as secondary detail -- see
+        # items.more_info.ADVANCED_SECTION_IDS. P1.1c additionally renders
+        # them inside a collapsed-by-default Advanced disclosure rather than
+        # inline (see _render_sections), so this styling now only matters
+        # once the player has actually expanded it.
         label.setObjectName("detailSectionTitleAdvanced" if advanced else "detailSectionTitle")
-        self._line_layout.addWidget(label)
+        target.addWidget(label)
         self._section_widgets.append(label)
 
-    def _add_text_block(self, text: str, *, object_name: str, color: str = "") -> None:
+    def _add_text_block(
+        self, text: str, *, object_name: str, color: str = "", layout: QVBoxLayout | None = None
+    ) -> None:
+        target = self._target_layout(layout)
         label = QLabel(text)
         label.setObjectName(object_name)
         label.setWordWrap(True)
         label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         if color:
             label.setStyleSheet(f"color: {color};")
-        self._line_layout.addWidget(label)
+        target.addWidget(label)
         self._section_widgets.append(label)
 
-    def _render_verdict_header(self, section: dict[str, Any], block: dict[str, Any]) -> None:
+    def _render_verdict_header(
+        self, section: dict[str, Any], block: dict[str, Any], *, layout: QVBoxLayout | None = None
+    ) -> None:
         lines = list(section.get("lines") or [])
         if not lines:
             return
         verdict = str((block.get("outcome") or {}).get("verdict") or "")
         css = VERDICT_CLASS.get(verdict, "neutral")
         color = VERDICT_COLOR.get(css, "#b0a890")
-        self._add_text_block(lines[0], object_name="verdictLabel", color=color)
+        self._add_text_block(lines[0], object_name="verdictLabel", color=color, layout=layout)
         for line in lines[1:]:
             object_name = "scoreSecondary" if line.startswith("Score ") else "whyLabel"
-            self._add_text_block(line, object_name=object_name)
+            self._add_text_block(line, object_name=object_name, layout=layout)
 
-    def _render_key_impact(self, section: dict[str, Any]) -> None:
+    def _render_key_impact(self, section: dict[str, Any], *, layout: QVBoxLayout | None = None) -> None:
         rows = list(section.get("impact_rows") or [])
         if not rows:
             for line in section.get("lines") or []:
-                self._add_text_block(str(line), object_name="detailImpactLine")
+                self._add_text_block(str(line), object_name="detailImpactLine", layout=layout)
             return
         for row in rows:
             marker = str(row.get("marker") or "").strip()
@@ -274,13 +306,14 @@ class DetailAnalysisDrawer(QWidget):
             cap = str(row.get("cap_label") or "").strip()
             color = self._delta_color(row)
             parts = [part for part in (marker, label, delta, cap) if part]
-            self._add_text_block("  ".join(parts), object_name="detailImpactLine", color=color)
+            self._add_text_block("  ".join(parts), object_name="detailImpactLine", color=color, layout=layout)
 
-    def _render_table(self, section: dict[str, Any]) -> None:
+    def _render_table(self, section: dict[str, Any], *, layout: QVBoxLayout | None = None) -> None:
+        target = self._target_layout(layout)
         rows = list(section.get("table_rows") or [])
         if not rows:
             for line in section.get("lines") or []:
-                self._add_text_block(str(line), object_name="whyLabel")
+                self._add_text_block(str(line), object_name="whyLabel", layout=layout)
             return
         panel = QWidget()
         grid = QGridLayout(panel)
@@ -312,34 +345,56 @@ class DetailAnalysisDrawer(QWidget):
             grid.addWidget(current, row_index, 1)
             grid.addWidget(new, row_index, 2)
             grid.addWidget(change, row_index, 3)
-        self._line_layout.addWidget(panel)
+        target.addWidget(panel)
         self._section_widgets.append(panel)
 
-    def _render_resists(self, section: dict[str, Any]) -> None:
+    def _render_resists(self, section: dict[str, Any], *, layout: QVBoxLayout | None = None) -> None:
         rows = list(section.get("resist_rows") or [])
         if not rows:
             for line in section.get("lines") or []:
-                self._add_text_block(str(line), object_name="whyLabel")
+                self._add_text_block(str(line), object_name="whyLabel", layout=layout)
             return
         for row in rows:
             marker = str(row.get("marker") or "").strip()
             element = str(row.get("element") or "").strip()
-            prefix = f"{marker} {element}".strip()
-            parts = [prefix]
-            if row.get("cap_current") or row.get("cap_new"):
-                parts.append(f"cap {row.get('cap_current')} → {row.get('cap_new')}")
-            if row.get("uncapped_current") or row.get("uncapped_new"):
-                parts.append(f"uncapped {row.get('uncapped_current')} → {row.get('uncapped_new')}")
-            if row.get("buffer_current") or row.get("buffer_new"):
-                parts.append(f"buffer {row.get('buffer_current')} → {row.get('buffer_new')}")
-            state = str(row.get("state") or "").strip()
-            if state:
-                parts.append(state)
-            self._add_text_block("  ·  ".join(parts), object_name="whyLabel")
+            summary = str(row.get("summary") or "").strip()
+            text = f"{marker} {element}: {summary}".strip()
+            color = OVERLAY_WARNING_BODY if row.get("warning") else ""
+            self._add_text_block(text, object_name="whyLabel", color=color, layout=layout)
 
-    def _render_text_section(self, section: dict[str, Any]) -> None:
+    def _render_text_section(self, section: dict[str, Any], *, layout: QVBoxLayout | None = None) -> None:
         for line in section.get("lines") or []:
-            self._add_text_block(str(line), object_name="whyLabel")
+            self._add_text_block(str(line), object_name="whyLabel", layout=layout)
+
+    def _render_one_section(
+        self, section: dict[str, Any], block: dict[str, Any], *, layout: QVBoxLayout, advanced: bool
+    ) -> None:
+        title = str(section.get("title") or "").strip()
+        section_id = str(section.get("id") or title)
+        if title:
+            self._add_section_title(title, advanced=advanced, layout=layout)
+        if section_id == "verdict_header":
+            self._render_verdict_header(section, block, layout=layout)
+        elif section_id == "key_impact":
+            self._render_key_impact(section, layout=layout)
+        elif section_id in {"offense", "defense"}:
+            self._render_table(section, layout=layout)
+        elif section_id == "resists":
+            self._render_resists(section, layout=layout)
+        else:
+            self._render_text_section(section, layout=layout)
+        self._section_ids.append(section_id)
+
+    def _advanced_toggle_label(self) -> str:
+        arrow = "▾" if self._advanced_expanded else "▸"
+        return f"{arrow} Advanced"
+
+    def _on_advanced_toggle_clicked(self) -> None:
+        self._advanced_expanded = not self._advanced_expanded
+        if self._advanced_container is not None:
+            self._advanced_container.setVisible(self._advanced_expanded)
+        if self._advanced_toggle is not None:
+            self._advanced_toggle.setText(self._advanced_toggle_label())
 
     def _render_sections(self, block: dict[str, Any]) -> None:
         sections = list(block.get("sections") or [])
@@ -349,6 +404,8 @@ class DetailAnalysisDrawer(QWidget):
                 return
             sections = [{"id": "lines", "title": str(block.get("title") or ""), "lines": lines}]
 
+        normal_sections: list[dict[str, Any]] = []
+        advanced_sections: list[dict[str, Any]] = []
         for section in sections[:MAX_DRAWER_SECTIONS]:
             lines = [
                 str(line.get("text") if isinstance(line, dict) else line).strip()
@@ -357,20 +414,39 @@ class DetailAnalysisDrawer(QWidget):
             lines = [line for line in lines if line]
             if not lines and not section.get("table_rows") and not section.get("impact_rows"):
                 continue
-            title = str(section.get("title") or "").strip()
-            section_id = str(section.get("id") or title)
-            if title:
-                from poe2value.items.more_info import ADVANCED_SECTION_IDS
-
-                self._add_section_title(title, advanced=section_id in ADVANCED_SECTION_IDS)
-            if section_id == "verdict_header":
-                self._render_verdict_header(section, block)
-            elif section_id == "key_impact":
-                self._render_key_impact(section)
-            elif section_id in {"offense", "defense"}:
-                self._render_table(section)
-            elif section_id == "resists":
-                self._render_resists(section)
+            section_id = str(section.get("id") or section.get("title") or "").strip()
+            if section_id in ADVANCED_SECTION_IDS:
+                advanced_sections.append(section)
             else:
-                self._render_text_section(section)
-            self._section_ids.append(section_id)
+                normal_sections.append(section)
+
+        for section in normal_sections:
+            self._render_one_section(section, block, layout=self._line_layout, advanced=False)
+
+        # P1.1c: technical/PoB-provenance detail (build flexibility, score
+        # drivers, damage reference, native components) lives behind a
+        # collapsed-by-default disclosure rather than inline, so More Info
+        # reads as a player-facing explanation of the result first. Nothing
+        # is deleted or diagnostics-only -- still one click away, and `Copy
+        # diagnostics` is unaffected either way.
+        if advanced_sections:
+            self._advanced_toggle = QPushButton(self._advanced_toggle_label())
+            self._advanced_toggle.setObjectName("advancedToggleButton")
+            self._advanced_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._advanced_toggle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._advanced_toggle.clicked.connect(self._on_advanced_toggle_clicked)
+            if self._line_layout.count() > 0:
+                self._line_layout.addSpacing(_SECTION_GAP)
+            self._line_layout.addWidget(self._advanced_toggle, 0, Qt.AlignmentFlag.AlignLeft)
+            self._section_widgets.append(self._advanced_toggle)
+
+            self._advanced_container = QWidget()
+            advanced_layout = QVBoxLayout(self._advanced_container)
+            advanced_layout.setContentsMargins(0, 0, 0, 0)
+            advanced_layout.setSpacing(8)
+            self._advanced_container.setVisible(self._advanced_expanded)
+            self._line_layout.addWidget(self._advanced_container)
+            self._section_widgets.append(self._advanced_container)
+
+            for section in advanced_sections:
+                self._render_one_section(section, block, layout=advanced_layout, advanced=True)

@@ -299,6 +299,19 @@ QLabel#detailSectionTitleAdvanced {
     letter-spacing: 0.9px;
     color: #726f6c;
 }
+QPushButton#advancedToggleButton {
+    color: #83817c;
+    background: transparent;
+    border: none;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    padding: 2px 0;
+    text-align: left;
+}
+QPushButton#advancedToggleButton:hover {
+    color: #b2b0ab;
+}
 QLabel#detailTableHeader {
     color: #83817c;
     font-size: 10px;
