@@ -59,6 +59,19 @@ def pob_slot_to_product(pob_slot: str, *, item_type: str | None = None) -> Produ
 
 
 def product_slot_to_pob(product_slot: ProductSlot) -> str:
+    # OFFHAND_2 -> "Weapon 2 Swap" is superseded, not wired up: M1.1's weapon-swap
+    # fix (runtime/lua/bridge.lua's `active_weapon_slot`) makes the bridge itself
+    # transparently redirect logical "Weapon 1"/"Weapon 2" to the active item set's
+    # physical Swap slots whenever `useSecondWeaponSet` is true. Product code never
+    # needs to name a Swap slot explicitly: OFFHAND_1 already means "whatever
+    # offhand is currently active," swap or not. This branch has no reachable
+    # caller (the bridge's EVALUABLE_SLOTS never reports "Weapon 2 Swap" as a
+    # compatible slot, so pob_slot_to_product below never produces OFFHAND_2 from
+    # live data either) and is kept only because ProductSlot.OFFHAND_2 remains a
+    # public enum member used elsewhere for weapon-slot categorization (see
+    # analysis/opportunity.py's WEAPON_PRODUCT_SLOTS). Do not build new logic on
+    # this branch; if a future feature needs to address the INACTIVE weapon set
+    # explicitly, that is a distinct concept from OFFHAND_2 as declared here.
     if product_slot == ProductSlot.OFFHAND_1:
         return "Weapon 2"
     if product_slot == ProductSlot.OFFHAND_2:

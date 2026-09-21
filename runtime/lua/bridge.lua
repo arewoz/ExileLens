@@ -151,8 +151,27 @@ local function slot_names()
 	return names
 end
 
+-- PoB's ItemsTab always keeps FOUR independent weapon-slot objects: "Weapon 1",
+-- "Weapon 2", "Weapon 1 Swap", "Weapon 2 Swap". Which physical pair is the
+-- player's actual equipped loadout is decided per active item set by
+-- `activeItemSet.useSecondWeaponSet` -- PoB itself never renames or re-links the
+-- slot objects; its own calc setup (CalcSetup.lua) instead skips slots whose
+-- `weaponSet` doesn't match the active flag and strips " Swap" off the surviving
+-- slot's name before feeding it to the calc environment. This mirrors that same
+-- redirection at the one place ExileLens reads or writes a weapon slot, so every
+-- other caller (Python's ProductSlot/compatible-slot resolution, the UI) can keep
+-- reasoning about the player's logical "Weapon 1"/"Weapon 2" without ever knowing
+-- PoB's physical storage slot names. A no-op for every non-weapon slot and for any
+-- build using its primary weapon set (the common case).
+local function active_weapon_slot(slot_name)
+	if (slot_name == "Weapon 1" or slot_name == "Weapon 2") and build.itemsTab.activeItemSet.useSecondWeaponSet then
+		return slot_name .. " Swap"
+	end
+	return slot_name
+end
+
 local function slot_item_raw(slot_name)
-	local slot = build.itemsTab.slots[slot_name]
+	local slot = build.itemsTab.slots[active_weapon_slot(slot_name)]
 	if not slot then return nil end
 	local item = slot.selItemId and build.itemsTab.items[slot.selItemId]
 	return item and item.raw or nil
@@ -227,7 +246,13 @@ local function resolve_compatible_slots_for_item(item)
 	local weapon_slots = {}
 	for _, slot_name in ipairs(slot_names()) do
 		if is_evaluable_slot(slot_name) then
-			local valid = build.itemsTab:IsItemValidForSlot(item, slot_name)
+			-- Check validity against the slot PoB is ACTUALLY using (see
+			-- `active_weapon_slot`): e.g. PoB's own offhand-vs-twohand check for
+			-- "Weapon 2 Swap" inspects "Weapon 1 Swap"'s selected item, not
+			-- "Weapon 1"'s -- checking the untranslated logical name here would
+			-- validate an offhand candidate against whichever weapon set is
+			-- currently INACTIVE.
+			local valid = build.itemsTab:IsItemValidForSlot(item, active_weapon_slot(slot_name))
 			if valid then
 				slots[#slots + 1] = slot_name
 				if slot_name == "Weapon 1" or slot_name == "Weapon 2" then
@@ -256,7 +281,7 @@ local function resolve_compatible_slots_for_item(item)
 end
 
 local function slot_item_summary(slot_name)
-	local slot = build.itemsTab.slots[slot_name]
+	local slot = build.itemsTab.slots[active_weapon_slot(slot_name)]
 	if not slot then return nil end
 	local item = slot.selItemId and build.itemsTab.items[slot.selItemId]
 	if not item then
@@ -1425,7 +1450,7 @@ end
 
 local function set_item(slot_name, raw)
 	local it = build.itemsTab
-	local slot = it.slots[slot_name]
+	local slot = it.slots[active_weapon_slot(slot_name)]
 	if not slot then
 		error({ code = "SLOT_INVALID", message = "unknown slot: " .. tostring(slot_name), details = { slot = slot_name } })
 	end
@@ -1839,7 +1864,13 @@ local function tx_begin(params)
 				local item_id = set_item(slot_name, raw)
 				if item_id then
 					ctx.baseline_created[#ctx.baseline_created + 1] = item_id
-					ctx.working_selection[slot_name] = item_id
+					-- Must key by the PHYSICAL slot `set_item` actually wrote to (see
+					-- `active_weapon_slot`), not the logical name: this dict is what
+					-- `tx_revert`/`tx_revert_final` use to decide which physical slot
+					-- to restore. Keying it by the logical name here would corrupt the
+					-- primary slot's own (untouched) restore record -- see the
+					-- weapon-swap defect this guards against.
+					ctx.working_selection[active_weapon_slot(slot_name)] = item_id
 				end
 			end
 		end)

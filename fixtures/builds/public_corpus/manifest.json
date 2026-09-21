@@ -27,6 +27,60 @@
       "primary_skill": "Flameblast",
       "actor": "PLAYER",
       "purpose": "selected channel stage and calculation context"
+    },
+    {
+      "id": "CORE04-MELEE-WEAPON",
+      "file": "fixtures/builds/public_corpus/core04_melee_weapon.xml",
+      "class": "Warrior",
+      "ascendancy": "Warbringer",
+      "primary_skill": "Sunder",
+      "actor": "PLAYER",
+      "purpose": "two-handed melee weapon replacement semantics"
+    },
+    {
+      "id": "CORE04-ONEHAND-WEAPON",
+      "file": "fixtures/builds/public_corpus/core04_onehand_weapon.xml",
+      "class": "Warrior",
+      "ascendancy": "Titan",
+      "primary_skill": "Shield Wall",
+      "actor": "PLAYER",
+      "purpose": "one-hand weapon replacement in an ambiguous dual-weapon-slot layout"
+    },
+    {
+      "id": "CORE04-POISON-AILMENT",
+      "file": "fixtures/builds/public_corpus/core04_poison_ailment.xml",
+      "class": "Huntress",
+      "ascendancy": "Ritualist",
+      "primary_skill": "Poisonburst Arrow",
+      "actor": "PLAYER",
+      "purpose": "ailment-dominant (poison) primary offense selection"
+    },
+    {
+      "id": "CORE04-MIXED-HIT-AILMENT",
+      "file": "fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml",
+      "class": "Witch",
+      "ascendancy": "Infernalist",
+      "primary_skill": "Comet",
+      "actor": "PLAYER",
+      "purpose": "mixed hit and ignite offense: CombinedDPS selection over hit-only or ailment-only"
+    },
+    {
+      "id": "CORE04-WEAPON-SWAP",
+      "file": "fixtures/builds/public_corpus/core04_weapon_swap.xml",
+      "class": "Huntress",
+      "ascendancy": "Ritualist",
+      "primary_skill": "Poisonburst Arrow",
+      "actor": "PLAYER",
+      "purpose": "active second weapon-set identity and candidate-substitution correctness"
+    },
+    {
+      "id": "CORE04-SKILL-NATIVE-DOT",
+      "file": "fixtures/builds/public_corpus/core04_skill_native_dot.xml",
+      "class": "Monk",
+      "ascendancy": "Acolyte of Chayula",
+      "primary_skill": "Profane Ritual",
+      "actor": "PLAYER",
+      "purpose": "skill-native DoT (no hit DPS, no named ailment) primary offense selection"
     }
   ]
 }
