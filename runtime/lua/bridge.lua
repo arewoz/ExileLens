@@ -279,6 +279,30 @@ end
 -- `jewel_socket_is_connectivity_risky` above) unless `include_risky` is true.
 local function allocated_jewel_socket_slots(include_risky)
 	local it = build.itemsTab
+	-- CORRECTNESS FIX: `slot.inactive` is only ever computed by
+	-- `ItemsTabClass:UpdateSockets` (`self.build.spec.allocNodes[nodeId] ==
+	-- nil` -> `slot.inactive = true`), and PoB itself only calls that from
+	-- `ItemsTab:Draw` (never reached headless -- no render loop) and from one
+	-- narrow `CalcSetup.lua` branch gated on `SetGrantedPassiveNodes`
+	-- returning true (only fires when an item grants extra passive nodes --
+	-- not an ordinary calc pass). `ItemSlotControl` never initializes
+	-- `.inactive` in its constructor, so headless it stays Lua-`nil` (falsy)
+	-- for every socket-type tree node until/unless one of those two paths
+	-- happens to run -- order/state-dependent, not reliable. Proven on the
+	-- public corpus: core04_melee_weapon.xml's `.inactive` happened to be
+	-- correctly computed (5 active, matching `spec.allocNodes` ground truth),
+	-- but core04_skill_native_dot.xml's was never computed at all (0 of its
+	-- 19 Socket-type tree nodes marked inactive) -- ground truth is only 4
+	-- actually allocated (`[7960, 21984, 26196, 61419]`), not the 19 the
+	-- pre-fix code (and the M1.3 test docstring that trusted it) reported.
+	-- Calling `UpdateSockets()` here makes `.inactive` authoritative before
+	-- it is read, removing the accidental/order-dependent reliance on
+	-- `CalcSetup.lua`'s narrow conditional. It only mutates `ItemsTab`-
+	-- internal bookkeeping (`self.sockets[*].inactive/.label`,
+	-- `self.activeSocketList`, `self.lastSlot`, `self.initSockets`) and is
+	-- cheap: one pass over `self.sockets` keyed against `spec.allocNodes`,
+	-- no recalculation.
+	it:UpdateSockets()
 	local names = {}
 	local excluded_risky = 0
 	for name, slot in pairs(it.slots) do
