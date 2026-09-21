@@ -36,11 +36,20 @@ from poe2value.items.offense_coverage import OffenseCoverageAuditor, infer_offen
 from poe2value.items.ranking import rank_slot_comparisons
 from poe2value.items.raw_input import ItemInputSource, RawItemInput
 from poe2value.items.recognition import ItemClassification
-from poe2value.items.slots import pob_slot_to_product
+from poe2value.items.slots import ProductSlot, pob_slot_to_product
 from poe2value.items.socket_normalize import strip_socketed_modifiers
 from poe2value.items.value_layer import parse_profile
 
 logger = logging.getLogger(__name__)
+
+
+def _product_slot_value(pob_slot: str, item_type: str | None) -> str:
+    """`pob_slot_to_product` as a plain string, for both fixed equipment slots
+    (a `ProductSlot` member) and dynamic jewel sockets (already a plain
+    "Jewel <nodeId>" string) -- see `poe2value.items.slots` for why jewel
+    sockets are not `ProductSlot` members."""
+    result = pob_slot_to_product(pob_slot, item_type=item_type)
+    return result.value if isinstance(result, ProductSlot) else result
 
 
 @dataclass
@@ -231,8 +240,7 @@ def _evaluate_item_impl(
     timings.pob_parse_ms = (time.perf_counter() - t0) * 1000
     if not pob_parse.parse_ok:
         raise ItemUnsupported("PoB could not parse item")
-    if pob_parse.item.get("type") == "Jewel":
-        raise ItemUnsupported("jewel items are not supported for equipment evaluation")
+    is_jewel_candidate = pob_parse.item.get("type") == "Jewel"
 
     t0 = time.perf_counter()
     compatible_slots = list(pob_parse.compatible_slots)
@@ -244,6 +252,23 @@ def _evaluate_item_impl(
             {"weapon_layout": pob_parse.weapon_layout},
         )
     if not compatible_slots:
+        if is_jewel_candidate:
+            # M1.3: distinguish "this build has no allocated jewel sockets at
+            # all" from "it has sockets, but none accept this jewel family"
+            # (Phase spec: do not collapse jewel failures into one generic
+            # code) -- `allocated_jewel_socket_count` comes straight from
+            # PoB's own allocated-socket enumeration (bridge.lua
+            # `allocated_jewel_socket_slots`), not a guess.
+            allocated_count = pob_parse.allocated_jewel_socket_count or 0
+            if allocated_count == 0:
+                raise NoCompatibleSlot(
+                    "this build has no allocated jewel sockets",
+                    {"allocated_jewel_socket_count": 0},
+                )
+            raise NoCompatibleSlot(
+                "this jewel is not compatible with any allocated jewel socket in this build",
+                {"allocated_jewel_socket_count": allocated_count},
+            )
         raise NoCompatibleSlot("item has no compatible replacement slots in the loaded build")
     if pob_parse.weapon_layout == "AMBIGUOUS_WEAPON_LAYOUT" and len([s for s in compatible_slots if s.startswith("Weapon")]) > 1:
         # Evaluate all weapon-compatible slots rather than failing.
@@ -389,7 +414,7 @@ def _evaluate_item_impl(
 
     for entry in measured_slots:
         pob_slot = entry["slot"]
-        product_slot = pob_slot_to_product(pob_slot, item_type=pob_parse.item.get("type")).value
+        product_slot = _product_slot_value(pob_slot, pob_parse.item.get("type"))
         failure = entry.get("error")
         if failure is not None:
             debug_payload["slots"].append({"slot": pob_slot, "error": failure.get("message"), "details": failure.get("details")})
@@ -530,7 +555,7 @@ def _evaluate_item_impl(
         "power_per_currency": (ranking["recommendation"] or {}).get("power_per_currency"),
         "compatible_slots": [
             {
-                "product_slot": pob_slot_to_product(slot, item_type=pob_parse.item.get("type")).value,
+                "product_slot": _product_slot_value(slot, pob_parse.item.get("type")),
                 "pob_slot": slot,
             }
             for slot in compatible_slots
@@ -556,6 +581,17 @@ def _evaluate_item_impl(
             "baseline_removed_counts": dict(baseline_normalization_diagnostics),
         },
     }
+    if is_jewel_candidate:
+        # M1.3: truthful note about sockets this evaluation could not safely
+        # consider at all -- see bridge.lua's `jewel_socket_is_connectivity_risky`.
+        # Zero for the overwhelming majority of builds; non-zero only when a
+        # currently-equipped jewel (e.g. "From Nothing") makes other allocated
+        # passives reachable without a connected path, which the ordinary
+        # swap-and-restore transaction cannot safely round-trip.
+        payload["jewel_socket_diagnostics"] = {
+            "allocated_jewel_socket_count": pob_parse.allocated_jewel_socket_count or 0,
+            "excluded_connectivity_risky_socket_count": pob_parse.excluded_connectivity_risky_socket_count or 0,
+        }
     payload["comparison_trace"] = build_comparison_trace(payload)
     pro = item_check_pro or {}
     payload = enrich_fast_result(
