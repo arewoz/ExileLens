@@ -50,7 +50,32 @@ WEAPON_TYPES = {
 }
 
 
-def pob_slot_to_product(pob_slot: str, *, item_type: str | None = None) -> ProductSlot:
+def is_jewel_socket_pob_slot(pob_slot: str) -> bool:
+    """True for a dynamic, per-build jewel-socket slot name ("Jewel <nodeId>").
+
+    Jewel sockets are not equipment slots (M1.3): PoB creates one socket per
+    passive-tree jewel-socket tree node, so there is no fixed, enumerable set
+    of names the way there is for "Ring 1"/"Weapon 2"/etc. -- the socket count
+    and node ids differ per build. Deliberately NOT modeled as `ProductSlot`
+    members (that enum is for the fixed equipment slot set); see
+    `pob_slot_to_product` below.
+    """
+    return bool(pob_slot) and pob_slot.startswith("Jewel ") and pob_slot[len("Jewel "):].isdigit()
+
+
+def pob_slot_to_product(pob_slot: str, *, item_type: str | None = None) -> ProductSlot | str:
+    """Map a PoB slot name to its product-facing identity.
+
+    Returns a `ProductSlot` enum member for the fixed equipment slots, or the
+    raw PoB slot name itself (e.g. "Jewel 26196") for a jewel socket -- jewel
+    sockets are per-build and dynamic, so they cannot be fixed enum members.
+    Callers that unconditionally did `.value` on the old return type must
+    branch on `isinstance(result, ProductSlot)` first (`str(result)` also
+    works for both cases, since `ProductSlot` is itself a `str` subclass, but
+    `.value` is not defined on a plain `str`).
+    """
+    if is_jewel_socket_pob_slot(pob_slot):
+        return pob_slot
     if pob_slot == "Weapon 2" and item_type in OFFHAND_TYPES:
         return ProductSlot.OFFHAND_1
     if pob_slot == "Weapon 2" and item_type in WEAPON_TYPES:

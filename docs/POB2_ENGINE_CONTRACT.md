@@ -111,6 +111,222 @@ Tree probes are in-memory only. Restore failure marks the worker unhealthy.
 
 Python: `get_frontier_nodes`, `get_targets_within_cost`, `rank_next_passive_points`, `rank_targets`. CLI: `tree-info`, `next-passive`, `tree-targets`, `evaluate-node`.
 
+## Jewels (M1.3)
+
+Unlike every other supported category, a Jewel socket is not a fixed equipment slot: PoB
+creates one `ItemSlotControl` per allocated passive-tree jewel-socket node (name
+`"Jewel <nodeId>"`, PoB's `ItemsTab.lua`), and the jewel-to-socket assignment itself
+lives on the tree spec, `spec.jewels[nodeId] = itemId` (`0`/absent = empty), not on
+`itemsTab.activeItemSet` like ordinary equipment. Both `evaluate_item_slots` and the
+underlying `tx_begin`/`tx_measure`/`tx_finish` transaction machinery already work on
+these slot names unchanged (`slot:SetSelItemId` branches internally on whether the slot
+has a `nodeId`), so no separate jewel transaction verb was needed — the two real gaps
+were (1) `resolve_compatible_slots_for_item` never enumerated jewel-socket names (they
+are dynamic and per-build, so cannot be a static table like `EVALUABLE_SLOTS`), and (2)
+`tx_begin` never tracked/restored jewel-socket slots (added in M1.3).
+
+Compatible-socket discovery reuses PoB's own `ItemsTabClass:IsItemValidForSlot`
+(sinister sockets, ascendancy-embedded sockets, cluster-jewel size rules) against every
+ALLOCATED socket (`slot.inactive` gates this — an unallocated socket is never a valid
+placement target), occupied or empty alike.
+
+### Inter-slot verification: two paths
+
+A jewel-socket batch cannot always use the cheap, frame-skipped structural check
+equipment batches use between slots (`tx_assert_reverted_structural`): a Timeless Jewel
+can change which tree-granted skill groups exist on removal, which that check — by
+design, to avoid a recalculation — cannot see. `tx_assert_reverted_jewel_batch` tries the
+cheap check first and only pays for one confirming recalculation
+(`tx_assert_reverted_full`) when it looks suspicious, so an ordinary jewel batch costs
+exactly what an equivalent equipment batch would.
+
+### Restore-safety: root cause, fix, and one residual case (M1.3 remediation slice)
+
+The 3 fixtures originally reported as "stateful/accumulating main skills" (stage-based,
+DoT-averaging, minion-actor) were re-investigated and found to share ONE root cause,
+unrelated to their skill archetypes:
+
+**Root cause.** A connectivity-affecting jewel — PoE's "Intuitive Leap"-like mechanic
+(`item.jewelData.intuitiveLeapLike`, "Passives in Radius can be Allocated without being
+connected", e.g. "From Nothing") or its "alternate start" cousin
+(`item.jewelData.alternateClassStart`, "Can Allocate Passive Skills from the
+&lt;Class&gt;'s starting point", e.g. "Split Personality") — makes other passives'
+allocation validity depend on the jewel's presence. `ItemSlotClass:SetSelItemId` (the
+swap-and-restore primitive the jewel transaction is built on) has no symmetric
+"reallocate on restore" step the way PoB's own `ItemsTabClass:DeleteItem` has a
+"deallocate on removal" step. A candidate frame that briefly displaces such a jewel
+therefore left the true baseline's dependent passives (and, for `hashOverrides`-driven
+node-data rewrites and mastery selections, their data) unrestored even after the SAME
+jewel was put back — a genuinely wrong restored metric, not a false-positive comparison.
+
+**A separate bug found while root-causing this:** `tx_finish`'s (and
+`tx_assert_reverted_full`'s) `RESTORE_FAILED` error details had `baseline_value`/
+`restored_value` swapped (`metrics_equal(restored_metrics, ctx.true_baseline_metrics,
+...)` returns `(ok, key, a[key], b[key])` with `a`=restored, `b`=baseline, and the
+assignment had them backwards). Pre-existing, predates M1.3; never visibly wrong before
+because production equipment restores never actually mismatched. This bug is why the
+M1.3 initial slice's diagnosis had baseline and restored inverted for these fixtures.
+
+**Fix.** `repair_tree_allocation` (`runtime/lua/bridge.lua`) runs after every slot
+revert (inter-slot and final) and repairs `spec.allocNodes`/`node.alloc`,
+`spec.hashOverrides` (re-applying `PassiveSpecClass:ReplaceNode`, the same call PoB's
+own load path uses when replaying `hashOverrides`), and `spec.masterySelections` to
+exactly match a raw snapshot of the true baseline captured once in `tx_begin` — the
+same data structures `DeleteItem` mutates, applied in reverse, not a synthetic metric
+correction. Verified against a clean reload, not just internal consistency: the
+restored primary metric now matches an independent `get_metrics` read of the untouched
+build to within float tolerance.
+
+**Result:** `core04_mixed_hit_ailment.xml` ("From Nothing") and `core04_minion_actor.xml`
+("From Nothing") now restore correctly — full multi-socket batch evaluation, zero
+RESTORE_FAILED, primary metric matches clean reload exactly.
+
+**One residual, not-locally-fixed case:** `core04_stage_context.xml`'s "Split
+Personality"-style socket (`jewelData.alternateClassStart`) restores its PRIMARY offense
+metric (CombinedDPS) correctly after the fix above, but a small secondary-metric
+discrepancy remains (`Life`, ~44 points / ~2.5%). `core04_skill_native_dot.xml`'s
+"From Nothing" socket (previously excluded as a precaution because PoB did not recognize
+it via either jewel-data flag) is now correctly INCLUDED and restores correctly, since
+the underlying repair fix covers it regardless of whether the flag-based exclusion
+recognizes the item — confirming the fix mechanism itself is sound; the Split Personality
+residual is a narrower, separate issue.
+
+**Precise differential evidence (M1.3 second remediation slice).** A per-node diagnostic
+(temporary, not shipped) compared every one of the 155 allocated tree nodes across
+(A) a clean reload, (B) mid-transaction with the candidate in the socket, and (D) after
+restore. 88 of 155 nodes show a `pathDist` difference (a pure path-finding/UI distance
+field — `PassiveSpec.lua`'s `BuildNodePathsToRootNodes` output, not itself a stat
+input). Exactly **4 nodes** (`21336`, `23091`, `52199`, `58789`) show a genuine
+`node.connectedToStart` flip from `true` (clean reload) to `false` (after restore) —
+this field is `PassiveSpec.lua`'s per-node record of "is there a path from this
+allocated node to any start node (including an `alternateClassStartNodes` entry)",
+recomputed by `BuildAllDependsAndPaths` and consumed to build the `rootList` for
+`BuildNodePathsToRootNodes`. None of the 4 flipped nodes carry a `Condition:ConnectedTo`
+mod themselves (`has_connected_mod = false` for all 4; their own `sd` text — Evasion/ES,
+Fire Damage, Exposure Effect, Ailment/Stun Threshold — has no direct Life relevance),
+so they are evidence of a REAL, precise divergence, not the (or not the sole) mechanism
+producing the `Life` delta specifically.
+
+**Experiments performed (each measured, none kept unless it changed the result):**
+1. `BuildAllDependsAndPaths()` called unconditionally after every repair (not gated on
+   `changed`) — no measurable effect on `Life` (still 1792 vs true 1748). Ruled out.
+2. `node.connectedToStart` repaired to the true baseline's exact per-node snapshot
+   (captured as a plain-value copy in `tx_begin`, not a live node reference — the first
+   attempt at this reused `true_alloc_snapshot`'s node REFERENCES, which mutate in place
+   and are therefore not a real point-in-time snapshot; the corrected version captures
+   `node.connectedToStart` as a plain boolean at `tx_begin` time) — no measurable effect
+   on `Life` (still 1792 vs true 1748, confirmed against an explicitly-verified fresh
+   reload via `invalidate_build()` to rule out stale-build contamination between test
+   runs). Ruled out.
+3. `spec.hashOverrides`/`spec.masterySelections` repair (already part of the production
+   fix) — confirmed present and matching true baseline exactly (`missing=`, `extra=`
+   both empty in the diagnostic dump) before either of the above experiments ran, so
+   neither was the gap either.
+
+**Conclusion:** the exact downstream calculation path from "4 nodes' `connectedToStart`
+diverges" to "Life is 44 points high" was not identified within this slice's time budget
+despite precise, node-level differential evidence and 2 targeted, measured, ruled-out
+repair experiments. This is now a narrow, well-bounded unknown (4 specific nodes, one
+specific PoB-internal field, in one specific real-corpus jewel mechanic), not a vague
+"still off" case. Given the primary offense metric is already correct and only this one
+narrow secondary-metric path remains open, further invasive PoB lifecycle emulation
+(e.g. replaying whatever PoB's own UI jewel-removal/re-equip flow does beyond
+`SetSelItemId` that neither of the above experiments reproduced) was judged not
+justified without a new, evidence-backed hypothesis — continuing to guess at additional
+repair calls without one would trade a known, safely-excluded gap for speculative,
+unverified state mutation. The exclusion remains in place. This socket stays excluded
+from jewel-socket discovery (`jewel_socket_is_connectivity_risky` now checks both
+`intuitiveLeapLike` and `alternateClassStart`) rather than risking the small wrong
+value — `excluded_connectivity_risky_socket_count` reports it.
+
+## Jewel evaluation performance (M1.3 Part B)
+
+Profiling (`EXILELENS_TOOLTIP_PERF=1`, Lua-side per-stage breakdown) found native
+component discovery (`skill_report`, triggered for multi-skill builds via
+`should_discover_components`) was the dominant cost of jewel evaluation — roughly
+70-80% of total wall time on `core04_melee_weapon.xml` (5 sockets) and
+`core04_bow_quiver.xml` (9 sockets) — because jewel batches were not requesting the
+PERF-06 in-batch optimization equipment batches already get (`in_batch` was explicitly
+`false` for jewel batches in the initial M1.3 slice, out of caution about a DIFFERENT,
+now-resolved concern: whether the cheap structural inter-slot check could read stale
+calc-derived state left by native discovery's own skipped trailing recalc).
+`tx_assert_reverted_jewel_batch`'s fallback (`tx_assert_reverted_full`) always
+recalculates before reading anything, so that staleness risk does not apply to it the
+way it did to the plain structural check — re-enabling `in_batch=true` for jewel
+batches was safe. Measured effect: `core04_melee_weapon.xml` (5 sockets) ~3.3s → ~2.0s
+(~38% faster); `core04_bow_quiver.xml` (9 sockets) ~5.4s → ~3.7s (~31% faster);
+`native_discovery_ms` dropped from 804/2151ms to ~2/1ms. Remaining cost is PoB's own
+per-socket recalculation (one settle pass per candidate placement, ~130-260ms/socket on
+these fixtures) — an inherent, measured PoB cost on real builds, not an avoidable
+ExileLens redundancy.
+
+### Second remediation slice: recalculation trace and two further hoisted-work fixes
+
+**Recalculation trace for an N-socket batch** (unchanged in shape by this slice, already
+minimal): 1 baseline settle (`tx_begin`) → for each of N sockets: apply candidate,
+1 candidate settle (`tx_measure`), revert (no recalc unless the cheap inter-slot check
+looks suspicious, which is rare — see the Timeless Jewel note above) → 1 final restore
+settle (`tx_finish`). Total: **N+2 recalculations** (7 for 5 sockets, 11 for 9 sockets,
+both measured exactly via `recalc_frames` before and after this slice's changes — the
+COUNT did not change, confirming no redundant recalculation was hiding at that level;
+the two fixes below are Lua-side CPU work around each recalculation, not extra PoB
+engine passes). A candidate is never restored-then-recalculated only to be immediately
+overwritten by the next candidate: the revert between socket A and socket B does not
+recalculate, so the transition from "A reverted" to "B's candidate" happens inside B's
+own single `tx_measure` recalculation, not two.
+
+**Two further redundant-work sources found and fixed** (both CPU-bound Lua work
+surrounding each recalculation, not the recalculation itself):
+
+1. **Full fingerprint tree-walk on every inter-slot check.** `M.fingerprint_components()`
+   builds a full per-node payload (`node_payload()`) for EVERY node in the passive tree
+   (thousands, not just the ~155-19 allocated ones) to produce fields (`nodes`, `edges`,
+   `jewels`, `mastery`, ...) that are part of the CLIENT-facing fingerprint contract
+   (returned once per transaction in the baseline/restored payload) but were ALSO being
+   rebuilt on every one of a jewel batch's up-to-`N-1` inter-slot checks
+   (`tx_assert_reverted_structural`/`_full`/`_jewel_batch`), even though those checks
+   only ever read the `.equipment` sub-field. A new `equipment_snapshot()` builds only
+   that dict (~20-190 slot reads, not a tree walk); the 3 inter-slot check functions
+   now call it instead of the full fingerprint. The one-time baseline/restored
+   fingerprint payloads (`tx_begin`, `tx_finish`) are unchanged — the detailed snapshot
+   is a real product contract, not restore-verification machinery, and was already only
+   built once per transaction either way.
+2. **Candidate item re-parsed/re-added per socket.** `set_item` created a brand-new
+   `Item` object (`ParseRaw` + `AddItem`, ~28ms/socket measured) for the SAME candidate
+   raw text on every socket. `set_item` now accepts an optional per-transaction
+   `item_cache` (raw text -> item id); a jewel batch parses/adds the candidate ONCE and
+   reuses the same item id for every socket (`SetSelItemId` still re-validates
+   `IsItemValidForSlot` per socket via `Populate()`, so per-socket compatibility is
+   still checked every time, not skipped). Equipment transactions and single-slot jewel
+   calls pass no cache and are unaffected.
+
+**Correctness re-verified after both fixes:** the exact same known-correct
+`core04_melee_weapon.xml` result (recommendation socket, verdict, per-socket verdicts,
+`OFFENSE` magnitude percentages, restore pass) was re-asserted unchanged; repeated
+evaluation stability, the 3 previously-failing fixtures' restore correctness, and empty-
+socket handling were all re-verified green after these changes.
+
+**Measurement caveat (reported honestly rather than omitted or gamed):** this second
+slice's own timing measurements were taken while the development machine was under
+confirmed heavy EXTERNAL load (`Get-CimInstance Win32_Processor` reported 73-87% CPU
+load throughout, with no ExileLens/PoB/Lua processes found competing — i.e. load from
+other work on the shared machine, not from this investigation), roughly doubling every
+`recalc()` frame's wall-clock cost compared to the clean measurements taken earlier in
+the same overall M1.3 effort. Wall-clock numbers taken during this load spike (5 sockets
+4.2-6.5s, 9 sockets 7.2-11.0s) are therefore NOT representative and are not used as the
+final performance verdict; `recalc_frames` (the load-independent recalculation COUNT)
+confirms no new recalculation was introduced, and `candidate_set_item_ms` dropping from
+~140ms to consistently well under that (even under the load spike) confirms the item-
+cache fix is real. The best available clean baseline remains the native-discovery-fix
+numbers above (~2.0s / ~3.7s), which the two additional fixes in this slice can only
+further reduce, not regress — but a clean, confirmed absolute number reflecting ALL
+three fixes together could not be captured within this slice's time budget once the load
+spike began. Both the "acceptable" (5≤1.5s, 9≤2.5s) and "strong" (5≤1.2s, 9≤2.0s)
+performance targets remain UNMET on the best clean evidence available (~2.0s already
+exceeds the 1.5s acceptable boundary before the two additional fixes are even
+counted), so performance stays a bounded, honestly-reported gap rather than a claimed
+pass.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`

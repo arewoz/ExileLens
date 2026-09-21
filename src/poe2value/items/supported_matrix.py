@@ -78,13 +78,20 @@ SUPPORTED_ITEM_MATRIX: tuple[SupportedItemSpec, ...] = (
     _spec(SupportedItemClass.BELT, "belt_sample.txt", "Belts", ("Belt",)),
     _spec(SupportedItemClass.RING, "ring1_candidate.txt", "Rings", ("Ring 1", "Ring 2")),
     _spec(SupportedItemClass.AMULET, "amulet_sample.txt", "Amulets", ("Amulet",)),
+    # M1.3: Jewels are now supported (occupied-socket replacement, multi-socket
+    # ranking, empty-allocated-socket comparison -- see
+    # tests/integration/test_jewel_real_pob.py and
+    # docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md's Jewel row), so this no
+    # longer expects a terminal error. `pob_slots`/`product_slots` stay empty
+    # here rather than modeling a fake fixed slot: a Jewel's compatible
+    # sockets are dynamic, per-build tree-node ids ("Jewel <nodeId>"), which
+    # this matrix's static-slot-tuple shape cannot represent -- see
+    # `poe2value.items.slots.is_jewel_socket_pob_slot`.
     _spec(
         SupportedItemClass.JEWEL,
         "jewel_sample.txt",
         "Jewels",
         (),
-        expects_terminal_error=True,
-        terminal_error_substring="jewel",
     ),
     _spec(SupportedItemClass.ONE_HAND_WEAPON, "weapon_1h_sample.txt", "Wands", ("Weapon 1",)),
     _spec(SupportedItemClass.TWO_HAND_WEAPON, "weapon_2h_sample.txt", "Staves", ("Weapon 1",)),
