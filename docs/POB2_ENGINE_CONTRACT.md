@@ -84,8 +84,8 @@ Application `load_build` goes through `EvaluationController` so loadout, numeric
 | `RING_2` | `Ring 2` | |
 | `WEAPON_1` | `Weapon 1` | Main hand / 2H |
 | `WEAPON_2` | `Weapon 2` | Dual-wield second weapon |
-| `OFFHAND_1` | `Weapon 2` | Shield / Focus / Quiver |
-| `OFFHAND_2` | `Weapon 2 Swap` | Second weapon set (gated) |
+| `OFFHAND_1` | `Weapon 2` | Shield / Focus / Quiver. Logical "currently-active offhand": the M1.1 `active_weapon_slot` bridge translation (`runtime/lua/bridge.lua`) transparently resolves this to the physical `Weapon 2 Swap` slot whenever the build's active item set has `useSecondWeaponSet=true`, so product code never needs a distinct "active second weapon set" offhand concept — see M1.2 offhand-support coverage (`docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md`). |
+| `OFFHAND_2` | `Weapon 2 Swap` | **Confirmed unreachable from live data (re-verified M1.2).** Declared only for `product_slot_to_pob`'s enum completeness; `EVALUABLE_SLOTS` in `runtime/lua/bridge.lua` never reports `"Weapon 2 Swap"` as a compatible slot, so `pob_slot_to_product` can never produce `OFFHAND_2` from a real engine response, even during an active second weapon set (see `src/poe2value/items/slots.py`'s in-code comment). Do not build new logic on this branch. |
 
 Phase 2 engine methods:
 
