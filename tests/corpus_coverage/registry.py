@@ -332,15 +332,31 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description=(
             "A build whose active item set has useSecondWeaponSet=true correctly resolves "
-            "active_item_set_id/loadout/skill identity, and its baseline offense is proven (via "
-            "an explicit wrong-set sentinel: a massive damage buff on the INACTIVE primary "
-            "weapon produces exactly zero measured change) to be computed from the active "
-            "second weapon set, not the inactive primary set. NOTE: this covers only baseline "
-            "correctness -- the separate, CONFIRMED defect in candidate substitution for this "
-            "same build (candidates never reach the active slot at all) is deliberately NOT "
-            "registered as a coverage case; see docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk "
-            "register and the xfail(strict=True) regression "
-            "test_weapon_swap_candidate_substitution_ignores_the_active_slot."
+            "active_item_set_id/loadout/skill identity, and its baseline equipment/offense are "
+            "proven (via an explicit wrong-set sentinel) to be computed from the active second "
+            "weapon set, not the inactive primary set. The sentinel candidate replaces logical "
+            "Weapon 1 with the INACTIVE primary weapon and is correctly, truthfully refused as "
+            "NOT_VIABLE (an arrow skill without a bow), not silently no-op'd."
+        ),
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WEAPON-SWAP-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_weapon_swap_candidate_substitution_resolves_the_active_slot",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "M1.1 P0 fix regression: a candidate cloned from the build's TRUE active bow "
+            "(Weapon 1 Swap) and evaluated against logical Weapon 1 now correctly resolves "
+            "against the active slot -- baseline_item is the active bow (not the inactive "
+            "spear), the measured offense delta is real and material (+148%-class, matching a "
+            "real PoB run), quality/verdict are a genuine FULL/MEANINGFUL_UPGRADE, the inactive "
+            "primary set is never mutated, restore is exact (including active-item-set "
+            "selection and skill identity), and repeated evaluation is stable. Fixed in "
+            "runtime/lua/bridge.lua via `active_weapon_slot` -- see "
+            "docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk register for before/after."
         ),
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",

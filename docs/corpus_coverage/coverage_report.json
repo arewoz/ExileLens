@@ -541,14 +541,28 @@
       "result": "PASS",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WEAPON-SWAP-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
     }
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 5,
-    "PASS": 35
+    "PASS": 36
   },
-  "supported_count": 40,
-  "total_count": 40,
+  "supported_count": 41,
+  "total_count": 41,
   "uncovered_archetypes": [
     "ascendancy",
     "es_scaling",

@@ -25,7 +25,7 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_onehand_weapon.xml` | Warrior/Titan Shield Wall with a one-hand mace + tower shield; one-hand weapon replacement, including the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case. |
 | `fixtures/builds/public_corpus/core04_poison_ailment.xml` | Huntress/Ritualist Poisonburst Arrow; ailment-dominant (poison) primary offense selection. |
 | `fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml` | Witch/Infernalist Comet (Cast on Elemental Ailment); mixed hit+ignite (~59%/41%) `CombinedDPS` offense selection. |
-| `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity and baseline correctness. Also pins a confirmed Item Check candidate-substitution defect for this configuration — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
+| `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity, baseline, and candidate-substitution correctness. Originally surfaced a confirmed Item Check candidate-substitution defect for this configuration, since fixed — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
