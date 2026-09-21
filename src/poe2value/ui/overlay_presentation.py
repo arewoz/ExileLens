@@ -590,7 +590,13 @@ class ItemOverlayPanel(QWidget):
         self._footer.hide()
 
     def show_timeout(self) -> None:
-        """Non-terminal slow feedback; a late worker result still replaces this."""
+        """Non-terminal slow feedback; a late worker result still replaces this.
+
+        No new engine call backs this: the exact cause (e.g. a build with many
+        Jewel sockets, each requiring its own Path of Building pass) is not known
+        cheaply at this point, so the copy stays truthful and general rather than
+        guessing a specific reason or a live count.
+        """
         self.reset_detail_drawer()
         self._analyzing.hide()
         self._set_result_chrome_visible(False)
@@ -598,7 +604,10 @@ class ItemOverlayPanel(QWidget):
         self._clear_warnings()
         self._stale_banner.hide()
         self._name.setText("STILL ANALYZING")
-        self._error.setText("Path of Building is taking longer than usual.")
+        self._error.setText(
+            "Path of Building is taking longer than usual. Builds with many Jewel "
+            "sockets can take longer to evaluate."
+        )
         self._error.show()
         self._retry.hide()
         self._footer.hide()

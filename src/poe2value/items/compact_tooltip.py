@@ -531,6 +531,28 @@ def _is_win_reason(text: str) -> bool:
     return not text.lstrip("• ").startswith(("-", "−"))
 
 
+def _quality_note(model: dict[str, Any]) -> str:
+    """One truthful line for why an UNCERTAIN/PARTIAL/UNSUPPORTED result is what it is.
+
+    Sourced from `EvaluationOutcome.evaluation_quality_reasons` — the same
+    evidence-backed detail More Info shows — never an invented explanation and
+    never an internal code or exception name. Empty when the evaluation is FULL
+    quality, so an ordinary confident result never grows this line.
+    """
+    outcome = model.get("evaluation_outcome") or {}
+    quality = str(outcome.get("evaluation_quality") or "")
+    if not quality or quality == "FULL":
+        return ""
+    reasons = [
+        str(item.get("detail") or "").strip() for item in outcome.get("evaluation_quality_reasons") or []
+    ]
+    reasons = [reason for reason in reasons if reason]
+    if not reasons:
+        return ""
+    detail = reasons[0]
+    return f"◐ {detail[0].upper()}{detail[1:]}" if detail else ""
+
+
 def _semantic_notes(model: dict[str, Any], impact_rows: list[dict[str, Any]]) -> list[str]:
     """Short semantic warnings — never a restatement of a delta already shown."""
     notes: list[str] = []
@@ -538,6 +560,10 @@ def _semantic_notes(model: dict[str, Any], impact_rows: list[dict[str, Any]]) ->
     def add(text: str) -> None:
         if text and text not in notes:
             notes.append(text)
+
+    # Why the result is uncertain/partial comes first: it reframes everything else
+    # in the tooltip, so it must not be crowded out by the MAX_NOTES budget.
+    add(_quality_note(model))
 
     # A cap break is the single most decision-relevant thing a tooltip can say, so it
     # is derived from the metric rows too: presentation dedupe legitimately drops the

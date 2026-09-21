@@ -293,7 +293,7 @@ def decide_verdict(
     return VerdictDecision(
         final,
         band,
-        f"Net build value {final - SCORE_SCALE.equivalent:+.1f} against the current item.",
+        f"Net score {final - SCORE_SCALE.equivalent:+.1f} against the current item.",
         guardrail_rows,
     )
 

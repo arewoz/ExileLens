@@ -69,7 +69,7 @@ def verdict_subtitle(
             if item.get("explanation"):
                 return str(item["explanation"])
     if verdict == "NO_CHANGE":
-        return "No meaningful change to build value or guardrails."
+        return "No meaningful change to score or guardrails."
     return str(recommendation.get("verdict_explanation") or "")
 
 
