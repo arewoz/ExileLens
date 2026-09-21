@@ -103,6 +103,22 @@ def test_repeated_evaluation_stable_on_previously_failing_fixture(real_pob_engin
         assert row2["restore"]["pass"] is True
 
 
+def test_candidate_item_reused_across_sockets_not_reparsed(real_pob_engine, monkeypatch):
+    """M1.3 Part B: the same candidate raw text is parsed/added once per batch,
+    not once per socket (`set_item`'s `item_cache` param) -- every socket's
+    `item_present` proof must still hold true regardless of reuse."""
+    monkeypatch.setenv("EXILELENS_TOOLTIP_PERF", "1")
+    build = CORPUS / "core04_melee_weapon.xml"
+    real_pob_engine.ensure_build_ready(str(build), context="MAP")
+    result = evaluate_item(CANDIDATE_RUBY, real_pob_engine, build_path=str(build))
+    assert result["ok"] is True
+    assert len(result["slot_comparisons"]) == 5
+    for row in result["slot_comparisons"]:
+        assert row["restore"]["pass"] is True
+    perf = result["timings"].get("per_slot_pob_ms", {}).get("__transaction__", {})
+    print("candidate_set_item_ms:", perf.get("candidate_set_item_ms"))
+
+
 def test_native_discovery_no_longer_dominates_jewel_evaluation_cost(real_pob_engine, monkeypatch):
     """Diagnostic, not a hard SLA (perf varies by machine): confirms the fixed
     redundant per-socket native-discovery recalculation stays fixed. Prints
