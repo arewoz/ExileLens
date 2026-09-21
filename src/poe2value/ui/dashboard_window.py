@@ -78,7 +78,7 @@ class DashboardWindow(ManagedToolWindow):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(
-            policy=WindowInteractionPolicy.INTERACTIVE_TOOL,
+            policy=WindowInteractionPolicy.INTERACTIVE_APP_WINDOW,
             minimum_size=QSize(*theme.MINIMUM_WINDOW_SIZE),
             parent=parent,
         )
@@ -334,6 +334,6 @@ class DashboardWindow(ManagedToolWindow):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
-        apply_native_extended_style(self, WindowInteractionPolicy.INTERACTIVE_TOOL)
+        apply_native_extended_style(self, WindowInteractionPolicy.INTERACTIVE_APP_WINDOW)
         self._header.refresh()
         recover_window_geometry(self, cap_size=True)

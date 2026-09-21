@@ -30,6 +30,7 @@ _INTERACTIVE_WINDOWS: weakref.WeakSet[QWidget] = weakref.WeakSet()
 class WindowInteractionPolicy(str, Enum):
     PASSIVE_OVERLAY = "passive_overlay"
     INTERACTIVE_TOOL = "interactive_tool"
+    INTERACTIVE_APP_WINDOW = "interactive_app_window"
     INTERACTIVE_PIN_AFFORDANCE = "interactive_pin_affordance"
     INTERACTIVE_OVERLAY_CHROME = "interactive_overlay_chrome"
     INTERACTIVE_TRANSPARENT_CAPTURE = "interactive_transparent_capture"
@@ -77,6 +78,12 @@ def apply_native_extended_style(widget: QWidget, policy: WindowInteractionPolicy
     }:
         style |= WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE
         style &= ~(WS_EX_TRANSPARENT | WS_EX_APPWINDOW)
+    elif policy is WindowInteractionPolicy.INTERACTIVE_APP_WINDOW:
+        # The main Dashboard/Settings window: a normal desktop window. It must
+        # not stay above unrelated applications the way the over-the-game
+        # tools (Tree Coach, calibration, pinned comparisons) deliberately do.
+        style &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST)
+        style |= WS_EX_APPWINDOW
     else:
         style &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
         style |= WS_EX_APPWINDOW | WS_EX_TOPMOST
@@ -243,6 +250,25 @@ def apply_window_interaction_policy(
         widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, False)
         return
 
+    if policy is WindowInteractionPolicy.INTERACTIVE_APP_WINDOW:
+        # The main Dashboard/Settings window: a normal desktop window that must
+        # behave like one -- no WindowStaysOnTopHint over unrelated apps. It is
+        # still registered as interactive so clicks on it correctly suppress
+        # the item-check click-to-dismiss overlay contract.
+        flags = widget.windowFlags()
+        flags |= Qt.WindowType.Window
+        flags &= ~(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
+        flags |= Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMinimizeButtonHint
+        if transparent_input is not None:
+            flags &= ~transparent_input
+        if no_focus is not None:
+            flags &= ~no_focus
+        widget.setWindowFlags(flags)
+        widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, not activate_on_show)
+        register_interactive_window(widget)
+        return
+
     flags = widget.windowFlags()
     flags |= Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint
     flags &= ~Qt.WindowType.FramelessWindowHint
@@ -281,6 +307,7 @@ def describe_interaction(widget: QWidget) -> dict[str, Any]:
         "interactive": policy
         in {
             WindowInteractionPolicy.INTERACTIVE_TOOL,
+            WindowInteractionPolicy.INTERACTIVE_APP_WINDOW,
             WindowInteractionPolicy.INTERACTIVE_TRANSPARENT_CAPTURE,
             WindowInteractionPolicy.INTERACTIVE_PIN_AFFORDANCE,
             WindowInteractionPolicy.INTERACTIVE_OVERLAY_CHROME,
@@ -297,6 +324,7 @@ def describe_interaction(widget: QWidget) -> dict[str, Any]:
         "accepts_focus": policy
         in {
             WindowInteractionPolicy.INTERACTIVE_TOOL,
+            WindowInteractionPolicy.INTERACTIVE_APP_WINDOW,
             WindowInteractionPolicy.INTERACTIVE_TRANSPARENT_CAPTURE,
         },
         "show_without_activating": bool(widget.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)),
