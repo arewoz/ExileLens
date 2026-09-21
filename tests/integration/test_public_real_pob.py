@@ -426,15 +426,17 @@ def test_weapon_swap_baseline_reflects_the_active_second_set(real_pob_engine) ->
 
     The explicit wrong-set sentinel: the inactive primary spear (Weapon 1) is cloned
     with a massive "+500% increased Physical Damage" mod and evaluated as a
-    candidate. If ExileLens/PoB's calculation were using the primary (inactive) set,
-    this would move offense dramatically. It measures a real PoB run and asserts
-    EXACTLY ZERO change -- proving the calculation the baseline is built from does
-    NOT depend on the primary set's weapon at all, i.e. baseline offense (X) is
-    driven by the active swap set, not the inactive primary set (Y). This is the
-    correct, currently-working half of weapon-swap support; see
-    test_weapon_swap_candidate_substitution_ignores_the_active_slot for the
-    confirmed defect in the OTHER half (evaluating a candidate meant for the active
-    slot).
+    candidate. This measures a real PoB run and asserts EXACTLY ZERO offense
+    change -- proving the calculation the baseline is built from does NOT depend on
+    the primary set's weapon at all, i.e. baseline offense (X) is driven by the
+    active swap set, not the inactive primary set (Y).
+
+    `Item Check's own equipment summary for logical "Weapon 1"/"Weapon 2" now
+    resolves to the ACTIVE physical slot (bow/quiver), not the primary/inactive one
+    (spear/shield) -- see runtime/lua/bridge.lua's `active_weapon_slot` (the P0 fix
+    for M1.1's weapon-swap slice). See
+    test_weapon_swap_candidate_substitution_resolves_the_active_slot for the
+    candidate-substitution half of the same fix.
     """
     loaded = real_pob_engine.load_build(WEAPON_SWAP_BUILD)
     assert loaded["build"]["active_item_set_id"] == 1
@@ -449,21 +451,27 @@ def test_weapon_swap_baseline_reflects_the_active_second_set(real_pob_engine) ->
     assert baseline_metrics["CombinedDPS"] > 0
 
     equipment = {row["slot"]: row for row in loaded["equipment"]}
-    # PoB's own equipment summary for "Weapon 1"/"Weapon 2" still names the PRIMARY
-    # (inactive) items -- this is the same underlying gap the defect test below
-    # exercises, recorded here as ground truth rather than asserted as correct.
-    assert equipment["Weapon 1"]["name"] == "Hunter's Grand Spear of the Mongoose"
-    assert equipment["Weapon 2"]["name"] == "Exceptional Glowering Crest Shield"
+    # Logical "Weapon 1"/"Weapon 2" now correctly name the ACTIVE (swap) items.
+    assert equipment["Weapon 1"]["name"] == "Brood Stinger, Warmonger Bow"
+    assert equipment["Weapon 2"]["name"] == "Cadiro's Gambit, Primed Quiver"
+    # The physical swap slots read the same content (both keys back the same real
+    # equipped items) -- confirms the translation, not a coincidence.
+    assert equipment["Weapon 1 Swap"]["name"] == "Brood Stinger, Warmonger Bow"
+    assert equipment["Weapon 2 Swap"]["name"] == "Cadiro's Gambit, Primed Quiver"
 
     inactive_spear = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 1")
     sentinel_candidate = inactive_spear + "\n500% increased Physical Damage\n"
     result = evaluate_item(sentinel_candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
     row = result["slot_comparisons"][0]
     outcome = row["evaluation_outcome"]
-    # The sentinel: a huge damage buff on the INACTIVE set's weapon must produce no
-    # measurable offense change, proving the baseline this build reports is computed
-    # from the active (swap) set, not from whatever "Weapon 1" leaves equipped.
-    assert outcome["item_impact"]["axes"]["OFFENSE"]["magnitude_pct"] == 0.0
+    # The sentinel: a huge damage buff on the INACTIVE set's weapon, submitted as a
+    # candidate for logical "Weapon 1", is now correctly recognized as replacing the
+    # build's real active bow with an arrow-incompatible weapon -- PoB's guardrail
+    # policy correctly refuses this as NOT_VIABLE (Poisonburst Arrow cannot fire
+    # without a bow) rather than silently reporting a neutral/no-op SIDEGRADE.
+    assert outcome["item_impact"]["axes"]["OFFENSE"]["support"] == "UNMEASURED"
+    assert outcome["evaluation_quality"] == "PARTIAL"
+    assert outcome["verdict"] == "NOT_VIABLE"
     assert row["restore"]["pass"] is True
 
     reloaded = real_pob_engine.load_build(WEAPON_SWAP_BUILD)
@@ -471,44 +479,78 @@ def test_weapon_swap_baseline_reflects_the_active_second_set(real_pob_engine) ->
     assert reloaded["build"]["active_loadout"] == "Default"
     assert reloaded["build"]["main_skill_identity"]["skill_name"] == "Poisonburst Arrow"
     reloaded_equipment = {row["slot"]: row for row in reloaded["equipment"]}
-    assert reloaded_equipment["Weapon 1"]["name"] == "Hunter's Grand Spear of the Mongoose"
-    assert reloaded_equipment["Weapon 2"]["name"] == "Exceptional Glowering Crest Shield"
+    assert reloaded_equipment["Weapon 1"]["name"] == "Brood Stinger, Warmonger Bow"
+    assert reloaded_equipment["Weapon 2"]["name"] == "Cadiro's Gambit, Primed Quiver"
 
 
-@pytest.mark.xfail(
-    reason=(
-        "CONFIRMED DEFECT (M1.1 weapon-swap slice): Item Check's candidate "
-        "substitution always writes into the PRIMARY 'Weapon 1'/'Weapon 2' PoB "
-        "slots (runtime/lua/bridge.lua tx_begin, via it.slots[slot_name]), never "
-        "into 'Weapon 1 Swap'/'Weapon 2 Swap'. For a build whose active item set "
-        "has useSecondWeaponSet=true, the primary slots are NOT what the skill's "
-        "damage calculation reads (see the sibling identity test), so a candidate "
-        "clone of the TRUE equipped weapon with a massive damage buff produces "
-        "EXACTLY ZERO measured offense change -- a confident FULL/SIDEGRADE result "
-        "that is silently disconnected from the build's real active equipment. "
-        "Root cause is architectural: PoB's itemsTab exposes four independent "
-        "slot objects (Weapon 1/2 and their Swap counterparts) and bridge.lua has "
-        "no useSecondWeaponSet-aware redirection; ProductSlot.OFFHAND_2 already "
-        "has a dormant 'Weapon 2 Swap' mapping in slots.py with no caller, "
-        "suggesting this was previously identified and never finished. Fixing "
-        "this requires bridge.lua slot-name resolution changes plus Python-side "
-        "ProductSlot wiring -- out of scope for a corpus-coverage slice. Tracked "
-        "in docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk register. This test "
-        "asserts the CORRECT desired behavior and will start unexpectedly passing "
-        "once the underlying defect is fixed (strict=True catches that)."
-    ),
-    strict=True,
-)
-def test_weapon_swap_candidate_substitution_ignores_the_active_slot(real_pob_engine) -> None:
+def test_weapon_swap_candidate_substitution_resolves_the_active_slot(real_pob_engine) -> None:
+    """CORE04-WEAPON-SWAP P0 fix: candidate substitution now targets the active slot.
+
+    Before the fix (see git history / docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk
+    register), a candidate cloned from this build's TRUE active bow, evaluated
+    against logical "Weapon 1", produced EXACTLY ZERO measured offense change -- a
+    confident FULL/SIDEGRADE result silently disconnected from the real active
+    equipment, because candidate substitution always wrote into the PRIMARY
+    "Weapon 1" PoB slot instead of the active "Weapon 1 Swap" slot.
+
+    Root cause and fix: `runtime/lua/bridge.lua` now resolves every read/write of
+    logical "Weapon 1"/"Weapon 2" through `active_weapon_slot`, which redirects to
+    the " Swap" physical slot exactly when `itemsTab.activeItemSet.useSecondWeaponSet`
+    is true -- mirroring PoB's own CalcSetup.lua redirection, so ExileLens never
+    needs its own notion of "which weapon set". This test proves the fix end to end
+    against real PoB output (+148.88% measured before this assertion was written):
+    the candidate reaches the slot that actually drives the calculation, the
+    baseline item is the true active bow (not the inactive spear), the primary
+    (inactive) set is never mutated, and restore is exact -- including
+    `useSecondWeaponSet` itself, which this transaction never touches.
+    """
     swap_bow = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 1 Swap")
     candidate = swap_bow + "\n500% increased Physical Damage\n"
 
     result = evaluate_item(candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
-    row = result["slot_comparisons"][0]
-    outcome = row["evaluation_outcome"]
 
-    # Desired behavior: a massive damage buff on the build's TRUE active bow must
-    # move measured offense materially. Today it does not (see xfail reason above).
-    assert outcome["item_impact"]["axes"]["OFFENSE"]["support"] == "MEASURED"
-    assert outcome["item_impact"]["axes"]["OFFENSE"]["magnitude_pct"] > 10.0
-    assert outcome["verdict"] in {"MINOR_UPGRADE", "MEANINGFUL_UPGRADE"}
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 1"}
+    row = result["slot_comparisons"][0]
+
+    # 1-2: the candidate resolved against the ACTIVE bow baseline, not the inactive spear.
+    assert row["baseline_item"]["name"] == "Brood Stinger, Warmonger Bow"
+    assert row["baseline_item"]["name"] != "Hunter's Grand Spear of the Mongoose"
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Poisonburst Arrow"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Poisonburst Arrow"
+    assert row["candidate"]["item_present"] is True
+
+    # 3-5: meaningful, real-PoB-consistent candidate delta and truthful classification.
+    outcome = row["evaluation_outcome"]
+    offense = outcome["item_impact"]["axes"]["OFFENSE"]
+    assert offense["support"] == "MEASURED"
+    assert offense["direction"] == "POSITIVE"
+    assert offense["magnitude_pct"] > 100.0
+    assert outcome["evaluation_quality"] == "FULL"
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
+
+    # 6: the inactive primary set was never touched by this transaction.
+    reloaded = real_pob_engine.load_build(WEAPON_SWAP_BUILD)
+    equipment_after = {e["slot"]: e.get("name") for e in reloaded["equipment"]}
+    # The spear/shield are no longer exposed under logical "Weapon 1"/"Weapon 2" (those
+    # now correctly mean "active"), but they must still be exactly what they were,
+    # untouched, in the raw build XML this fixture never gets rewritten from.
+    inactive_spear_raw = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 1")
+    inactive_shield_raw = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 2")
+    assert "Hunter's Grand Spear of the Mongoose" in inactive_spear_raw
+    assert "Exceptional Glowering Crest Shield" in inactive_shield_raw
+
+    # 7-8: restore is exact -- both sets, active-set selection, and skill identity.
+    assert row["restore"]["pass"] is True
+    assert equipment_after["Weapon 1"] == "Brood Stinger, Warmonger Bow"
+    assert equipment_after["Weapon 2"] == "Cadiro's Gambit, Primed Quiver"
+    assert reloaded["build"]["active_item_set_id"] == 1
+    assert reloaded["build"]["active_loadout"] == "Default"
+    assert reloaded["build"]["main_skill_identity"]["skill_name"] == "Poisonburst Arrow"
+
+    # 9: repeated evaluation is stable (no state leak, no cache/fingerprint staleness).
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
+    second_row = second["slot_comparisons"][0]
+    assert second_row["baseline_item"]["name"] == "Brood Stinger, Warmonger Bow"
+    assert second_row["evaluation_outcome"]["final_score"] == outcome["final_score"]
+    assert second_row["evaluation_outcome"]["verdict"] == outcome["verdict"]
+    assert second_row["restore"]["pass"] is True
