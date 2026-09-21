@@ -63,6 +63,15 @@
       "primary_skill": "Comet",
       "actor": "PLAYER",
       "purpose": "mixed hit and ignite offense: CombinedDPS selection over hit-only or ailment-only"
+    },
+    {
+      "id": "CORE04-WEAPON-SWAP",
+      "file": "fixtures/builds/public_corpus/core04_weapon_swap.xml",
+      "class": "Huntress",
+      "ascendancy": "Ritualist",
+      "primary_skill": "Poisonburst Arrow",
+      "actor": "PLAYER",
+      "purpose": "active second weapon-set identity; pins a confirmed Item Check candidate-substitution defect (see docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk register)"
     }
   ]
 }
