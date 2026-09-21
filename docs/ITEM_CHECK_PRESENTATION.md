@@ -1,4 +1,4 @@
-# Item Check presentation (P1.1 — Tooltip Presentation Polish)
+# Item Check presentation (P1.1 / P1.1b — Tooltip Presentation Polish)
 
 How the Shift+C Item Check tooltip decides what to show, in what order, and what moves
 to More Info. This is a presentation contract: it describes copy and layout policy, not
@@ -246,3 +246,143 @@ No verdict label, threshold, score band, or guardrail changed. `VERDICT_LABELS`,
    edited-but-unreachable code, to avoid touching a surface with no current renderer and
    no test coverage protecting it. Worth a cleanup or removal pass in a future milestone
    once it's confirmed no surface still depends on it.
+
+---
+
+## P1.1b — visual language, Jewel copy, More Info density
+
+Real packaged-build screenshots of P1.1's output surfaced a second, distinct problem:
+the *visual treatment* (a warm brown "premium" chrome the product owner rejected) and
+three remaining information-hierarchy issues independent of P1.1's copy/wording work.
+This section documents what changed. Nothing in P1.1b touches the evaluation engine,
+scoring, thresholds, Jewel Intelligence discovery semantics, or the PoB bridge (the one
+exception, the Jewel socket *discovery correctness* fix, is a separate defect — see
+`POB2_ENGINE_CONTRACT.md`'s Jewel section — not a P1.1b presentation change).
+
+### Visual hierarchy
+
+The whole overlay/dashboard palette was retoned from a warm brown/tan family (e.g.
+`#d8cbb6` text, `#141210` background, a `QColor(34, 29, 24, ...)` window gradient) to a
+neutral graphite/off-white one, centralized in `ui/styles.py`'s token constants
+(`OVERLAY_TEXT_*`, `DASHBOARD_*`, and the new `OVERLAY_WINDOW_GRADIENT_*`/
+`OVERLAY_WINDOW_BORDER_RGBA` tuples). The three files that used to hardcode the same
+brown `QColor` literals for the painted tooltip window background
+(`ui/overlay.py`, `ui/pinned_item_overlay.py`, `ui/overlay_aux_companion.py`) now import
+those tuples instead of repeating raw numbers — the actual centralization the product
+owner asked for, not just a value swap. Color semantics, kept and reinforced:
+
+- Gold (`#c9a227`, `DASHBOARD_ACCENT`) — the one restrained ExileLens accent. Used for
+  the rarity label, the top accent stripe (already rarity-colored, unchanged), the pin
+  affordance's border, and — new in P1.1b — the More Info drawer's divider/left border
+  (`rgba(201, 162, 39, 35)`), since a divider is exactly the "subtle separator" role the
+  product owner named for gold. Deliberately *not* used as the default button-text color
+  (was gold pre-P1.1b via a wildcard `QPushButton` rule); every interactive control
+  (Pin, More Info, close, retry) now uses neutral text plus its existing hover-brighten
+  behavior, so gold stays rare rather than becoming the default accent for every clickable
+  thing.
+- Green (`#7dcf7d`) / red (`#d97b7b`) — gain / loss. Unchanged; these were already
+  correct before P1.1b.
+- Amber (`#e0a040`, with a couple of adjacent tiers like `#dba748`) — warning/uncertain/
+  tradeoff. Unified: the pre-P1.1b palette had three or four different tan-gold shades
+  (`#e8d3a4`, `#e0b35a`, `#d4bc6e`, ...) doing this job inconsistently; they now share one
+  family.
+- Neutral text — `OVERLAY_TEXT_PRIMARY`/`_SECONDARY`/`_MUTED` (off-white → mid-gray →
+  dark-gray), replacing what used to be three different warm tan shades doing the same
+  job.
+- Rarity colors (`RARITY_COLOR`) — untouched; explicitly semantic and out of scope.
+
+Chrome reduction: `baselineStrip` and `verdictBand` (both hidden in the compact surface
+already — see the M1 audit above) had their linear gradients flattened to a single flat
+`rgba` fill; `detailAnalysisDrawer`'s gradient background likewise flattened. No new
+gradients, glow, or ornamental borders were introduced anywhere. No layout/widget
+structure changed — this is a color-token pass, not a redesign.
+
+### Compact impact selector: primary offense visibility
+
+`compact_tooltip.select_impact_rows()`'s existing "at least one material loss survives
+the row-count cap" rule had a gap: several large *defensive* losses (each individually
+≥ `LARGE_DAMAGE_LOSS_PCT`, so each already lands in the higher-priority "large loss" rank
+bucket) could fill the entire `MAX_IMPACT_ROWS` budget before a smaller-but-still-real
+*offense* loss — ranked one bucket lower — was ever considered. A build losing 4.9% Spark
+DPS alongside larger EHP/Max Hit/resistance losses could show every defensive number and
+silently omit the damage change entirely. Fixed with a second, symmetric safety net:
+`_is_material_primary_offense()` (MEASURED/MEASURED_ZERO delta kind only — this never
+promotes an UNMEASURED/ESTIMATED/UNSUPPORTED damage number into visibility, respecting
+the same truthfulness gate `rows_from_outcome_deltas()` already enforces — and ≥ 3%
+magnitude, the same "major DPS" threshold the ranking already used elsewhere) now
+guarantees a material, measured primary-offense row survives the row cap the same way a
+material loss row does, without touching scoring, the verdict, or which axis the engine
+considers "primary."
+
+### Jewel socket copy: no raw node ids in player-facing text
+
+Real Jewel diagnostics (post the discovery-correctness fix) showed raw tree-node
+identifiers — `Jewel 11184`, `Jewel 17788`, ... — directly in player-facing text: the
+compact "Best: {slot} — {name}" line, a per-socket `slot_verdict_lines()` listing, More
+Info's verdict header, and the drawer's "COMPARE REPLACEMENT" ring-selector button
+captions. A raw tree-node id is internal identity (Copy diagnostics still carries it,
+unchanged), never player copy — PoB does not expose a real passive-tree name/location for
+a socket. Fixed uniformly wherever a slot string reaches a label
+(`items.slots.is_jewel_socket_pob_slot()` detects the pattern):
+
+- **Compact `replacing_line()`**: `"Best: Jewel 11184 — Foe Joy, Sapphire"` →
+  `"Best fit: Replacing Foe Joy, Sapphire · Checked 4 jewel sockets"`; an empty best
+  socket reads `"Best fit: Empty jewel socket · Checked N jewel sockets"`. Non-jewel
+  (equipment) slots are byte-for-byte unchanged (`"Best: Ring 2 — {name}"`).
+- **Compact `slot_verdict_lines()`**: suppressed entirely for jewel candidates (returns
+  `[]`) rather than relabeled — this is the "never dump the evaluated socket list" rule;
+  `replacing_line()`'s single best-fit + count summary is the only jewel-socket copy the
+  compact surface shows. Equipment slots keep their existing per-slot listing unchanged.
+- **More Info `_verdict_header()`**: the same raw-slot suffix/bare-slot cases are
+  suppressed for jewel sockets (e.g. `"Replacing: X · Jewel 11184"` → `"Replacing: X"`;
+  a bare bindingless slot never renders at all for a jewel socket).
+- **Drawer's ring selector** (`_render_ring_selector()`): still lets the player switch
+  between the sockets that were actually checked (real, useful advanced functionality,
+  kept), but labels each button `"Socket 1"`, `"Socket 2"`, ... (`items.slots.
+  jewel_socket_display_label()`) instead of the raw node id.
+
+**Truthfulness check performed on this work specifically** (per the product owner's
+"Fulgent Stone" example — a textual `2% increased Cast Speed` modifier where PoB's
+measured result is `0.0%` Cast/Attack Speed change): none of the four fixes above read or
+reformat item modifier text at all — they only touch slot *identity* strings
+(`"Jewel <nodeId>"` → an ordinal or a summary count) and continue to source every number
+and name from the same `EvaluationOutcome`/`replacement_choices` data the rest of this
+document's truthfulness boundary already governs. The measured-vs-raw-modifier trap does
+not apply to this change by construction, not by omission.
+
+### More Info: player-facing vs. advanced PoB information
+
+`more_info.MORE_INFO_SECTION_ORDER` previously rendered `damage_reference` and
+`native_components` — "Spark → Base", selected PoB stat-set, Full DPS configuration
+status, individual native-component enumeration — second and third, immediately after
+the verdict and *ahead of* `key_impact` (the actual build-impact numbers). Reordered to:
+verdict header → key impact → offense → defense → resists → flexibility → why this
+verdict → *(advanced)* score drivers → damage reference → native components →
+unmodeled/conditional. The three sections now demoted to the tail
+(`more_info.ADVANCED_SECTION_IDS`) also render with a visually quieter title style
+(`detailSectionTitleAdvanced`: smaller, lower letter-spacing, muted color) via
+`overlay_detail_drawer.py`'s `_render_sections()` — a one-line lookup against the
+existing section id, no new data field, no architecture change. `unmodeled` (truthful
+uncertainty/coverage caveats — the same philosophy as the compact surface's UNCERTAIN
+quality note) deliberately stays in the normal-weight group: it is a caveat the player
+should read, not PoB internals. No section content changed, nothing was deleted, `Copy
+diagnostics` is untouched.
+
+### Width / density
+
+`styles.OVERLAY_DETAIL_WIDTH_BASE` (the More Info drawer's width): 380 → 350, with its
+clamp range narrowed from 340–430 to 310–400. Screenshots with More Info open showed a
+very wide two-column surface (compact ~408px + drawer ~380–430px + divider ≈ 790–820px
+total) for content that is only ever short text lines and small tables. The compact
+tooltip's own width (`OVERLAY_COMPACT_WIDTH_BASE = 408`) is unchanged — it was not the
+problem, and per the product owner's explicit instruction this pass does not shrink text
+or increase density to cram more in; it narrows the one dimension (drawer width) that was
+oversized for what it actually renders.
+
+### What P1.1b did not touch
+
+Evaluation formulas, score calculation, verdict thresholds, guardrails, the truthfulness
+gate, PoB calculation behavior, Jewel placement *semantics* (which sockets are legal —
+see the separate discovery-correctness fix), slot-ranking semantics, cache/fingerprint
+behavior, the version number, or the release pipeline. No new widget, window, or page was
+added; no existing one was removed.
