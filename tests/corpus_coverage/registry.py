@@ -143,6 +143,20 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
     ),
+    CoverageCase(
+        id="CORE04-SKILL-NATIVE-DOT-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORE04-SKILL-NATIVE-DOT]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Monk/Acolyte of Chayula, Profane Ritual (triggered by Cast on Minion Death): zero hit "
+            "DPS, zero named-ailment DPS, CombinedDPS is entirely PoB's own TotalDot. PLAYER actor. "
+            "Sourced from a real, currently-played public poe.ninja Runes of Aldur build."
+        ),
+        archetypes=(Archetype.DOT,),
+        manifest_id="CORE04-SKILL-NATIVE-DOT",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -360,6 +374,35 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="SKILL-NATIVE-DOT-OFFENSE-SELECTED-AND-MEASURED",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_skill_native_dot_offense_is_selected_and_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A real build with zero hit DPS and zero named-ailment DPS -- offense is entirely "
+            "PoB's own skill-native TotalDot -- correctly selects TotalDot/SKILL_DOT/DOT_DPS "
+            "rather than falling back to TotalDPS (0, would silently report no offense) or "
+            "substituting a named ailment field (none exists). A +100% increased Damage over "
+            "Time candidate moves TotalDot by +81.97%, with CombinedDPS staying exactly equal to "
+            "TotalDot throughout (no double counting) and FullDotDPS staying 0 (the AGGREGATE "
+            "alternative correctly not involved). Reaches genuine FULL quality / "
+            "MEANINGFUL_UPGRADE, matching the real measured delta."
+        ),
+        archetypes=(Archetype.DOT,),
+        manifest_id="CORE04-SKILL-NATIVE-DOT",
+    ),
+    CoverageCase(
+        id="SKILL-NATIVE-DOT-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_skill_native_dot_repeated_evaluation_does_not_leak_state",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two consecutive Item Checks against the same skill-native-DoT candidate select the same PoB field (TotalDot) and produce identical score/verdict, both restoring cleanly.",
+        archetypes=(Archetype.DOT,),
+        manifest_id="CORE04-SKILL-NATIVE-DOT",
     ),
 )
 

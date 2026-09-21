@@ -127,6 +127,20 @@
     },
     {
       "archetypes": [
+        "dot"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-SKILL-NATIVE-DOT-IDENTITY",
+      "manifest_id": "CORE04-SKILL-NATIVE-DOT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "spell",
         "unusual_skill_part"
       ],
@@ -481,6 +495,34 @@
       "total_variants": 6
     },
     {
+      "archetypes": [
+        "dot"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SKILL-NATIVE-DOT-OFFENSE-SELECTED-AND-MEASURED",
+      "manifest_id": "CORE04-SKILL-NATIVE-DOT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "dot"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "SKILL-NATIVE-DOT-REPEATED-EVALUATION-NO-LEAK",
+      "manifest_id": "CORE04-SKILL-NATIVE-DOT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
@@ -559,10 +601,10 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 5,
-    "PASS": 36
+    "PASS": 39
   },
-  "supported_count": 41,
-  "total_count": 41,
+  "supported_count": 44,
+  "total_count": 44,
   "uncovered_archetypes": [
     "ascendancy",
     "es_scaling",
