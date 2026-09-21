@@ -769,13 +769,13 @@ QCheckBox::indicator:disabled {{
 
 DASHBOARD_STYLESHEET = OVERLAY_STYLESHEET + TREE_COACH_STYLESHEET[len(OVERLAY_STYLESHEET):] + """
 QWidget#dashboardRoot {
-    background: #141210;
-    color: #d8cbb6;
+    background: #17181b;
+    color: #e3e1dc;
     font-family: "Segoe UI", sans-serif;
     font-size: 13px;
 }
 QWidget#navRail {
-    background: #1a1714;
+    background: #1a1b1e;
     border-right: 1px solid rgba(255,255,255,12);
 }
 QPushButton#navButton {
@@ -785,23 +785,23 @@ QPushButton#navButton {
     border-left: 3px solid transparent;
     border-radius: 0;
     background: transparent;
-    color: #b7aa96;
+    color: #8b8a85;
     font-size: 13px;
     font-weight: 600;
 }
 QPushButton#navButton:hover:!checked {
     background: rgba(255,255,255,10);
-    color: #d8cbb6;
+    color: #e3e1dc;
 }
 QPushButton#navButton:checked {
     background: rgba(203,184,146,18);
-    color: #f0e2c4;
+    color: #f5f3ee;
     border-left: 3px solid #c9a227;
     font-weight: 700;
 }
 QPushButton#navButton:focus {
     background: rgba(255,255,255,10);
-    color: #f0e2c4;
+    color: #f5f3ee;
 }
 QPushButton#navButtonSecondary {
     text-align: left;
@@ -809,28 +809,28 @@ QPushButton#navButtonSecondary {
     border: none;
     border-left: 3px solid transparent;
     background: transparent;
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 12px;
     font-weight: 600;
 }
 QPushButton#navButtonSecondary:hover:!checked {
     background: rgba(255,255,255,10);
-    color: #b7aa96;
+    color: #8b8a85;
 }
 QPushButton#navButtonSecondary:checked {
     background: rgba(203,184,146,18);
-    color: #f0e2c4;
+    color: #f5f3ee;
     border-left: 3px solid #c9a227;
     font-weight: 700;
 }
 QPushButton#navButtonSecondary:focus {
     background: rgba(255,255,255,10);
-    color: #d8cbb6;
+    color: #e3e1dc;
 }
 QLabel#pageTitle {
     font-size: 18px;
     font-weight: 700;
-    color: #f0e2c4;
+    color: #f5f3ee;
     letter-spacing: 0.3px;
 }
 QLabel#engineStateReady { color: #7dcf7d; font-weight: 700; }
@@ -849,7 +849,7 @@ QWidget#placeholderCard {
 
 /* PRODUCT-UX-01 Character page */
 QLabel#charSectionHeading {
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.4px;
@@ -860,13 +860,13 @@ QWidget#charStatusStrip {
     border-radius: 6px;
 }
 QLabel#charStatusLabel {
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.8px;
 }
 QLabel#charStatusValue {
-    color: #d8cbb6;
+    color: #e3e1dc;
     font-size: 12px;
     font-weight: 600;
 }
@@ -880,29 +880,29 @@ QWidget#charCard {
 QLabel#charName {
     font-size: 20px;
     font-weight: 700;
-    color: #f0e2c4;
+    color: #f5f3ee;
 }
 QLabel#charDetail {
-    color: #cbb892;
+    color: #e3e1dc;
     font-size: 13px;
 }
 QLabel#charLeague {
-    color: #b7aa96;
+    color: #8b8a85;
     font-size: 12px;
     font-weight: 600;
 }
 QLabel#charSynced {
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 11px;
 }
 QLabel#charEmpty {
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 13px;
 }
 QLabel#resultSuccess { color: #7dcf7d; font-size: 12px; font-weight: 700; }
 QLabel#resultPartial { color: #d4bc6e; font-size: 12px; font-weight: 700; }
 QLabel#resultFailed  { color: #d37a7a; font-size: 12px; font-weight: 700; }
-QLabel#resultSyncing { color: #cbb892; font-size: 12px; font-weight: 700; }
+QLabel#resultSyncing { color: #e3e1dc; font-size: 12px; font-weight: 700; }
 QLabel#leagueHeading {
     color: #c9a227;
     font-size: 11px;
@@ -910,20 +910,20 @@ QLabel#leagueHeading {
     letter-spacing: 0.6px;
 }
 QLabel#charRowCurrent {
-    color: #f0e2c4;
+    color: #f5f3ee;
     font-size: 12px;
     font-weight: 600;
 }
 QLabel#charRow {
-    color: #b7aa96;
+    color: #8b8a85;
     font-size: 12px;
 }
 QLabel#dataRowLabel {
-    color: #b7aa96;
+    color: #8b8a85;
     font-size: 12px;
 }
 QLabel#dataRowValue {
-    color: #d8cbb6;
+    color: #e3e1dc;
     font-size: 12px;
     font-weight: 600;
 }
@@ -939,7 +939,7 @@ QPushButton#charSyncButton {
     background: rgba(203,184,146,26);
     border: 1px solid rgba(203,184,146,90);
     border-radius: 5px;
-    color: #f0e2c4;
+    color: #f5f3ee;
     font-weight: 700;
     padding: 7px 18px;
 }
@@ -947,7 +947,7 @@ QPushButton#charSyncButton:hover:enabled {
     background: rgba(203,184,146,44);
 }
 QPushButton#charSyncButton:disabled {
-    color: #7d7468;
+    color: #726f6c;
     border-color: rgba(255,255,255,18);
     background: rgba(255,255,255,6);
 }
