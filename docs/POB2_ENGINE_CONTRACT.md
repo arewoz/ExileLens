@@ -111,6 +111,64 @@ Tree probes are in-memory only. Restore failure marks the worker unhealthy.
 
 Python: `get_frontier_nodes`, `get_targets_within_cost`, `rank_next_passive_points`, `rank_targets`. CLI: `tree-info`, `next-passive`, `tree-targets`, `evaluate-node`.
 
+## Jewels (M1.3)
+
+Unlike every other supported category, a Jewel socket is not a fixed equipment slot: PoB
+creates one `ItemSlotControl` per allocated passive-tree jewel-socket node (name
+`"Jewel <nodeId>"`, PoB's `ItemsTab.lua`), and the jewel-to-socket assignment itself
+lives on the tree spec, `spec.jewels[nodeId] = itemId` (`0`/absent = empty), not on
+`itemsTab.activeItemSet` like ordinary equipment. Both `evaluate_item_slots` and the
+underlying `tx_begin`/`tx_measure`/`tx_finish` transaction machinery already work on
+these slot names unchanged (`slot:SetSelItemId` branches internally on whether the slot
+has a `nodeId`), so no separate jewel transaction verb was needed — the two real gaps
+were (1) `resolve_compatible_slots_for_item` never enumerated jewel-socket names (they
+are dynamic and per-build, so cannot be a static table like `EVALUABLE_SLOTS`), and (2)
+`tx_begin` never tracked/restored jewel-socket slots (added in M1.3).
+
+Compatible-socket discovery reuses PoB's own `ItemsTabClass:IsItemValidForSlot`
+(sinister sockets, ascendancy-embedded sockets, cluster-jewel size rules) against every
+ALLOCATED socket (`slot.inactive` gates this — an unallocated socket is never a valid
+placement target), occupied or empty alike.
+
+### Inter-slot verification: two paths
+
+A jewel-socket batch cannot always use the cheap, frame-skipped structural check
+equipment batches use between slots (`tx_assert_reverted_structural`): a Timeless Jewel
+can change which tree-granted skill groups exist on removal, which that check — by
+design, to avoid a recalculation — cannot see. `tx_assert_reverted_jewel_batch` tries the
+cheap check first and only pays for one confirming recalculation
+(`tx_assert_reverted_full`) when it looks suspicious, so an ordinary jewel batch costs
+exactly what an equivalent equipment batch would.
+
+### Known bounded restore-safety limitations (real corpus evidence)
+
+Two real, reproducible restore-safety findings from the M1.3 audit, both correctly
+caught by the existing transaction verification (never a delivered wrong answer — the
+engine is invalidated and the next evaluation reloads a clean build):
+
+- **Connectivity-affecting jewels** ("Intuitive Leap"-like; PoE's "From Nothing" is the
+  named example, `item.jewelData.intuitiveLeapLike`). Temporarily removing such a jewel
+  deallocates the passives it was making reachable without a connected path; restoring
+  the original jewel via `SetSelItemId` does not automatically reinstate them the way
+  PoB's own `ItemsTabClass:DeleteItem` does when a jewel is fully removed. Sockets whose
+  current jewel sets this flag are excluded from `allocated_jewel_socket_slots()`
+  entirely (`excluded_connectivity_risky_socket_count`). One corpus fixture
+  (`core04_skill_native_dot.xml`) carries a sanitized item that reproduces the same
+  underlying risk without PoB recognizing the flag, so the filter is a best-effort,
+  evidence-based improvement, not a complete guarantee — the transaction's own
+  `tree_nodes` fingerprint check is the actual safety net.
+- **Stateful/accumulating main skills** (stage-based skills, e.g. Flameblast; some
+  ailment/DoT-averaging skills, e.g. Comet; some minion-actor chains with count-based
+  unique jewels, e.g. "Grand Spectrum"). On 3 of the 9 public corpus fixtures
+  (`core04_stage_context.xml`, `core04_mixed_hit_ailment.xml`, `core04_minion_actor.xml`),
+  a jewel-socket transaction's post-recalculation primary metric measurably differs
+  (well beyond tolerance, sometimes 1.5-3x) from the pre-transaction baseline, even
+  though the exact same build evaluated via equipment (Ring/Shield/etc.) is stable. Root
+  cause not fully pinned down within M1.3 (a PoB calc-engine sensitivity to jewel-touch
+  recalculation for these specific skill archetypes); `tx_begin`/`tx_finish`'s existing
+  metrics comparison correctly detects and refuses (`RESTORE_FAILED` →
+  `EvaluationInvalidBuildState`) rather than ever reporting the wrong number.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`

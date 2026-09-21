@@ -88,7 +88,7 @@ Manual price is optional (`source=MANUAL`). Power per Currency is omitted when n
 | Code | When |
 |---|---|
 | `NOT_POE2_ITEM` | Recognition failed |
-| `ITEM_UNSUPPORTED` | Jewel/flask or PoB base unresolved |
+| `ITEM_UNSUPPORTED` | Flask, or PoB base unresolved. (Jewel is no longer unconditionally terminal here as of M1.3 — see below.) |
 | `SLOT_RESOLUTION_FAILED` | Weapon/layout unsupported |
 | `SLOT_RESOLUTION_AMBIGUOUS` | Reserved for future hard-fail cases |
 | `NO_COMPATIBLE_SLOT` | PoB reports zero valid slots |
@@ -105,3 +105,17 @@ Each field exposes `current`, `candidate`, `absolute_delta`, `percent_delta` (nu
 ## Product slot mapping
 
 See `docs/POB2_ENGINE_CONTRACT.md` for PoB slot identifiers.
+
+## Jewel evaluation (M1.3)
+
+A Jewel candidate is routed to the same pipeline as equipment (`compatible_slots` →
+`evaluate_item_slots` → `rank_slot_comparisons`), but its `compatible_slots` are dynamic,
+per-build jewel-socket names (`"Jewel <nodeId>"`, one per allocated passive-tree jewel
+socket), not a fixed `ProductSlot`. Every allocated, compatible socket — occupied or
+empty — is evaluated in one batched transaction; the existing ranking/truthfulness/
+guardrail machinery selects the single best, most-truthful placement, exactly as it
+already does for Ring 1 vs Ring 2. `NoCompatibleSlot` for a Jewel candidate carries
+`allocated_jewel_socket_count` in its details so a build with zero allocated jewel
+sockets is distinguishable from a build whose sockets simply do not accept this jewel
+family. See `docs/POB2_ENGINE_CONTRACT.md`'s Jewel section for the PoB-side model and
+known bounded limitations.
