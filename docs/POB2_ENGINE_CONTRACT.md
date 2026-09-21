@@ -140,34 +140,87 @@ cheap check first and only pays for one confirming recalculation
 (`tx_assert_reverted_full`) when it looks suspicious, so an ordinary jewel batch costs
 exactly what an equivalent equipment batch would.
 
-### Known bounded restore-safety limitations (real corpus evidence)
+### Restore-safety: root cause, fix, and one residual case (M1.3 remediation slice)
 
-Two real, reproducible restore-safety findings from the M1.3 audit, both correctly
-caught by the existing transaction verification (never a delivered wrong answer — the
-engine is invalidated and the next evaluation reloads a clean build):
+The 3 fixtures originally reported as "stateful/accumulating main skills" (stage-based,
+DoT-averaging, minion-actor) were re-investigated and found to share ONE root cause,
+unrelated to their skill archetypes:
 
-- **Connectivity-affecting jewels** ("Intuitive Leap"-like; PoE's "From Nothing" is the
-  named example, `item.jewelData.intuitiveLeapLike`). Temporarily removing such a jewel
-  deallocates the passives it was making reachable without a connected path; restoring
-  the original jewel via `SetSelItemId` does not automatically reinstate them the way
-  PoB's own `ItemsTabClass:DeleteItem` does when a jewel is fully removed. Sockets whose
-  current jewel sets this flag are excluded from `allocated_jewel_socket_slots()`
-  entirely (`excluded_connectivity_risky_socket_count`). One corpus fixture
-  (`core04_skill_native_dot.xml`) carries a sanitized item that reproduces the same
-  underlying risk without PoB recognizing the flag, so the filter is a best-effort,
-  evidence-based improvement, not a complete guarantee — the transaction's own
-  `tree_nodes` fingerprint check is the actual safety net.
-- **Stateful/accumulating main skills** (stage-based skills, e.g. Flameblast; some
-  ailment/DoT-averaging skills, e.g. Comet; some minion-actor chains with count-based
-  unique jewels, e.g. "Grand Spectrum"). On 3 of the 9 public corpus fixtures
-  (`core04_stage_context.xml`, `core04_mixed_hit_ailment.xml`, `core04_minion_actor.xml`),
-  a jewel-socket transaction's post-recalculation primary metric measurably differs
-  (well beyond tolerance, sometimes 1.5-3x) from the pre-transaction baseline, even
-  though the exact same build evaluated via equipment (Ring/Shield/etc.) is stable. Root
-  cause not fully pinned down within M1.3 (a PoB calc-engine sensitivity to jewel-touch
-  recalculation for these specific skill archetypes); `tx_begin`/`tx_finish`'s existing
-  metrics comparison correctly detects and refuses (`RESTORE_FAILED` →
-  `EvaluationInvalidBuildState`) rather than ever reporting the wrong number.
+**Root cause.** A connectivity-affecting jewel — PoE's "Intuitive Leap"-like mechanic
+(`item.jewelData.intuitiveLeapLike`, "Passives in Radius can be Allocated without being
+connected", e.g. "From Nothing") or its "alternate start" cousin
+(`item.jewelData.alternateClassStart`, "Can Allocate Passive Skills from the
+&lt;Class&gt;'s starting point", e.g. "Split Personality") — makes other passives'
+allocation validity depend on the jewel's presence. `ItemSlotClass:SetSelItemId` (the
+swap-and-restore primitive the jewel transaction is built on) has no symmetric
+"reallocate on restore" step the way PoB's own `ItemsTabClass:DeleteItem` has a
+"deallocate on removal" step. A candidate frame that briefly displaces such a jewel
+therefore left the true baseline's dependent passives (and, for `hashOverrides`-driven
+node-data rewrites and mastery selections, their data) unrestored even after the SAME
+jewel was put back — a genuinely wrong restored metric, not a false-positive comparison.
+
+**A separate bug found while root-causing this:** `tx_finish`'s (and
+`tx_assert_reverted_full`'s) `RESTORE_FAILED` error details had `baseline_value`/
+`restored_value` swapped (`metrics_equal(restored_metrics, ctx.true_baseline_metrics,
+...)` returns `(ok, key, a[key], b[key])` with `a`=restored, `b`=baseline, and the
+assignment had them backwards). Pre-existing, predates M1.3; never visibly wrong before
+because production equipment restores never actually mismatched. This bug is why the
+M1.3 initial slice's diagnosis had baseline and restored inverted for these fixtures.
+
+**Fix.** `repair_tree_allocation` (`runtime/lua/bridge.lua`) runs after every slot
+revert (inter-slot and final) and repairs `spec.allocNodes`/`node.alloc`,
+`spec.hashOverrides` (re-applying `PassiveSpecClass:ReplaceNode`, the same call PoB's
+own load path uses when replaying `hashOverrides`), and `spec.masterySelections` to
+exactly match a raw snapshot of the true baseline captured once in `tx_begin` — the
+same data structures `DeleteItem` mutates, applied in reverse, not a synthetic metric
+correction. Verified against a clean reload, not just internal consistency: the
+restored primary metric now matches an independent `get_metrics` read of the untouched
+build to within float tolerance.
+
+**Result:** `core04_mixed_hit_ailment.xml` ("From Nothing") and `core04_minion_actor.xml`
+("From Nothing") now restore correctly — full multi-socket batch evaluation, zero
+RESTORE_FAILED, primary metric matches clean reload exactly.
+
+**One residual, not-locally-fixed case:** `core04_stage_context.xml`'s "Split
+Personality"-style socket (`jewelData.alternateClassStart`) restores its PRIMARY offense
+metric (CombinedDPS) correctly after the fix above, but a small secondary-metric
+discrepancy remains (`Life`, ~44 points / ~2.5%). Investigated and ruled out:
+`PassiveSpecClass:BuildAllDependsAndPaths()` (the function that recomputes
+`alternateClassStartNodes`/`intuitiveLeapLikeNodes` from every equipped jewel's
+`jewelData`, and which `SetSelItemId` never calls) was called explicitly, unconditionally,
+as a direct experiment — made no measurable difference, so it is not the (or not the
+only) missing piece, and was not kept (real tree-wide cost, no proven benefit). Root
+cause for this specific residual remains only partially understood. This socket is
+excluded from jewel-socket discovery (`jewel_socket_is_connectivity_risky` now checks
+both `intuitiveLeapLike` and `alternateClassStart`) rather than risking the small wrong
+value — `excluded_connectivity_risky_socket_count` reports it. `core04_skill_native_dot.xml`'s
+"From Nothing" socket (previously excluded as a precaution in the initial M1.3 slice
+because PoB did not recognize it via either flag) is now correctly INCLUDED and restores
+correctly, since the underlying repair fix covers it regardless of whether the flag-based
+exclusion recognizes the item.
+
+## Jewel evaluation performance (M1.3 Part B)
+
+Profiling (`EXILELENS_TOOLTIP_PERF=1`, Lua-side per-stage breakdown) found native
+component discovery (`skill_report`, triggered for multi-skill builds via
+`should_discover_components`) was the dominant cost of jewel evaluation — roughly
+70-80% of total wall time on `core04_melee_weapon.xml` (5 sockets) and
+`core04_bow_quiver.xml` (9 sockets) — because jewel batches were not requesting the
+PERF-06 in-batch optimization equipment batches already get (`in_batch` was explicitly
+`false` for jewel batches in the initial M1.3 slice, out of caution about a DIFFERENT,
+now-resolved concern: whether the cheap structural inter-slot check could read stale
+calc-derived state left by native discovery's own skipped trailing recalc).
+`tx_assert_reverted_jewel_batch`'s fallback (`tx_assert_reverted_full`) always
+recalculates before reading anything, so that staleness risk does not apply to it the
+way it did to the plain structural check — re-enabling `in_batch=true` for jewel
+batches was safe. Measured effect: `core04_melee_weapon.xml` (5 sockets) ~3.3s → ~2.0s
+(~38% faster); `core04_bow_quiver.xml` (9 sockets) ~5.4s → ~3.7s (~31% faster);
+`native_discovery_ms` dropped from 804/2151ms to ~2/1ms. Remaining cost is PoB's own
+per-socket recalculation (one settle pass per candidate placement, ~130-260ms/socket on
+these fixtures) — an inherent, measured PoB cost on real builds, not an avoidable
+ExileLens redundancy; multi-second latency on larger-socket builds (up to 19 allocated
+sockets on `core04_skill_native_dot.xml`) remains a known, honestly-reported boundary,
+not resolved in this slice.
 
 ## Tested engine revision
 
