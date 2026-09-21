@@ -9,12 +9,13 @@ from xml.etree import ElementTree
 
 import pytest
 
-from poe2value.errors import RestoreFailed
+from poe2value.errors import RestoreFailed, SlotResolutionFailed
 from poe2value.items.evaluation import evaluate_item
 
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "fixtures" / "builds" / "core04_player_ring.xml"
+PLAYER_RING_BUILD = BUILD
 ITEMS = ROOT / "fixtures" / "items"
 pytestmark = [pytest.mark.integration, pytest.mark.real_pob, pytest.mark.itemcheck]
 
@@ -231,6 +232,92 @@ def test_onehand_weapon_candidate_is_ambiguous_and_resolved_safely(real_pob_engi
 
     # The best-slot ranking never surfaces the guardrail-blocked slot as the pick.
     assert result["recommendation"]["pob_slot"] == "Weapon 1"
+
+
+def test_shield_replacement_is_measured_and_restored(real_pob_engine) -> None:
+    """CORE04-ONEHAND-WEAPON offhand slice: a real Shield-into-Shield replacement.
+
+    M1.2 audit finding: `resolve_compatible_slots_for_item`, candidate substitution,
+    and restore already worked correctly for Shield candidates before this test was
+    written -- this fixture (Warrior/Titan, Shield Wall, tower shield in Weapon 2)
+    already existed and was already exercised for a *weapon* candidate
+    (test_onehand_weapon_candidate_is_ambiguous_and_resolved_safely), but no
+    committed test had ever submitted a Shield-typed candidate. This closes that gap
+    with real PoB evidence rather than assuming shields are defense-only: the
+    candidate is the build's own equipped tower shield plus one added
+    "+300 to maximum Life" line, captured from a real PoB run before writing these
+    assertions (see docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md, M1.2 offhand slice).
+    The candidate resolves to exactly one legal slot (Weapon 2, via PoB's own
+    `IsItemValidForSlot`, never OFFHAND_2/"Weapon 2 Swap" -- this build has no active
+    weapon-swap set), preserves Shield Wall's own identity (a skill that requires an
+    equipped shield to remain usable at all), and shows a real, non-fabricated
+    defense-only gain (+8.75% EHP) with a correctly NEUTRAL offense axis --
+    ExileLens does not manufacture offense value for a defensive item mod.
+    """
+    baseline_item = _equipped_item(ONEHAND_BUILD, "Weapon 2")
+    candidate = baseline_item + "\n+300 to maximum Life\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(ONEHAND_BUILD))
+
+    assert result["pob_parse"]["item"]["type"] == "Shield"
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 2"}
+
+    row = result["slot_comparisons"][0]
+    assert row["baseline_item"]["name"] == "Gloom Ward, Tawhoan Tower Shield"
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Shield Wall"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Shield Wall"
+    assert row["candidate"]["item_present"] is True
+
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL"
+    axes = outcome["item_impact"]["axes"]
+    assert axes["OFFENSE"]["direction"] == "NEUTRAL"
+    assert axes["DEFENSE"]["direction"] == "POSITIVE"
+    assert axes["DEFENSE"]["magnitude_pct"] > 5.0
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
+
+    assert row["restore"]["pass"] is True
+    assert result["recommendation"]["pob_slot"] == "Weapon 2"
+
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(ONEHAND_BUILD))
+    second_row = second["slot_comparisons"][0]
+    assert second_row["evaluation_outcome"]["final_score"] == outcome["final_score"]
+    assert second_row["evaluation_outcome"]["verdict"] == outcome["verdict"]
+    assert second_row["restore"]["pass"] is True
+
+
+def test_offhand_candidate_against_two_hand_weapon_fails_truthfully(real_pob_engine) -> None:
+    """CORE04 offhand slice: an offhand candidate against an equipped two-handed weapon.
+
+    Uses `fixtures/builds/core04_player_ring.xml`, whose Weapon 1 is a real two-handed
+    "Voltaic Staff" with Weapon 2 empty. A real Focus candidate (this build's own
+    unequipped "Antler Focus" unique item from its item pool) cannot legally occupy
+    any slot: PoB's own `IsItemValidForSlot` (via `resolve_compatible_slots_for_item`,
+    `runtime/lua/bridge.lua`) reports zero compatible slots and
+    `weapon_layout == "UNSUPPORTED_EQUIPMENT_LAYOUT"` because the active weapon is
+    two-handed. `evaluate_item` (`src/poe2value/items/evaluation.py`) turns that into
+    a `SlotResolutionFailed` -- never a confident (silently wrong-slot) comparison.
+    This is the invalid-offhand/build-combination case required by M1.2: PoB, not
+    ExileLens, is the source of truth for the legality check, and no forced/partial
+    result is produced.
+    """
+    text = PLAYER_RING_BUILD.read_text(encoding="utf-8")
+    match = re.search(r'<Item id="13">(.*?)</Item>', text, re.DOTALL)
+    assert match is not None
+    focus_candidate = match.group(1).strip()
+    assert "Antler Focus" in focus_candidate
+
+    weapon_1 = _equipped_item(PLAYER_RING_BUILD, "Weapon 1")
+    assert "Voltaic Staff" in weapon_1
+
+    with pytest.raises(SlotResolutionFailed) as excinfo:
+        evaluate_item(focus_candidate, real_pob_engine, build_path=str(PLAYER_RING_BUILD))
+    assert excinfo.value.code == "SLOT_RESOLUTION_FAILED"
+    assert (excinfo.value.details or {}).get("weapon_layout") == "UNSUPPORTED_EQUIPMENT_LAYOUT"
+
+    # The failed resolution must not have left the build in a mutated state: a
+    # normal, unrelated evaluation right after it must still succeed cleanly.
+    recovered = _slot(real_pob_engine, "core04_offense_ring.txt")
+    assert recovered["restore"]["pass"] is True
 
 
 def test_onehand_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine) -> None:
@@ -551,6 +638,69 @@ def test_weapon_swap_candidate_substitution_resolves_the_active_slot(real_pob_en
     second = evaluate_item(candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
     second_row = second["slot_comparisons"][0]
     assert second_row["baseline_item"]["name"] == "Brood Stinger, Warmonger Bow"
+    assert second_row["evaluation_outcome"]["final_score"] == outcome["final_score"]
+    assert second_row["evaluation_outcome"]["verdict"] == outcome["verdict"]
+    assert second_row["restore"]["pass"] is True
+
+
+def test_weapon_swap_offhand_candidate_substitution_resolves_the_active_slot(real_pob_engine) -> None:
+    """CORE04-WEAPON-SWAP offhand slice: a Quiver candidate targets the ACTIVE swap offhand.
+
+    Companion to test_weapon_swap_candidate_substitution_resolves_the_active_slot,
+    which proves this for the weapon half of the same fixture (bow, "Weapon 1
+    Swap"). This test proves the *offhand* half: the candidate is cloned from the
+    build's TRUE active quiver -- physically in "Weapon 2 Swap" -- plus one added
+    "50% increased Attack Speed" line. Logical "Weapon 2" must resolve to the active
+    swap slot automatically via `active_weapon_slot` (`runtime/lua/bridge.lua`, the
+    M1.1 fix); this is the assumption M1.2 was directed to test, not re-implement,
+    for the offhand case, and no offhand-specific swap code exists anywhere in this
+    codebase.
+
+    Captured from a real PoB run before writing these assertions (see
+    docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md, M1.2 offhand slice): a real
+    +26.94% offense-only gain (Poisonburst Arrow benefits from attack speed) with an
+    unmeasured/neutral defense axis, FULL quality, MEANINGFUL_UPGRADE.
+    """
+    active_quiver = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 2 Swap")
+    candidate = active_quiver + "\n50% increased Attack Speed\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
+
+    assert result["pob_parse"]["item"]["type"] == "Quiver"
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Weapon 2"}
+    row = result["slot_comparisons"][0]
+
+    # The candidate resolved against the ACTIVE quiver, not the inactive shield.
+    assert row["baseline_item"]["name"] == "Cadiro's Gambit, Primed Quiver"
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Poisonburst Arrow"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Poisonburst Arrow"
+    assert row["candidate"]["item_present"] is True
+
+    outcome = row["evaluation_outcome"]
+    offense = outcome["item_impact"]["axes"]["OFFENSE"]
+    assert offense["support"] == "MEASURED"
+    assert offense["direction"] == "POSITIVE"
+    assert offense["magnitude_pct"] > 15.0
+    assert outcome["evaluation_quality"] == "FULL"
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
+
+    # The inactive primary set (spear + shield) was never touched.
+    reloaded = real_pob_engine.load_build(WEAPON_SWAP_BUILD)
+    inactive_spear_raw = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 1")
+    inactive_shield_raw = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 2")
+    assert "Hunter's Grand Spear of the Mongoose" in inactive_spear_raw
+    assert "Exceptional Glowering Crest Shield" in inactive_shield_raw
+
+    assert row["restore"]["pass"] is True
+    equipment_after = {e["slot"]: e.get("name") for e in reloaded["equipment"]}
+    assert equipment_after["Weapon 1"] == "Brood Stinger, Warmonger Bow"
+    assert equipment_after["Weapon 2"] == "Cadiro's Gambit, Primed Quiver"
+    assert reloaded["build"]["active_item_set_id"] == 1
+    assert reloaded["build"]["active_loadout"] == "Default"
+    assert reloaded["build"]["main_skill_identity"]["skill_name"] == "Poisonburst Arrow"
+
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
+    second_row = second["slot_comparisons"][0]
+    assert second_row["baseline_item"]["name"] == "Cadiro's Gambit, Primed Quiver"
     assert second_row["evaluation_outcome"]["final_score"] == outcome["final_score"]
     assert second_row["evaluation_outcome"]["verdict"] == outcome["verdict"]
     assert second_row["restore"]["pass"] is True

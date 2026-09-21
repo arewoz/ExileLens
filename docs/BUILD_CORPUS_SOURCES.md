@@ -17,15 +17,15 @@ PoB2 runtime.
 
 | Fixture | Coverage |
 | --- | --- |
-| `fixtures/builds/core04_player_ring.xml` | Player Spark context; Ring 1/Ring 2 replacement, trade-off, empty Ring 2 mutation, restore recovery, and batching. |
+| `fixtures/builds/core04_player_ring.xml` | Player Spark context; Ring 1/Ring 2 replacement, trade-off, empty Ring 2 mutation, restore recovery, and batching. Its equipped two-handed Voltaic Staff (empty offhand) plus its own pooled Focus item are also (M1.2) the corpus's invalid-offhand-combination case: a Focus candidate against a two-handed-weapon build is correctly refused, never forced into an illegal slot. |
 | `fixtures/builds/public_corpus/core04_bow_quiver.xml` | Player Ice Shot with a bow/quiver equipment layout. |
 | `fixtures/builds/public_corpus/core04_minion_actor.xml` | Summon Infernal Hound with minion-owned primary output. |
 | `fixtures/builds/public_corpus/core04_stage_context.xml` | Flameblast channel-release stage context. |
 | `fixtures/builds/public_corpus/core04_melee_weapon.xml` | Warrior/Warbringer Sunder with a two-handed mace; melee weapon replacement semantics. |
-| `fixtures/builds/public_corpus/core04_onehand_weapon.xml` | Warrior/Titan Shield Wall with a one-hand mace + tower shield; one-hand weapon replacement, including the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case. |
+| `fixtures/builds/public_corpus/core04_onehand_weapon.xml` | Warrior/Titan Shield Wall with a one-hand mace + tower shield; one-hand weapon replacement, including the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case, and (M1.2) real Shield candidate replacement. |
 | `fixtures/builds/public_corpus/core04_poison_ailment.xml` | Huntress/Ritualist Poisonburst Arrow; ailment-dominant (poison) primary offense selection. |
-| `fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml` | Witch/Infernalist Comet (Cast on Elemental Ailment); mixed hit+ignite (~59%/41%) `CombinedDPS` offense selection. |
-| `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity, baseline, and candidate-substitution correctness. Originally surfaced a confirmed Item Check candidate-substitution defect for this configuration, since fixed — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
+| `fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml` | Witch/Infernalist Comet (Cast on Elemental Ailment); mixed hit+ignite (~59%/41%) `CombinedDPS` offense selection. The candidate in this fixture's test is the build's own equipped Focus (Weapon 2) -- this is also this corpus's real-PoB evidence for Focus offhand support (M1.2), promoted from already-proven behavior rather than re-fixtured. |
+| `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity, baseline, and candidate-substitution correctness (M1.1, weapon half) and (M1.2) offhand-half candidate substitution: a Quiver candidate against the ACTIVE `Weapon 2 Swap` item, proving the same `active_weapon_slot` bridge translation covers the offhand case with no separate mapper. Originally surfaced a confirmed Item Check candidate-substitution defect for this configuration, since fixed — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
 | `fixtures/builds/public_corpus/core04_skill_native_dot.xml` | Monk/Acolyte of Chayula "Profane Ritual" (triggered by Cast on Minion Death); zero hit DPS, zero named-ailment DPS — skill-native-DoT (`DamageQuantity.SKILL_DOT`, PoB's own `TotalDot`) primary offense selection. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
