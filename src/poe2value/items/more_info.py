@@ -10,19 +10,40 @@ from typing import Any
 
 MORE_INFO_TITLE = "MORE INFO"
 
+#: Player-facing order: verdict + replacement target, then the impact that
+#: actually matters, then offense/defense/resist consequences, then why, then
+#: any truthful uncertainty caveats. Advanced/PoB-provenance sections (build
+#: flexibility detail, score drivers, damage reference, native component
+#: detail) come last and render inside a collapsed-by-default "Advanced"
+#: disclosure (P1.1c) -- `ui.overlay_detail_drawer._render_sections` reads
+#: `ADVANCED_SECTION_IDS` to split the two groups; this tuple only controls
+#: order within each group. `unmodeled` deliberately stays in the normal
+#: group: it carries truthful uncertainty/coverage caveats (the same
+#: philosophy as the compact surface's UNCERTAIN quality note), not PoB
+#: internals, so it must not be buried behind a click.
 MORE_INFO_SECTION_ORDER = (
     "verdict_header",
-    "damage_reference",
-    "native_components",
     "key_impact",
-    "score_drivers",
     "offense",
     "defense",
     "resists",
-    "flexibility",
     "why_verdict",
     "unmodeled",
+    "flexibility",
+    "score_drivers",
+    "damage_reference",
+    "native_components",
 )
+
+#: Section ids that are advanced/PoB-provenance detail rather than a decision
+#: the player needs. `ui.overlay_detail_drawer` renders these inside a
+#: collapsed-by-default "Advanced" disclosure instead of inline with the
+#: normal sections (P1.1c) -- not a change to what data exists, only how
+#: prominent/accessible it is by default. `flexibility` (resistance buffer
+#: detail) joined this set in P1.1c: the normal `resists` section now shows
+#: only the decision-relevant cap state per element, and the raw
+#: over-cap/buffer numbers that used to repeat inline live only here.
+ADVANCED_SECTION_IDS = frozenset({"flexibility", "score_drivers", "damage_reference", "native_components"})
 
 _OFFENSE_KEYS = ("primary_offense", "cast_attack_speed")
 _DEFENSE_KEYS = ("ehp", "worst_max_hit", "life", "energy_shield", "movement_speed")
@@ -100,13 +121,23 @@ def _verdict_header(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str,
         reasons = [reason for reason in reasons if reason]
         lines.append(f"{quality}: {reasons[0]}" if reasons else quality)
     slot = _text(outcome.get("replacement_slot"))
+    from poe2value.items.slots import is_jewel_socket_pob_slot
+
+    is_jewel = is_jewel_socket_pob_slot(slot)
     # More Info is bound to one outcome (including a non-best ring). Never read the
-    # compact Best line, which always comes from replacement_choices.
+    # compact Best line, which always comes from replacement_choices. A jewel
+    # socket's raw tree-node id ("Jewel 11184") is never player copy here either
+    # -- it stays out of the slot suffix/bare-slot case the same way it does in
+    # the compact surface's replacing_line().
     if outcome.get("replacing_empty_slot"):
-        replacing = f"Equip to empty {slot}" if slot else "Equip to empty slot"
+        if is_jewel:
+            replacing = "Equip to empty jewel socket"
+        else:
+            replacing = f"Equip to empty {slot}" if slot else "Equip to empty slot"
     elif outcome.get("replacing_item"):
-        replacing = f"Replacing: {outcome['replacing_item']}" + (f" · {slot}" if slot else "")
-    elif slot:
+        suffix = "" if is_jewel else (f" · {slot}" if slot else "")
+        replacing = f"Replacing: {outcome['replacing_item']}" + suffix
+    elif slot and not is_jewel:
         replacing = slot
     else:
         replacing = ""
@@ -233,6 +264,42 @@ def _table_section(outcome: dict[str, Any], *, keys: tuple[str, ...], section_id
     return {"id": section_id, "title": title, "lines": lines, "table_rows": table_rows}
 
 
+#: States where being AT the effective cap is the whole decision-relevant
+#: fact -- the exact overflow number is buffer/flexibility detail, which
+#: lives in the Advanced `flexibility` section instead of repeating here.
+_AT_CAP_BOTH_SIDES_STATES = frozenset({"CAPPED_STAYS_CAPPED", "OVER_CAP_REDUCED_BUT_STILL_CAPPED"})
+#: `EvaluationOutcome`'s own resistance severity classification (unchanged,
+#: read not re-derived) that marks a line as a warning the player must see.
+_RESIST_WARNING_SEVERITIES = frozenset({"critical", "high"})
+
+
+def _resist_summary(item: dict[str, Any]) -> tuple[str, bool]:
+    """One decision-relevant line per resistance -- state over raw numbers.
+
+    "capped -> capped" once both sides are at the effective cap (PoE2's
+    elemental resistances commonly sit here); the actual over-cap amount is
+    a flexibility/buffer question, not a "is this resistance fine" one.
+    Anything not at cap on both sides (most often Chaos Resistance, which
+    rarely reaches a hard cap) shows its real effective values, since there
+    is no cap fact to collapse into a word. `severity` is read from the
+    outcome's own classification, never re-derived, so this never disagrees
+    with what the engine actually decided.
+    """
+    state = str(item.get("state") or "")
+    current = item.get("current")
+    candidate = item.get("candidate")
+    warning = str(item.get("severity") or "") in _RESIST_WARNING_SEVERITIES
+    if state in _AT_CAP_BOTH_SIDES_STATES:
+        return "capped → capped", warning
+    if state == "CAP_REACHED":
+        return f"{_num(current)} → capped", warning
+    if state == "CAP_LOST":
+        return f"capped → {_num(candidate)}", warning
+    if current is None and candidate is None:
+        return "", warning
+    return f"{_num(current)} → {_num(candidate)}", warning
+
+
 def _resists_section(outcome: dict[str, Any]) -> dict[str, Any] | None:
     lines: list[str] = []
     resist_rows: list[dict[str, Any]] = []
@@ -240,39 +307,12 @@ def _resists_section(outcome: dict[str, Any]) -> dict[str, Any] | None:
         element = _text(item.get("element")).title()
         if not element:
             continue
-        state = _text(item.get("state")).replace("_", " ")
-        cap_cur = item.get("cap_current")
-        cap_new = item.get("cap_candidate")
-        unc_cur = item.get("uncapped_current")
-        unc_new = item.get("uncapped_candidate")
-        buf_cur = item.get("buffer_current")
-        buf_new = item.get("buffer_candidate")
-        marker = "!" if item.get("critical") or str(item.get("state") or "") == "CAP_LOST" else ""
-        prefix = f"{marker} {element}".strip()
-        parts = [prefix]
-        if cap_cur is not None or cap_new is not None:
-            parts.append(f"cap {_num(cap_cur)} → {_num(cap_new)}")
-        if unc_cur is not None or unc_new is not None:
-            parts.append(f"uncapped {_num(unc_cur)} → {_num(unc_new)}")
-        if buf_cur is not None or buf_new is not None:
-            parts.append(f"buffer {_num(buf_cur)} → {_num(buf_new)}")
-        if state:
-            parts.append(state)
-        if len(parts) > 1:
-            lines.append("  ·  ".join(parts))
-            resist_rows.append(
-                {
-                    "element": element,
-                    "marker": marker,
-                    "cap_current": _num(cap_cur),
-                    "cap_new": _num(cap_new),
-                    "uncapped_current": _num(unc_cur),
-                    "uncapped_new": _num(unc_new),
-                    "buffer_current": _num(buf_cur),
-                    "buffer_new": _num(buf_new),
-                    "state": state,
-                }
-            )
+        summary, warning = _resist_summary(item)
+        if not summary:
+            continue
+        marker = "⚠" if warning else ""
+        lines.append(f"{marker} {element}: {summary}".strip())
+        resist_rows.append({"element": element, "marker": marker, "summary": summary, "warning": warning})
     for delta in outcome.get("all_deltas") or []:
         key = str(delta.get("key") or "")
         if key not in {"strength", "dexterity", "intelligence"} and "require" not in key:

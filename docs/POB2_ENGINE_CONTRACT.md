@@ -130,6 +130,41 @@ Compatible-socket discovery reuses PoB's own `ItemsTabClass:IsItemValidForSlot`
 ALLOCATED socket (`slot.inactive` gates this — an unallocated socket is never a valid
 placement target), occupied or empty alike.
 
+### Correctness fix: `slot.inactive` was never actually being computed (P1.1b)
+
+The paragraph above describes the *intended* gate. Until P1.1b it did not work: PoB
+only ever computes `slot.inactive` inside `ItemsTabClass:UpdateSockets`
+(`spec.allocNodes[nodeId] == nil -> slot.inactive = true`), and PoB itself calls that
+function only from `ItemsTab:Draw` (a GUI render method, never reached headless — no
+render loop) and one narrow `CalcSetup.lua` branch gated on `SetGrantedPassiveNodes`
+returning true (an item granting extra passive nodes — not an ordinary calc pass).
+`ItemSlotControl` never initializes `.inactive` in its constructor, so headless it
+stayed Lua-`nil` (falsy) for every socket-type tree node no prior call happened to
+touch — `not slot.inactive` then read as "active" for every Socket-type node PoB's
+`ItemsTab:Init` creates across the WHOLE passive tree (`build.latestTree.nodes`, a
+fixed pool for a given tree — ~19 nodes on the public corpus's shared tree), not just
+the ones the loaded spec actually allocates.
+
+Proven order/state-dependent, not deterministic: on the public corpus,
+`core04_melee_weapon.xml`'s `.inactive` happened to be correctly computed for its run
+(5 active, matching `spec.allocNodes` ground truth exactly), while
+`core04_skill_native_dot.xml`'s was never computed at all (0 of 19 marked inactive) —
+its true allocated count is 4 (`Jewel 7960/21984/26196/61419`), all occupied, not the
+"19 allocated, 15 empty" this contract and `CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md`
+previously (incorrectly) documented. Real-engine impact for that build: 19 sockets
+evaluated per candidate (5.3s) before the fix, 4 (2.2s) after — a ~59% time reduction
+that is a *side effect* of no longer evaluating sockets that were never legal in the
+first place, not a new optimization.
+
+**Fix:** `allocated_jewel_socket_slots()` (`runtime/lua/bridge.lua`) now calls
+`it:UpdateSockets()` explicitly before reading `.inactive`, removing the
+accidental/order-dependent reliance on the two GUI/calc-pass call sites above. Cheap
+(one pass over `ItemsTab.sockets` keyed against `spec.allocNodes`; no recalculation)
+and idempotent. Verified: unallocated Socket-type nodes are excluded; the connectivity
+and Split Personality remediation below is unaffected (re-run clean); restore remains
+exact; ranking only ever sees the corrected legal set
+(`tests/integration/test_jewel_real_pob.py`).
+
 ### Inter-slot verification: two paths
 
 A jewel-socket batch cannot always use the cheap, frame-skipped structural check
