@@ -1,4 +1,4 @@
-# Item Check presentation (P1.1 / P1.1b — Tooltip Presentation Polish)
+# Item Check presentation (P1.1 / P1.1b / P1.1c — Tooltip Presentation Polish)
 
 How the Shift+C Item Check tooltip decides what to show, in what order, and what moves
 to More Info. This is a presentation contract: it describes copy and layout policy, not
@@ -386,3 +386,98 @@ gate, PoB calculation behavior, Jewel placement *semantics* (which sockets are l
 see the separate discovery-correctness fix), slot-ranking semantics, cache/fingerprint
 behavior, the version number, or the release pipeline. No new widget, window, or page was
 added; no existing one was removed.
+
+---
+
+## P1.1c — More Info hierarchy: normal vs. Advanced
+
+P1.1b fixed More Info's *section order* and gave three technical sections a quieter
+title. Real packaged-build review found that was not enough: with ten sections all
+rendered inline, More Info still read as a diagnostic dump — Verdict, Key Impact,
+Offense, Defense, Resists & Requirements, Build Flexibility, Why This Verdict, Score
+Drivers, Damage Reference, PoB Damage Components all competed for the same attention.
+P1.1c does not touch the compact Item Check panel or Jewel discovery/evaluation at all
+(both accepted as-is from the prior passes) — it is a More-Info-only pass.
+
+### Two-level hierarchy
+
+`items.more_info.ADVANCED_SECTION_IDS` now names four sections — `flexibility` (build
+flexibility / resistance buffer detail), `score_drivers`, `damage_reference`, `native_components`
+— as advanced/PoB-provenance detail (P1.1b had three of these; `flexibility` joined in
+P1.1c once the normal `resists` section stopped needing its raw numbers inline — see
+below). `ui.overlay_detail_drawer.DetailAnalysisDrawer._render_sections()` now splits on
+this set instead of only re-styling titles: every **normal** section (`verdict_header`,
+`key_impact`, `offense`, `defense`, `resists`, `why_verdict`, `unmodeled`) renders
+immediately, in that order; every **advanced** section renders inside a single
+`"▸ Advanced"` / `"▾ Advanced"` disclosure toggle, collapsed by default, that shows/hides
+one `QWidget` container holding all of them. Nothing is deleted, nothing moved to
+diagnostics-only — the exact same section payload from `build_more_info()` is used either
+way, just routed to a different Qt layout target
+(`_render_one_section(section, block, layout=..., advanced=...)`). `Copy diagnostics`
+is unaffected — it reads `_diagnostics_result`, never the section widgets.
+
+`unmodeled` deliberately stays in the normal group: it carries truthful
+uncertainty/coverage caveats (the same philosophy as the compact surface's UNCERTAIN
+quality note), not PoB internals, so it must not be hidden behind a click a player might
+never make.
+
+**Advanced state persistence**: `DetailAnalysisDrawer._advanced_expanded` resets to
+`False` in `clear()` (called at the start of every `set_content()` — i.e. every new
+Item Check result starts collapsed) but is *not* reset by `_clear_body()`, which
+`select_choice()` uses when switching between Jewel/ring candidates within the same
+result — so expanding Advanced and then comparing a different socket keeps it open,
+rather than snapping shut on every click.
+
+### Resists & Requirements: decision-relevant state over raw engine language
+
+Previously every resistance rendered its cap threshold, uncapped total, and buffer as
+three separate `"cap X → Y  ·  uncapped X → Y  ·  buffer X → Y  ·  CAPPED STAYS CAPPED"`
+clauses per element, always, regardless of whether any of those numbers were decision
+material. `items.more_info._resist_summary()` now derives one line per element from the
+same `EvaluationOutcome.resistances[]` data (never re-derived/guessed):
+
+- Both sides at the effective cap (`CAPPED_STAYS_CAPPED`, `OVER_CAP_REDUCED_BUT_STILL_CAPPED`)
+  → `"capped → capped"` — the exact overflow amount is a flexibility question, not a
+  "is this fine" one, and now lives only in the Advanced `flexibility` section.
+- `CAP_REACHED` (crossed into cap) → `"{current} → capped"`.
+- `CAP_LOST` (fell out of cap) → `"capped → {candidate}"`, marked a warning.
+- Anything never at cap on either side (most often Chaos Resistance, and any
+  `BELOW_CAP_*` state) → the real effective numbers, `"{current} → {candidate}"`, marked
+  a warning when the outcome's own `severity` classification (`critical`/`high`, read
+  unchanged from `resist_caps.py` — never re-derived) says so.
+
+This produces exactly the worked example from the spec on real data shaped like it:
+`Fire: capped → capped`, `Cold: capped → capped`, `Lightning: capped → capped`,
+`⚠ Chaos: 15 → 0` — without hard-coding those numbers; the section builder only knows
+the state machine, never the specific values. Requirement deltas (strength/dex/int) stay
+in the same `resists` section, unchanged — the spec's "resistance/requirement
+consequences" are both normal-tier.
+
+### Jewel drawer
+
+Not modified beyond inheriting the layout-parameterization refactor (`_render_ring_selector`
+itself is untouched). Verified still correct: the best socket keeps its `★` marker and
+selected/checked state; `select_choice()` only re-renders the drawer body
+(`_clear_body()` + `_render_sections()`), never touches the compact panel, which
+continues to read `replacing_line()`'s single best-fit summary (P1.1b, unchanged) for
+the overall placement; ring captions still read `"Socket 1"`, `"Socket 2"`, ... (P1.1b's
+`jewel_socket_display_label()`), never a raw node id.
+
+### Visual density
+
+`_add_section_title()` now inserts an extra 6px gap before each section title (on top of
+the layout's existing 8px item spacing) whenever it is not the first item in its layout
+target — roughly 14px between major sections, unchanged ~8px between lines inside one
+section. No font size changed. No section headings were merged/removed — Offense and
+Defense stay as separate tables (a genuinely different purpose from the curated Key
+Impact headline), so no all-caps heading was cut merely for the sake of cutting one.
+Drawer width is unchanged from P1.1b (350, clamp 310–400) — not widened.
+
+### What P1.1c did not touch
+
+The compact Item Check panel (`items/compact_tooltip.py`, `ui/overlay_presentation.py`'s
+`ItemOverlayPanel`) — accepted as-is per instruction. Jewel socket discovery/evaluation
+(`runtime/lua/bridge.lua`) — accepted as-is per instruction. Evaluation formulas, scoring,
+verdict thresholds, guardrails, the truthfulness gate, slot-ranking semantics, PoB
+calculation behavior, cache/fingerprint behavior, the version number, the release
+pipeline.
