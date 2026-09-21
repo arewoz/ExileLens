@@ -189,11 +189,10 @@ class SettingsPage(QWidget):
         self._show_hints.setChecked(bool(getattr(settings, "show_hotkey_hints", True)))
         self._show_hints.toggled.connect(self._on_show_hints_changed)
 
-        self._ignore_socketed_mods = ThemedCheckBox("Ignore socketed modifiers in Item Check")
+        self._ignore_socketed_mods = ThemedCheckBox("Ignore socketed Runes")
         self._ignore_socketed_mods.setToolTip(
-            "Compares the equipped item and the candidate as if modifiers from socketed"
-            " items (runes, soul cores) had been removed from both, so different"
-            " installed runes never distort the comparison."
+            "Compare items without the effects of socketed Runes. Runes are ignored on"
+            " both the equipped item and the item being checked."
         )
         self._ignore_socketed_mods.setChecked(
             bool(self.controller.item_check_settings().ignore_socketed_mods)
