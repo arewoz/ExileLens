@@ -481,3 +481,32 @@ The compact Item Check panel (`items/compact_tooltip.py`, `ui/overlay_presentati
 verdict thresholds, guardrails, the truthfulness gate, slot-ranking semantics, PoB
 calculation behavior, cache/fingerprint behavior, the version number, the release
 pipeline.
+
+---
+
+## More Info drawer whitespace bug (post-P1.1c fix)
+
+Packaged-build manual testing found a real layout defect introduced by P1.1c's own
+inter-section spacing change: after viewing one More Info result and then a different
+one in the same session (the drawer widget is reused, not recreated, across Item Checks
+and pinned-overlay refreshes), the second result's content could render with a large
+blank gap above it — the first visible section pushed down, sometimes off the top of the
+visible area.
+
+**Root cause**: `_add_section_title()`'s extra inter-section spacing used
+`QLayout.addSpacing()`, which inserts a raw `QSpacerItem` with no handle to remove later.
+`_clear_body()` — called by both `set_content()` (a new result) and `select_choice()`
+(switching Jewel/ring candidates) — only ever removed and deleted the `QWidget`s it
+explicitly tracks in `_section_widgets`; it never touched these spacer items, which have
+no owning widget to track. Every spacer `addSpacing()` ever added therefore stayed in
+`_line_layout` forever, and every subsequent render's real content was appended *after*
+all the accumulating orphaned spacers from every previous render — confirmed by
+reproduction: after 5 repeated dense→sparse switches, the layout accumulates spacer
+items without bound and the first real widget's vertical position grows every cycle.
+
+**Fix**: spacers are now small fixed-height `QWidget`s (`_add_gap()`) added through the
+exact same tracked-widget path as every other section widget (label, table, toggle),
+so `_clear_body()` cleans them up identically. No `QLayout.addSpacing()`/raw
+`QSpacerItem` remains anywhere in the file. Verified: content always starts at the very
+top of the drawer regardless of what was shown before it, and repeated cycling between
+dense and sparse results no longer grows the layout's item count.

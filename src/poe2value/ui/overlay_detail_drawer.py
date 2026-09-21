@@ -247,13 +247,31 @@ class DetailAnalysisDrawer(QWidget):
     def _target_layout(self, layout: QVBoxLayout | None) -> QVBoxLayout:
         return layout if layout is not None else self._line_layout
 
+    def _add_gap(self, layout: QVBoxLayout) -> None:
+        """A small fixed-height spacer, tracked and cleaned up exactly like
+        any other section widget.
+
+        `QLayout.addSpacing()` inserts a raw `QSpacerItem` with no handle to
+        remove later -- `_clear_body()` only ever removed tracked `QWidget`s,
+        so every spacer added this way was orphaned in `_line_layout` and
+        never cleared. Across renders (every Shift+C, every pinned-overlay
+        refresh) they accumulated at the front of the layout indefinitely,
+        pushing real content further down each time -- the More Info drawer
+        whitespace bug. A `QWidget` spacer is a normal tracked widget:
+        `_clear_body()` removes and deletes it exactly like a label.
+        """
+        spacer = QWidget()
+        spacer.setFixedHeight(_SECTION_GAP)
+        layout.addWidget(spacer)
+        self._section_widgets.append(spacer)
+
     def _add_section_title(self, title: str, *, advanced: bool = False, layout: QVBoxLayout | None = None) -> None:
         target = self._target_layout(layout)
         if target.count() > 0:
             # Extra breathing room before a new section, on top of the
             # layout's own item spacing -- separates major sections without
             # loosening the spacing between lines inside one section (P1.1c).
-            target.addSpacing(_SECTION_GAP)
+            self._add_gap(target)
         label = QLabel(title)
         # P1.1b: advanced/PoB-provenance sections (score drivers, damage
         # reference, native component detail, build flexibility) get a
@@ -436,7 +454,7 @@ class DetailAnalysisDrawer(QWidget):
             self._advanced_toggle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._advanced_toggle.clicked.connect(self._on_advanced_toggle_clicked)
             if self._line_layout.count() > 0:
-                self._line_layout.addSpacing(_SECTION_GAP)
+                self._add_gap(self._line_layout)
             self._line_layout.addWidget(self._advanced_toggle, 0, Qt.AlignmentFlag.AlignLeft)
             self._section_widgets.append(self._advanced_toggle)
 
