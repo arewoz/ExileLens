@@ -1543,11 +1543,27 @@ local function pin_main_skill(baseline_identity)
 	return current, false, true
 end
 
-function M.fingerprint_components()
+-- M1.3 Part B: the `.equipment` dict alone, without the full node/edge tree
+-- payload `M.fingerprint_components()` also builds (`node_payload()` for
+-- EVERY tree node, not just allocated ones -- thousands of entries on a real
+-- PoE2 tree). The hot inter-slot restore-verification checks
+-- (`tx_assert_reverted_structural`/`_full`/`_jewel_batch`) only ever read
+-- `.equipment` from a fingerprint; they used to pay for the full tree walk on
+-- every call (up to N-1 times per N-socket jewel batch) to get it. The
+-- client-facing baseline/restored payloads (`tx_baseline_block`, `tx_finish`'s
+-- return value) still use the full `M.fingerprint_components()` -- that
+-- detailed snapshot is part of the product contract, not restore-verification
+-- machinery, and is only built once per transaction either way.
+local function equipment_snapshot()
 	local equipment = {}
 	for _, slot_name in ipairs(slot_names()) do
 		equipment[slot_name] = slot_item_raw(slot_name) or ""
 	end
+	return equipment
+end
+
+function M.fingerprint_components()
+	local equipment = equipment_snapshot()
 	local config = {}
 	for k, v in pairs(CONTEXTS[STATE.context] or CONTEXTS.MAP) do
 		config[k] = build.configTab.input[k]
@@ -1590,7 +1606,19 @@ function M.fingerprint_components()
 	}
 end
 
-local function set_item(slot_name, raw)
+-- M1.3 Part B: `item_cache` (per-transaction, keyed by raw text -> item id)
+-- lets a jewel batch parse/add the SAME candidate item text ONCE instead of
+-- once per socket (`item:ParseRaw` + `it:AddItem` -- ~28ms/socket measured).
+-- Safe because: (1) a cached id is only reused if `it.items[id]` still
+-- exists (a discard elsewhere invalidates it naturally, no stale reuse);
+-- (2) sockets are assigned sequentially with a full revert in between (see
+-- `run_item_slot_evaluation`), so the SAME item id is never selected in two
+-- slots at once; (3) `IsItemValidForSlot` is re-checked by `SetSelItemId`'s
+-- own `Populate()` regardless of whether the item object is newly created or
+-- reused, so per-socket compatibility is still verified every time, not
+-- skipped by the cache. Every other caller (equipment transactions, single-
+-- slot jewel calls) passes no cache and behaves exactly as before.
+local function set_item(slot_name, raw, item_cache)
 	local it = build.itemsTab
 	local slot = it.slots[active_weapon_slot(slot_name)]
 	if not slot then
@@ -1601,6 +1629,18 @@ local function set_item(slot_name, raw)
 		it:PopulateSlots()
 		build.buildFlag = true
 		return nil
+	end
+	local cached_id = item_cache and item_cache[raw]
+	if cached_id and it.items[cached_id] then
+		local ok, err = pcall(function()
+			slot:SetSelItemId(cached_id)
+			it:PopulateSlots()
+		end)
+		if not ok then
+			error({ code = "ITEM_INCOMPATIBLE", message = tostring(err), details = { slot = slot_name } })
+		end
+		build.buildFlag = true
+		return cached_id, true
 	end
 	local item = new("Item")
 	local ok, err = pcall(function() item:ParseRaw(raw) end)
@@ -1628,7 +1668,10 @@ local function set_item(slot_name, raw)
 		error({ code = "ITEM_INCOMPATIBLE", message = tostring(err), details = { slot = slot_name } })
 	end
 	build.buildFlag = true
-	return item.id
+	if item_cache then
+		item_cache[raw] = item.id
+	end
+	return item.id, false
 end
 
 local function normalize_raw(s)
@@ -1998,6 +2041,9 @@ local function tx_begin(params)
 	for id, effect in pairs(build.spec.masterySelections or {}) do
 		ctx.true_mastery_snapshot[id] = effect
 	end
+	-- M1.3 Part B: raw text -> item id, so a multi-socket batch parses/adds
+	-- the SAME candidate item once (see `set_item`'s `item_cache` param).
+	ctx.candidate_item_cache = {}
 	ctx.snap = snapshot_skill_state()
 	-- Every slot, not only the changed ones: equipping one item can unequip another
 	-- (two-handers vs off-hand). M1.3: this MUST also include jewel-socket slots
@@ -2253,8 +2299,7 @@ end
 -- already shipped this exact tradeoff for the last slot (skill_report's own restore
 -- frame); PERF-06 extends it to every slot, per the PERF-05 research spike.
 local function tx_assert_reverted_structural(ctx, next_slot)
-	local fp = M.fingerprint_components()
-	local eq_ok, bad_slot = equipment_equal(fp.equipment, ctx.baseline_fp.equipment)
+	local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), ctx.baseline_fp.equipment)
 	local reason
 	if not eq_ok then
 		reason = "RESTORE_EQUIPMENT_MISMATCH"
@@ -2292,8 +2337,7 @@ end
 -- lockout a real one would trigger).
 local function tx_assert_reverted_full(ctx, next_slot)
 	recalc()
-	local fp = M.fingerprint_components()
-	local eq_ok, bad_slot = equipment_equal(fp.equipment, ctx.baseline_fp.equipment)
+	local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), ctx.baseline_fp.equipment)
 	local reason, bad_metric, bad_a, bad_b
 	if not eq_ok then
 		reason = "RESTORE_EQUIPMENT_MISMATCH"
@@ -2342,8 +2386,7 @@ end
 -- confirming recalculation before being called a real restore failure -- and
 -- that confirming recalculation is exactly `tx_assert_reverted_full` above.
 local function tx_assert_reverted_jewel_batch(ctx, next_slot)
-	local fp = M.fingerprint_components()
-	local eq_ok, bad_slot = equipment_equal(fp.equipment, ctx.baseline_fp.equipment)
+	local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), ctx.baseline_fp.equipment)
 	if eq_ok then
 		local structural_reason = compare_semantic_structural(ctx.baseline_semantic, semantic_state())
 		if not structural_reason then
@@ -2367,8 +2410,8 @@ local function tx_measure(ctx, changes, params, in_batch)
 	local candidate = {}
 	local t = perf_now()
 	for _, change in ipairs(changes) do
-		local item_id = set_item(change.slot, change.raw)
-		if item_id then
+		local item_id, was_cached = set_item(change.slot, change.raw, ctx.candidate_item_cache)
+		if item_id and not was_cached then
 			ctx.created[#ctx.created + 1] = item_id
 		end
 	end
