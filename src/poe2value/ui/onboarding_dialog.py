@@ -78,7 +78,7 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
 
     def refresh(self) -> None:
         status = derive_readiness(self.settings, self.controller); tone = self._tone(status.state)
-        self._overall.set_value("READY" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
+        self._overall.set_value("Ready" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
         pob_bad = status.state is AppReadiness.POB_NOT_FOUND
         self._pob_status.set_value("Not found" if pob_bad else ("Needs attention" if status.state is AppReadiness.RUNTIME_ERROR else "Detected"), "error" if pob_bad or status.state is AppReadiness.RUNTIME_ERROR else "ok")
         self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure" if pob_bad else "Change")

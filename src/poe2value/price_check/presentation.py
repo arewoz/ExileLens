@@ -664,7 +664,7 @@ def build_price_check_presentation(result: PriceCheckResult, *, debug: bool = Fa
     if str(getattr(result, "estimate_state", "") or "") == "NEEDS REFINEMENT":
         refine_hint = "Refine: Ctrl+Shift+R" if refine_available else ""
     else:
-        refine_hint = "Refine available — Ctrl+Shift+R or tray: Refine Last Price Check" if refine_available else ""
+        refine_hint = "Refine available — Ctrl+Shift+R or tray: Refine Last Item Check" if refine_available else ""
 
     confidence_detail = " · ".join(compact_reasons) if compact_reasons else (estimate.confidence_reason or "")
     drivers_collapsed = str(getattr(result, "estimate_state", "") or "") == "HIGH CONFIDENCE"

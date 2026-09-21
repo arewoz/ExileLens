@@ -62,5 +62,5 @@ def derive_readiness(settings: Any, controller: Any | None) -> ReadinessStatus:
         return ReadinessStatus(AppReadiness.BUILD_ERROR, "Build could not be loaded", getattr(info, "error_message", "") or "Choose another PoB build.")
     if state is BuildState.READY and bool(getattr(info, "is_ready", False)):
         name = getattr(info, "name", "") or "Current build"
-        return ReadinessStatus(AppReadiness.READY, "READY", f"{name} is loaded and Item Check is ready.")
+        return ReadinessStatus(AppReadiness.READY, "Ready", f"{name} is loaded and Item Check is ready.")
     return ReadinessStatus(AppReadiness.BUILD_REQUIRED, "Build required", "Choose a PoB build XML to compare items against your build.")

@@ -98,7 +98,7 @@ class TrayManager(QSystemTrayIcon):
             menu.addAction(market_action)
 
         if self.settings.price_check_enabled:
-            refine = QAction("Refine Last Price Check", self)
+            refine = QAction("Refine Last Item Check", self)
             refine.setEnabled(self.controller.has_last_price_check())
             refine.triggered.connect(self._refine_last_price)
             menu.addAction(refine)
