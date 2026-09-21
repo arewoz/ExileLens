@@ -25,6 +25,13 @@ def open_github_issues() -> None:
     QDesktopServices.openUrl(QUrl(GITHUB_ISSUES_URL))
 
 
+def open_discord_invite() -> None:
+    """Open the fixed, official ExileLens Discord invite on user action."""
+    from poe2value.app.update_check import DISCORD_INVITE_URL
+
+    QDesktopServices.openUrl(QUrl(DISCORD_INVITE_URL))
+
+
 def open_logs_folder() -> None:
     from poe2value.app.logging_setup import log_dir
 

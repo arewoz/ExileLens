@@ -733,7 +733,7 @@ class DiagnosticsPage(QWidget):
         # Copy diagnostic report is the primary action here: it is the support
         # channel. Everything else is secondary.
         self._copy_btn = make_button("Copy diagnostic report", "primary")
-        self._copy_btn.setToolTip("Copies safe technical diagnostics for support.")
+        self._copy_btn.setToolTip("Copies safe technical diagnostics to paste into a GitHub issue.")
         self._copy_btn.clicked.connect(self._copy)
         self._logs_btn = make_button("Open logs", "secondary")
         self._logs_btn.clicked.connect(self._open_logs)
@@ -743,6 +743,12 @@ class DiagnosticsPage(QWidget):
         self._report_issue_btn.setToolTip("Opens the ExileLens issue tracker on GitHub in your browser.")
         self._report_issue_btn.clicked.connect(self._open_github_issues)
         health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn, self._report_issue_btn]))
+        copy_report_hint = QLabel(
+            "Copy diagnostic report, then Report an issue and paste it into the GitHub issue."
+        )
+        copy_report_hint.setObjectName("helperText")
+        copy_report_hint.setWordWrap(True)
+        health.add_widget(copy_report_hint)
         self._support_hint = QLabel("")
         self._support_hint.setObjectName("helperText")
         self._support_hint.setWordWrap(True)
@@ -879,10 +885,7 @@ class DiagnosticsPage(QWidget):
         if degraded:
             actions = [item.action for item in degraded if item.action]
             recovery = actions[0] if actions else "the relevant recovery action"
-            self._support_hint.setText(
-                f"Try {recovery} first. If the problem continues, copy this report and use "
-                "“Report an issue” to send it to the ExileLens GitHub issue tracker."
-            )
+            self._support_hint.setText(f"Try {recovery} first. If the problem continues, see below.")
             self._support_hint.setVisible(True)
         else:
             self._support_hint.setVisible(False)

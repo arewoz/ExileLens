@@ -90,6 +90,14 @@ class TrayManager(QSystemTrayIcon):
         logs_action = QAction("Open Logs Folder", self)
         logs_action.triggered.connect(self._open_logs_folder)
         menu.addAction(logs_action)
+
+        discord_action = QAction("Discord / Community", self)
+        discord_action.triggered.connect(self._open_discord)
+        menu.addAction(discord_action)
+
+        report_issue_action = QAction("Report an Issue", self)
+        report_issue_action.triggered.connect(self._open_github_issues)
+        menu.addAction(report_issue_action)
         menu.addSeparator()
 
         if is_enabled(FeatureModule.MARKET):
@@ -229,6 +237,16 @@ class TrayManager(QSystemTrayIcon):
         from poe2value.ui.recovery_actions import open_logs_folder
 
         open_logs_folder()
+
+    def _open_discord(self) -> None:
+        from poe2value.ui.recovery_actions import open_discord_invite
+
+        open_discord_invite()
+
+    def _open_github_issues(self) -> None:
+        from poe2value.ui.recovery_actions import open_github_issues
+
+        open_github_issues()
 
     def show_attention(self, title: str, message: str) -> None:
         """Tooltip + balloon for states the user has to act on (build/engine errors)."""

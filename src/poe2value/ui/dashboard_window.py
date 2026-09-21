@@ -136,6 +136,20 @@ class DashboardWindow(ManagedToolWindow):
             self._nav_buttons[page_id] = btn
             nav.addWidget(btn)
         nav.addStretch(1)
+        # Community links sit below the stretch, pinned to the bottom of the rail
+        # and visually separated from page navigation -- discoverable without
+        # making the sidebar read as a support portal.
+        for label, tooltip, handler in (
+            ("Discord", "Join the ExileLens Discord for questions, feedback and community help.", self._open_discord),
+            ("Report an Issue", "Open the ExileLens issue tracker on GitHub to report a bug.", self._open_github_issues),
+        ):
+            link = QPushButton(label)
+            link.setObjectName("navButtonSecondary")
+            link.setMinimumHeight(theme.NAV_ITEM_HEIGHT)
+            link.setCursor(Qt.CursorShape.PointingHandCursor)
+            link.setToolTip(tooltip)
+            link.clicked.connect(handler)
+            nav.addWidget(link)
 
         nav_rail = QWidget()
         nav_rail.setObjectName("navRail")
@@ -234,6 +248,16 @@ class DashboardWindow(ManagedToolWindow):
     def _build(self) -> QWidget:
         """Back-compat alias for the pre-UIUX-01 attribute name."""
         return self._overview
+
+    def _open_discord(self) -> None:
+        from poe2value.ui.recovery_actions import open_discord_invite
+
+        open_discord_invite()
+
+    def _open_github_issues(self) -> None:
+        from poe2value.ui.recovery_actions import open_github_issues
+
+        open_github_issues()
 
     def tree_workspace(self) -> TreeWorkspace | None:
         return self._tree
