@@ -739,7 +739,10 @@ class DiagnosticsPage(QWidget):
         self._logs_btn.clicked.connect(self._open_logs)
         self._reload_btn = make_button("Reload build", "secondary")
         self._reload_btn.clicked.connect(self._reload_build)
-        health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn]))
+        self._report_issue_btn = make_button("Report an issue", "tertiary")
+        self._report_issue_btn.setToolTip("Opens the ExileLens issue tracker on GitHub in your browser.")
+        self._report_issue_btn.clicked.connect(self._open_github_issues)
+        health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn, self._report_issue_btn]))
         self._support_hint = QLabel("")
         self._support_hint.setObjectName("helperText")
         self._support_hint.setWordWrap(True)
@@ -841,6 +844,11 @@ class DiagnosticsPage(QWidget):
 
         open_github_releases()
 
+    def _open_github_issues(self) -> None:
+        from poe2value.ui.recovery_actions import open_github_issues
+
+        open_github_issues()
+
     def _on_update_state(self, state: str, version: str) -> None:
         text = {
             "unchecked": "Update status has not been checked yet.",
@@ -872,7 +880,8 @@ class DiagnosticsPage(QWidget):
             actions = [item.action for item in degraded if item.action]
             recovery = actions[0] if actions else "the relevant recovery action"
             self._support_hint.setText(
-                f"Try {recovery} first. If the problem continues, copy this report when asking for help."
+                f"Try {recovery} first. If the problem continues, copy this report and use "
+                "“Report an issue” to send it to the ExileLens GitHub issue tracker."
             )
             self._support_hint.setVisible(True)
         else:

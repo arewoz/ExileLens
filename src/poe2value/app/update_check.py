@@ -17,6 +17,7 @@ from poe2value.app.settings import save_settings
 
 GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/arewoz/ExileLens/releases/latest"
 GITHUB_RELEASES_URL = "https://github.com/arewoz/ExileLens/releases"
+GITHUB_ISSUES_URL = "https://github.com/arewoz/ExileLens/issues"
 CHECK_COOLDOWN_SECONDS = 24 * 60 * 60
 TIMEOUT_SECONDS = 3
 
