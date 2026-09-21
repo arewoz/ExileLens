@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding2>
+	<Build ascendClassName="Acolyte of Chayula" characterLevelAutoMode="false" className="Monk" level="99" mainSocketGroup="11" targetVersion="0_1" viewMode="TREE">
+		<Buffs/>
+		<TimelessData devotionVariant1="1" devotionVariant2="1" searchList="" searchListFallback=""/>
+	</Build>
+	<Calcs>
+		<Input name="misc_buffMode" string="EFFECTIVE"/>
+		<Input name="skill_number" number="11"/>
+		<Section collapsed="false" id="SkillSelect" subsection="ViewSkillDetails"/>
+		<Section collapsed="false" id="HitDamage" subsection="SkillHitDamage"/>
+		<Section collapsed="false" id="Warcries" subsection="EmpoweredStats"/>
+		<Section collapsed="false" id="Dot" subsection="SkillDamageoverTime"/>
+		<Section collapsed="false" id="Speed" subsection="AttackCastRate"/>
+		<Section collapsed="false" id="Crit" subsection="Crits"/>
+		<Section collapsed="false" id="Impale" subsection="Impale"/>
+		<Section collapsed="false" id="SkillTypeStats" subsection="SkilltypespecificStats"/>
+		<Section collapsed="false" id="HitChance" subsection="Accuracy"/>
+		<Section collapsed="false" id="Bleed" subsection="Bleed"/>
+		<Section collapsed="false" id="Poison" subsection="Poison"/>
+		<Section collapsed="false" id="Ignite" subsection="Ignite"/>
+		<Section collapsed="false" id="Decay" subsection="Decay"/>
+		<Section collapsed="false" id="LeechGain" subsection="LeechGainonHit"/>
+		<Section collapsed="false" id="EleAilments" subsection="NonDamagingAilments"/>
+		<Section collapsed="false" id="MiscEffects" subsection="OtherEffects"/>
+		<Section collapsed="false" id="Attributes" subsection="Attributes"/>
+		<Section collapsed="false" id="Life" subsection="Life"/>
+		<Section collapsed="false" id="Mana" subsection="Mana"/>
+		<Section collapsed="false" id="Spirit" subsection="Spirit"/>
+		<Section collapsed="false" id="EnergyShield" subsection="EnergyShield"/>
+		<Section collapsed="false" id="Resist" subsection="Resists"/>
+		<Section collapsed="false" id="Armour" subsection="Armour"/>
+		<Section collapsed="false" id="Evasion" subsection="Evasion"/>
+		<Section collapsed="false" id="DamageAvoidance" subsection="DamageAvoidance"/>
+		<Section collapsed="false" id="DamageAvoidance" subsection="Block"/>
+		<Section collapsed="false" id="DamageAvoidance" subsection="Dodge"/>
+		<Section collapsed="false" id="DamageAvoidance" subsection="Deflection"/>
+		<Section collapsed="false" id="Flasks" subsection="Flasks"/>
+		<Section collapsed="true" id="Flasks" subsection="UtilityFlasks"/>
+		<Section collapsed="true" id="Flasks" subsection="LifeFlasks"/>
+		<Section collapsed="true" id="Flasks" subsection="ManaFlasks"/>
+		<Section collapsed="true" id="Flasks" subsection="Charms"/>
+		<Section collapsed="true" id="Rage" subsection="Rage"/>
+		<Section collapsed="true" id="Charges" subsection="Charges"/>
+		<Section collapsed="true" id="Charges" subsection="Endurance"/>
+		<Section collapsed="true" id="Charges" subsection="Frenzy"/>
+		<Section collapsed="true" id="Charges" subsection="Power"/>
+		<Section collapsed="false" id="MiscDefences" subsection="OtherDefences"/>
+		<Section collapsed="false" id="MiscDefences" subsection="StunDuration"/>
+		<Section collapsed="true" id="MiscDefences" subsection="OtherAvoidance"/>
+		<Section collapsed="true" id="MiscDefences" subsection="OtherAilmentDefences"/>
+		<Section collapsed="false" id="DamageTaken" subsection="DamageTaken"/>
+		<Section collapsed="false" id="DamageTaken" subsection="DamagingHits"/>
+		<Section collapsed="false" id="DamageTaken" subsection="EffectiveHealthPool"/>
+		<Section collapsed="false" id="DamageTaken" subsection="MaximumHitTaken"/>
+		<Section collapsed="true" id="DamageTaken" subsection="RecoupandHitTakenOverTime"/>
+		<Section collapsed="false" id="DamageTaken" subsection="DotsandBuildDegens"/>
+		<Section collapsed="true" id="DamageTaken" subsection="EnemyDegens"/>
+	</Calcs>
+	<Config activeConfigSet="1">
+		<ConfigSet id="1">
+			<Input boolean="true" name="DisableEHPGainOnBlock"/>
+			<Input boolean="true" name="conditionBeenHitRecently"/>
+			<Input boolean="true" name="conditionCritRecently"/>
+			<Input boolean="true" name="conditionEnemyBleeding"/>
+			<Input boolean="true" name="conditionEnemyChilled"/>
+			<Input boolean="true" name="conditionEnemyCriticalWeakness"/>
+			<Input boolean="true" name="conditionEnemyIgnited"/>
+			<Input name="multiplierNearbyEnemies" number="1"/>
+			<Input name="multiplierNearbyRareOrUniqueEnemies" number="1"/>
+			<Input name="multiplierRage" number="30"/>
+			<Input name="multiplierWitheredStackCount" number="10"/>
+			<Input name="questAct 2Valley of the TitansMedallion" string="30% increased Charm Charges Gained
+	+1 Charm Slot"/>
+			<Input name="questAct 3Venom CryptsVenom Draught" string="25% increased Stun Threshold"/>
+			<Input name="questAct 4Eye of HinekoraTribal Medicine" string="30% increased Global Armour, Evasion and Energy Shield"/>
+			<Input name="questAct 4Halls Of The DeadNgamahu&apos;s Test" string="+5 to Strength"/>
+			<Input name="questAct 4Halls Of The DeadTasalio&apos;s Test" string="+5 to Intelligence"/>
+			<Input name="questAct 4Halls Of The DeadTawhoa&apos;s Test" string="+5 to Dexterity"/>
+			<Input name="questInterlude 2QimahSeven Pillars" string="20% increased Presence Area Of Effect"/>
+			<Input boolean="true" name="useEnduranceCharges"/>
+			<Input boolean="true" name="useFrenzyCharges"/>
+			<Input boolean="true" name="usePowerCharges"/>
+			<Placeholder name="ChillStacks" number="1"/>
+			<Placeholder name="ScorchStacks" number="1"/>
+			<Placeholder name="ShockStacks" number="1"/>
+			<Placeholder name="conditionCorruptingCryStages" number="10"/>
+			<Placeholder name="configBossFaceBroken" number="42"/>
+			<Placeholder name="demonFormStacks" number="10"/>
+			<Placeholder name="enemyArmour" number="8063"/>
+			<Placeholder name="enemyChaosDamage" number="386"/>
+			<Placeholder name="enemyChaosResist" number="0"/>
+			<Placeholder name="enemyColdDamage" number="965"/>
+			<Placeholder name="enemyColdPen" number="3"/>
+			<Placeholder name="enemyColdResist" number="50"/>
+			<Placeholder name="enemyCritChance" number="5"/>
+			<Placeholder name="enemyCritDamage" number="30"/>
+			<Placeholder name="enemyCriticalWeaknessStacks" number="20"/>
+			<Placeholder name="enemyDamageRollRange" number="70"/>
+			<Placeholder name="enemyDistance" number="20"/>
+			<Placeholder name="enemyEvasion" number="1175"/>
+			<Placeholder name="enemyFireDamage" number="965"/>
+			<Placeholder name="enemyFirePen" number="3"/>
+			<Placeholder name="enemyFireResist" number="50"/>
+			<Placeholder name="enemyLevel" number="82"/>
+			<Placeholder name="enemyLightningDamage" number="965"/>
+			<Placeholder name="enemyLightningPen" number="3"/>
+			<Placeholder name="enemyLightningResist" number="50"/>
+			<Placeholder name="enemyPhysicalDamage" number="965"/>
+			<Placeholder name="enemySpeed" number="700"/>
+			<Placeholder name="multiplierCurrentEnergyShield" number="100"/>
+			<Placeholder name="multiplierDifferentAmmoFired" number="1"/>
+			<Placeholder name="multiplierDifferentGrenadeFired" number="1"/>
+			<Placeholder name="multiplierStunnedRecently" number="1"/>
+			<Placeholder name="multiplierWarcryUsedRecently" number="1"/>
+			<Placeholder name="multiplierWitheredStackCountSelf" number="15"/>
+			<Placeholder name="sigilOfPowerStages" number="1"/>
+		</ConfigSet>
+	</Config>
+	<Import exportParty="false"/>
+	<Items activeItemSet="1" showStatDifferences="true" useSecondWeaponSet="false">
+		<Item id="1">
+			Rarity: RARE
+Apocalypse Stone
+Sapphire
+Unique ID: d7af4e9192533022df7abc4fd179000977513f0fa5ddfcbb0a3f38a9032ca0e3
+Item Level: 81
+LevelReq: 0
+Implicits: 0
+19% increased maximum Energy Shield
+3% of Damage taken Recouped as Life
+20% increased Flammability Magnitude
+20% increased Presence Area of Effect
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+		</Item>
+		<Item id="2">
+			Rarity: UNIQUE
+From Nothing
+Diamond
+Unique ID: 62da0411be6f9131008d1bfa12abaa02ed997285655c96628197c686ca92e089
+Item Level: 82
+LevelReq: 0
+Radius: Small
+Limited to: 1
+Implicits: 0
+Passives in Radius of Bulwark can be Allocated
+without being connected to your tree
+Corrupted
+			<ModRange id="1" range="0.5"/>
+		</Item>
+		<Item id="3">
+			Rarity: RARE
+Foe Joy
+Sapphire
+Unique ID: 35fc159b13604f4b1d80412310aac5390e0d5cb9b15d384df04e51e3118419e7
+Item Level: 79
+LevelReq: 0
+Implicits: 0
+19% increased maximum Energy Shield
+17% increased Flammability Magnitude
+21% increased Presence Area of Effect
+Recover 1% of maximum Mana on Kill
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+		</Item>
+		<Item id="4">
+			Rarity: RARE
+Spirit Glisten
+Sapphire
+Unique ID: b2159cc703bfbcc23abe131933fd9a96393f6541c297a5a7e083d9593247424c
+Item Level: 83
+LevelReq: 0
+Implicits: 0
+19% increased maximum Energy Shield
+13% increased Flammability Magnitude
+22% increased Presence Area of Effect
+18% increased Curse Duration
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+		</Item>
+		<Item id="5">
+			Rarity: RARE
+Cataclysm Suit
+Vile Robe
+Energy Shield: 964
+Unique ID: 3a76272d992ff79218f914f8c2f26d69d5f248f94765d2fa26cf985fabc885c3
+Item Level: 84
+Quality: 20
+Sockets: S S S
+Rune: Greater Iron Rune
+Rune: Greater Iron Rune
+Rune: Greater Iron Rune
+LevelReq: 65
+Implicits: 3
+{enchant}{rune}54% increased Armour, Evasion and Energy Shield
+{enchant}{rune}Bonded: +60 to maximum Life
+{enchant}{rune}Bonded: +60 to maximum Mana
++107 to maximum Energy Shield
+135% increased Energy Shield
+25% reduced Attribute Requirements
++24% to Cold Resistance
++44% to Fire Resistance
+Corrupted
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+			<ModRange id="8" range="0.5"/>
+		</Item>
+		<Item id="6">
+			Rarity: UNIQUE
+Shavronne&apos;s Satchel
+Fine Belt
+Charm Slots: 1
+Unique ID: 83a9eca4d65229b908f99cba5133c62542994554e435f2f35f412335e15d37ef
+Item Level: 81
+LevelReq: 62
+Implicits: 2
+Has 1 Charm Slot
+Flasks gain 0.17 charges per Second
+30% reduced Flask Life Recovery rate
++27 to Intelligence
+27% increased Flask Charges gained
+Life Recovery from Flasks also applies to Energy Shield
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+		</Item>
+		<Item id="7">
+			Rarity: MAGIC
+Full-bodied Ultimate Life Flask of the Practitioner
+Unique ID: 0e6912b884aed57b696d996210620d1ebe5a110304d8bd81d9aef609165f53d9
+Item Level: 83
+Quality: 23
+LevelReq: 60
+Implicits: 0
+54% increased Amount Recovered
+18% reduced Charges per use
+Corrupted
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+		</Item>
+		<Item id="8">
+			Rarity: RARE
+Rift Knell
+Omen Sceptre
+Spirit: 100
+Unique ID: be94e811ada4a675c257ba318f70f5489c63933ef58ac23d6a7d2223e5a11526
+Item Level: 70
+Quality: 0
+Sockets: S
+Rune: Greater Robust Rune
+LevelReq: 30
+Implicits: 2
+{enchant}{rune}+12 to Strength
+Grants Skill: Level 15 Malice
++64 to maximum Mana
+Allies in your Presence Regenerate 25.3 Life per second
++24 to Strength
+60% increased Presence Area of Effect
+Corrupted
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+		</Item>
+		<Item id="9">
+			Rarity: NORMAL
+Lesser Mana Flask
+Unique ID: 11c35cf852e67d1c650dc930cbd0fee80243052752f6da9996db5af9b7f0ec8c
+Item Level: 1
+Quality: 0
+LevelReq: 0
+Implicits: 0
+		</Item>
+		<Item id="10">
+			Rarity: MAGIC
+Analyst&apos;s Thawing Charm of the Plentiful
+Unique ID: 6acbf64f46cd419e0c458ccd8ddfd134d32e3280ea11e503c16826434780ce74
+Item Level: 36
+Quality: 0
+LevelReq: 25
+Implicits: 1
+Used when you become Frozen
+24% increased Duration
+43% increased Charges
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+		</Item>
+		<Item id="11">
+			Rarity: MAGIC
+Shining Cultist Focus of Rage
+Energy Shield: 65
+Unique ID: 9126afdb3ead4229d8c2c1c513555f51922ec3776a50ec953a743e31eb5d7740
+Item Level: 65
+Quality: 0
+LevelReq: 59
+Implicits: 0
++13 to maximum Energy Shield
+24% increased Critical Spell Damage Bonus
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+		</Item>
+		<Item id="12">
+			Rarity: UNIQUE
+Alpha&apos;s Howl
+Armoured Cap
+Evasion: 601
+Unique ID: ac04a830bd0a0f00d2310d0d72c32e36b30476c3b53ef719ce3c54bbc88ec92a
+Item Level: 81
+Quality: 0
+Sockets: S S
+Rune: Rune of Reach
+Rune: Greater Iron Rune
+LevelReq: 65
+Implicits: 5
+{enchant}{rune}18% increased Armour, Evasion and Energy Shield
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}Remnants you create have 15% increased effect
+{enchant}{rune}Bonded: Recover 3% of Maximum Mana when you collect a Remnant
+85% increased Evasion Rating
++100 to Spirit
++56% to Cold Resistance
+Presence Radius is doubled
+Corrupted
+			<ModRange id="6" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+			<ModRange id="8" range="0.5"/>
+			<ModRange id="9" range="0.5"/>
+		</Item>
+		<Item id="13">
+			Rarity: RARE
+Armageddon Whorl
+Sapphire Ring
+Unique ID: 7d72dc20f1a75116afb6517fc3e457241fd13778faf4e22c9ccff6cb65a45c03
+Item Level: 81
+LevelReq: 56
+Implicits: 1
++22% to Cold Resistance
+14% increased Fire Damage
++85 to Accuracy Rating
++62 to maximum Mana
++35% to Fire Resistance
++40% to Cold Resistance
++24% to Lightning Resistance
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+		</Item>
+		<Item id="14">
+			Rarity: RARE
+Demon Knell
+Shrine Sceptre
+Spirit: 100
+Unique ID: 1c4cf5e01b8150d158d14ff89bda945737172946545ecc6e2a271cc78199aca3
+Item Level: 79
+Quality: 0
+Sockets: S S
+Rune: Primate Idol
+Rune: Primate Idol
+LevelReq: 26
+Implicits: 3
+{enchant}{rune}Allies in your Presence deal 80% increased Damage
+{enchant}{rune}Bonded: 80% increased Damage while Shapeshifted
+Grants Skill: Level 18 Purity of Lightning
++104 to maximum Mana
+Allies in your Presence deal 86% increased Damage
+Allies in your Presence deal 29 to 43 added Attack Fire Damage
+Allies in your Presence have 15% increased Attack Speed
+Allies in your Presence Regenerate 24 Life per second
++24 to Intelligence
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+			<ModRange id="8" range="0.5"/>
+			<ModRange id="9" range="0.5"/>
+		</Item>
+		<Item id="15">
+			Rarity: UNIQUE
+Serpent&apos;s Egg
+Gold Amulet
+Unique ID: 618b8157915373061db1b1a6deaef5b199758f1786244f216b8eccb81bdfe143
+Item Level: 80
+LevelReq: 35
+Implicits: 3
+{enchant}Allocates Thaumaturgic Generator
+{enchant}+10 to Strength
+15% increased Rarity of Items found
++19% to Chaos Resistance
+25% increased Mana Regeneration Rate
+Gain an additional Charge when you gain a Charge
+34% increased Endurance, Frenzy and Power Charge Duration
+Corrupted
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+		</Item>
+		<Item id="16">
+			Rarity: UNIQUE
+Redblade Banner
+Runemastered Heraldric Tower Shield
+Armour: 200
+Ward: 50
+Unique ID: 6ebe0d32ebf8a604fe4c36ec2e77e2a681687d992a83bc55f99c369e8f798dac
+Item Level: 75
+Quality: 20
+Sockets: S
+Rune: Raise Shield
+LevelReq: 50
+Implicits: 1
+Grants Skill: Raise Shield
+10% increased Block chance
+74% increased Armour
++30 to Strength
++112 to Stun Threshold
+Enemies in your Presence count as having double Power
+Corrupted
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+		</Item>
+		<Item id="17">
+			Rarity: UNIQUE
+Hateforge
+Runemastered Moulded Mitts
+Armour: 368
+Ward: 73
+Unique ID: b7069cf6cb6714e4fd6d8f9e88e3e9551204d9362b21f8ef23566c735e48f03c
+Item Level: 82
+Quality: 20
+Sockets: S
+Rune: Greater Desert Rune
+LevelReq: 55
+Implicits: 3
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}+18% to Fire Resistance
+338% increased Armour
+Gain a random Charge on reaching Maximum Rage, no more than once every 3.59 seconds
+Lose all Rage on reaching Maximum Rage
+-4 to Maximum Rage
+25% increased Attack Speed
+Corrupted
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+			<ModRange id="8" range="0.5"/>
+		</Item>
+		<Item id="18">
+			Rarity: RARE
+Dread Coil
+Gold Ring
+Unique ID: 2e6b92c2f5eb673190fa2b8ee0470c9fbc7f03d053a5826d34cd046529257925
+Item Level: 82
+LevelReq: 65
+Implicits: 1
+13% increased Rarity of Items found
+16% increased Fire Damage
++209 to Evasion Rating
++95 to maximum Mana
++14% to all Elemental Resistances
++43% to Fire Resistance
++38% to Lightning Resistance
+			<ModRange id="1" range="0.5"/>
+			<ModRange id="2" range="0.5"/>
+			<ModRange id="3" range="0.5"/>
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+		</Item>
+		<Item id="19">
+			Rarity: RARE
+Fate Hoof
+Sekhema Sandals
+Energy Shield: 370
+Unique ID: fef72fec84bb924a27c8ddc899461c146e961f0b7cae25f7341b9006147fd534
+Item Level: 80
+Quality: 20
+Sockets: S S
+Rune: Perfect Iron Rune
+Rune: Perfect Iron Rune
+LevelReq: 80
+Implicits: 3
+{enchant}{rune}40% increased Armour, Evasion and Energy Shield
+{enchant}{rune}Bonded: +40 to maximum Life
+{enchant}{rune}Bonded: +40 to maximum Mana
++50 to maximum Energy Shield
+92% increased Energy Shield
+25% reduced Attribute Requirements
+55% reduced Shock duration on you
+30% increased Movement Speed
++10 to Spirit
+Corrupted
+			<ModRange id="4" range="0.5"/>
+			<ModRange id="5" range="0.5"/>
+			<ModRange id="6" range="0.5"/>
+			<ModRange id="7" range="0.5"/>
+			<ModRange id="8" range="0.5"/>
+			<ModRange id="9" range="0.5"/>
+		</Item>
+		<Item id="20">
+			Rarity: UNIQUE
+The Fall of the Axe
+Silver Charm
+Unique ID: 16ce6b896a3523afb959e15345debad878c2279bdbb0ed3e4b4e19f19c0b229d
+Item Level: 80
+Quality: 0
+LevelReq: 10
+Implicits: 1
+Used when you are affected by a Slow
+Grants Onslaught during effect
+		</Item>
+		<ItemSet id="1" title="Default" useSecondWeaponSet="false">
+			<Slot itemId="14" itemPbURL="" name="Weapon 1"/>
+			<Slot itemId="8" itemPbURL="" name="Weapon 1 Swap"/>
+			<Slot itemId="16" itemPbURL="" name="Weapon 2"/>
+			<Slot itemId="11" itemPbURL="" name="Weapon 2 Swap"/>
+			<Slot itemId="12" itemPbURL="" name="Helmet"/>
+			<Slot itemId="5" itemPbURL="" name="Body Armour"/>
+			<Slot itemId="17" itemPbURL="" name="Gloves"/>
+			<Slot itemId="19" itemPbURL="" name="Boots"/>
+			<Slot itemId="15" itemPbURL="" name="Amulet"/>
+			<Slot itemId="18" itemPbURL="" name="Ring 1"/>
+			<Slot itemId="13" itemPbURL="" name="Ring 2"/>
+			<Slot itemId="0" itemPbURL="" name="Ring 3"/>
+			<Slot itemId="6" itemPbURL="" name="Belt"/>
+			<Slot active="true" itemId="20" itemPbURL="" name="Charm 1"/>
+			<Slot active="true" itemId="10" itemPbURL="" name="Charm 2"/>
+			<Slot active="true" itemId="0" itemPbURL="" name="Charm 3"/>
+			<Slot active="true" itemId="7" itemPbURL="" name="Flask 1"/>
+			<Slot active="true" itemId="9" itemPbURL="" name="Flask 2"/>
+			<Slot itemId="0" itemPbURL="" name="Arm 1"/>
+			<Slot itemId="0" itemPbURL="" name="Arm 2"/>
+			<Slot itemId="0" itemPbURL="" name="Leg 1"/>
+			<Slot itemId="0" itemPbURL="" name="Leg 2"/>
+			<SocketIdURL itemPbURL="" name="Jewel 7960" nodeId="7960"/>
+			<SocketIdURL itemPbURL="" name="Jewel 21984" nodeId="21984"/>
+			<SocketIdURL itemPbURL="" name="Jewel 26196" nodeId="26196"/>
+			<SocketIdURL itemPbURL="" name="Jewel 61419" nodeId="61419"/>
+		</ItemSet>
+	</Items>
+	<Notes>
+		
+	</Notes>
+	<Party ShowAdvanceTools="false" append="false" destination="All"/>
+	<Skills activeSkillSet="1" defaultGemLevel="normalMaximum" defaultGemQuality="nil" showLegacyGems="false" showSupportGemTypes="ALL" sortGemsByDPS="true" sortGemsByDPSField="CombinedDPS">
+		<SkillSet id="1">
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="1" mainActiveSkillCalcs="1">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemAscendancyIntoTheBreach" level="20" nameSpec="Into the Breach" quality="0" skillId="IntoTheBreachPlayer" variantId="IntoTheBreach"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemDissipateTwo" level="1" nameSpec="Harmonic Remnants II" quality="0" skillId="SupportFleetingRemnantsPlayerTwo" variantId="FleetingRemnantsSupportTwo"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemInterludeThree" level="1" nameSpec="Remnant Potency III" quality="0" skillId="SupportInterludePlayerThree" variantId="RemnantPotencySupportThree"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemFigurehead" level="1" nameSpec="Selfless Remnants" quality="0" skillId="SupportSelflessRemnantsPlayer" variantId="SelflessRemnantsSupport"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemKhatalsRejuvenation" level="1" nameSpec="Khatal&apos;s Rejuvenation" quality="0" skillId="SupportKhatalsRejuvenationPlayer" variantId="KhatalsRejuvenationSupport"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SkillGemPurityOfLightning" level="18" nameSpec="Purity of Lightning" quality="0" skillId="PurityOfLightningPlayer" variantId="PurityOfLightning"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemShieldBlock" level="1" nameSpec="Raise Shield" quality="0" skillId="ShieldBlockPlayer" variantId="ShieldBlock"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemMalice" level="15" nameSpec="Malice" quality="0" skillId="MalicePlayer" variantId="Malice"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SkillGemGhostDance" level="16" nameSpec="Ghost Dance" quality="0" skillId="GhostDancePlayer" variantId="GhostDance"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SupportGemIngenuityTwo" level="1" nameSpec="Cooldown Recovery II" quality="0" skillId="SupportCooldownRecoveryPlayerTwo" variantId="CooldownRecoverySupportTwo"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SkillGemEternalRage" level="16" nameSpec="Eternal Rage" quality="0" skillId="EternalRagePlayer" variantId="EternalRage"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemChargeInfusion" level="16" nameSpec="Charge Regulation" quality="0" skillId="ChargeRegulationPlayer" variantId="ChargeRegulation"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemBlink" level="10" nameSpec="Blink" quality="0" skillId="BlinkReservationPlayer" variantId="BlinkReservation"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SupportGemIngenuityTwo" level="1" nameSpec="Cooldown Recovery II" quality="0" skillId="SupportCooldownRecoveryPlayerTwo" variantId="CooldownRecoverySupportTwo"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="1" mainActiveSkillCalcs="1">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SkillGemWolfPack" level="14" nameSpec="Wolf Pack" quality="0" skillId="WolfPackPlayer" skillMinion="WolfMinion" skillMinionSkill="1" variantId="WolfPack"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemMinionInstability" level="1" nameSpec="Minion Instability" quality="0" skillId="SupportMinionInstabilityPlayer" variantId="MinionInstabilitySupport"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemLoyalty" level="1" nameSpec="Loyalty" quality="0" skillId="SupportLoyaltyPlayer" variantId="LoyaltySupport"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SupportGemFeedingFrenzyTwo" level="1" nameSpec="Feeding Frenzy II" quality="0" skillId="SupportFeedingFrenzyPlayerTwo" variantId="FeedingFrenzySupportTwo"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SupportGemInfernalLegion" level="1" nameSpec="Infernal Legion I" quality="0" skillId="SupportInfernalLegionPlayer" variantId="InfernalLegionSupport"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemWitheringPresence" level="16" nameSpec="Withering Presence" quality="0" skillId="WitheringPresencePlayer" variantId="WitheringPresence"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="2" mainActiveSkillCalcs="2">
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SkillGemCastOnMinionDeath" level="18" nameSpec="Cast on Minion Death" quality="0" skillId="MetaCastOnMinionDeathPlayer" variantId="CastOnMinionDeath"/>
+				<Gem corruptLevel="0" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SkillGemProfaneRitual" level="19" nameSpec="Profane Ritual" quality="0" skillId="ProfaneRitualPlayer" variantId="ProfaneRitual"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gems/SupportGemProfusionTwo" level="1" nameSpec="Charge Profusion II" quality="0" skillId="SupportChargeProfusionPlayerTwo" variantId="ChargeProfusionSupportTwo"/>
+				<Gem corruptLevel="nil" corrupted="nil" count="1" enableGlobal1="true" enableGlobal2="true" enabled="true" gemId="Metadata/Items/Gem/SupportGemImpetusTwo" level="1" nameSpec="Boundless Energy II" quality="0" skillId="SupportBoundlessEnergyPlayerTwo" variantId="BoundlessEnergySupportTwo"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil" source="Tree:50098">
+				<Gem corruptLevel="nil" corrupted="nil" count="nil" enableGlobal1="true" enableGlobal2="nil" enabled="true" gemId="Metadata/Items/Gem/SkillGemAscendancyIntoTheBreach" level="1" nameSpec="Into the Breach" quality="0" skillId="IntoTheBreachPlayer" variantId="IntoTheBreach"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil" slot="Weapon 1" source="Item:14:Demon Knell, Shrine Sceptre">
+				<Gem corruptLevel="nil" corrupted="nil" count="nil" enableGlobal1="true" enableGlobal2="nil" enabled="true" gemId="Metadata/Items/Gems/SkillGemPurityOfLightning" level="18" nameSpec="Purity of Lightning" quality="0" skillId="PurityOfLightningPlayer" variantId="PurityOfLightning"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil" slot="Weapon 1 Swap" source="Item:8:Rift Knell, Omen Sceptre">
+				<Gem corruptLevel="nil" corrupted="nil" count="nil" enableGlobal1="true" enableGlobal2="nil" enabled="true" gemId="Metadata/Items/Gem/SkillGemMalice" level="15" nameSpec="Malice" quality="0" skillId="MalicePlayer" variantId="Malice"/>
+			</Skill>
+			<Skill enabled="true" includeInFullDPS="nil" label="" mainActiveSkill="nil" mainActiveSkillCalcs="nil" slot="Weapon 2" source="Item:16:Redblade Banner, Runemastered Heraldric Tower Shield">
+				<Gem corruptLevel="nil" corrupted="nil" count="nil" enableGlobal1="true" enableGlobal2="nil" enabled="true" gemId="Metadata/Items/Gem/SkillGemShieldBlock" level="1" nameSpec="Raise Shield" quality="0" skillId="ShieldBlockPlayer" variantId="ShieldBlock"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+	<Tree activeSpec="1">
+		<Spec ascendClassId="3" ascendancyInternalId="Monk3" classId="10" classInternalId="10" masteryEffects="" nodes="74,116,506,517,664,1347,1433,1506,1603,1878,2254,3215,3251,3781,4059,4203,5314,6006,6416,6715,7960,8616,9018,9510,9642,10131,10305,10382,10452,11248,11672,11771,11938,13537,13909,14328,14446,14666,14761,15782,15975,16695,17923,18744,18826,18959,18970,19355,21336,21568,21984,23364,26196,26762,29009,30555,31037,31238,33979,34058,34866,35380,35918,37593,37974,38105,38856,39037,39710,39964,40783,40985,41372,42339,42736,44299,44373,44683,44872,45215,45354,45586,45885,45918,46358,46554,46628,46819,47168,47344,48030,48198,48264,48552,48614,49220,49455,50062,50098,50104,50423,50816,51821,52395,52980,53675,53960,54521,54814,55909,56349,56935,57710,58022,59362,59376,59498,60230,60324,60685,60974,61403,61419,61926,62230,62436,62677,62679,62984,63009,64046,64357,64948" secondaryAscendClassId="nil" treeVersion="0_5">
+			<URL>
+				https://www.pathofexile.com/passive-skill-tree/AAAABgoDgwB0AfoCBQKYBUMFmQXiBkMHVgjODI8Msw7FD9sQaxTCF3YZEBo7HxghqCM6JSYlqieTKEEojijUK_AtmC37LqI04TZVN_g4bjlKOak9pj5nQTdGA0k4SYpKD0oaS5tTWFRAVeBbRGZUaIpxUXdbeT16BoS7hQqIMoo0jE6S2ZRWlNmXyJh9mx6cHJ9PoBmhnKVjpvCtC61Vr0iwn7EqshKzPbNetRa12rYktuO4QLjwu568RryIvai95sBEwS_DjsOyw7jE98aAym3Mq8700avSyNT51h7aZdwd3mfhbuKm5-Ln8Ohq60brpO0N7i7v2-_r8ebzFvPk9NX01_YI9iH6Lvtl_bQAAA==
+			</URL>
+			<Sockets>
+				<Socket itemId="3" nodeId="7960"/>
+				<Socket itemId="1" nodeId="21984"/>
+				<Socket itemId="2" nodeId="26196"/>
+				<Socket itemId="4" nodeId="61419"/>
+			</Sockets>
+			<Overrides>
+				<AttributeOverride dexNodes="3251,4059,10131,10382,11672,14446,29009,34058,38856,46358,46554,53960,56935,59362,59376,60685,61403,62677" intNodes="1433,15782,21568,30555,31238,42736,46628,47168,48552,50104,54521" strNodes="4203,5314,8616,11248,39037,39710,40783,44872,45885,46819,50423,51821,57710"/>
+			</Overrides>
+		</Spec>
+	</Tree>
+	<TreeView searchStr="" showStatDifferences="true" zoomLevel="3" zoomX="0" zoomY="0"/>
+</PathOfBuilding2>

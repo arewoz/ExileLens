@@ -71,7 +71,16 @@
       "ascendancy": "Ritualist",
       "primary_skill": "Poisonburst Arrow",
       "actor": "PLAYER",
-      "purpose": "active second weapon-set identity; pins a confirmed Item Check candidate-substitution defect (see docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk register)"
+      "purpose": "active second weapon-set identity and candidate-substitution correctness"
+    },
+    {
+      "id": "CORE04-SKILL-NATIVE-DOT",
+      "file": "fixtures/builds/public_corpus/core04_skill_native_dot.xml",
+      "class": "Monk",
+      "ascendancy": "Acolyte of Chayula",
+      "primary_skill": "Profane Ritual",
+      "actor": "PLAYER",
+      "purpose": "skill-native DoT (no hit DPS, no named ailment) primary offense selection"
     }
   ]
 }

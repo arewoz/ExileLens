@@ -554,3 +554,94 @@ def test_weapon_swap_candidate_substitution_resolves_the_active_slot(real_pob_en
     assert second_row["evaluation_outcome"]["final_score"] == outcome["final_score"]
     assert second_row["evaluation_outcome"]["verdict"] == outcome["verdict"]
     assert second_row["restore"]["pass"] is True
+
+
+SKILL_NATIVE_DOT_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_skill_native_dot.xml"
+
+
+def test_skill_native_dot_offense_is_selected_and_measured(real_pob_engine) -> None:
+    """CORE04-SKILL-NATIVE-DOT: a real build whose offense IS its own DoT, not an ailment.
+
+    Monk/Acolyte of Chayula "Profane Ritual" (triggered by Cast on Minion Death): real
+    PoB baseline for this fixture has zero hit DPS and zero named-ailment DPS at all
+    (no Ignite/Poison/Bleed field present) -- TotalDPS=0, TotalDot~933, CombinedDPS
+    exactly equals TotalDot. This is genuinely different from the two other DoT/
+    ailment fixtures already in this corpus: core04_poison_ailment.xml has a real
+    ailment (PoisonDPS) dominating a nonzero hit, and core04_mixed_hit_ailment.xml has
+    meaningful hit AND ailment together (CombinedDPS = hit + ignite). Here there is no
+    ailment field at all -- the skill's own damage-over-time output (PoB's TotalDot)
+    IS the offense, full stop.
+
+    `resolve_primary_metric` is expected to select PoB's own `TotalDot` field directly
+    (OffenseKind.DOT_DPS, DamageQuantity.SKILL_DOT) -- not fall back to TotalDPS (0,
+    would silently report no offense at all), not substitute a named ailment field
+    (none exists), and not double-count through CombinedDPS (which must equal TotalDot
+    exactly here, not TotalDot plus something else). Note on implementation: for a
+    build with zero raw hit DPS, the resolver's "hit" variable falls back to
+    `combined` before the dominance check runs, so this case is actually satisfied by
+    the earlier "DoT dominates hit" branch rather than the separate "hit <= 0" branch
+    later in the function -- both produce the identical TotalDot/SKILL_DOT selection,
+    confirmed here against real PoB output rather than assumed from reading the code.
+
+    The candidate is the build's own equipped Sceptre (Weapon 1) cloned with one added
+    "100% increased Damage over Time" line -- a generic DoT-scaling modifier that
+    should move TotalDot specifically. Verified against a real PoB run before writing
+    these assertions (see docs/CORPUS_COVERAGE_METHODOLOGY.md, M1.1 skill-native-DoT
+    slice): TotalDot 933.41 -> 1698.50 (+81.97%), CombinedDPS moves identically and
+    stays exactly equal to TotalDot throughout (no double counting), FullDotDPS stays
+    0 (the AGGREGATE alternative field is correctly not involved), FULL quality,
+    MEANINGFUL_UPGRADE verdict.
+    """
+    baseline_item = _equipped_item(SKILL_NATIVE_DOT_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n100% increased Damage over Time\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(SKILL_NATIVE_DOT_BUILD))
+
+    # This Sceptre is legally compatible with both Weapon 1 and Weapon 2 (an
+    # AMBIGUOUS_WEAPON_LAYOUT case already covered by the one-hand-weapon slice, not
+    # this test's concern) -- select the Weapon 1 row explicitly.
+    row = next(r for r in result["slot_comparisons"] if r["pob_slot"] == "Weapon 1")
+    assert row["baseline"]["primary_skill"]["skill_name"] == "Profane Ritual"
+    assert row["candidate"]["primary_skill"]["skill_name"] == "Profane Ritual"
+    assert row["candidate"]["item_present"] is True
+
+    baseline_metric = row["baseline_primary_metric"]
+    assert baseline_metric["pob_field"] == "TotalDot"
+    assert baseline_metric["selected"] == "DOT_DPS"
+    assert baseline_metric["semantic_quantity"] == "SKILL_DOT"
+    assert baseline_metric["ailment"] == ""
+
+    baseline_metrics = row["evaluation_outcome"]["baseline_metrics"]
+    candidate_metrics = row["evaluation_outcome"]["candidate_metrics"]
+    assert baseline_metrics["TotalDPS"] == 0
+    assert baseline_metrics["TotalDot"] > 0
+    assert baseline_metrics["CombinedDPS"] == baseline_metrics["TotalDot"]
+    assert baseline_metrics.get("FullDotDPS", 0) == 0
+    assert candidate_metrics["TotalDot"] > baseline_metrics["TotalDot"]
+    assert candidate_metrics["CombinedDPS"] == candidate_metrics["TotalDot"]
+    assert candidate_metrics.get("FullDotDPS", 0) == 0
+
+    outcome = row["evaluation_outcome"]
+    offense = outcome["item_impact"]["axes"]["OFFENSE"]
+    assert offense["support"] == "MEASURED"
+    assert offense["direction"] == "POSITIVE"
+    assert offense["magnitude_pct"] > 50.0
+    assert outcome["evaluation_quality"] == "FULL"
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
+
+    assert row["restore"]["pass"] is True
+
+
+def test_skill_native_dot_repeated_evaluation_does_not_leak_state(real_pob_engine) -> None:
+    baseline_item = _equipped_item(SKILL_NATIVE_DOT_BUILD, "Weapon 1")
+    candidate = baseline_item + "\n100% increased Damage over Time\n"
+
+    first = evaluate_item(candidate, real_pob_engine, build_path=str(SKILL_NATIVE_DOT_BUILD))
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(SKILL_NATIVE_DOT_BUILD))
+    first_row = next(r for r in first["slot_comparisons"] if r["pob_slot"] == "Weapon 1")
+    second_row = next(r for r in second["slot_comparisons"] if r["pob_slot"] == "Weapon 1")
+
+    assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "TotalDot"
+    assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
+    assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
+    assert first_row["restore"]["pass"] is True
+    assert second_row["restore"]["pass"] is True
