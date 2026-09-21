@@ -63,6 +63,17 @@ def is_jewel_socket_pob_slot(pob_slot: str) -> bool:
     return bool(pob_slot) and pob_slot.startswith("Jewel ") and pob_slot[len("Jewel "):].isdigit()
 
 
+def jewel_socket_display_label(index: int) -> str:
+    """Player-facing label for one jewel socket in an ordered list of legal
+    placements -- never the raw tree-node id ("Jewel 11184").
+
+    PoB does not expose a real passive-tree location/name for a socket node,
+    so an ordinal ("Socket 1", "Socket 2", ...) is used rather than inventing
+    one. The raw slot name remains available for Copy diagnostics.
+    """
+    return f"Socket {index + 1}"
+
+
 def pob_slot_to_product(pob_slot: str, *, item_type: str | None = None) -> ProductSlot | str:
     """Map a PoB slot name to its product-facing identity.
 

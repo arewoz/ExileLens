@@ -15,7 +15,12 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
-from poe2value.ui.styles import OVERLAY_STYLESHEET
+from poe2value.ui.styles import (
+    OVERLAY_STYLESHEET,
+    OVERLAY_WINDOW_BORDER_RGBA,
+    OVERLAY_WINDOW_GRADIENT_BOTTOM,
+    OVERLAY_WINDOW_GRADIENT_TOP,
+)
 from poe2value.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style, apply_window_interaction_policy
 
 AUX_COMPANION_WIDTH = 300
@@ -98,10 +103,10 @@ class AuxEdgeCompanion(QWidget):
         path = QPainterPath()
         path.addRoundedRect(rect, 8, 8)
         gradient = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-        gradient.setColorAt(0.0, QColor(30, 26, 22, 242))
-        gradient.setColorAt(1.0, QColor(12, 11, 10, 244))
+        gradient.setColorAt(0.0, QColor(*OVERLAY_WINDOW_GRADIENT_TOP))
+        gradient.setColorAt(1.0, QColor(*OVERLAY_WINDOW_GRADIENT_BOTTOM))
         painter.fillPath(path, gradient)
-        painter.setPen(QPen(QColor(90, 76, 58, 180), 1))
+        painter.setPen(QPen(QColor(*OVERLAY_WINDOW_BORDER_RGBA), 1))
         painter.drawPath(path)
         super().paintEvent(event)
 

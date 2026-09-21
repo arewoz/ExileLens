@@ -10,19 +10,33 @@ from typing import Any
 
 MORE_INFO_TITLE = "MORE INFO"
 
+#: Player-facing order: verdict + replacement target, then the impact that
+#: actually matters, then offense/defense/resist consequences, then why. The
+#: advanced/PoB-provenance sections (score drivers, damage reference, native
+#: component detail, unmodeled/conditional notes) come last -- P1.1b: these
+#: used to render second and third, ahead of `key_impact`, which let PoB
+#: stat-set/component plumbing dominate the drawer above the numbers a player
+#: actually opened it for. `_ADVANCED_SECTION_IDS` below also renders their
+#: titles less prominently.
 MORE_INFO_SECTION_ORDER = (
     "verdict_header",
-    "damage_reference",
-    "native_components",
     "key_impact",
-    "score_drivers",
     "offense",
     "defense",
     "resists",
     "flexibility",
     "why_verdict",
+    "score_drivers",
+    "damage_reference",
+    "native_components",
     "unmodeled",
 )
+
+#: Section ids that are advanced/PoB-provenance detail rather than a decision
+#: the player needs -- `ui.overlay_detail_drawer` renders their titles with a
+#: quieter style so they read as secondary, not competing with the sections
+#: above. Not a change to what data exists, only how prominent it looks.
+ADVANCED_SECTION_IDS = frozenset({"score_drivers", "damage_reference", "native_components"})
 
 _OFFENSE_KEYS = ("primary_offense", "cast_attack_speed")
 _DEFENSE_KEYS = ("ehp", "worst_max_hit", "life", "energy_shield", "movement_speed")
@@ -100,13 +114,23 @@ def _verdict_header(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str,
         reasons = [reason for reason in reasons if reason]
         lines.append(f"{quality}: {reasons[0]}" if reasons else quality)
     slot = _text(outcome.get("replacement_slot"))
+    from poe2value.items.slots import is_jewel_socket_pob_slot
+
+    is_jewel = is_jewel_socket_pob_slot(slot)
     # More Info is bound to one outcome (including a non-best ring). Never read the
-    # compact Best line, which always comes from replacement_choices.
+    # compact Best line, which always comes from replacement_choices. A jewel
+    # socket's raw tree-node id ("Jewel 11184") is never player copy here either
+    # -- it stays out of the slot suffix/bare-slot case the same way it does in
+    # the compact surface's replacing_line().
     if outcome.get("replacing_empty_slot"):
-        replacing = f"Equip to empty {slot}" if slot else "Equip to empty slot"
+        if is_jewel:
+            replacing = "Equip to empty jewel socket"
+        else:
+            replacing = f"Equip to empty {slot}" if slot else "Equip to empty slot"
     elif outcome.get("replacing_item"):
-        replacing = f"Replacing: {outcome['replacing_item']}" + (f" · {slot}" if slot else "")
-    elif slot:
+        suffix = "" if is_jewel else (f" · {slot}" if slot else "")
+        replacing = f"Replacing: {outcome['replacing_item']}" + suffix
+    elif slot and not is_jewel:
         replacing = slot
     else:
         replacing = ""

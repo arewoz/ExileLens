@@ -12,7 +12,15 @@ from poe2value.app.settings import AppSettings
 from poe2value.items.presentation import build_presentation
 from poe2value.ui.managed_window import ManagedToolWindow, clamp_window_to_screen
 from poe2value.ui.overlay_presentation import ItemOverlayPanel
-from poe2value.ui.styles import apply_overlay_theme, overlay_compact_width, overlay_stylesheet
+from poe2value.ui.styles import (
+    OVERLAY_WINDOW_BORDER_RGBA,
+    OVERLAY_WINDOW_GRADIENT_BOTTOM,
+    OVERLAY_WINDOW_GRADIENT_MID,
+    OVERLAY_WINDOW_GRADIENT_TOP,
+    apply_overlay_theme,
+    overlay_compact_width,
+    overlay_stylesheet,
+)
 from poe2value.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style, apply_window_interaction_policy
 
 
@@ -104,9 +112,9 @@ class PinnedItemOverlay(ManagedToolWindow):
         path = QPainterPath()
         path.addRoundedRect(rect, 10, 10)
         gradient = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-        gradient.setColorAt(0.0, QColor(34, 29, 24, 244))
-        gradient.setColorAt(0.16, QColor(22, 19, 16, 242))
-        gradient.setColorAt(1.0, QColor(11, 10, 9, 244))
+        gradient.setColorAt(0.0, QColor(*OVERLAY_WINDOW_GRADIENT_TOP))
+        gradient.setColorAt(0.16, QColor(*OVERLAY_WINDOW_GRADIENT_MID))
+        gradient.setColorAt(1.0, QColor(*OVERLAY_WINDOW_GRADIENT_BOTTOM))
         painter.fillPath(path, gradient)
         accent = QLinearGradient(rect.topLeft(), rect.topRight())
         accent.setColorAt(0.0, self._rarity_accent)
@@ -114,7 +122,7 @@ class PinnedItemOverlay(ManagedToolWindow):
         painter.setClipPath(path)
         painter.fillRect(rect.left(), rect.top(), rect.width(), 3, accent)
         painter.setClipping(False)
-        painter.setPen(QPen(QColor(90, 76, 58, 210), 1))
+        painter.setPen(QPen(QColor(*OVERLAY_WINDOW_BORDER_RGBA), 1))
         painter.drawPath(path)
         super().paintEvent(event)
 

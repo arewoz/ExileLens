@@ -1,43 +1,58 @@
-"""Dark premium overlay styling (no copyrighted assets)."""
+"""Dark graphite overlay styling (no copyrighted assets).
+
+P1.1b: retoned from the original warm brown/tan "premium" palette to a neutral
+graphite/off-white base. Color still carries meaning (green = gain, red = loss,
+amber = warning/uncertain, gold = the one restrained ExileLens accent) but the
+surfaces and body text are no longer sepia-tinted. See
+docs/ITEM_CHECK_PRESENTATION.md's Visual hierarchy section for the rationale.
+"""
 
 # ExileLens opaque chrome. Overlay styles stay transparent; these tokens are the
 # dashboard / Settings surface so unstyled Qt widgets do not fall back to the
 # Windows QPalette (Light mode paints QScrollArea viewports white).
-DASHBOARD_WINDOW_BG = "#141210"
-DASHBOARD_WINDOW_FG = "#d8cbb6"
-DASHBOARD_TEXT_EMPHASIS = "#f0e2c4"
-DASHBOARD_MUTED_FG = "#8d8273"
-DASHBOARD_DISABLED_FG = "#7d7468"
-DASHBOARD_INPUT_BG = "#1c1916"
-DASHBOARD_INPUT_FG = "#e4d8c4"
-DASHBOARD_BUTTON_BG = "#2a2620"
-DASHBOARD_BUTTON_HOVER = "#3a342c"
-DASHBOARD_NAV_BG = "#1a1714"
+DASHBOARD_WINDOW_BG = "#17181b"
+DASHBOARD_WINDOW_FG = "#e3e1dc"
+DASHBOARD_TEXT_EMPHASIS = "#f5f3ee"
+DASHBOARD_MUTED_FG = "#8b8a85"
+DASHBOARD_DISABLED_FG = "#726f6c"
+DASHBOARD_INPUT_BG = "#1d1e22"
+DASHBOARD_INPUT_FG = "#e2e0da"
+DASHBOARD_BUTTON_BG = "#26272b"
+DASHBOARD_BUTTON_HOVER = "#323338"
+DASHBOARD_NAV_BG = "#1a1b1e"
 DASHBOARD_ACCENT = "#c9a227"
 DASHBOARD_WARNING_FG = "#e0a040"
-DASHBOARD_ERROR_FG = "#d37a7a"
-DASHBOARD_BORDER = "rgba(255,255,255,14)"
-DASHBOARD_SCROLL_HANDLE = "#3a342c"
+DASHBOARD_ERROR_FG = "#d97b7b"
+DASHBOARD_BORDER = "rgba(255,255,255,12)"
+DASHBOARD_SCROLL_HANDLE = "#323338"
 
 # Item Check tooltip palette. The overlay paints its own dark chrome; these tokens
 # keep every label/button off the Windows QPalette (Light mode = black text).
-OVERLAY_TEXT_PRIMARY = "#d8cbb6"
-OVERLAY_TEXT_EMPHASIS = "#f0e2c4"
-OVERLAY_TEXT_SECONDARY = "#c9bea8"
-OVERLAY_TEXT_MUTED = "#7d7468"
-OVERLAY_SECTION_HEADING = "#cbb892"
-OVERLAY_WARNING_BODY = "#e8d3a4"
-OVERLAY_WARNING_CRITICAL = "#f0c8c8"
+OVERLAY_TEXT_PRIMARY = "#e3e1dc"
+OVERLAY_TEXT_EMPHASIS = "#f5f3ee"
+OVERLAY_TEXT_SECONDARY = "#b2b0ab"
+OVERLAY_TEXT_MUTED = "#84827d"
+OVERLAY_SECTION_HEADING = "#a3a19b"
+OVERLAY_WARNING_BODY = "#e0a040"
+OVERLAY_WARNING_CRITICAL = "#e8a3a3"
 OVERLAY_DELTA_POSITIVE = "#7dcf7d"
-OVERLAY_DELTA_NEGATIVE = "#d37a7a"
-OVERLAY_DELTA_NEUTRAL = "#b0a890"
-OVERLAY_ACTION_TEXT = "#cbb892"
-OVERLAY_BORDER = "rgba(255,255,255,14)"
+OVERLAY_DELTA_NEGATIVE = "#d97b7b"
+OVERLAY_DELTA_NEUTRAL = "#9c9a95"
+OVERLAY_ACTION_TEXT = "#b2b0ab"
+OVERLAY_BORDER = "rgba(255,255,255,12)"
+
+# The single painted window background (overlay.py/pinned_item_overlay.py
+# paintEvent) and its border. Graphite, not brown -- these used to be raw
+# QColor(34, 29, 24, ...) literals duplicated in three files.
+OVERLAY_WINDOW_GRADIENT_TOP = (27, 28, 31, 244)
+OVERLAY_WINDOW_GRADIENT_MID = (20, 21, 24, 242)
+OVERLAY_WINDOW_GRADIENT_BOTTOM = (12, 12, 14, 244)
+OVERLAY_WINDOW_BORDER_RGBA = (74, 75, 80, 205)
 
 OVERLAY_STYLESHEET = """
 QWidget#overlayRoot {
     background: transparent;
-    color: #d8cbb6;
+    color: #e3e1dc;
     font-family: "Segoe UI", sans-serif;
     font-size: 13px;
 }
@@ -47,7 +62,7 @@ QWidget#headerBand {
 QLabel#nameLabel {
     font-size: 16px;
     font-weight: 700;
-    color: #f0e2c4;
+    color: #f5f3ee;
 }
 QLabel#rarityLabel {
     font-size: 10px;
@@ -56,40 +71,39 @@ QLabel#rarityLabel {
     color: #c9a227;
 }
 QLabel#baseLabel {
-    color: #9a8b72;
+    color: #84827d;
     font-size: 12px;
 }
 QWidget#baselineStrip {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(255,255,255,18), stop:1 rgba(255,255,255,6));
-    border: 1px solid rgba(255,255,255,16);
+    background: rgba(255,255,255,8);
+    border: 1px solid rgba(255,255,255,14);
     border-radius: 5px;
 }
 QLabel#baselineLabel {
-    color: #d8ccb6;
+    color: #e3e1dc;
     font-size: 12px;
     font-weight: 600;
 }
 QLabel#baselineMeta {
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 10px;
 }
 QLabel#pobBaselineHint {
-    color: #7a7166;
+    color: #726f6c;
     font-size: 10px;
 }
 QLabel#profileChip {
-    color: #cbb892;
+    color: #b2b0ab;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.8px;
     padding: 1px 7px;
-    border: 1px solid rgba(203,184,146,70);
+    border: 1px solid rgba(255,255,255,16);
     border-radius: 8px;
-    background: rgba(203,184,146,22);
+    background: rgba(255,255,255,8);
 }
 QLabel#metricLabel {
-    color: #b7aa96;
+    color: #b2b0ab;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -97,34 +111,34 @@ QLabel#metricLabel {
 QLabel#metricDelta {
     font-size: 15px;
     font-weight: 700;
-    color: #b0a890;
+    color: #9c9a95;
 }
 QLabel#metricRange {
-    color: #8f8474;
+    color: #83817c;
     font-size: 11px;
 }
 QLabel#capLabel {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.3px;
-    color: #e0b35a;
+    color: #e0a040;
 }
 QLabel#compactNote {
-    color: #7d7468;
+    color: #84827d;
     font-size: 11px;
 }
 QLabel#flagChip {
-    color: #a89468;
+    color: #9c9a95;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.3px;
     padding: 1px 6px;
-    border: 1px solid rgba(168,148,104,50);
+    border: 1px solid rgba(255,255,255,16);
     border-radius: 7px;
-    background: rgba(168,148,104,16);
+    background: rgba(255,255,255,8);
 }
 QFrame#sectionRule {
-    color: rgba(255,255,255,22);
+    color: rgba(255,255,255,16);
     max-height: 1px;
 }
 QWidget#warningPanel {
@@ -135,26 +149,26 @@ QLabel#warningTitle {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.1px;
-    color: #cbb892;
+    color: #a3a19b;
 }
 QLabel#whyLabel {
-    color: #c9bea8;
+    color: #b2b0ab;
     font-size: 12px;
 }
 QLabel#bestSlotLabel {
-    color: #d8ccb6;
+    color: #e3e1dc;
     font-size: 12px;
     font-weight: 600;
 }
 QLabel#multiProfileRow {
-    color: #b7aa96;
+    color: #b2b0ab;
     font-size: 11px;
 }
 QLabel#sectionTitle {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.1px;
-    color: #cbb892;
+    color: #a3a19b;
 }
 QLabel#trustHigh {
     color: #7dcf7d;
@@ -163,19 +177,19 @@ QLabel#trustHigh {
     letter-spacing: 0.8px;
 }
 QLabel#trustAssisted {
-    color: #d4bc6e;
+    color: #dba748;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.8px;
 }
 QLabel#trustNeeds {
-    color: #d39a6a;
+    color: #d68a54;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.8px;
 }
 QPushButton#moreInfoButton {
-    color: #cbb892;
+    color: #b2b0ab;
     font-size: 11px;
     font-weight: 700;
     padding: 2px 0;
@@ -183,15 +197,15 @@ QPushButton#moreInfoButton {
     text-align: right;
 }
 QPushButton#moreInfoButton:hover {
-    color: #f0e2c4;
+    color: #f5f3ee;
 }
 QLabel#scoreSecondary {
-    color: #9a8b72;
+    color: #84827d;
     font-size: 12px;
     font-weight: 600;
 }
 QLabel#slotVerdictLine {
-    color: #c9bea8;
+    color: #b2b0ab;
     font-size: 12px;
     font-weight: 600;
 }
@@ -199,7 +213,7 @@ QWidget#overlayFooter {
     background: transparent;
 }
 QPushButton#footerPinButton {
-    color: #cbb892;
+    color: #b2b0ab;
     font-size: 11px;
     font-weight: 700;
     padding: 2px 0;
@@ -207,55 +221,55 @@ QPushButton#footerPinButton {
     text-align: left;
 }
 QPushButton#footerPinButton:hover:enabled {
-    color: #f0e2c4;
+    color: #f5f3ee;
 }
 QPushButton#footerPinButton:disabled {
-    color: #8d8273;
+    color: #726f6c;
 }
 QPushButton#retryButton {
-    background: #2a2620;
-    color: #e4d8c4;
-    border: 1px solid rgba(203,184,146,70);
+    background: #26272b;
+    color: #e3e1dc;
+    border: 1px solid rgba(255,255,255,16);
     border-radius: 4px;
     padding: 4px 12px;
     font-size: 12px;
     font-weight: 700;
 }
 QPushButton#retryButton:hover {
-    color: #f5e6c8;
+    color: #f5f3ee;
 }
 QLabel#hotkeyHint {
-    color: #8d8273;
+    color: #8b8a85;
     font-size: 10px;
 }
 QPushButton#hintDismissButton {
-    color: #8d8273;
+    color: #8b8a85;
     border: none;
     font-size: 12px;
     padding: 0 4px;
 }
 QPushButton#overlayCloseButton {
-    color: #b8aa96;
+    color: #b2b0ab;
     border: none;
     font-size: 16px;
     padding: 0 2px 0 6px;
     min-width: 20px;
 }
 QPushButton#overlayCloseButton:hover {
-    color: #f5e6c8;
+    color: #f5f3ee;
 }
 QPushButton#ringChoiceButton {
-    background: #221e1a;
-    color: #d8ccb6;
-    border: 1px solid rgba(203,184,146,50);
+    background: #1f2024;
+    color: #e3e1dc;
+    border: 1px solid rgba(255,255,255,14);
     border-radius: 6px;
     padding: 6px 8px;
     font-size: 11px;
     text-align: left;
 }
 QPushButton#ringChoiceButton:checked {
-    border: 1px solid rgba(203,184,146,140);
-    background: rgba(203,184,146,28);
+    border: 1px solid rgba(255,255,255,55);
+    background: rgba(255,255,255,12);
 }
 QScrollArea#moreInfoScroll {
     background: transparent;
@@ -265,93 +279,97 @@ QWidget#moreInfoBody {
     background: transparent;
 }
 QFrame#detailDrawerDivider {
-    color: rgba(203, 184, 146, 40);
+    color: rgba(201, 162, 39, 35);
     max-width: 1px;
 }
 QWidget#detailAnalysisDrawer {
     border-top: none;
-    border-left: 1px solid rgba(203, 184, 146, 40);
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(255,255,255,10), stop:1 rgba(255,255,255,4));
+    border-left: 1px solid rgba(201, 162, 39, 35);
+    background: rgba(255,255,255,4);
 }
 QLabel#detailSectionTitle {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.1px;
-    color: #cbb892;
+    color: #a3a19b;
+}
+QLabel#detailSectionTitleAdvanced {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    color: #726f6c;
 }
 QLabel#detailTableHeader {
-    color: #8f8474;
+    color: #83817c;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.6px;
 }
 QLabel#detailTableLabel {
-    color: #b7aa96;
+    color: #b2b0ab;
     font-size: 11px;
     font-weight: 600;
 }
 QLabel#detailTableValue {
-    color: #d8ccb6;
+    color: #e3e1dc;
     font-size: 11px;
     font-weight: 600;
 }
 QLabel#detailTableChange {
     font-size: 11px;
     font-weight: 700;
-    color: #d8ccb6;
+    color: #e3e1dc;
 }
 QLabel#detailImpactLine {
-    color: #d8ccb6;
+    color: #e3e1dc;
     font-size: 12px;
     font-weight: 600;
 }
 QLabel#warningLabel {
     font-size: 12px;
     font-weight: 600;
-    color: #e8d3a4;
+    color: #e0a040;
 }
 QWidget#verdictBand {
     border-radius: 6px;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255,255,255,16), stop:1 rgba(255,255,255,6));
-    border: 1px solid rgba(255,255,255,18);
+    background: rgba(255,255,255,7);
+    border: 1px solid rgba(255,255,255,14);
 }
 QLabel#scoreHeadline {
     font-size: 19px;
     font-weight: 800;
     letter-spacing: 0.4px;
     padding: 2px 0 2px 0;
-    color: #e4d8c4;
+    color: #f5f3ee;
 }
 QLabel#verdictLabel {
     font-size: 15px;
     font-weight: 800;
     letter-spacing: 0.8px;
-    color: #d8cbb6;
+    color: #e3e1dc;
 }
 QLabel#explainLabel {
-    color: #b7aa96;
+    color: #b2b0ab;
     font-size: 12px;
 }
 QWidget#valueBand {
     background: transparent;
 }
 QLabel#valueCaption {
-    color: #8f8474;
+    color: #83817c;
     font-size: 11px;
 }
 QLabel#valueLabel {
-    color: #e4d8c4;
+    color: #e3e1dc;
     font-size: 14px;
     font-weight: 700;
 }
 QLabel#priceLabel {
-    color: #cfc3b0;
+    color: #c4c2bc;
     font-size: 12px;
 }
-QLabel#errorLabel { color: #d37a7a; font-size: 12px; }
-QLabel#analyzingLabel { color: #9a8b72; font-style: italic; }
+QLabel#errorLabel { color: #d97b7b; font-size: 12px; }
+QLabel#analyzingLabel { color: #84827d; font-style: italic; }
 """
 
 OVERLAY_THEME_INDEPENDENCE_STYLESHEET = f"""
@@ -379,38 +397,37 @@ QWidget#pinnedItemOverlay QPushButton {{
 
 TREE_COACH_STYLESHEET = OVERLAY_STYLESHEET + """
 QWidget#treeCoachRoot, QWidget#treeWorkspaceRoot, QWidget#overlayRoot {
-    background: #161412;
-    color: #d8cbb6;
+    background: #18191c;
+    color: #e3e1dc;
 }
 QWidget#treeHeader {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255,255,255,14), stop:1 rgba(255,255,255,4));
-    border: 1px solid rgba(255,255,255,16);
+    background: rgba(255,255,255,9);
+    border: 1px solid rgba(255,255,255,14);
     border-radius: 6px;
 }
 QListWidget, QTextEdit, QLineEdit, QComboBox, QPlainTextEdit {
-    background: #1c1916;
-    color: #e4d8c4;
-    border: 1px solid rgba(255,255,255,18);
+    background: #1d1e22;
+    color: #e3e1dc;
+    border: 1px solid rgba(255,255,255,16);
     border-radius: 4px;
 }
 QPushButton {
-    background: #2a2620;
-    color: #e4d8c4;
-    border: 1px solid rgba(203,184,146,50);
+    background: #26272b;
+    color: #e3e1dc;
+    border: 1px solid rgba(255,255,255,16);
     border-radius: 4px;
     padding: 4px 10px;
 }
-QPushButton:hover { background: #3a342c; }
+QPushButton:hover { background: #323338; }
 QProgressBar {
-    background: #1c1916;
+    background: #1d1e22;
     border: 1px solid rgba(255,255,255,16);
-    color: #cbb892;
+    color: #a3a19b;
     height: 12px;
 }
-QCheckBox, QRadioButton { color: #d8cbb6; }
+QCheckBox, QRadioButton { color: #e3e1dc; }
 QLabel#staleBanner {
-    color: #e0b35a;
+    color: #e0a040;
     font-weight: 700;
     letter-spacing: 1px;
 }
@@ -953,9 +970,9 @@ VERDICT_CLASS = {
 
 VERDICT_COLOR = {
     "upgrade": "#7dcf7d",
-    "downgrade": "#d37a7a",
-    "tradeoff": "#d4bc6e",
-    "neutral": "#b0a890",
+    "downgrade": "#d97b7b",
+    "tradeoff": "#e0a040",
+    "neutral": "#9c9a95",
 }
 
 METRIC_DISPLAY = [
@@ -980,37 +997,37 @@ RARITY_COLOR = {
 }
 
 EMPHASIS_DELTA_COLOR = {
-    "critical": {"positive": "#8ee08e", "negative": "#e58b8b", "neutral": "#e0b35a"},
-    "high": {"positive": "#7dcf7d", "negative": "#d37a7a", "neutral": "#d4bc6e"},
-    "medium": {"positive": "#6db86d", "negative": "#c47a7a", "neutral": "#b0a890"},
-    "low": {"positive": "#5a8f5a", "negative": "#a07070", "neutral": "#8f8474"},
-    "muted": {"positive": "#5a8f5a", "negative": "#8a6a6a", "neutral": "#7d7468"},
+    "critical": {"positive": "#8ee08e", "negative": "#e58b8b", "neutral": "#e0a040"},
+    "high": {"positive": "#7dcf7d", "negative": "#d97b7b", "neutral": "#dba748"},
+    "medium": {"positive": "#6db86d", "negative": "#c47a7a", "neutral": "#9c9a95"},
+    "low": {"positive": "#5a8f5a", "negative": "#a07070", "neutral": "#84827d"},
+    "muted": {"positive": "#5a8f5a", "negative": "#8a6a6a", "neutral": "#726f6c"},
 }
 
 CAP_STATE_COLOR = {
     "CAP_LOST": "#e58b8b",
-    "BELOW_CAP_WORSENED": "#e0b35a",
+    "BELOW_CAP_WORSENED": "#e0a040",
     "BELOW_CAP_IMPROVED": "#7dcf7d",
-    "BELOW_CAP_UNCHANGED": "#d4bc6e",
-    "CAPPED_STAYS_CAPPED": "#b0a890",
-    "OVER_CAP_REDUCED_BUT_STILL_CAPPED": "#d4bc6e",
+    "BELOW_CAP_UNCHANGED": "#dba748",
+    "CAPPED_STAYS_CAPPED": "#9c9a95",
+    "OVER_CAP_REDUCED_BUT_STILL_CAPPED": "#dba748",
     "CAP_REACHED": "#7dcf7d",
-    "FURTHER_BELOW_CAP": "#e0b35a",
-    "STILL_BELOW_CAP": "#d4bc6e",
-    "CAP_MAINTAINED": "#b0a890",
+    "FURTHER_BELOW_CAP": "#e0a040",
+    "STILL_BELOW_CAP": "#dba748",
+    "CAP_MAINTAINED": "#9c9a95",
     "CAP_GAINED": "#7dcf7d",
 }
 
 PIN_AFFORDANCE_STYLESHEET = """
 QWidget#overlayPinControl {
-    background: rgba(18, 15, 12, 235);
+    background: rgba(16, 17, 19, 235);
     border: 1px solid rgba(201, 162, 39, 110);
     border-radius: 13px;
 }
 QPushButton#pinAffordanceButton {
     background: transparent;
     border: none;
-    color: #e8d7b0;
+    color: #d0cec8;
     font-family: "Segoe UI", sans-serif;
     font-size: 11px;
     font-weight: 700;
@@ -1018,16 +1035,20 @@ QPushButton#pinAffordanceButton {
     padding: 0px 2px;
 }
 QPushButton#pinAffordanceButton:disabled {
-    color: #6a5f52;
+    color: #63625e;
 }
 QPushButton#pinAffordanceButton:hover:enabled {
-    color: #f5e6c8;
+    color: #f5f3ee;
 }
 """
 
 UI_SCALE_CHOICES = (0.8, 1.0, 1.2, 1.4, 1.6)
 OVERLAY_COMPACT_WIDTH_BASE = 408
-OVERLAY_DETAIL_WIDTH_BASE = 380
+# P1.1b: was 380 (clamped 340-430) -- screenshots with More Info open showed a
+# very wide two-column surface (~790px total). The drawer only ever holds text
+# lines/short tables, not anything that needs 380px+; narrowed toward the
+# clamp's own floor rather than widening every future scale step further.
+OVERLAY_DETAIL_WIDTH_BASE = 350
 OVERLAY_DETAIL_DIVIDER = 1
 _FONT_SIZE_RE = __import__("re").compile(r"font-size:\s*(\d+)px")
 
@@ -1047,7 +1068,7 @@ def overlay_compact_width(ui_scale: float = 1.0) -> int:
 
 def overlay_detail_width(ui_scale: float = 1.0) -> int:
     scaled = int(round(OVERLAY_DETAIL_WIDTH_BASE * clamp_ui_scale(ui_scale)))
-    return max(340, min(430, scaled))
+    return max(310, min(400, scaled))
 
 
 def overlay_stylesheet(ui_scale: float = 1.0) -> str:

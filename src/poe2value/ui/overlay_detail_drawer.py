@@ -24,7 +24,9 @@ from poe2value.ui.styles import EMPHASIS_DELTA_COLOR, VERDICT_CLASS, VERDICT_COL
 
 MAX_DRAWER_SECTIONS = 12
 MAX_LINES_PER_SECTION = 12
-DETAIL_DRAWER_WIDTH = 380
+# Not read here -- actual width comes from styles.overlay_detail_width() via
+# set_target_width(). Kept in sync for anyone reading this file in isolation.
+DETAIL_DRAWER_WIDTH = 350
 
 
 class DetailAnalysisDrawer(QWidget):
@@ -185,13 +187,21 @@ class DetailAnalysisDrawer(QWidget):
         self._copy_diagnostics.setText("Copied")
 
     def _render_ring_selector(self) -> None:
+        from poe2value.items.slots import is_jewel_socket_pob_slot, jewel_socket_display_label
+
         self._ring_title.show()
         self._ring_host.show()
         best_index = 0
+        # Jewel sockets are dynamic, per-build tree-node ids ("Jewel 11184") --
+        # never player copy (Copy diagnostics carries the raw slot name). An
+        # ordinal ("Socket 1", "Socket 2", ...) still lets the player switch
+        # between the sockets that were actually checked without exposing
+        # implementation identity PoB does not give a real name for.
+        is_jewel = bool(self._choices) and is_jewel_socket_pob_slot(str(self._choices[0].get("slot") or ""))
         for index, choice in enumerate(self._choices):
             if choice.get("selected") or choice.get("best"):
                 best_index = index
-            slot = str(choice.get("slot") or f"Slot {index + 1}")
+            slot = jewel_socket_display_label(index) if is_jewel else str(choice.get("slot") or f"Slot {index + 1}")
             star = " ★" if choice.get("selected") or choice.get("best") else ""
             verdict = str(choice.get("verdict_label") or "").strip()
             score = choice.get("final_score")
@@ -219,9 +229,13 @@ class DetailAnalysisDrawer(QWidget):
         palette = EMPHASIS_DELTA_COLOR.get(emphasis, EMPHASIS_DELTA_COLOR["medium"])
         return palette.get(direction, palette["neutral"])
 
-    def _add_section_title(self, title: str) -> None:
+    def _add_section_title(self, title: str, *, advanced: bool = False) -> None:
         label = QLabel(title)
-        label.setObjectName("detailSectionTitle")
+        # P1.1b: advanced/PoB-provenance sections (score drivers, damage
+        # reference, native component detail) get a quieter title style so
+        # they read as secondary detail, not competing with the decision
+        # sections above them -- see items.more_info.ADVANCED_SECTION_IDS.
+        label.setObjectName("detailSectionTitleAdvanced" if advanced else "detailSectionTitle")
         self._line_layout.addWidget(label)
         self._section_widgets.append(label)
 
@@ -344,9 +358,11 @@ class DetailAnalysisDrawer(QWidget):
             if not lines and not section.get("table_rows") and not section.get("impact_rows"):
                 continue
             title = str(section.get("title") or "").strip()
-            if title:
-                self._add_section_title(title)
             section_id = str(section.get("id") or title)
+            if title:
+                from poe2value.items.more_info import ADVANCED_SECTION_IDS
+
+                self._add_section_title(title, advanced=section_id in ADVANCED_SECTION_IDS)
             if section_id == "verdict_header":
                 self._render_verdict_header(section, block)
             elif section_id == "key_impact":

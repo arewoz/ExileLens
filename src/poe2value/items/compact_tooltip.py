@@ -16,6 +16,7 @@ from typing import Any
 
 from poe2value.items.companion import build_companion_analysis, prune_companion_duplicates
 from poe2value.items.score_bands import score_band, score_text
+from poe2value.items.slots import is_jewel_socket_pob_slot
 
 # Ordered ids of what the compact tooltip is allowed to render. No score: it lives
 # in More Info (Companion `score` section).
@@ -219,6 +220,27 @@ def _is_material_loss(row: dict[str, Any]) -> bool:
         return False
 
 
+# A build's primary damage output is the other first-class decision axis
+# alongside EHP/Max Hit. Several large defensive losses (each individually
+# >= LARGE_DAMAGE_LOSS_PCT, landing in the higher-priority "large loss" rank
+# bucket) can otherwise fill the whole row budget before a real, measured
+# offense change is ever considered, even though it is exactly what
+# "-4.9% Spark DPS, -16.1% EHP, -24.1% Max Hit" reads as to a player: four
+# facts, not three. Presentation ranking only -- this never promotes an
+# unmeasured/estimated number (rows_from_outcome_deltas already refuses to
+# render those at all); it only protects a MEASURED row from being dropped
+# purely for losing a magnitude contest against larger defensive deltas.
+_MATERIAL_OFFENSE_PCT = 3.0
+
+
+def _is_material_primary_offense(row: dict[str, Any]) -> bool:
+    if str(row.get("key") or "") != "primary_offense":
+        return False
+    if str(row.get("delta_kind") or "MEASURED") not in {"MEASURED", "MEASURED_ZERO"}:
+        return False
+    return _row_magnitude(row) >= _MATERIAL_OFFENSE_PCT
+
+
 def impact_marker(row: dict[str, Any]) -> str:
     """Decision marker. Color is extra; the marker itself is required."""
     cap_state = str(row.get("cap_state") or "")
@@ -333,9 +355,12 @@ def _inject_outcome_loss_candidates(
 def select_impact_rows(rows: list[dict[str, Any]], *, limit: int = MAX_IMPACT_ROWS) -> list[dict[str, Any]]:
     """The 3-5 metrics with the highest decision importance, in reading order.
 
-    Hard rule: if any material loss exists among the candidates, at least one
-    loss row is kept. Zero / irrelevant axes are dropped rather than rendered
-    mechanically, unless dropping them would leave nothing at all to show.
+    Hard rules: if any material loss exists among the candidates, at least one
+    loss row is kept; if a material, measured primary-offense change exists, it
+    is kept too, even when several large defensive losses would otherwise fill
+    the whole budget first. Zero / irrelevant axes are dropped rather than
+    rendered mechanically, unless dropping them would leave nothing at all to
+    show.
     """
     candidates = [row for row in rows if not _is_zero_row(row)]
     # EHP already is Life + Energy Shield. Showing all three is one fact read three
@@ -347,8 +372,21 @@ def select_impact_rows(rows: list[dict[str, Any]], *, limit: int = MAX_IMPACT_RO
     ranked = sorted(candidates, key=_decision_rank)
     selected = ranked[:limit]
     ranked_losses = [row for row in ranked if _is_material_loss(row)]
+    protected_loss = None
     if ranked_losses and not any(_is_material_loss(row) for row in selected):
-        selected = selected[:-1] + [ranked_losses[0]] if selected else [ranked_losses[0]]
+        protected_loss = ranked_losses[0]
+        selected = selected[:-1] + [protected_loss] if selected else [protected_loss]
+
+    offense_row = next((row for row in ranked if _is_material_primary_offense(row)), None)
+    if offense_row is not None and not any(str(row.get("key") or "") == "primary_offense" for row in selected):
+        if len(selected) >= limit and selected:
+            drop_at = len(selected) - 1
+            if protected_loss is not None and selected[drop_at] is protected_loss:
+                drop_at = max(0, len(selected) - 2)
+            selected = selected[:drop_at] + selected[drop_at + 1 :] + [offense_row]
+        else:
+            selected = selected + [offense_row]
+
     selected.sort(key=lambda row: _DISPLAY_INDEX.get(str(row.get("key") or ""), 99))
     return [decorate_impact_row(row) for row in selected]
 
@@ -634,13 +672,24 @@ def _replacement_choices(model: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def replacing_line(model: dict[str, Any]) -> str:
-    """`Replacing: {item}`, or `Best: Ring 2 — {name}` when more than one legal slot."""
+    """`Replacing: {item}`, or `Best: Ring 2 — {name}` when more than one legal slot.
+
+    Jewel sockets are dynamic, per-build tree-node ids ("Jewel 11184") -- that
+    is internal identity, never player copy (raw ids stay in Copy
+    diagnostics). A jewel candidate with several legal placements instead gets
+    a single best-fit line plus a truthful count of how many sockets were
+    checked, never a socket-by-socket listing.
+    """
     outcome = model.get("evaluation_outcome") or {}
     choices = _replacement_choices(model)
     if len(choices) > 1:
         best = next((item for item in choices if item.get("selected") or item.get("best")), choices[0])
         slot = str(best.get("slot") or outcome.get("replacement_slot") or "").strip()
+        is_jewel = is_jewel_socket_pob_slot(slot)
+        checked = f" · Checked {len(choices)} jewel sockets" if is_jewel else ""
         if best.get("empty") or best.get("replacing_empty_slot") or outcome.get("replacing_empty_slot"):
+            if is_jewel:
+                return f"Best fit: Empty jewel socket{checked}"
             return f"Best: {slot} — Equip to empty slot" if slot else "Equip to empty slot"
         name = str(
             best.get("replacing_item")
@@ -649,10 +698,16 @@ def replacing_line(model: dict[str, Any]) -> str:
             or ""
         ).strip()
         if name:
+            if is_jewel:
+                return f"Best fit: Replacing {name}{checked}"
             return f"Best: {slot} — {name}" if slot else f"Replacing: {name}"
+        if is_jewel:
+            return f"Best fit found{checked}"
         return f"Best: {slot}" if slot else ""
     if outcome.get("replacing_empty_slot"):
         slot = str(outcome.get("replacement_slot") or "").strip()
+        if is_jewel_socket_pob_slot(slot):
+            return "Equip to empty jewel socket"
         return f"Equip to empty {slot}" if slot else "Equip to empty slot"
     name = str(outcome.get("replacing_item") or "").strip()
     if not name:
@@ -664,9 +719,19 @@ def replacing_line(model: dict[str, Any]) -> str:
 
 
 def slot_verdict_lines(model: dict[str, Any]) -> list[dict[str, Any]]:
-    """One line per legal replacement when more than one slot is in play."""
+    """One line per legal replacement when more than one slot is in play.
+
+    Never for jewel sockets: raw node ids ("Jewel 11184") are not player
+    copy, and a full per-socket listing is exactly the "dump the evaluated
+    socket list" presentation `replacing_line()`'s single best-fit + count
+    summary exists to avoid. Suppressed entirely here rather than relabeled,
+    since ordinal "Socket N" labels would still imply an ordering/identity
+    PoB does not actually expose.
+    """
     choices = _replacement_choices(model)
     if len(choices) < 2:
+        return []
+    if is_jewel_socket_pob_slot(str(choices[0].get("slot") or "")):
         return []
     lines: list[dict[str, Any]] = []
     for choice in choices:
