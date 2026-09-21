@@ -274,6 +274,39 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         manifest_id="CORE04-ONEHAND-WEAPON",
     ),
     CoverageCase(
+        id="SHIELD-REPLACEMENT-MEASURED-AND-RESTORED",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_shield_replacement_is_measured_and_restored",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "M1.2 offhand slice: a real Shield-into-Shield candidate on the Shield Wall build "
+            "(same tower shield plus one added life mod) resolves to exactly one legal slot "
+            "(Weapon 2, via PoB's own IsItemValidForSlot), preserves the Shield-Wall-requires-a-"
+            "shield skill identity, and shows a real, non-fabricated defense-only gain (+8.75% "
+            "EHP) with a correctly NEUTRAL offense axis -- FULL quality, MEANINGFUL_UPGRADE, "
+            "clean restore, stable repeated evaluation."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-ONEHAND-WEAPON",
+    ),
+    CoverageCase(
+        id="OFFHAND-CANDIDATE-AGAINST-TWO-HAND-WEAPON-FAILS-TRUTHFULLY",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_offhand_candidate_against_two_hand_weapon_fails_truthfully",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "M1.2 offhand slice, invalid-combination case: a real Focus candidate against a "
+            "build whose active weapon is a two-handed staff (empty offhand) resolves zero "
+            "compatible slots via PoB's own IsItemValidForSlot and is correctly refused with "
+            "SlotResolutionFailed/UNSUPPORTED_EQUIPMENT_LAYOUT -- never a confident, silently "
+            "wrong-slot comparison. A clean, unrelated evaluation immediately afterward proves "
+            "the failed resolution left no residual build-state mutation."
+        ),
+        archetypes=(Archetype.SPELL,),
+    ),
+    CoverageCase(
         id="ONEHAND-WEAPON-REPEATED-EVALUATION-NO-LEAK",
         test_file="tests/integration/test_public_real_pob.py",
         node_name="test_onehand_weapon_repeated_evaluation_does_not_leak_state",
@@ -323,7 +356,10 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
             "TotalDPS, IgniteDPS, and CombinedDPS together (no double counting: CombinedDPS == "
             "TotalDPS + IgniteDPS exactly in both baseline and candidate), and reaches FULL "
             "quality / MEANINGFUL_UPGRADE -- a confident verdict is correct here, unlike the "
-            "isolated-ailment-dominant case."
+            "isolated-ailment-dominant case. M1.2 offhand-support note: the candidate itself is "
+            "this build's own equipped Focus (item.type == 'Focus', logical/physical Weapon 2) "
+            "-- this is the corpus's real-PoB evidence for Focus offhand support, promoted from "
+            "already-proven behavior rather than re-implemented or re-fixtured."
         ),
         archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
         manifest_id="CORE04-MIXED-HIT-AILMENT",
@@ -371,6 +407,26 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
             "selection and skill identity), and repeated evaluation is stable. Fixed in "
             "runtime/lua/bridge.lua via `active_weapon_slot` -- see "
             "docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk register for before/after."
+        ),
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WEAPON-SWAP-OFFHAND-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_weapon_swap_offhand_candidate_substitution_resolves_the_active_slot",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "M1.2 offhand slice, companion to WEAPON-SWAP-CANDIDATE-SUBSTITUTION-RESOLVES-"
+            "ACTIVE-SLOT: a Quiver candidate cloned from the build's TRUE active quiver "
+            "(physically Weapon 2 Swap) plus an attack-speed mod resolves against logical "
+            "Weapon 2 correctly targeting the ACTIVE offhand -- baseline_item is the active "
+            "quiver (not the inactive shield), a real +26.9%-class offense-only gain is "
+            "measured, FULL/MEANINGFUL_UPGRADE, the inactive primary set (spear+shield) is "
+            "never mutated, restore is exact, and repeated evaluation is stable. Confirms the "
+            "M1.1 active_weapon_slot bridge translation already covers the offhand case with "
+            "no separate offhand-swap mapper required."
         ),
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
