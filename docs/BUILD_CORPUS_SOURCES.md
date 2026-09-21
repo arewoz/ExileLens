@@ -25,10 +25,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_onehand_weapon.xml` | Warrior/Titan Shield Wall with a one-hand mace + tower shield; one-hand weapon replacement, including the `AMBIGUOUS_WEAPON_LAYOUT` multi-slot case. |
 | `fixtures/builds/public_corpus/core04_poison_ailment.xml` | Huntress/Ritualist Poisonburst Arrow; ailment-dominant (poison) primary offense selection. |
 | `fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml` | Witch/Infernalist Comet (Cast on Elemental Ailment); mixed hit+ignite (~59%/41%) `CombinedDPS` offense selection. |
+| `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity and baseline correctness. Also pins a confirmed Item Check candidate-substitution defect for this configuration — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(7 scenarios as of M1.1). It contains repository-relative paths and expected semantic
+(8 scenarios as of M1.1). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -38,28 +39,32 @@ The `core04_bow_quiver`, `core04_minion_actor`, `core04_stage_context`, and
 corpus as calculation inputs only.
 
 `core04_melee_weapon.xml`, `core04_onehand_weapon.xml`, `core04_poison_ailment.xml`,
-and `core04_mixed_hit_ailment.xml` (added for M1.1) were each captured from a real,
-publicly listed character build on poe.ninja (Runes of Aldur league) via poe.ninja's
-own `.../api/builds/.../character?...` endpoint, which returns the same
-`pathOfBuildingExport` string as the page's "Import Code for Path of Building" field —
-the same export a player would paste into PoB themselves. **Fetch the JSON API
-directly rather than hand-copying the on-page import-code text field**: an earlier
-hand-copy of this ~13,000-character string (before this endpoint was identified)
-silently corrupted two words inside unrelated item mod text — caught and fixed during
-the one-hand-weapon slice by re-fetching and byte-comparing against the committed
-fixture. `core04_poison_ailment.xml` and `core04_mixed_hit_ailment.xml` were each
-found by querying poe.ninja's per-character API directly for dozens of candidate
-accounts across several ascendancies and comparing their raw `PlayerStat`
+`core04_mixed_hit_ailment.xml`, and `core04_weapon_swap.xml` (added for M1.1) were
+each captured from a real, publicly listed character build on poe.ninja (Runes of
+Aldur league) via poe.ninja's own `.../api/builds/.../character?...` endpoint, which
+returns the same `pathOfBuildingExport` string as the page's "Import Code for Path of
+Building" field — the same export a player would paste into PoB themselves. **Fetch
+the JSON API directly rather than hand-copying the on-page import-code text field**:
+an earlier hand-copy of this ~13,000-character string (before this endpoint was
+identified) silently corrupted two words inside unrelated item mod text — caught and
+fixed during the one-hand-weapon slice by re-fetching and byte-comparing against the
+committed fixture. `core04_poison_ailment.xml` and `core04_mixed_hit_ailment.xml`
+were each found by querying poe.ninja's per-character API directly for dozens of
+candidate accounts across several ascendancies and comparing their raw `PlayerStat`
 `TotalDPS`/`PoisonDPS`/`IgniteDPS`/`BleedDPS` values (and, for the latter,
 `<ItemSet useSecondWeaponSet="...">` to exclude active-weapon-swap builds) — never by
-guessing a promising build from its name or popularity. All four fixtures were
-sanitized identically before publication: removing every per-item `Unique ID: <hash>`
-line (GGG-generated identifiers tied to the real player's specific item drops, not
-needed for any test assertion) and removing poe.ninja's cached `<PlayerStat>` display
-block (not part of the PoB build definition; the engine recomputes all stats fresh on
-load regardless). No account name, character name, or profile identifier is present
-in the PoB import code itself or in any checked-in
-fixture.
+guessing a promising build from its name or popularity. `core04_weapon_swap.xml` is
+the exact `useSecondWeaponSet="true"` character found and deliberately excluded
+during that search, refetched and reused for the M1.1 weapon-swap slice specifically
+because its two weapon sets are materially different (a spear+shield primary set vs.
+a bow+quiver active/swap set matching its actual arrow skill) rather than
+near-equivalent. All five fixtures were sanitized identically before publication:
+removing every per-item `Unique ID: <hash>` line (GGG-generated identifiers tied to
+the real player's specific item drops, not needed for any test assertion) and
+removing poe.ninja's cached `<PlayerStat>` display block (not part of the PoB build
+definition; the engine recomputes all stats fresh on load regardless). No account
+name, character name, or profile identifier is present in the PoB import code itself
+or in any checked-in fixture.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

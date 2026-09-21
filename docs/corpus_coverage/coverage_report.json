@@ -142,6 +142,20 @@
     },
     {
       "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORE04-WEAPON-SWAP-IDENTITY",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "spell"
       ],
       "depth": "VERDICT",
@@ -513,20 +527,33 @@
       "result": "PASS",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WEAPON-SWAP-BASELINE-REFLECTS-ACTIVE-SET",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
     }
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 5,
-    "PASS": 33
+    "PASS": 35
   },
-  "supported_count": 38,
-  "total_count": 38,
+  "supported_count": 40,
+  "total_count": 40,
   "uncovered_archetypes": [
     "ascendancy",
     "es_scaling",
     "proxy_totem",
     "stat_stacker",
-    "unique_interaction",
-    "weapon_swap"
+    "unique_interaction"
   ]
 }

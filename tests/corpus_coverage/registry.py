@@ -128,6 +128,21 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
         manifest_id="CORE04-MIXED-HIT-AILMENT",
     ),
+    CoverageCase(
+        id="CORE04-WEAPON-SWAP-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORE04-WEAPON-SWAP]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Huntress/Ritualist, Poisonburst Arrow, PLAYER actor. Active item set has "
+            "useSecondWeaponSet=true: the primary Weapon 1/2 slots hold an unrelated spear+shield "
+            "loadout that is not actually equipped. Sourced from a real, currently-played public "
+            "poe.ninja Runes of Aldur build."
+        ),
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -308,6 +323,27 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive Item Checks against the same mixed hit+ailment candidate select the same PoB field (CombinedDPS) and produce identical score/verdict, both restoring cleanly.",
         archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
         manifest_id="CORE04-MIXED-HIT-AILMENT",
+    ),
+    CoverageCase(
+        id="WEAPON-SWAP-BASELINE-REFLECTS-ACTIVE-SET",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_weapon_swap_baseline_reflects_the_active_second_set",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A build whose active item set has useSecondWeaponSet=true correctly resolves "
+            "active_item_set_id/loadout/skill identity, and its baseline offense is proven (via "
+            "an explicit wrong-set sentinel: a massive damage buff on the INACTIVE primary "
+            "weapon produces exactly zero measured change) to be computed from the active "
+            "second weapon set, not the inactive primary set. NOTE: this covers only baseline "
+            "correctness -- the separate, CONFIRMED defect in candidate substitution for this "
+            "same build (candidates never reach the active slot at all) is deliberately NOT "
+            "registered as a coverage case; see docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md risk "
+            "register and the xfail(strict=True) regression "
+            "test_weapon_swap_candidate_substitution_ignores_the_active_slot."
+        ),
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
     ),
 )
 
