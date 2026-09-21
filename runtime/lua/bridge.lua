@@ -194,6 +194,131 @@ local function is_evaluable_slot(slot_name)
 	return EVALUABLE_SLOTS[slot_name] == true
 end
 
+-- M1.3: Jewel sockets are not `itemsTab` equipment slots with a fixed name --
+-- PoB creates one `ItemSlotControl` per passive-tree jewel-socket NODE (slot
+-- name "Jewel <nodeId>", see PoB's ItemsTab.lua's `addSlot(socketControl)`
+-- loop over `node.type == "Socket" or node.containJewelSocket`), and it also
+-- creates ring/weapon/etc.-embedded cluster-jewel sockets named
+-- "<parent slot> Jewel Socket <n>" (see `addJewelSockets`). Both are ordinary
+-- entries in `build.itemsTab.slots`, so `slot_names()`/`set_item`/the tx_*
+-- transaction machinery already work on them BY NAME with zero change -- the
+-- only architectural gap is that jewel sockets are per-build and dynamic
+-- (keyed by tree node id), so they cannot be listed in a static table like
+-- EVALUABLE_SLOTS the way equipment slots are.
+local function is_jewel_socket_slot_name(slot_name)
+	return slot_name:match("^Jewel %d+$") ~= nil
+end
+
+-- Every allocated jewel-socket slot name, in deterministic (ascending node id)
+-- order. An unallocated socket is excluded (`slot.inactive`, set by PoB's own
+-- `ItemsTabClass:UpdateSockets` -- a socket node with no passive-tree
+-- allocation is not a valid placement target; see Phase A audit q7) but an
+-- ALLOCATED socket is included whether or not it currently holds a jewel
+-- (q6: an empty socket is simply `selItemId == 0`, not a distinct type).
+-- M1.3 restore-safety finding: a socket whose CURRENTLY EQUIPPED jewel makes
+-- other allocated passives reachable without a connected path (PoE's
+-- "Intuitive Leap"-like mechanic; the real corpus example is the unique
+-- jewel "From Nothing", "Passives in Radius can be Allocated without being
+-- connected") cannot be safely round-tripped through the ordinary
+-- `slot:SetSelItemId(candidate) ... SetSelItemId(original)` transaction.
+-- Proven on a real fixture (core04_skill_native_dot.xml, socket "Jewel
+-- 26196" holding "From Nothing"): temporarily replacing that socket's jewel
+-- deallocates the passives that jewel was making reachable (PoB's
+-- `PassiveSpecClass` dependency tracking correctly reacts to the jewel's
+-- absence during the candidate frame), but restoring the ORIGINAL jewel via
+-- `SetSelItemId` does not automatically reinstate them the way PoB's own
+-- `ItemsTabClass:DeleteItem` explicitly does when fully removing such a
+-- jewel -- there is no equivalent "please recheck connectivity" step on a
+-- same-item-id-back swap. The transaction's own restore verification
+-- correctly catches this (`tree_nodes` fingerprint mismatch ->
+-- RESTORE_FAILED -> engine invalidated, never a delivered wrong answer),
+-- but the product answer is to never attempt the risky swap in the first
+-- place.
+--
+-- First attempt used `node.depends` (PoB's own "something else's allocation
+-- depends on this node" tracking) as the signal, but that field is a GENERAL
+-- tree-pathing structure present on ordinary, non-jewel-related nodes too
+-- (ordinary branch dependency, ipairs count > 1 for perfectly safe sockets --
+-- empirically over-excluded 3 of core04_melee_weapon.xml's 5 sockets that an
+-- earlier real-PoB run had already proven safe, correct, and restorable).
+-- The precise signal is the EQUIPPED ITEM's own flag PoB sets when parsing
+-- an Intuitive-Leap-like jewel: `item.jewelData.intuitiveLeapLike` (see
+-- PoB's `PassiveSpec.lua:1344`, `:1503` -- gates exactly this mechanic).
+-- Checking the item, not the tree topology, means only sockets that
+-- ACTUALLY hold this specific jewel family are excluded.
+local function jewel_socket_is_connectivity_risky(slot)
+	local it = build.itemsTab
+	if not slot.selItemId or slot.selItemId <= 0 then
+		return false
+	end
+	local item = it.items[slot.selItemId]
+	return item ~= nil and item.jewelData ~= nil and item.jewelData.intuitiveLeapLike == true
+end
+
+-- Every allocated jewel-socket slot name, in deterministic (ascending node id)
+-- order. An unallocated socket is excluded (`slot.inactive`, set by PoB's own
+-- `ItemsTabClass:UpdateSockets` -- a socket node with no passive-tree
+-- allocation is not a valid placement target; see Phase A audit q7) but an
+-- ALLOCATED socket is included whether or not it currently holds a jewel
+-- (q6: an empty socket is simply `selItemId == 0`, not a distinct type).
+-- Excludes connectivity-risky sockets (see
+-- `jewel_socket_is_connectivity_risky` above) unless `include_risky` is true.
+local function allocated_jewel_socket_slots(include_risky)
+	local it = build.itemsTab
+	local names = {}
+	local excluded_risky = 0
+	for name, slot in pairs(it.slots) do
+		if is_jewel_socket_slot_name(name) and not slot.inactive then
+			if include_risky or not jewel_socket_is_connectivity_risky(slot) then
+				names[#names + 1] = name
+			else
+				excluded_risky = excluded_risky + 1
+			end
+		end
+	end
+	table.sort(names, function(a, b)
+		return tonumber(a:match("%d+")) < tonumber(b:match("%d+"))
+	end)
+	return names, excluded_risky
+end
+
+-- Compatible-jewel-socket discovery for a Jewel candidate item. Reuses PoB's
+-- own `IsItemValidForSlot` (the single source of truth for jewel-family
+-- compatibility: sinister sockets, ascendancy-embedded sockets like Lich,
+-- cluster/expansion-jewel size rules -- see Phase A audit q8/q9) against every
+-- allocated jewel socket, occupied or empty alike. There is no jewel
+-- equivalent of "weapon layout" (that concept is specific to
+-- one/two-handed weapon slot occupancy), so `weapon_layout` is always
+-- "SUPPORTED" here; callers must not read it as a jewel-specific signal.
+local function resolve_compatible_jewel_sockets_for_item(item)
+	local it = build.itemsTab
+	local slots = {}
+	local allocated, excluded_risky = allocated_jewel_socket_slots()
+	for _, slot_name in ipairs(allocated) do
+		if it:IsItemValidForSlot(item, slot_name) then
+			slots[#slots + 1] = slot_name
+		end
+	end
+	-- `allocated_jewel_socket_count` lets the Python layer distinguish "this
+	-- build has zero allocated jewel sockets at all" from "it has sockets but
+	-- none of them accept this particular jewel family" -- both surface as an
+	-- empty `compatible_slots` list otherwise, but they are different truthful
+	-- failure reasons (Phase spec: do not collapse jewel failures into one
+	-- generic code). `excluded_connectivity_risky_socket_count` is the number
+	-- of otherwise-allocated sockets left out because their current jewel
+	-- affects other passives' tree connectivity (see
+	-- `jewel_socket_is_connectivity_risky`) -- reported so a truthful "some
+	-- sockets could not be safely evaluated" note is possible instead of a
+	-- silently smaller list.
+	return {
+		compatible_slots = slots,
+		weapon_layout = "SUPPORTED",
+		weapon_layout_reason = nil,
+		allocated_jewel_socket_count = #allocated + excluded_risky,
+		excluded_connectivity_risky_socket_count = excluded_risky,
+	}
+end
+
 local function item_summary(item)
 	if not item or not item.base then
 		return nil
@@ -241,6 +366,9 @@ end
 local function resolve_compatible_slots_for_item(item)
 	if not STATE.loaded then
 		error({ code = "NO_BUILD_LOADED", message = "load_build must be called first" })
+	end
+	if item.type == "Jewel" then
+		return resolve_compatible_jewel_sockets_for_item(item)
 	end
 	local slots = {}
 	local weapon_slots = {}
@@ -1823,6 +1951,23 @@ end
 -- the build is always left exactly as it truly was, override or not.
 local function tx_begin(params)
 	local it = build.itemsTab
+	-- M1.3: settle the calc engine before trusting it as "the baseline", rather
+	-- than reading `collect_metrics()` straight off whatever
+	-- `build.calcsTab.mainOutput` already held. This is defensive, not a
+	-- complete fix: a real public fixture (core04_minion_actor.xml, a
+	-- minion-actor build with count-based unique jewels) was observed to
+	-- capture a `true_baseline_metrics` reading (Minion.CombinedDPS=64539.5)
+	-- that disagreed with every OTHER read of the same untouched build
+	-- (repeated `get_metrics`, and this same transaction's own later
+	-- recalculated restore, both converging on 67033.8) even with this
+	-- `recalc()` already in place -- so the root cause is not simply "not yet
+	-- settled" and remains only partially understood (see
+	-- `docs/POB2_ENGINE_CONTRACT.md`'s Jewel section, "stateful/accumulating
+	-- main skills"). This call is kept because it is cheap (a settle loop that
+	-- returns immediately once already-converged, see `SETTLE_MAX_FRAMES`) and
+	-- is provably harmless, but it must not be read as having resolved that
+	-- finding.
+	recalc()
 	local ctx = {
 		tolerance = params.tolerance or 0.5,
 		test_fault = params.test_fault,
@@ -1833,13 +1978,18 @@ local function tx_begin(params)
 		true_baseline_semantic = semantic_state(),
 	}
 	ctx.snap = snapshot_skill_state()
-	-- Every equipment slot, not only the changed ones: equipping one item can unequip
-	-- another (two-handers vs off-hand).
+	-- Every slot, not only the changed ones: equipping one item can unequip another
+	-- (two-handers vs off-hand). M1.3: this MUST also include jewel-socket slots
+	-- (`slot.nodeId` set) -- they used to be filtered out here because nothing
+	-- wrote to them, but `set_item`/`ItemSlotClass:SetSelItemId` already handles
+	-- them correctly (writes `spec.jewels[nodeId]` instead of
+	-- `activeItemSet[slotName].selItemId`, see Phase A audit q2/q10), so the
+	-- ONLY thing standing between a jewel evaluation and a corrupted build was
+	-- this transaction never tracking (and therefore never restoring) the
+	-- jewel-socket slots it touched.
 	ctx.original_selection = {}
 	for slot_name, slot in pairs(it.slots) do
-		if not slot.nodeId then
-			ctx.original_selection[slot_name] = slot.selItemId or 0
-		end
+		ctx.original_selection[slot_name] = slot.selItemId or 0
 	end
 	ctx.working_selection = {}
 	for slot_name, item_id in pairs(ctx.original_selection) do
@@ -1998,6 +2148,85 @@ local function tx_assert_reverted_structural(ctx, next_slot)
 			details = { reason = reason, equipment_match = eq_ok, bad_slot = bad_slot, next_slot = next_slot },
 		})
 	end
+end
+
+-- M1.3: the RECALCULATING half of the inter-slot check, used for jewel-socket
+-- batches instead of `tx_assert_reverted_structural`. Unlike ordinary
+-- equipment, a jewel can change which tree-granted skill groups exist (e.g. a
+-- Timeless Jewel's Conquered/Desecrated-passive transformation, or a cluster
+-- jewel's own granted notables -- see Phase A audit q13 and
+-- `PassiveSpecClass:BuildClusterJewelGraphs`, which `ItemSlotClass:SetSelItemId`
+-- already calls on every jewel-socket change). `compare_semantic_STRUCTURAL`
+-- trusts calc-derived fields (including which "Tree:<node>" skill groups are
+-- currently pinned) without a recalc -- proven UNSAFE for jewels empirically:
+-- reverting a Timeless-Jewel-socket swap and immediately reading
+-- `snapshot_skill_state()` without recalculating first can observe the
+-- CANDIDATE frame's stale tree-granted group set, which correctly does not
+-- match the true (Timeless-Jewel-holding) baseline -- a false-positive
+-- RESTORE_FAILED, not a real corruption (proven by the fact the exact same
+-- socket passes both the single-slot case and "timeless jewel measured last"
+-- case, where no frame-skipped structural check ever runs against it). This
+-- function pays for one recalculation per jewel-socket transition instead of
+-- risking that false failure (and the `STATE.healthy = false` fail-closed
+-- lockout a real one would trigger).
+local function tx_assert_reverted_full(ctx, next_slot)
+	recalc()
+	local fp = M.fingerprint_components()
+	local eq_ok, bad_slot = equipment_equal(fp.equipment, ctx.baseline_fp.equipment)
+	local reason, bad_metric, bad_a, bad_b
+	if not eq_ok then
+		reason = "RESTORE_EQUIPMENT_MISMATCH"
+	else
+		reason = compare_semantic(ctx.baseline_semantic, semantic_state())
+	end
+	if not reason then
+		local metric_ok
+		metric_ok, bad_metric, bad_a, bad_b = metrics_equal(collect_metrics(), ctx.baseline_metrics, ctx.tolerance)
+		if not metric_ok then
+			reason = "RESTORE_METRICS_MISMATCH"
+		end
+	end
+	if reason then
+		STATE.healthy = false
+		error({
+			code = "RESTORE_FAILED",
+			message = "inter-slot revert does not match baseline (" .. reason .. ")",
+			details = {
+				reason = reason, equipment_match = eq_ok, bad_slot = bad_slot, next_slot = next_slot,
+				bad_metric = bad_metric, baseline_value = bad_a, restored_value = bad_b,
+			},
+		})
+	end
+end
+
+-- M1.3: cheap-first, recalc-only-on-suspicion inter-slot check for jewel
+-- batches. Empirically, unconditionally recalculating on EVERY jewel-socket
+-- transition (`tx_assert_reverted_full` on every slot) is itself risky for a
+-- different reason than the one it was built to fix: on public fixtures whose
+-- main skill accumulates state across calc passes (stage-based skills,
+-- ailment/DoT stacking, some minion actor chains -- proven on
+-- core04_mixed_hit_ailment.xml and core04_stage_context.xml), MORE
+-- recalculations of an unchanged build produce a MEASURABLY DIFFERENT number
+-- than fewer would, so paying for a recalculation at every one of a jewel
+-- batch's (potentially 5-19) inter-slot transitions can itself manufacture a
+-- false RESTORE_FAILED that a cheaper, equipment-style check would never have
+-- triggered. Ordinary jewels never change tree-granted skill groups, so the
+-- cheap structural check (no recalc, matches equipment's own inter-slot path)
+-- passes them with zero extra cost. Only a socket that ALREADY looks
+-- suspicious under the cheap check (in practice: a Timeless Jewel changing
+-- which "Tree:<node>" skill groups exist, per Phase A audit q13) pays for one
+-- confirming recalculation before being called a real restore failure -- and
+-- that confirming recalculation is exactly `tx_assert_reverted_full` above.
+local function tx_assert_reverted_jewel_batch(ctx, next_slot)
+	local fp = M.fingerprint_components()
+	local eq_ok, bad_slot = equipment_equal(fp.equipment, ctx.baseline_fp.equipment)
+	if eq_ok then
+		local structural_reason = compare_semantic_structural(ctx.baseline_semantic, semantic_state())
+		if not structural_reason then
+			return
+		end
+	end
+	tx_assert_reverted_full(ctx, next_slot)
 end
 
 -- Measure one candidate state: the baseline with `changes` applied. One recalculation.
@@ -2235,6 +2464,23 @@ local function run_item_slot_evaluation(slots, item_raw, params)
 		slot_items[slot] = slot_item_summary(slot)
 	end
 
+	-- M1.3: a jewel-socket batch cannot safely use the PERF-06 frame-skipped
+	-- structural-only inter-slot check -- see `tx_assert_reverted_full`'s
+	-- comment for the empirically-proven false-positive RESTORE_FAILED this
+	-- avoids (a Timeless Jewel socket transition can change which tree-granted
+	-- skill groups exist, which the structural check cannot see without a
+	-- recalc). Mixed batches do not occur in practice (one item's compatible
+	-- slots are either all equipment or all jewel sockets, never both -- see
+	-- `resolve_compatible_slots_for_item`), so "any slot in this batch is a
+	-- jewel socket" is an unambiguous, cheap batch-level classification.
+	local is_jewel_batch = false
+	for _, slot in ipairs(slots) do
+		if is_jewel_socket_slot_name(slot) then
+			is_jewel_batch = true
+			break
+		end
+	end
+
 	local ctx = tx_begin(params)
 	perf_add("baseline_read_ms", t_perf)
 
@@ -2243,7 +2489,8 @@ local function run_item_slot_evaluation(slots, item_raw, params)
 		if index > 1 then
 			-- Back to baseline equipment and groups. The measurement below recalculates
 			-- once, so this needs no frame; the frame-free half of the verification that
-			-- a frame would give us runs here.
+			-- a frame would give us runs here (equipment), or a full recalculating check
+			-- (jewel sockets -- see `is_jewel_batch` above).
 			local reverted, revert_err = pcall(tx_revert, ctx)
 			if not reverted then
 				STATE.healthy = false
@@ -2253,14 +2500,20 @@ local function run_item_slot_evaluation(slots, item_raw, params)
 					details = { reason = "REVERT_EXCEPTION", next_slot = slot },
 				})
 			end
-			tx_assert_reverted_structural(ctx, slot)
+			if is_jewel_batch then
+				tx_assert_reverted_jewel_batch(ctx, slot)
+			else
+				tx_assert_reverted_structural(ctx, slot)
+			end
 		end
 		-- PERF-06: every slot in the batch lets native component discovery (if any) skip
 		-- its own trailing restore recalc -- see tx_measure's integrity-design note. The
 		-- inter-slot check above is the structural half specifically because it must
 		-- tolerate this; tx_finish (after the last slot) is the calc-derived-inclusive
-		-- half, and it always recalculates first.
-		local ok, result = pcall(tx_measure, ctx, { { slot = slot, raw = item_raw } }, params, true)
+		-- half, and it always recalculates first. A jewel batch already pays for a full
+		-- recalculating inter-slot check above, so it gets no benefit from (and does not
+		-- request) the frame-skip here either.
+		local ok, result = pcall(tx_measure, ctx, { { slot = slot, raw = item_raw } }, params, not is_jewel_batch)
 		if ok then
 			local candidate = result
 			candidate.equipment = candidate.fingerprint.equipment
@@ -2748,6 +3001,8 @@ function M.dispatch(req)
 			compatible_slots = slot_resolution and slot_resolution.compatible_slots or {},
 			weapon_layout = slot_resolution and slot_resolution.weapon_layout or nil,
 			weapon_layout_reason = slot_resolution and slot_resolution.weapon_layout_reason or nil,
+			allocated_jewel_socket_count = slot_resolution and slot_resolution.allocated_jewel_socket_count or nil,
+			excluded_connectivity_risky_socket_count = slot_resolution and slot_resolution.excluded_connectivity_risky_socket_count or nil,
 		}
 	end
 
@@ -2763,6 +3018,8 @@ function M.dispatch(req)
 			compatible_slots = resolution.compatible_slots,
 			weapon_layout = resolution.weapon_layout,
 			weapon_layout_reason = resolution.weapon_layout_reason,
+			allocated_jewel_socket_count = resolution.allocated_jewel_socket_count,
+			excluded_connectivity_risky_socket_count = resolution.excluded_connectivity_risky_socket_count,
 		}
 	end
 
