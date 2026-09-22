@@ -2,6 +2,47 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.3.0b1
+-------
+
+- Item Check can now evaluate Jewels by comparing them against eligible sockets in
+  the current build using real Path of Building calculations.
+- New first-run setup flow for connecting Path of Building and selecting a build,
+  with migration of existing settings from the legacy location.
+- Optional "Ignore socketed Runes" Item Check setting, disabled by default.
+- Discord/community and Report an Issue links added to the desktop UI.
+- Improved Jewel evaluation performance.
+- Item Check presentation is more compact and puts the most important result
+  information first, with additional technical detail available through More
+  Info / Advanced.
+- Jewel placement results use player-facing descriptions instead of raw internal
+  socket IDs.
+- Dashboard, Settings and Setup now use a consistent dark visual language.
+- Diagnostics now provides a clearer path for submitting reports through GitHub
+  Issues.
+- Tray menu simplified around quick actions with support links grouped under
+  Help & Support.
+- Improved PoB version/provenance detection and handling of stale or unrelated
+  manifest information.
+- Invalid Path of Building locations no longer overwrite the last working
+  connection.
+- Item Check now fails safely instead of producing an overly confident verdict in
+  a rare offense-fallback case.
+- Weapon-swap evaluation now uses the actually active weapon set.
+- Improved fail-safe handling of malformed PoB calculation data.
+- Improved passive-tree restoration after Jewel comparisons for affected build
+  shapes.
+- Fixed a shutdown crash and improved clean application exit.
+- Dashboard/Settings now behave like normal desktop windows instead of remaining
+  above unrelated applications.
+- Known limitation: some special Jewel sockets that can alter passive-tree
+  connectivity are intentionally excluded rather than risk returning an incorrect
+  comparison.
+- Known limitation: Jewel checks can take a few seconds on builds with many
+  eligible sockets because each placement requires a Path of Building
+  recalculation.
+
+
 0.2.1b3
 -------
 
