@@ -1,0 +1,121 @@
+name: Publish Latest Release to Discord
+
+# Manual recovery tool: announces the CURRENT latest published GitHub Release
+# to Discord using the same payload builder the normal release workflow uses
+# (scripts/discord_release_announcement.py). This exists for when a release
+# was prepared/published outside the normal release action, or the automatic
+# Discord announcement step in release.yml failed and needs to be retried.
+#
+# This workflow never builds ExileLens, never touches version files, and
+# never creates/modifies tags, releases or release assets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Resolve and preview the release announcement without posting to Discord."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Set up the pinned release Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Resolve the latest published GitHub Release
+        id: resolve
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # GitHub Releases are the only source of truth here -- never the
+          # version in pyproject.toml/CHANGELOG headings/newest git tag/local
+          # history, so this still works when a release was prepared outside
+          # the normal release action. --exclude-drafts is explicit defense in
+          # depth; isLatest is GitHub's own canonical "latest release" marker
+          # and is not affected by the prerelease flag, so a beta release
+          # (ExileLens tags are commonly marked prerelease) is never rejected
+          # for that reason alone.
+          $listJson = & gh release list --exclude-drafts --json tagName,isLatest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list GitHub Releases.' }
+          $latestEntry = ($listJson | ConvertFrom-Json) | Where-Object { $_.isLatest -eq $true } | Select-Object -First 1
+          if (-not $latestEntry) { throw 'No published GitHub Release is currently marked as latest.' }
+
+          $view = & gh release view $latestEntry.tagName --json tagName,name,url,isDraft
+          if ($LASTEXITCODE -ne 0) { throw "Could not read GitHub Release $($latestEntry.tagName)." }
+          $release = $view | ConvertFrom-Json
+          if ($release.isDraft) { throw 'The resolved latest release is unexpectedly a draft; refusing to announce it.' }
+
+          Write-Host "Resolved latest published release:"
+          Write-Host "  Tag:   $($release.tagName)"
+          Write-Host "  Title: $($release.name)"
+          Write-Host "  URL:   $($release.url)"
+
+          "tag=$($release.tagName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "title=$($release.name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "url=$($release.url)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          $summary = "### Publishing latest GitHub Release to Discord`n`n" +
+            "- **Tag:** $($release.tagName)`n" +
+            "- **Title:** $($release.name)`n" +
+            "- **URL:** $($release.url)`n" +
+            "- **Dry run:** $($env:DRY_RUN)`n"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary -Encoding utf8
+
+      - name: Build Discord release announcement
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Same payload builder the automatic release workflow uses -- one
+          # implementation of "announce an ExileLens release on Discord",
+          # shared by both paths. Its own highlight extraction already reads
+          # packaging/CHANGELOG.txt at whatever ref this workflow runs
+          # against, exactly like the automatic path does.
+          $payloadPath = Join-Path $env:RUNNER_TEMP 'discord-release-announcement.json'
+          python .\scripts\discord_release_announcement.py `
+            --version $env:RELEASE_TAG `
+            --changelog .\packaging\CHANGELOG.txt `
+            --output $payloadPath
+          if ($LASTEXITCODE -ne 0) { throw 'Could not build the Discord announcement payload.' }
+          "DISCORD_PAYLOAD_PATH=$payloadPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Preview announcement (dry run)
+        if: ${{ inputs.dry_run }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Host 'Dry run: the Discord webhook will not be called. Payload preview:'
+          Get-Content -LiteralPath $env:DISCORD_PAYLOAD_PATH -Raw | Write-Host
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "`nDry run: nothing was posted to Discord.`n" -Encoding utf8
+
+      - name: Announce latest release on Discord
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:DISCORD_RELEASE_WEBHOOK)) {
+            throw 'DISCORD_RELEASE_WEBHOOK is not configured; cannot announce the release.'
+          }
+          & curl.exe --fail --silent --show-error --request POST `
+            --header 'Content-Type: application/json' `
+            --data-binary "@$env:DISCORD_PAYLOAD_PATH" `
+            $env:DISCORD_RELEASE_WEBHOOK
+          if ($LASTEXITCODE -ne 0) { throw 'Discord webhook returned a failure status.' }
+          Write-Host 'Release announcement posted to Discord.'
