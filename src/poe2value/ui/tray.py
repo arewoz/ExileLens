@@ -62,18 +62,12 @@ class TrayManager(QSystemTrayIcon):
         menu.addAction(title)
         menu.addSeparator()
 
-        # Recovery actions first: they must work whatever state the build or engine is in.
+        # Application: open, current build, reload -- must work whatever state the
+        # build or engine is in. Settings/Setup/Diagnostics live on the Dashboard
+        # only; the tray does not duplicate a second Settings/Support screen.
         open_dash = QAction("Open ExileLens", self)
         open_dash.triggered.connect(self._open_dashboard)
         menu.addAction(open_dash)
-
-        settings_action = QAction("Settings…", self)
-        settings_action.triggered.connect(self._open_settings)
-        menu.addAction(settings_action)
-
-        setup_action = QAction("Setup ExileLens…", self)
-        setup_action.triggered.connect(self._open_setup)
-        menu.addAction(setup_action)
 
         self._build_action = QAction(self._build_label(), self)
         self._build_action.triggered.connect(self._open_build_page)
@@ -83,25 +77,15 @@ class TrayManager(QSystemTrayIcon):
         reload_build.triggered.connect(self._reload_build)
         menu.addAction(reload_build)
 
-        debug_action = QAction("Diagnostics", self)
-        debug_action.triggered.connect(self._open_diagnostics)
-        menu.addAction(debug_action)
-
-        logs_action = QAction("Open Logs Folder", self)
-        logs_action.triggered.connect(self._open_logs_folder)
-        menu.addAction(logs_action)
-        menu.addSeparator()
-
+        # Quick gameplay controls. Optional/parked by default, so the separator
+        # around this section is only added when it actually has something in it --
+        # otherwise a default build shows two adjacent separators with nothing
+        # between them.
+        gameplay_controls_start = len(menu.actions())
         if is_enabled(FeatureModule.MARKET):
             market_action = QAction("Market Search", self)
             market_action.triggered.connect(self._open_market)
             menu.addAction(market_action)
-
-        if self.settings.price_check_enabled:
-            refine = QAction("Refine Last Price Check", self)
-            refine.setEnabled(self.controller.has_last_price_check())
-            refine.triggered.connect(self._refine_last_price)
-            menu.addAction(refine)
 
         if is_enabled(FeatureModule.MARKET_ASSISTANT):
             assist_menu = menu.addMenu("Market Assistant")
@@ -126,7 +110,9 @@ class TrayManager(QSystemTrayIcon):
             self._tree_action.triggered.connect(self._open_tree)
             menu.addAction(self._tree_action)
 
-        menu.addSeparator()
+        if len(menu.actions()) > gameplay_controls_start:
+            menu.addSeparator()
+
         self._loadout_menu = menu.addMenu("Loadout")
         self._item_set_menu = menu.addMenu("Gear Set")
 
@@ -184,6 +170,20 @@ class TrayManager(QSystemTrayIcon):
             self._overlay_menu.addAction(test_pat)
 
         menu.addSeparator()
+        support_menu = menu.addMenu("Help && Support")
+        discord_action = QAction("Discord / Community", self)
+        discord_action.triggered.connect(self._open_discord)
+        support_menu.addAction(discord_action)
+
+        report_issue_action = QAction("Report an Issue", self)
+        report_issue_action.triggered.connect(self._open_github_issues)
+        support_menu.addAction(report_issue_action)
+
+        logs_action = QAction("Open Logs Folder", self)
+        logs_action.triggered.connect(self._open_logs_folder)
+        support_menu.addAction(logs_action)
+
+        menu.addSeparator()
         quit_action = QAction("Exit", self)
         quit_action.triggered.connect(self._quit)
         menu.addAction(quit_action)
@@ -229,6 +229,16 @@ class TrayManager(QSystemTrayIcon):
         from poe2value.ui.recovery_actions import open_logs_folder
 
         open_logs_folder()
+
+    def _open_discord(self) -> None:
+        from poe2value.ui.recovery_actions import open_discord_invite
+
+        open_discord_invite()
+
+    def _open_github_issues(self) -> None:
+        from poe2value.ui.recovery_actions import open_github_issues
+
+        open_github_issues()
 
     def show_attention(self, title: str, message: str) -> None:
         """Tooltip + balloon for states the user has to act on (build/engine errors)."""

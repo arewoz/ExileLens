@@ -366,11 +366,26 @@ class Poe2ValueApp:
             dialog.reject()
         app = QApplication.instance()
         if app is not None:
-            # Teardown explicitly before leaving the event loop. QApplication.quit()
-            # alone was intermittent when invoked from QLocalSocket.readyRead after a
-            # preceding activation; explicit teardown also guarantees the worker is
-            # gone even if Qt delays the quit event.
-            self.shutdown()
+            # This handler runs nested inside QLocalSocket's own readyRead delivery
+            # (InstanceServer -> quit_requested), on Windows backed by an overlapped
+            # (asynchronous) named pipe. Tearing the server down here -- destroying
+            # the very socket whose in-flight read is still being delivered to us --
+            # crashed with a native "Fatal Python error: Aborted" on every IPC quit,
+            # reproduced from source and confirmed unrelated to any other subsystem
+            # (worker thread, hooks, engine, clipboard, tray all ruled out
+            # individually). Requeuing with QTimer.singleShot(0, ...) was not enough:
+            # Qt can still run a zero-delay timer before the pipe's async I/O has
+            # actually settled. A short real delay lets that settle before teardown
+            # runs, the same wait-for-native-resource pattern already used elsewhere
+            # in shutdown (thread.join/proc.wait timeouts). Tray Exit needs no such
+            # delay: it calls plain app.quit(), which only triggers aboutToQuit after
+            # the triggering QAction's own call stack has fully unwound.
+            QTimer.singleShot(150, self._finish_ipc_quit)
+
+    def _finish_ipc_quit(self) -> None:
+        self.shutdown()
+        app = QApplication.instance()
+        if app is not None:
             app.exit(0)
 
     @staticmethod

@@ -25,11 +25,11 @@ class OnboardingDialog(QDialog):
         self.setModal(False); self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
         if (icon := app_icon()) is not None: self.setWindowIcon(icon)
         self.setStyleSheet(DASHBOARD_STYLESHEET + """
-QDialog { background:#141210; color:#d8cbb6; font-family:'Segoe UI'; }
+QDialog { background:#17181b; color:#e3e1dc; font-family:'Segoe UI'; }
 QWidget#onboardingCard { background:rgba(255,255,255,10); border:1px solid rgba(255,255,255,18); border-radius:8px; }
-QLabel#onboardingTitle { font-size:22px; font-weight:700; color:#f0e2c4; }
-QLabel#onboardingSubtitle,QLabel#onboardingDetail { font-size:12px; color:#8d8273; }
-QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#e4d8c4; }
+QLabel#onboardingTitle { font-size:22px; font-weight:700; color:#f5f3ee; }
+QLabel#onboardingSubtitle,QLabel#onboardingDetail { font-size:12px; color:#8b8a85; }
+QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
 """)
         root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 24); root.setSpacing(theme.SPACE_LG)
         header = QHBoxLayout(); header.setSpacing(theme.SPACE_SM)
@@ -78,7 +78,7 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#e4d8c4; }
 
     def refresh(self) -> None:
         status = derive_readiness(self.settings, self.controller); tone = self._tone(status.state)
-        self._overall.set_value("READY" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
+        self._overall.set_value("Ready" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
         pob_bad = status.state is AppReadiness.POB_NOT_FOUND
         self._pob_status.set_value("Not found" if pob_bad else ("Needs attention" if status.state is AppReadiness.RUNTIME_ERROR else "Detected"), "error" if pob_bad or status.state is AppReadiness.RUNTIME_ERROR else "ok")
         self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure" if pob_bad else "Change")
@@ -89,7 +89,7 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#e4d8c4; }
         self._build_action.setEnabled(status.state not in {AppReadiness.INITIALIZING, AppReadiness.POB_NOT_FOUND, AppReadiness.RUNTIME_ERROR})
         self._item_status.set_value("Ready" if status.ready else "Waiting for setup", "ok" if status.ready else "neutral")
         self._item_detail.setText(f"Hover an item in PoE2    [ {self._hotkey().replace('+', ' + ')} ]" if status.ready else "Item Check will be ready when Path of Building and a build are ready.")
-        self._item_detail.setStyleSheet("font-weight:700; color:#f0e2c4;" if status.ready else "")
+        self._item_detail.setStyleSheet("font-weight:700; color:#f5f3ee;" if status.ready else "")
         self._finish.setEnabled(status.ready); self._skip.setVisible(not status.ready); self._diagnostics.setVisible(status.support_action_available)
         if status.ready:
             self._subtitle.setText("Ready for item checks")
