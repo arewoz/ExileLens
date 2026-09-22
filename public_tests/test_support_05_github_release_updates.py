@@ -139,19 +139,25 @@ def test_automatic_cooldown_and_manual_bypass(monkeypatch) -> None:
 
 
 def test_notification_is_once_per_newer_version(monkeypatch) -> None:
+    # "Newer" is relative to the currently installed __version__, not a fixed
+    # literal -- these must stay ahead of it across future version bumps.
+    installed = update_check.ExileLensVersion.parse(update_check.__version__)
+    newer_version = f"{installed.major}.{installed.minor}.{installed.patch}b{installed.beta + 1}"
+    later_version = f"{installed.major}.{installed.minor}.{installed.patch}b{installed.beta + 2}"
+
     settings = AppSettings()
     service = update_check.UpdateCheckService(settings)
     monkeypatch.setattr(update_check, "save_settings", lambda _settings: None)
     notifications = []
     service.update_available.connect(lambda remote, installed: notifications.append((remote, installed)))
-    newer = update_check.Release(update_check.ExileLensVersion.parse("0.2.1b4"), update_check.GITHUB_RELEASES_URL)
-    later = update_check.Release(update_check.ExileLensVersion.parse("0.2.1b5"), update_check.GITHUB_RELEASES_URL)
+    newer = update_check.Release(update_check.ExileLensVersion.parse(newer_version), update_check.GITHUB_RELEASES_URL)
+    later = update_check.Release(update_check.ExileLensVersion.parse(later_version), update_check.GITHUB_RELEASES_URL)
 
     service._finish(newer, manual=False)
     service._finish(newer, manual=False)
     service._finish(later, manual=False)
 
-    assert notifications == [("0.2.1b4", "0.2.1b3"), ("0.2.1b5", "0.2.1b3")]
+    assert notifications == [(newer_version, update_check.__version__), (later_version, update_check.__version__)]
 
 
 def test_source_builds_never_start_a_request(monkeypatch) -> None:
