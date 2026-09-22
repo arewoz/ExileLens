@@ -37,6 +37,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -73,8 +74,6 @@ jobs:
             "- **URL:** $($release.url)`n" +
             "- **Dry run:** $($env:DRY_RUN)`n"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary -Encoding utf8
-        env:
-          DRY_RUN: ${{ inputs.dry_run }}
 
       - name: Build Discord release announcement
         shell: pwsh
