@@ -548,6 +548,7 @@ def _evaluate_item_impl(
         "metadata": metadata.__dict__,
         "pob_parse": pob_parse.__dict__,
         "primary_metric": primary_metric.to_dict(),
+        "effect_catalog": build_info.get("effect_catalog") or {},
         "native_damage_discovery": (ranking["recommendation"] or {}).get("native_damage_discovery") or {},
         "damage_claim": (ranking["recommendation"] or {}).get("damage_claim") or {},
         "offense_coverage": coverage_payload,

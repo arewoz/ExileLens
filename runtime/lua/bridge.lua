@@ -57,6 +57,15 @@ local PLAYER_AILMENT_FIELDS = {
 
 local MODE_OUTPUT_FIELDS = { "ChannelTime", "Time" }
 
+-- PoB-native evidence retained for later proof work.  These are copied values,
+-- never interpreted or composed by the bridge.
+local EFFECT_INVARIANT_FIELDS = {
+	"SkillTriggerRate", "TriggerRateCap", "Speed", "HitSpeed", "ProjectileCount",
+	"Duration", "DurationSecondary", "DurationTertiary", "Cooldown",
+	"ActiveMinionLimit", "ActiveTotemLimit", "ActiveBrandLimit", "ActiveTrapLimit",
+	"ActiveMineLimit", "TotemsSummoned", "GroupCount",
+}
+
 local CONTEXTS = {
 	MAP = {
 		enemyIsBoss = "None",
@@ -1090,14 +1099,42 @@ local function selected_part(granted, src)
 	return index, entry.part.name or "", entry.key, entry.resolved, #parts
 end
 
+local function group_semantic_key(group)
+	local gems = {}
+	for index, gem in ipairs(group.gemList or {}) do
+		local id = gem.gemData and gem.gemData.id or gem.skillId
+			or (gem.grantedEffect and gem.grantedEffect.id) or ""
+		gems[#gems + 1] = table.concat({
+			tostring(index), tostring(id), tostring(gem.level or ""),
+			tostring(gem.quality or ""), tostring(gem.enabled ~= false),
+		}, ":")
+	end
+	return table.concat({
+		group.source ~= nil and tostring(group.source) or "gem",
+		tostring(group.slot or ""),
+		tostring(group.label or ""),
+		table.concat(gems, ","),
+	}, "|")
+end
+
+local function effect_semantic_key(identity)
+	if not identity then return "" end
+	return table.concat({
+		identity.group_id or "", identity.skill_id or "", identity.source_gem_id or "",
+		tostring(identity.source_gem_index or ""), identity.stat_set_key or "",
+		identity.part_key or "", identity.actor_id or "", identity.actor_skill or "",
+	}, "|")
+end
+
 -- `override_env` lets a caller supply a different (already-computed) calc environment
 -- to source the calc-derived fields (stage_count/calculation_mode/active_flags) from,
 -- instead of the shared `build.calcsTab.mainEnv`. Used by cached_group_report (PERF-09)
 -- to reconstruct identity from a GlobalCache-cached per-skill Env without requiring
 -- `index` to actually be `build.mainSocketGroup`. Every existing caller omits it, which
 -- reduces to exactly today's behaviour (`index == build.mainSocketGroup and ...`).
-local function group_identity(index, group, override_env)
-	local skill = group.displaySkillList and group.displaySkillList[group.mainActiveSkill or 1]
+local function group_identity(index, group, override_env, override_skill, override_selector)
+	local selector = override_selector or group.mainActiveSkill or 1
+	local skill = override_skill or (group.displaySkillList and group.displaySkillList[selector])
 	local effect = skill and skill.activeEffect
 	local granted = effect and effect.grantedEffect
 	-- The selected stat set ("Projectile" vs "Damage over Time") decides what PoB's
@@ -1105,10 +1142,20 @@ local function group_identity(index, group, override_env)
 	-- The gem instance stores the selection per granted effect (srcInstance.statSet[id]);
 	-- display-list effects are not calculated skills, so read the label from the data.
 	local src = effect and effect.srcInstance
+	local source_gem_index = nil
+	for gem_index, gem in ipairs(group.gemList or {}) do
+		if gem == src then
+			source_gem_index = gem_index
+			break
+		end
+	end
 	local stat_index, stat_data, stat_key, stat_resolved, stat_count = selected_stat_set(granted, src)
 	local part_index, part_name, part_key, part_resolved, part_count = selected_part(granted, src)
 	local flags = effect and effect.statSet and effect.statSet.skillFlags
-	local env = override_env or (index == build.mainSocketGroup and build.calcsTab.mainEnv)
+	local env = override_env
+	if env == nil and override_skill == nil and index == build.mainSocketGroup then
+		env = build.calcsTab.mainEnv
+	end
 	local active = env and env.player and env.player.mainSkill
 	local active_flags = active and active.skillFlags or flags or {}
 	local staged = active_flags.multiStage or (part_count > 0 and granted.parts[part_index or 1] and granted.parts[part_index or 1].stages)
@@ -1116,7 +1163,7 @@ local function group_identity(index, group, override_env)
 	local stage_count = staged and (configured_stage or (active and active.skillData and active.skillData.stagesMin) or 1) or nil
 	local calculation_mode = active_flags.channelRelease and "CHANNEL_RELEASE"
 		or (active_flags.channel and "CHANNEL") or "DIRECT"
-	return {
+	local identity = {
 		index = index,
 		stat_set = stat_data and stat_data.label or "",
 		stat_set_index = stat_index,
@@ -1144,8 +1191,13 @@ local function group_identity(index, group, override_env)
 		enabled = group.enabled and true or false,
 		slot_enabled = group.slotEnabled ~= false,
 		main_active_skill = group.mainActiveSkill or 1,
+		effect_selector = selector,
 		skill_name = granted and granted.name or "",
 		skill_id = granted and granted.id or "",
+		source_gem_id = effect and effect.gemData and effect.gemData.id
+			or (src and src.gemData and src.gemData.id)
+			or (src and src.skillId) or "",
+		source_gem_index = source_gem_index,
 		skill_level = effect and effect.level or nil,
 		is_main = index == build.mainSocketGroup,
 		gems = (function()
@@ -1155,6 +1207,29 @@ local function group_identity(index, group, override_env)
 			end
 			return names
 		end)(),
+	}
+	identity.damage_owner = (identity.actor_id or "") ~= "" and "MINION" or "PLAYER"
+	identity.output_table = identity.damage_owner == "MINION" and "mainOutput.Minion" or "mainOutput"
+	identity.group_id = group_semantic_key(group)
+	identity.semantic_id = effect_semantic_key(identity)
+	return identity
+end
+
+local function component_reference(identity)
+	return {
+		semantic_id = identity.semantic_id,
+		group_id = identity.group_id,
+		effect_id = identity.skill_id,
+		source_gem_id = identity.source_gem_id,
+		source_gem_index = identity.source_gem_index,
+		owner = identity.damage_owner or ((identity.actor_id or "") ~= "" and "MINION" or "PLAYER"),
+		stat_set_key = identity.stat_set_key or "",
+		part_key = identity.part_key or "",
+		stage_count = identity.stage_count,
+		calculation_mode = identity.calculation_mode or "DIRECT",
+		output_table = identity.output_table or "mainOutput",
+		group_selector = identity.index,
+		effect_selector = identity.effect_selector,
 	}
 end
 
@@ -1177,6 +1252,18 @@ local function offense_output(override_out)
 	return row
 end
 
+local function effect_invariants(out, group)
+	local values = {}
+	out = out or {}
+	for _, field in ipairs(EFFECT_INVARIANT_FIELDS) do
+		local value = field == "GroupCount" and group.groupCount or out[field]
+		if type(value) == "number" or type(value) == "boolean" then
+			values[field] = value
+		end
+	end
+	return values
+end
+
 local function per_hit_combined_signature(out)
 	local combined, average, dps = out.CombinedDPS, out.AverageDamage, out.TotalDPS
 	return type(combined) == "number" and type(average) == "number" and type(dps) == "number"
@@ -1197,6 +1284,7 @@ local function attach_damage_owner(identity)
 		identity.damage_owner = "PLAYER"
 		identity.output_table = "mainOutput"
 	end
+	identity.semantic_id = effect_semantic_key(identity)
 	return identity
 end
 
@@ -1261,22 +1349,30 @@ end
 -- env.player.activeSkillList. These are NOT the same table objects (display-list rows are
 -- rebuilt separately from the calc pass), so identity must go through the stable
 -- gem/item source instance, not table equality on the display-list's `.activeEffect`.
-local function resolve_group_active_skill(group, env)
+local function resolve_effect_active_skill(group, env, display_skill)
 	if not (env and env.player and env.player.activeSkillList) then
 		return nil
 	end
-	local skill = group.displaySkillList and group.displaySkillList[group.mainActiveSkill or 1]
-	local wanted_src = skill and skill.activeEffect and skill.activeEffect.srcInstance
-	if not wanted_src then
+	local wanted_effect = display_skill and display_skill.activeEffect
+	local wanted_src = wanted_effect and wanted_effect.srcInstance
+	local wanted_id = wanted_effect and wanted_effect.grantedEffect and wanted_effect.grantedEffect.id
+	if not wanted_src or not wanted_id then
 		return nil
 	end
 	for _, active_skill in ipairs(env.player.activeSkillList) do
 		if active_skill.socketGroup == group and active_skill.activeEffect
-			and active_skill.activeEffect.srcInstance == wanted_src then
+			and active_skill.activeEffect.srcInstance == wanted_src
+			and active_skill.activeEffect.grantedEffect
+			and active_skill.activeEffect.grantedEffect.id == wanted_id then
 			return active_skill
 		end
 	end
 	return nil
+end
+
+local function resolve_group_active_skill(group, env)
+	local skill = group.displaySkillList and group.displaySkillList[group.mainActiveSkill or 1]
+	return resolve_effect_active_skill(group, env, skill)
 end
 
 -- Build one skill_report() row for `index` entirely from GlobalCache -- zero PoB frames.
@@ -1326,7 +1422,103 @@ local function cached_group_report(index, group, opts)
 	row.show_average = row.show_average or per_hit_combined_signature(env.player.output)
 	row.damage_owner = row.output.Minion and "MINION" or "PLAYER"
 	row.output_table = row.output.Minion and "mainOutput.Minion" or "mainOutput"
+	row.semantic_id = effect_semantic_key(row)
 	return row
+end
+
+local MAX_CALCULABLE_EFFECTS = 8
+
+local function cached_effect_report(index, group, display_skill, selector, opts)
+	opts = opts or {}
+	local main_env = build.calcsTab.mainEnv
+	local matched = resolve_effect_active_skill(group, main_env, display_skill)
+	if not matched then return nil, "CACHE_IDENTITY_MISS" end
+	local cached = GlobalCache and GlobalCache.cachedData and GlobalCache.cachedData.MAIN
+	if not cached then return nil, "CACHE_UNAVAILABLE" end
+	local ok, uuid = pcall(cacheSkillUUID, matched, main_env)
+	if not ok or not uuid then return nil, "CACHE_KEY_UNAVAILABLE" end
+	if opts.force_cache_miss then return nil, "CACHE_MISS" end
+	if opts.malformed_cache then return nil, "MALFORMED_EFFECT_CACHE" end
+	local entry = cached[uuid]
+	if entry == nil then return nil, "CACHE_MISS" end
+	if type(entry) ~= "table" or type(entry.Env) ~= "table"
+		or type(entry.Env.player) ~= "table" or type(entry.Env.player.output) ~= "table"
+		or type(entry.Env.player.mainSkill) ~= "table" then
+		return nil, "MALFORMED_EFFECT_CACHE"
+	end
+	local cached_skill = entry.Env.player.mainSkill
+	local wanted_effect = display_skill and display_skill.activeEffect
+	local cached_effect = cached_skill.activeEffect
+	if not (wanted_effect and cached_effect and wanted_effect.grantedEffect and cached_effect.grantedEffect
+		and wanted_effect.srcInstance == cached_effect.srcInstance
+		and wanted_effect.grantedEffect.id == cached_effect.grantedEffect.id) then
+		return nil, "CACHE_IDENTITY_MISMATCH"
+	end
+	local env = entry.Env
+	local identity = group_identity(index, group, env, cached_skill, selector)
+	local output = offense_output(env.player.output)
+	identity.show_average = identity.show_average or per_hit_combined_signature(env.player.output)
+	identity.damage_owner = output.Minion and "MINION" or "PLAYER"
+	identity.output_table = output.Minion and "mainOutput.Minion" or "mainOutput"
+	identity.semantic_id = effect_semantic_key(identity)
+	return {
+		status = "MEASURED",
+		cache_status = "HIT",
+		selected = index == build.mainSocketGroup and selector == (group.mainActiveSkill or 1),
+		enabled = group.enabled and group.slotEnabled ~= false,
+		calculable = true,
+		name = identity.skill_name,
+		reference = component_reference(identity),
+		output = output,
+		invariants = effect_invariants(env.player.output, group),
+	}, "HIT"
+end
+
+local function effect_catalog(indices, requested_max, opts)
+	local maximum = math.max(1, math.min(tonumber(requested_max) or MAX_CALCULABLE_EFFECTS, MAX_CALCULABLE_EFFECTS))
+	local selected = nil
+	if type(indices) == "table" then
+		selected = {}
+		for _, index in ipairs(indices) do selected[tonumber(index)] = true end
+	end
+	local effects, total, hits, misses, malformed = {}, 0, 0, 0, 0
+	for group_index, group in ipairs(build.skillsTab.socketGroupList) do
+		if (not selected or selected[group_index]) and group.enabled and group.slotEnabled ~= false then
+			for selector, display_skill in ipairs(group.displaySkillList or {}) do
+				total = total + 1
+				if #effects < maximum then
+					local row, cache_status = cached_effect_report(group_index, group, display_skill, selector, opts)
+					if row then
+						hits = hits + 1
+						effects[#effects + 1] = row
+					else
+						if cache_status == "MALFORMED_EFFECT_CACHE" or cache_status == "CACHE_IDENTITY_MISMATCH" then
+							malformed = malformed + 1
+						else
+							misses = misses + 1
+						end
+						local identity = group_identity(group_index, group, nil, display_skill, selector)
+						identity.damage_owner = (identity.actor_id or "") ~= "" and "MINION" or "PLAYER"
+						identity.output_table = identity.damage_owner == "MINION" and "mainOutput.Minion" or "mainOutput"
+						effects[#effects + 1] = {
+							status = "UNAVAILABLE", cache_status = cache_status,
+							selected = group_index == build.mainSocketGroup and selector == (group.mainActiveSkill or 1),
+							enabled = true, calculable = true, name = identity.skill_name,
+							reference = component_reference(identity),
+							reason = cache_status,
+						}
+					end
+				end
+			end
+		end
+	end
+	return {
+		effects = effects,
+		total_effects = total,
+		max_effects = maximum,
+		truncated = total > maximum,
+		cache_stats = { hits = hits, misses = misses, malformed = malformed },
+	}
 end
 
 -- Per-group PoB output: make each enabled group main in turn, recalc, capture, restore.
@@ -1388,6 +1580,7 @@ local function skill_report(indices, defer_restore_frame, opts)
 					row.show_average = refreshed.show_average or per_hit_combined_signature(build.calcsTab.mainOutput or {})
 					row.damage_owner = row.output.Minion and "MINION" or "PLAYER"
 					row.output_table = row.output.Minion and "mainOutput.Minion" or "mainOutput"
+					row.semantic_id = effect_semantic_key(row)
 				end
 			else
 				row = group_identity(index, group)
@@ -1521,6 +1714,7 @@ local function build_info()
 		main_socket_group = build.mainSocketGroup,
 		full_dps_skills = listed_full_dps_skills(),
 		native_damage_group_indices = native_damage_groups,
+		effect_catalog = effect_catalog({ build.mainSocketGroup }, MAX_CALCULABLE_EFFECTS),
 		skill_group_count = #build.skillsTab.socketGroupList,
 		passive_nodes = select(1, build.spec:CountAllocNodes()),
 		ascendancy_nodes = select(2, build.spec:CountAllocNodes()),
@@ -1614,6 +1808,9 @@ function M.fingerprint_components()
 		main_socket_group = build.mainSocketGroup,
 		main_skill_id = main_identity and main_identity.skill_id or "",
 		main_skill_name = main_identity and main_identity.skill_name or "",
+		main_effect_semantic_id = main_identity and main_identity.semantic_id or "",
+		main_effect_group_id = main_identity and main_identity.group_id or "",
+		main_effect_source_gem_id = main_identity and main_identity.source_gem_id or "",
 		main_stat_set = main_identity and main_identity.stat_set or "",
 		main_stat_set_key = main_identity and main_identity.stat_set_key or "",
 		main_part_index = main_identity and main_identity.part_index or nil,
@@ -1808,6 +2005,7 @@ local function semantic_state()
 			tostring(group.enabled and true or false),
 			tostring(group.includeInFullDPS and true or false),
 			tostring(group.mainActiveSkill or 1),
+			tostring(group.mainActiveSkillCalcs or 1),
 			tostring(group.groupCount or 1),
 		}, "#")
 		groups[signature] = (groups[signature] or 0) + 1
@@ -1824,6 +2022,7 @@ local function semantic_state()
 	table.sort(full_dps_config)
 	return {
 		main_key = skill_key(main),
+		main_effect_semantic_id = main and main.semantic_id or "",
 		main_skill = main and main.skill_name or "",
 		stat_set = main and main.stat_set or "",
 		stat_set_key = main and main.stat_set_key or "",
@@ -1845,6 +2044,7 @@ end
 local function semantic_summary(state)
 	return {
 		main_skill = state.main_skill,
+		main_effect_semantic_id = state.main_effect_semantic_id,
 		stat_set = state.stat_set,
 		stat_set_key = state.stat_set_key,
 		part_key = state.part_key,
@@ -1869,6 +2069,9 @@ local function compare_semantic(a, b)
 		end
 		return "RESTORE_PRIMARY_SKILL_MISMATCH"
 	end
+	if a.main_effect_semantic_id ~= b.main_effect_semantic_id then
+		return "RESTORE_EFFECT_IDENTITY_MISMATCH"
+	end
 	if a.part_key ~= b.part_key then return "RESTORE_SKILL_PART_MISMATCH" end
 	if a.stage_count ~= b.stage_count then return "RESTORE_STAGE_CONFIGURATION_MISMATCH" end
 	if a.calculation_mode ~= b.calculation_mode then return "RESTORE_CALCULATION_MODE_MISMATCH" end
@@ -1892,6 +2095,126 @@ local function compare_semantic(a, b)
 		end
 	end
 	return nil
+end
+
+local function find_effect_by_reference(reference)
+	if type(reference) ~= "table" or type(reference.semantic_id) ~= "string"
+		or reference.semantic_id == "" or type(reference.group_id) ~= "string"
+		or type(reference.effect_id) ~= "string" then
+		return nil, nil, nil, "INVALID_EFFECT_REFERENCE"
+	end
+	local matches = {}
+	for group_index, group in ipairs(build.skillsTab.socketGroupList) do
+		if group.enabled and group.slotEnabled ~= false then
+			for selector, display_skill in ipairs(group.displaySkillList or {}) do
+				local identity = group_identity(group_index, group, nil, display_skill, selector)
+				-- Calc-derived fields such as damage owner and stage count can differ
+				-- between the display list and the exact cached/calculated effect. Locate
+				-- by durable source identity, then verify the full semantic id after the
+				-- effect's own environment has been selected.
+				if identity.group_id == reference.group_id
+					and identity.skill_id == reference.effect_id
+					and identity.source_gem_id == (reference.source_gem_id or "")
+					and identity.source_gem_index == reference.source_gem_index
+					and identity.stat_set_key == (reference.stat_set_key or "")
+					and identity.part_key == (reference.part_key or "") then
+					matches[#matches + 1] = { group_index, group, display_skill, selector }
+				end
+			end
+		end
+	end
+	if #matches ~= 1 then
+		return nil, nil, nil, #matches == 0 and "EFFECT_NOT_FOUND" or "EFFECT_IDENTITY_AMBIGUOUS"
+	end
+	return matches[1][1], matches[1][2], matches[1][3], nil, matches[1][4]
+end
+
+local function read_effect_metrics(reference, opts)
+	opts = opts or {}
+	local group_index, group, display_skill, find_error, selector = find_effect_by_reference(reference)
+	if not group then
+		return { status = "UNAVAILABLE", reason = find_error, reference = reference }
+	end
+	local cached, cache_status = cached_effect_report(group_index, group, display_skill, selector, opts)
+	if cached then
+		if not cached.reference or cached.reference.semantic_id ~= reference.semantic_id then
+			return {
+				status = "UNAVAILABLE", reason = "CACHE_IDENTITY_MISMATCH",
+				cache_status = "CACHE_IDENTITY_MISMATCH", reference = reference,
+				restore = { status = "NOT_REQUIRED", pass = true },
+			}
+		end
+		cached.source = "GLOBAL_CACHE"
+		cached.restore = { status = "NOT_REQUIRED", pass = true }
+		return cached
+	end
+	if cache_status == "MALFORMED_EFFECT_CACHE" or cache_status == "CACHE_IDENTITY_MISMATCH" then
+		return {
+			status = "UNAVAILABLE", reason = cache_status, cache_status = cache_status,
+			reference = reference, restore = { status = "NOT_REQUIRED", pass = true },
+		}
+	end
+
+	local snap = snapshot_skill_state()
+	local baseline_semantic = semantic_state()
+	local baseline_metrics = collect_metrics()
+	local result
+	local measured, measure_error = pcall(function()
+		build.mainSocketGroup = group_index
+		group.mainActiveSkill = selector
+		group.mainActiveSkillCalcs = selector
+		recalc()
+		local identity = main_skill_identity()
+		if not identity or identity.semantic_id ~= reference.semantic_id then
+			error("selected effect identity did not match requested reference")
+		end
+		local out = build.calcsTab.mainOutput
+		if opts.malformed_fallback or type(out) ~= "table" then
+			result = {
+				status = "UNAVAILABLE", reason = "MALFORMED_EFFECT_RESULT",
+				reference = component_reference(identity), cache_status = cache_status,
+			}
+			return
+		end
+		identity = attach_damage_owner(identity)
+		result = {
+			status = "MEASURED", source = "TRANSACTIONAL_RECALC", cache_status = cache_status,
+			selected = true, enabled = true, calculable = true, name = identity.skill_name,
+			reference = component_reference(identity), output = offense_output(out),
+			invariants = effect_invariants(out, group),
+		}
+	end)
+
+	local restored, restore_error = pcall(function()
+		restore_skill_state(snap)
+		recalc()
+	end)
+	if not restored then
+		error({ code = "RESTORE_FAILED", message = tostring(restore_error), details = { reason = "EFFECT_RESTORE_EXCEPTION" } })
+	end
+	local semantic_error = compare_semantic(baseline_semantic, semantic_state())
+	local metrics_ok, bad_metric, restored_value, baseline_value = metrics_equal(collect_metrics(), baseline_metrics, 0.5)
+	if semantic_error or not metrics_ok then
+		error({
+			code = "RESTORE_FAILED", message = "effect inspection did not restore the selected calculation",
+			details = {
+				reason = semantic_error or "EFFECT_RESTORE_METRICS_MISMATCH",
+				bad_metric = bad_metric, baseline_value = baseline_value, restored_value = restored_value,
+			},
+		})
+	end
+	if not measured then
+		error({ code = "CALC_FAILED", message = "effect calculation failed: " .. tostring(measure_error) })
+	end
+	result.restore = {
+		status = "OK", pass = true,
+		main_effect_semantic_id = baseline_semantic.main_effect_semantic_id,
+		stat_set_key = baseline_semantic.stat_set_key,
+		part_key = baseline_semantic.part_key,
+		stage_count = baseline_semantic.stage_count,
+		calculation_mode = baseline_semantic.calculation_mode,
+	}
+	return result
 end
 
 -- PERF-06: the structural half of compare_semantic -- everything in a semantic_state()
@@ -3119,6 +3442,21 @@ function M.dispatch(req)
 
 	if method == "get_equipment" then
 		return { equipment = M.get_equipment(), slots = slot_names() }
+	end
+
+	if method == "list_calculable_effects" then
+		return effect_catalog(params.indices, params.max_effects, {
+			force_cache_miss = params.force_cache_miss and true or nil,
+			malformed_cache = params.malformed_cache and true or nil,
+		})
+	end
+
+	if method == "read_effect_metrics" then
+		return read_effect_metrics(params.reference, {
+			force_cache_miss = params.force_cache_miss and true or nil,
+			malformed_cache = params.malformed_cache and true or nil,
+			malformed_fallback = params.malformed_fallback and true or nil,
+		})
 	end
 
 	if method == "get_skill_report" then

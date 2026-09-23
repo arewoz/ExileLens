@@ -30,6 +30,23 @@ metric source/owner, selected skill, actor, stat set, part/mode, field,
 semantic quantity, confidence and damage reference. `POB_COMPONENT` is a
 separate presentation capability, not a license to add component DPS.
 
+### Effect-level component identity
+
+A PoB socket group is not a damage-component identity. One group may expose
+several independently calculable granted effects. ExileLens identifies those
+effects with the PoB granted-effect ID plus their semantic group, source gem and
+gem position, stat set, part and actor. References also retain measured owner,
+configured stage, calculation mode and output table. `displaySkillList`
+positions are selectors used to address PoB; they are never durable semantic
+IDs.
+
+Effect metrics are copied only from the exact effect's PoB-native calculation
+output. Cached output is accepted only when its granted effect and source match
+the requested semantic reference; otherwise a bounded select/recalculate/read/
+restore transaction is required. Enumeration and exact component metrics do
+not establish whole-build composition. This layer does not infer trigger
+relationships, projectile overlap, stacks, rotation, or practical DPS.
+
 `FullDPS=0` with no included groups means **not configured**, not zero build
 damage. A raw FullDPS number by itself, especially one supplied without
 matching group metadata, does not authorize aggregate selection. The

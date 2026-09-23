@@ -427,6 +427,68 @@ class Engine:
         result = self._call("get_build_info")
         return decorate_build_result(result)
 
+    def list_calculable_effects(
+        self,
+        *,
+        indices: list[int] | None = None,
+        max_effects: int = 8,
+        force_cache_miss: bool = False,
+        malformed_cache: bool = False,
+    ) -> dict[str, Any]:
+        """Return a bounded effect catalog; normal reads are GlobalCache-backed."""
+        from poe2value.items.effect_components import normalize_effect_catalog
+
+        session = self._session
+        if isinstance(session, WorkerSession):
+            return session.list_calculable_effects(
+                indices=indices,
+                max_effects=max_effects,
+                force_cache_miss=force_cache_miss,
+                malformed_cache=malformed_cache,
+            )
+        params: dict[str, Any] = {"max_effects": max_effects}
+        if indices is not None:
+            params["indices"] = list(indices)
+        if force_cache_miss:
+            params["force_cache_miss"] = True
+        if malformed_cache:
+            params["malformed_cache"] = True
+        return normalize_effect_catalog(self._call("list_calculable_effects", params))
+
+    def read_effect_metrics(
+        self,
+        reference: dict[str, Any] | Any,
+        *,
+        force_cache_miss: bool = False,
+        malformed_cache: bool = False,
+        malformed_fallback: bool = False,
+    ) -> dict[str, Any]:
+        """Read one exact semantic effect, transactionally recalculating on cache miss."""
+        from poe2value.items.effect_components import ComponentReference
+        from poe2value.worker import decorate_effect_result
+
+        raw_reference = (
+            reference.to_dict()
+            if isinstance(reference, ComponentReference)
+            else ComponentReference.from_dict(dict(reference)).to_dict()
+        )
+        session = self._session
+        if isinstance(session, WorkerSession):
+            return self._guard_restore(lambda: session.read_effect_metrics(
+                raw_reference,
+                force_cache_miss=force_cache_miss,
+                malformed_cache=malformed_cache,
+                malformed_fallback=malformed_fallback,
+            ))
+        params: dict[str, Any] = {"reference": raw_reference}
+        if force_cache_miss:
+            params["force_cache_miss"] = True
+        if malformed_cache:
+            params["malformed_cache"] = True
+        if malformed_fallback:
+            params["malformed_fallback"] = True
+        return self._guard_restore(lambda: decorate_effect_result(self._call("read_effect_metrics", params)))
+
     def invalidate_build(self) -> None:
         """Forget the loaded build so the next ``ensure_build_ready`` does a real reload.
 

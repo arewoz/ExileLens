@@ -8,6 +8,7 @@ from typing import Any
 
 from poe2value.config import PobConfig, fingerprint_hash, load_config, validate_pob_path
 from poe2value.errors import EngineError, PobBootFailed, WorkerUnhealthy, raise_from_payload
+from poe2value.items.effect_components import ComponentReference, MAX_EFFECTS, normalize_effect_catalog
 from poe2value.metrics import RAW_METRIC_FIELDS, metric_delta, normalize_metrics
 from poe2value.pob.lua_host import LuaHost
 from poe2value.tooltip_perf import perf_enabled
@@ -18,6 +19,16 @@ def decorate_build_result(result: dict[str, Any]) -> dict[str, Any]:
         result["fingerprint_hash"] = fingerprint_hash(result["fingerprint"])
     if "metrics" in result:
         result["normalized"] = normalize_metrics(result["metrics"])
+    build = result.get("build") or {}
+    if build.get("effect_catalog"):
+        build["effect_catalog"] = normalize_effect_catalog(build["effect_catalog"])
+    return result
+
+
+def decorate_effect_result(result: dict[str, Any]) -> dict[str, Any]:
+    reference = result.get("reference")
+    if isinstance(reference, dict):
+        result["reference"] = ComponentReference.from_dict(reference).to_dict()
     return result
 
 
@@ -231,6 +242,40 @@ class WorkerSession:
 
     def get_equipment(self) -> dict[str, Any]:
         return self.request("get_equipment")
+
+    def list_calculable_effects(
+        self,
+        *,
+        indices: list[int] | None = None,
+        max_effects: int = MAX_EFFECTS,
+        force_cache_miss: bool = False,
+        malformed_cache: bool = False,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"max_effects": max_effects}
+        if indices is not None:
+            params["indices"] = list(indices)
+        if force_cache_miss:
+            params["force_cache_miss"] = True
+        if malformed_cache:
+            params["malformed_cache"] = True
+        return normalize_effect_catalog(self.request("list_calculable_effects", params))
+
+    def read_effect_metrics(
+        self,
+        reference: dict[str, Any],
+        *,
+        force_cache_miss: bool = False,
+        malformed_cache: bool = False,
+        malformed_fallback: bool = False,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"reference": dict(reference)}
+        if force_cache_miss:
+            params["force_cache_miss"] = True
+        if malformed_cache:
+            params["malformed_cache"] = True
+        if malformed_fallback:
+            params["malformed_fallback"] = True
+        return decorate_effect_result(self.request("read_effect_metrics", params))
 
     def apply_live_equipment(self, equipment: list[dict[str, Any]]) -> dict[str, Any]:
         result = self.request("apply_live_equipment", {"equipment": equipment})
