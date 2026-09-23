@@ -549,6 +549,7 @@ def _evaluate_item_impl(
         "pob_parse": pob_parse.__dict__,
         "primary_metric": primary_metric.to_dict(),
         "native_damage_discovery": (ranking["recommendation"] or {}).get("native_damage_discovery") or {},
+        "damage_claim": (ranking["recommendation"] or {}).get("damage_claim") or {},
         "offense_coverage": coverage_payload,
         "value_profile": selected_profile.value,
         "value": (ranking["recommendation"] or {}).get("value"),

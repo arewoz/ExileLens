@@ -74,6 +74,11 @@ def classify_product_verdict(
     mobility = _pct(axes.get(AxisId.MOBILITY.value))
     ranking = str(ranking_verdict or "")
 
+    if ranking in {"UNCERTAIN", "UNSUPPORTED", "NOT_EVALUATED"}:
+        return BuildVerdict.UNCERTAIN
+    if ranking == "NOT_VIABLE":
+        return BuildVerdict.UNSAFE
+
     if build_fixes:
         severe_loss = offense <= -8.0 or defence <= -8.0
         if not severe_loss:
@@ -82,7 +87,7 @@ def classify_product_verdict(
             if abs(offense) < 3.0 and abs(defence) < 3.0:
                 return BuildVerdict.BUILD_FIX
 
-    if ranking in {"DOWNGRADE", "STRONG_DOWNGRADE"}:
+    if ranking in {"DOWNGRADE", "STRONG_DOWNGRADE", "MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE"}:
         if build_fixes and significance == Significance.STRATEGIC and offense > -3 and defence > -3:
             return BuildVerdict.BUILD_FIX
         return BuildVerdict.DOWNGRADE
@@ -109,7 +114,7 @@ def classify_product_verdict(
             return BuildVerdict.BUILD_FIX
     if significance == Significance.MAJOR or (offense >= 8.0 and defence >= 8.0):
         return BuildVerdict.MAJOR_UPGRADE
-    if ranking == "STRONG_UPGRADE" or (offense >= 8.0 and defence >= 1.0) or (defence >= 8.0 and offense >= 1.0):
+    if ranking in {"STRONG_UPGRADE", "MEANINGFUL_UPGRADE"} or (offense >= 8.0 and defence >= 1.0) or (defence >= 8.0 and offense >= 1.0):
         return BuildVerdict.STRONG_UPGRADE
     if significance == Significance.MEANINGFUL or ranking in {"CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE"}:
         if significance == Significance.MINOR:
@@ -138,4 +143,5 @@ def overlay_verdict_label(verdict: BuildVerdict) -> str:
         BuildVerdict.BUILD_FIX: "BUILD FIX",
         BuildVerdict.BLOCKED: "BLOCKED",
         BuildVerdict.UNSAFE: "UNSAFE DOWNGRADE",
+        BuildVerdict.UNCERTAIN: "UNCERTAIN",
     }.get(verdict, verdict.value.replace("_", " "))

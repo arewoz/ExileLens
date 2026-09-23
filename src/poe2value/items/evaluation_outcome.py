@@ -159,6 +159,7 @@ class EvaluationOutcome:
     raw_score: float | None
     verdict: str
     verdict_reason: str
+    damage_claim: dict[str, Any] = field(default_factory=dict)
     guardrails_applied: list[dict[str, Any]] = field(default_factory=list)
     item_impact: dict[str, Any] = field(default_factory=dict)
     primary_deltas: list[dict[str, Any]] = field(default_factory=list)
@@ -329,6 +330,102 @@ def _unavailable(metric: dict[str, Any] | None) -> bool:
     return not math.isfinite(current) or not math.isfinite(candidate)
 
 
+def _finite_number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def build_damage_claim(
+    comparison: dict[str, Any],
+    metric_profile: dict[str, Any],
+) -> dict[str, Any]:
+    """Describe the offense evidence without deciding quality or verdict.
+
+    This is deliberately provenance-only.  ``assess_quality`` remains the sole
+    truthfulness gate and ``decide_verdict`` remains the sole public verdict policy.
+    """
+    offense = metric_profile.get("primary_offense") or {}
+    discovery = comparison.get("native_damage_discovery") or {}
+    coverage = comparison.get("offense_coverage") or {}
+    kind = str(offense.get("delta_kind") or "MEASURED")
+    before = _finite_number(offense.get("current"))
+    after = _finite_number(offense.get("candidate"))
+    percent_delta = _finite_number(offense.get("percent_delta"))
+    measured = kind in {"MEASURED", "MEASURED_ZERO"} and before is not None and after is not None
+
+    native_scope = str(discovery.get("damage_scope") or "")
+    overall = str(discovery.get("overall_damage_verdict") or "")
+    substituted = bool(offense.get("substituted_component"))
+    offense_provenance = str(offense.get("provenance") or "")
+    # Discovery reports PARTIAL whenever other native PoB groups exist. It is an
+    # authoritative limitation on a component claim; it does not invalidate an
+    # independently authoritative selected-skill quantity for its declared scope.
+    component_claim = substituted or offense_provenance == "POB_COMPONENT"
+    native_partial = component_claim and (
+        native_scope == "PARTIAL" or overall == PublicVerdict.UNCERTAIN.value
+    )
+
+    audited_partial = False
+    if measured and not coverage.get("audit_skipped"):
+        from poe2value.items.offense_coverage import offense_secondary_mechanics_partial
+
+        audited_partial = offense_secondary_mechanics_partial(coverage)
+
+    reasons: list[str] = []
+    if native_partial:
+        reasons.append("PRACTICAL_COMPOSITION_UNAVAILABLE")
+    if audited_partial:
+        reasons.append("OFFENSE_MECHANICS_PARTIAL")
+    if substituted:
+        reasons.append("OFFENSE_FALLBACK_COMPONENT")
+
+    provenance = str(offense_provenance or discovery.get("provenance") or "")
+    if substituted or native_partial and measured:
+        scope = "POB_COMPONENT"
+    elif provenance in {
+        "POB_FULL_BUILD", "POB_PRIMARY_SKILL", "POB_COMPONENT", "UNAVAILABLE",
+    }:
+        scope = provenance
+    else:
+        scope = "UNAVAILABLE" if not measured else "POB_PRIMARY_SKILL"
+
+    if native_partial or audited_partial or substituted:
+        whole_build_status = "PARTIAL"
+    elif native_scope == "FULL" or scope == "POB_FULL_BUILD":
+        whole_build_status = "COMPLETE"
+    elif not measured:
+        whole_build_status = "UNAVAILABLE"
+    else:
+        # Absence of an explicit composition audit is not evidence of partiality.
+        # Ordinary same-skill PoB comparisons retain their established behaviour.
+        whole_build_status = "NOT_ASSESSED"
+
+    return {
+        "scope": scope,
+        "absolute_status": "EXACT" if measured else "UNAVAILABLE",
+        "relative_status": "EXACT" if measured else "UNAVAILABLE",
+        "whole_build_status": whole_build_status,
+        "before": before,
+        "after": after,
+        "percent_delta": percent_delta,
+        "reason_codes": list(dict.fromkeys(reasons)),
+    }
+
+
+def authoritative_public_verdict(comparison: dict[str, Any], default: str = "UNRESOLVED") -> str:
+    """Return EvaluationOutcome's verdict, with legacy-payload fallback only."""
+    outcome = comparison.get("evaluation_outcome") or {}
+    return str(outcome.get("verdict") or comparison.get("verdict") or default)
+
+
+def authoritative_verdict_reason(comparison: dict[str, Any]) -> str:
+    """Return EvaluationOutcome's reason, with legacy-payload fallback only."""
+    outcome = comparison.get("evaluation_outcome") or {}
+    return str(outcome.get("verdict_reason") or comparison.get("verdict_explanation") or "")
+
+
 def assess_quality(
     comparison: dict[str, Any],
     *,
@@ -336,6 +433,7 @@ def assess_quality(
     resist: dict[str, Any],
     primary_field: str = "CombinedDPS",
     primary_confidence: str = "high",
+    damage_claim: dict[str, Any] | None = None,
 ) -> tuple[EvaluationQuality, list[dict[str, str]]]:
     """FULL / PARTIAL / UNSUPPORTED / FAILED from detectable evidence only.
 
@@ -384,6 +482,7 @@ def assess_quality(
 
     partial: list[dict[str, str]] = []
     offense = metric_profile.get("primary_offense") or {}
+    claim = damage_claim or build_damage_claim(comparison, metric_profile)
     kind = str(offense.get("delta_kind") or "MEASURED")
     if kind == "UNSUPPORTED":
         return EvaluationQuality.UNSUPPORTED, [
@@ -415,15 +514,20 @@ def assess_quality(
                 "component stands in for it",
             )
         )
-    if kind in {"MEASURED", "MEASURED_ZERO"}:
-        from poe2value.items.offense_coverage import offense_secondary_mechanics_partial
-
-        coverage = comparison.get("offense_coverage") or {}
-        # Direct, same-skill PoB comparisons are the established source of truth for
-        # ordinary equipment. `audit_skipped` records that the optional probe audit
-        # was deliberately not run; it is not evidence of an unmodelled mechanic.
-        if not coverage.get("audit_skipped") and offense_secondary_mechanics_partial(coverage):
+    if kind in {"MEASURED", "MEASURED_ZERO"} and claim.get("whole_build_status") == "PARTIAL":
+        claim_codes = set(claim.get("reason_codes") or [])
+        if offense.get("substituted_component"):
+            # The established fallback reason above is more specific.
+            pass
+        elif "OFFENSE_MECHANICS_PARTIAL" in claim_codes:
             partial.append(_reason("OFFENSE_MECHANICS_PARTIAL", _OFFENSE_MECHANICS_PARTIAL_DETAIL))
+        else:
+            partial.append(
+                _reason(
+                    "OFFENSE_COMPOSITION_PARTIAL",
+                    "the measured damage component does not establish complete build damage",
+                )
+            )
     if str(primary_confidence or "").lower() == "low":
         partial.append(_reason("PRIMARY_METRIC_LOW_CONFIDENCE", "the main damage metric could not be identified with confidence"))
     if _unavailable(metric_profile.get("ehp")):
@@ -594,12 +698,14 @@ def build_evaluation_outcome(
     raw_candidate = dict((comparison.get("candidate") or {}).get("metrics") or {})
     # See assess_quality: a deferred restore's `pass` is `None`, not failed.
     restore_failed = (comparison.get("restore") or {}).get("pass") is False
+    damage_claim = build_damage_claim(comparison, metric_profile)
     quality, quality_reasons = assess_quality(
         comparison,
         metric_profile=metric_profile,
         resist=resist,
         primary_field=primary_field,
         primary_confidence=primary_confidence,
+        damage_claim=damage_claim,
     )
 
     guardrails: list[AppliedGuardrail] = []
@@ -626,6 +732,7 @@ def build_evaluation_outcome(
         raw_score=float(raw_score) if raw_score is not None and _finite(raw_score) else None,
         verdict=decision.verdict.value,
         verdict_reason=decision.reason,
+        damage_claim=damage_claim,
         guardrails_applied=decision.guardrails,
         item_impact=item_impact.to_dict(),
         primary_deltas=[

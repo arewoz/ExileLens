@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from poe2value.items.evaluation_outcome import authoritative_public_verdict
 from poe2value.items.ranking import enrich_slot_comparison, rank_slot_comparisons
 from poe2value.items.value_profiles import ValueProfile
 
 
 def _public_verdict(comparison: dict[str, Any]) -> Any:
-    outcome = comparison.get("evaluation_outcome") or {}
-    return outcome.get("verdict") or comparison.get("verdict")
+    return authoritative_public_verdict(comparison)
 
 
 def score_all_profiles(
@@ -44,11 +44,16 @@ def score_all_profiles(
                 "metric_profile": base.get("metric_profile"),
                 "resist_caps": base.get("resist_caps"),
                 "warnings": base.get("warnings"),
+                "native_damage_discovery": base.get("native_damage_discovery"),
+                "offense_coverage": base.get("offense_coverage"),
+                "baseline_primary_metric": base.get("baseline_primary_metric"),
+                "candidate_primary_metric": base.get("candidate_primary_metric"),
+                "primary_metric_field": base.get("primary_metric_field"),
             },
             primary_field=primary_field,
             primary_confidence=primary_confidence,
             profile=profile,
-            offense_coverage=offense_coverage,
+            offense_coverage=offense_coverage or base.get("offense_coverage"),
         )
         value = enriched.get("value") or {}
         profiles[profile.value] = {
@@ -56,7 +61,7 @@ def score_all_profiles(
             "rating": value.get("rating"),
             "score_delta": value.get("score_delta"),
             "verdict": _public_verdict(enriched),
-            "ranking_verdict": enriched.get("verdict"),
+            "ranking_verdict": _public_verdict(enriched),
             "best_slot": enriched.get("pob_slot"),
             "band": value.get("band"),
         }
@@ -70,7 +75,7 @@ def score_all_profiles(
                 primary_field=comparison.get("primary_metric_field") or primary_field,
                 primary_confidence=primary_confidence,
                 profile=ValueProfile.BALANCED,
-                offense_coverage=offense_coverage,
+                offense_coverage=offense_coverage or comparison.get("offense_coverage"),
             )
         )
 
@@ -88,7 +93,7 @@ def score_all_profiles(
             profiles[profile.value]["best_slot"] = recommendation.get("pob_slot")
             profiles[profile.value]["rating"] = value.get("rating")
             profiles[profile.value]["verdict"] = _public_verdict(recommendation)
-            profiles[profile.value]["ranking_verdict"] = recommendation.get("verdict")
+            profiles[profile.value]["ranking_verdict"] = _public_verdict(recommendation)
             best_by_profile[profile.value] = recommendation
 
     return {

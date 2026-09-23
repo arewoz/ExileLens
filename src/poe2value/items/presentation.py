@@ -17,6 +17,7 @@ from poe2value.items.presentation_copy import (
     why_section_title,
 )
 from poe2value.items.decision import derive_swap_risk
+from poe2value.items.evaluation_outcome import authoritative_public_verdict
 from poe2value.items.offense_coverage import (
     OffenseCoverageState,
     offense_claim_allowed,
@@ -405,8 +406,9 @@ def build_presentation(
     slot_options = _slot_options(result, intel)
     slot_alternate_line = str(slot_options.get("compact_line") or "")
 
-    verdict = str(intel.get("product_verdict") or recommendation.get("verdict") or "UNRESOLVED")
-    ranking_verdict = recommendation.get("verdict") or "UNRESOLVED"
+    outcome = dict(recommendation.get("evaluation_outcome") or {})
+    ranking_verdict = authoritative_public_verdict(recommendation)
+    verdict = ranking_verdict
     if ranking_verdict == "NO_CHANGE" and str(intel.get("product_verdict") or "") not in {"BUILD_FIX", "BLOCKED", "UNSAFE"}:
         verdict = ranking_verdict
         verdict_label = verdict_headline(ranking_verdict, decision)
@@ -418,7 +420,6 @@ def build_presentation(
     )
     # The EvaluationOutcome is the one player-facing verdict. Ranking / product
     # verdicts and the ranking-derived style tag stay internal once it exists.
-    outcome = dict(recommendation.get("evaluation_outcome") or {})
     if outcome:
         verdict = str(outcome.get("verdict") or verdict)
         verdict_label = str(outcome.get("verdict_label") or verdict_label)
@@ -427,13 +428,16 @@ def build_presentation(
     if (
         intel.get("score_delta") is not None
         and not outcome_failed
+        and outcome.get("evaluation_quality") == "FULL"
         and verdict not in {"SIDEGRADE", "NO_CHANGE", "UNRESOLVED"}
     ):
         try:
             recommendation_tag = recommendation_tag or f"Build Value {float(intel['score_delta']):+.1f}"
         except (TypeError, ValueError):
             pass
-    verdict_explanation = verdict_subtitle(ranking_verdict, decision, recommendation)
+    verdict_explanation = str(outcome.get("verdict_reason") or "") or verdict_subtitle(
+        ranking_verdict, decision, recommendation
+    )
     if intel.get("explanation"):
         intel_reasons = list((intel.get("explanation") or {}).get("improvements") or [])
         if not intel_reasons:
@@ -450,7 +454,7 @@ def build_presentation(
         ]
         if rebuilt:
             why_block = rebuilt
-        if intel_reasons:
+        if intel_reasons and outcome.get("evaluation_quality") == "FULL":
             verdict_explanation = " · ".join(
                 str(item.get("text") or item.get("detail") or "")
                 for item in intel_reasons[:2]
@@ -582,6 +586,7 @@ def build_presentation(
         "verdict_class": str(outcome.get("verdict_class") or ""),
         "verdict_reason": str(outcome.get("verdict_reason") or ""),
         "evaluation_outcome": outcome,
+        "damage_claim": dict(outcome.get("damage_claim") or recommendation.get("damage_claim") or result.get("damage_claim") or {}),
         "evaluation_quality": str(outcome.get("evaluation_quality") or ""),
         "quality_label": str(outcome.get("quality_label") or ""),
         "recommendation_tag": recommendation_tag,
@@ -720,7 +725,10 @@ _PROFILE_DISPLAY_LABELS = {
     "BOSSING": "Bossing",
     "DEFENSIVE": "Defensive",
 }
-_CLEAN_UPGRADE_VERDICTS = frozenset({"STRONG_UPGRADE", "CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE"})
+_CLEAN_UPGRADE_VERDICTS = frozenset({
+    "STRONG_UPGRADE", "CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE",
+    "MEANINGFUL_UPGRADE", "MINOR_UPGRADE",
+})
 _BUILD_FIX_STATES = frozenset({"CAP_REACHED", "CAP_GAINED", "BELOW_CAP_IMPROVED"})
 
 
@@ -794,7 +802,7 @@ def _build_offense_summary(offense_coverage: dict[str, Any] | None, compact_note
 
 
 def _build_current_edge(verdict: str, upgrade_path: dict[str, Any], potential: dict[str, Any]) -> dict[str, Any] | None:
-    if verdict in _CLEAN_UPGRADE_VERDICTS:
+    if verdict in _CLEAN_UPGRADE_VERDICTS or verdict in {"UNCERTAIN", "UNSUPPORTED", "NOT_EVALUATED"}:
         return None
     repair_steps = list(upgrade_path.get("repair_steps") or [])
     if not repair_steps:

@@ -54,6 +54,15 @@ composition**: the first can pass while the second remains partial. Missing
 composition is not a neutral result: **unknown != SIDEGRADE**. Keep existing
 uncertainty/unsupported protection; never invent score 50 or a total DPS.
 
+`damage_claim` records that distinction as evidence, not as another verdict
+engine. An exact component may retain its PoB before/after values and exact
+relative delta while `whole_build_status=PARTIAL`. When a component claim's
+native discovery, or audited coverage, explicitly reports incomplete composition,
+`assess_quality()` must return PARTIAL and the authoritative
+`EvaluationOutcome` must remain UNCERTAIN. No downstream score, ranking verdict,
+or presentation layer may promote that claim to an overall directional result.
+ExileLens does not synthesize independent or practical DPS to fill the gap.
+
 The compact presentation should identify whether it is comparing PoB Full
 DPS, a selected skill, or only components. More Info should explain the
 exact PoB reference and, for primary-skill results, state that it is not

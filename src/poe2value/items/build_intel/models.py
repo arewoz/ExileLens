@@ -51,6 +51,7 @@ class BuildVerdict(str, Enum):
     BUILD_FIX = "BUILD_FIX"
     BLOCKED = "BLOCKED"
     UNSAFE = "UNSAFE"
+    UNCERTAIN = "UNCERTAIN"
 
 
 class Significance(str, Enum):
