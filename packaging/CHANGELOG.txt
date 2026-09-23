@@ -2,6 +2,12 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.3.0b2
+-------
+
+- Beta release with the latest main-branch fixes and improvements.
+
+
 0.3.0b1
 -------
 

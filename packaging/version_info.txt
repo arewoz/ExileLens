@@ -18,11 +18,11 @@ VSVersionInfo(
         [
           StringStruct('CompanyName', 'ExileLens'),
           StringStruct('FileDescription', 'ExileLens'),
-          StringStruct('FileVersion', '0.3.0b1'),
+          StringStruct('FileVersion', '0.3.0b2'),
           StringStruct('InternalName', 'ExileLens'),
           StringStruct('OriginalFilename', 'ExileLens.exe'),
           StringStruct('ProductName', 'ExileLens'),
-          StringStruct('ProductVersion', '0.3.0b1'),
+          StringStruct('ProductVersion', '0.3.0b2'),
         ])
     ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
