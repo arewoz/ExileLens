@@ -356,15 +356,19 @@ def build_damage_claim(
     measured = kind in {"MEASURED", "MEASURED_ZERO"} and before is not None and after is not None
 
     native_scope = str(discovery.get("damage_scope") or "")
+    composition_status = str(discovery.get("composition_status") or "")
     overall = str(discovery.get("overall_damage_verdict") or "")
     substituted = bool(offense.get("substituted_component"))
     offense_provenance = str(offense.get("provenance") or "")
-    # Discovery reports PARTIAL whenever other native PoB groups exist. It is an
-    # authoritative limitation on a component claim; it does not invalidate an
-    # independently authoritative selected-skill quantity for its declared scope.
+    # `damage_scope=PARTIAL` alone means that discovery produced a partial
+    # component report; the presence of other groups does not establish their
+    # materiality. Explicit composition/overall uncertainty is authoritative for
+    # every measured scope, including an exact selected-primary quantity.
     component_claim = substituted or offense_provenance == "POB_COMPONENT"
-    native_partial = component_claim and (
-        native_scope == "PARTIAL" or overall == PublicVerdict.UNCERTAIN.value
+    native_partial = (
+        composition_status == "PARTIAL"
+        or overall == PublicVerdict.UNCERTAIN.value
+        or component_claim and native_scope == "PARTIAL"
     )
 
     audited_partial = False
@@ -382,7 +386,7 @@ def build_damage_claim(
         reasons.append("OFFENSE_FALLBACK_COMPONENT")
 
     provenance = str(offense_provenance or discovery.get("provenance") or "")
-    if substituted or native_partial and measured:
+    if substituted or offense_provenance == "POB_COMPONENT":
         scope = "POB_COMPONENT"
     elif provenance in {
         "POB_FULL_BUILD", "POB_PRIMARY_SKILL", "POB_COMPONENT", "UNAVAILABLE",
@@ -393,7 +397,7 @@ def build_damage_claim(
 
     if native_partial or audited_partial or substituted:
         whole_build_status = "PARTIAL"
-    elif native_scope == "FULL" or scope == "POB_FULL_BUILD":
+    elif composition_status == "COMPLETE" or native_scope == "FULL" or scope == "POB_FULL_BUILD":
         whole_build_status = "COMPLETE"
     elif not measured:
         whole_build_status = "UNAVAILABLE"
@@ -416,14 +420,18 @@ def build_damage_claim(
 
 def authoritative_public_verdict(comparison: dict[str, Any], default: str = "UNRESOLVED") -> str:
     """Return EvaluationOutcome's verdict, with legacy-payload fallback only."""
-    outcome = comparison.get("evaluation_outcome") or {}
-    return str(outcome.get("verdict") or comparison.get("verdict") or default)
+    if "evaluation_outcome" in comparison:
+        outcome = comparison.get("evaluation_outcome") or {}
+        return str(outcome.get("verdict") or default)
+    return str(comparison.get("verdict") or default)
 
 
 def authoritative_verdict_reason(comparison: dict[str, Any]) -> str:
     """Return EvaluationOutcome's reason, with legacy-payload fallback only."""
-    outcome = comparison.get("evaluation_outcome") or {}
-    return str(outcome.get("verdict_reason") or comparison.get("verdict_explanation") or "")
+    if "evaluation_outcome" in comparison:
+        outcome = comparison.get("evaluation_outcome") or {}
+        return str(outcome.get("verdict_reason") or "")
+    return str(comparison.get("verdict_explanation") or "")
 
 
 def assess_quality(

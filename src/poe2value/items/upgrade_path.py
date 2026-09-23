@@ -368,6 +368,11 @@ def build_upgrade_path_block(
     decision = result.get("decision") or {}
     potential = potential or result.get("upgrade_potential") or {}
     authoritative_state = classify_upgrade_path_state(result, style=style)
+    if authoritative_state == UpgradePathState.UNCERTAIN.value:
+        # Potential results may have been produced from the legacy directional
+        # verdict. They are not valid recommendation evidence once the public
+        # EvaluationOutcome is uncertain.
+        potential = {}
     product_state = (
         UpgradePathState.UNCERTAIN.value
         if authoritative_state == UpgradePathState.UNCERTAIN.value

@@ -211,12 +211,19 @@ def compare_native_components(
     full_status = primary.full_dps_status
     if primary.provenance == DamageProvenance.POB_FULL_BUILD:
         scope, provenance = "FULL", DamageProvenance.POB_FULL_BUILD.value
-    elif len(entries) >= 2:
+        composition_status = "COMPLETE"
+    elif primary.provenance == DamageProvenance.POB_PRIMARY_SKILL and len(entries) >= 2:
         scope, provenance = "PARTIAL", DamageProvenance.POB_COMPONENT.value
+        # Multiple independently measured PoB groups make this a partial
+        # component *report*, but their mere presence does not prove that they
+        # are all materially relevant to the item's overall damage effect.
+        composition_status = "NOT_ASSESSED"
     elif primary.provenance == DamageProvenance.POB_PRIMARY_SKILL:
         scope, provenance = "PRIMARY", DamageProvenance.POB_PRIMARY_SKILL.value
+        composition_status = "NOT_ASSESSED"
     else:
         scope, provenance = "PARTIAL", DamageProvenance.UNAVAILABLE.value
+        composition_status = "PARTIAL"
     return {
         "damage_scope": scope,
         "provenance": provenance,
@@ -226,7 +233,8 @@ def compare_native_components(
         "primary_skill_metric": primary.to_dict(),
         "components": entries,
         "fallback_reason": "FULL_DPS_NOT_CONFIGURED" if full_status == "NOT_CONFIGURED" else "",
-        "overall_damage_verdict": "UNCERTAIN" if scope == "PARTIAL" else "NOT_DERIVED",
+        "composition_status": composition_status,
+        "overall_damage_verdict": "UNCERTAIN" if composition_status == "PARTIAL" else "NOT_DERIVED",
         "baseline_fingerprint": baseline.get("fingerprint_hash") or "",
     }
 

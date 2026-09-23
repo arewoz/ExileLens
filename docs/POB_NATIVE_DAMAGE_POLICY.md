@@ -55,10 +55,14 @@ composition is not a neutral result: **unknown != SIDEGRADE**. Keep existing
 uncertainty/unsupported protection; never invent score 50 or a total DPS.
 
 `damage_claim` records that distinction as evidence, not as another verdict
-engine. An exact component may retain its PoB before/after values and exact
-relative delta while `whole_build_status=PARTIAL`. When a component claim's
-native discovery, or audited coverage, explicitly reports incomplete composition,
-`assess_quality()` must return PARTIAL and the authoritative
+engine. An exact component or selected-primary measurement may retain its PoB
+before/after values and exact relative delta while
+`whole_build_status=PARTIAL`. Native `damage_scope=PARTIAL` by itself only says
+that the component report is incomplete; the presence of other PoB groups does
+not prove their material relevance. When native discovery explicitly reports
+`composition_status=PARTIAL` or an overall `UNCERTAIN` verdict, or audited
+coverage explicitly reports incomplete composition, `assess_quality()` must
+return PARTIAL and the authoritative
 `EvaluationOutcome` must remain UNCERTAIN. No downstream score, ranking verdict,
 or presentation layer may promote that claim to an overall directional result.
 ExileLens does not synthesize independent or practical DPS to fill the gap.

@@ -63,6 +63,7 @@ def _comparison(
     discovery = {
         "damage_scope": "PARTIAL" if partial else "PRIMARY",
         "provenance": "POB_COMPONENT" if partial else "POB_PRIMARY_SKILL",
+        "composition_status": "PARTIAL" if partial else "NOT_ASSESSED",
         "overall_damage_verdict": "UNCERTAIN" if partial else "NOT_DERIVED",
         "components": [
             {
@@ -144,6 +145,68 @@ def test_ordinary_and_authoritative_mixed_comparisons_remain_full() -> None:
         assert outcome["damage_claim"]["whole_build_status"] == "NOT_ASSESSED"
 
 
+@pytest.mark.parametrize(
+    "composition_signal",
+    [
+        {"composition_status": "PARTIAL", "overall_damage_verdict": "NOT_DERIVED"},
+        {"composition_status": "NOT_ASSESSED", "overall_damage_verdict": "UNCERTAIN"},
+    ],
+)
+def test_exact_primary_skill_with_explicit_incomplete_composition_is_uncertain(
+    composition_signal: dict[str, str],
+) -> None:
+    comparison = _comparison(120.0, partial=False)
+    comparison["native_damage_discovery"].update(
+        {
+            "damage_scope": "PARTIAL",
+            **composition_signal,
+        }
+    )
+    result = enrich_slot_comparison(
+        comparison,
+        primary_field="CombinedDPS",
+        primary_confidence="high",
+        offense_coverage=comparison["offense_coverage"],
+    )
+
+    outcome = result["evaluation_outcome"]
+    assert outcome["damage_claim"]["scope"] == "POB_PRIMARY_SKILL"
+    assert outcome["damage_claim"]["relative_status"] == "EXACT"
+    assert outcome["damage_claim"]["whole_build_status"] == "PARTIAL"
+    assert outcome["evaluation_quality"] == EvaluationQuality.PARTIAL.value
+    assert outcome["verdict"] == PublicVerdict.UNCERTAIN.value
+
+
+def test_partial_component_report_without_materiality_evidence_does_not_overfire() -> None:
+    comparison = _comparison(120.0, partial=False)
+    comparison["native_damage_discovery"].update(
+        {
+            "damage_scope": "PARTIAL",
+            "composition_status": "NOT_ASSESSED",
+            "overall_damage_verdict": "NOT_DERIVED",
+        }
+    )
+    result = enrich_slot_comparison(
+        comparison,
+        primary_field="CombinedDPS",
+        primary_confidence="high",
+        offense_coverage=comparison["offense_coverage"],
+    )
+
+    outcome = result["evaluation_outcome"]
+    assert outcome["damage_claim"]["whole_build_status"] == "NOT_ASSESSED"
+    assert outcome["evaluation_quality"] == EvaluationQuality.FULL.value
+    assert outcome["verdict"] == PublicVerdict.MEANINGFUL_UPGRADE.value
+
+
+def test_outcome_presence_prevents_legacy_verdict_fallback() -> None:
+    from poe2value.items.evaluation_outcome import authoritative_public_verdict
+
+    assert authoritative_public_verdict(
+        {"evaluation_outcome": {}, "verdict": "STRONG_UPGRADE"}
+    ) == "UNRESOLVED"
+
+
 def test_high_score_partial_cannot_win_confidently_or_dominate() -> None:
     partial = _enriched(500.0, slot="Ring 1")
     full = _enriched(105.0, slot="Ring 2", partial=False)
@@ -181,7 +244,18 @@ def test_recommendation_consumers_use_authoritative_uncertain_outcome() -> None:
     assert decision["confidence"] == "LOW"
     assert intel["product_verdict"] == "UNCERTAIN"
     assert classify_upgrade_path_state(result) == UpgradePathState.UNCERTAIN.value
-    assert build_upgrade_path_block(result)["product_state"] == UpgradePathState.UNCERTAIN.value
+    upgrade_path = build_upgrade_path_block(
+        result,
+        potential={
+            "product_state": UpgradePathState.ALREADY_UPGRADE.value,
+            "paths": [{"label": "legacy directional repair", "magnitude": 10}],
+            "repaired_rating": 90,
+            "repaired_verdict": "STRONG_UPGRADE",
+        },
+    )
+    assert upgrade_path["product_state"] == UpgradePathState.UNCERTAIN.value
+    assert upgrade_path["paths"] == []
+    assert upgrade_path["after_repair"] is None
 
     trace = build_comparison_trace(result)
     assert trace["delta"]["verdict"] == "UNCERTAIN"
