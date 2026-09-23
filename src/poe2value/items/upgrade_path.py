@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any
 
 from poe2value.items.decision import RecommendationStyle
+from poe2value.items.evaluation_outcome import authoritative_public_verdict
 from poe2value.items.presentation_copy import dedupe_reason_blocks, should_show_why_not_section, why_section_title
 
 
@@ -17,9 +18,13 @@ class UpgradePathState(str, Enum):
     REPAIRABLE_DOWNGRADE = "REPAIRABLE_DOWNGRADE"
     NOT_CLOSE = "NOT_CLOSE"
     PENDING = "PENDING"
+    UNCERTAIN = "UNCERTAIN"
 
 
-_CLEAN_UPGRADE_VERDICTS = frozenset({"STRONG_UPGRADE", "CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE"})
+_CLEAN_UPGRADE_VERDICTS = frozenset({
+    "STRONG_UPGRADE", "CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE",
+    "MEANINGFUL_UPGRADE", "MINOR_UPGRADE",
+})
 _PROBE_VERDICTS = frozenset({"TRADEOFF", "SIDEGRADE", "DOWNGRADE", "UNRESOLVED", "NO_CHANGE"})
 _EXTREME_DOWNGRADE_RATING = 28.0
 _NEAR_MISS_RATING_LOW = 42.0
@@ -42,6 +47,7 @@ _UPGRADE_DISTANCE_LABELS = {
     UpgradePathState.REPAIRABLE_DOWNGRADE.value: "REPAIRABLE",
     UpgradePathState.NOT_CLOSE.value: "FAR",
     UpgradePathState.PENDING.value: "ANALYZING",
+    UpgradePathState.UNCERTAIN.value: "UNCERTAIN",
 }
 
 
@@ -59,12 +65,14 @@ def normalize_upgrade_mode(value: str | None) -> str:
 def classify_upgrade_path_state(result: dict[str, Any], *, style: str = RecommendationStyle.BALANCED.value) -> str:
     recommendation = result.get("recommendation") or {}
     decision = result.get("decision") or {}
-    verdict = str(recommendation.get("verdict") or "UNRESOLVED")
+    verdict = authoritative_public_verdict(recommendation)
     value = recommendation.get("value") or {}
     rating = float(value.get("rating") or 0.0)
     tag = str(decision.get("recommendation_tag") or "").upper()
     keep_tags = {"KEEP", "KEEP_CURRENT", "VENDOR", "SKIP"}
 
+    if verdict in {"UNCERTAIN", "UNSUPPORTED", "NOT_EVALUATED"}:
+        return UpgradePathState.UNCERTAIN.value
     if verdict in _CLEAN_UPGRADE_VERDICTS and tag not in keep_tags:
         return UpgradePathState.ALREADY_UPGRADE.value
     if decision.get("build_repair") and tag not in keep_tags:
@@ -202,6 +210,8 @@ def _passive_fallback_line(block: dict[str, Any]) -> str:
         return _not_close_passive_line(block)
     if product_state == UpgradePathState.ALREADY_UPGRADE.value:
         return "Already an upgrade"
+    if product_state == UpgradePathState.UNCERTAIN.value:
+        return "Upgrade path unavailable while the comparison is uncertain"
     summary = str(block.get("summary") or "").strip()
     if summary and "..." not in summary:
         return summary
@@ -357,7 +367,17 @@ def build_upgrade_path_block(
     recommendation = result.get("recommendation") or {}
     decision = result.get("decision") or {}
     potential = potential or result.get("upgrade_potential") or {}
-    product_state = str(potential.get("product_state") or classify_upgrade_path_state(result, style=style))
+    authoritative_state = classify_upgrade_path_state(result, style=style)
+    if authoritative_state == UpgradePathState.UNCERTAIN.value:
+        # Potential results may have been produced from the legacy directional
+        # verdict. They are not valid recommendation evidence once the public
+        # EvaluationOutcome is uncertain.
+        potential = {}
+    product_state = (
+        UpgradePathState.UNCERTAIN.value
+        if authoritative_state == UpgradePathState.UNCERTAIN.value
+        else str(potential.get("product_state") or authoritative_state)
+    )
     status = str(potential.get("status") or ("PENDING" if pending else "COMPLETE"))
     why_not = potential.get("why_not_upgrade") or build_why_not_upgrade(result)
     paths = list(potential.get("paths") or potential.get("thresholds") or [])
@@ -383,6 +403,8 @@ def build_upgrade_path_block(
         repair_bits = [item.get("explanation") for item in (decision.get("why_reasons") or []) if item.get("category") == "BUILD_REPAIR"]
         fix = repair_bits[0] if repair_bits else "build constraint"
         summary = f"Already fixes: {fix}. No repair required for current recommendation."
+    elif product_state == UpgradePathState.UNCERTAIN.value:
+        summary = "Upgrade path unavailable while overall damage remains uncertain."
     elif paths:
         repair_paths = [item for item in paths if item.get("kind") != "secondary"]
         secondary_paths = [item for item in paths if item.get("kind") == "secondary"]
@@ -430,7 +452,7 @@ def build_upgrade_path_block(
         repair_vector = [item for item in paths if item.get("kind") != "secondary"][:3]
     current_value = recommendation.get("value") or {}
     current_rating = current_value.get("rating")
-    current_verdict = str(recommendation.get("verdict") or "")
+    current_verdict = authoritative_public_verdict(recommendation, default="")
     repair_steps = build_repair_steps(repair_vector)
     after_repair = build_after_repair_preview(
         current_rating=float(current_rating) if current_rating is not None else None,
@@ -487,7 +509,7 @@ def attach_upgrade_path_presentation(
     presentation = dict(result.get("presentation") or {})
     presentation["upgrade_path"] = block
     why_not = list(block.get("why_not_upgrade") or [])
-    verdict = str((result.get("recommendation") or {}).get("verdict") or "UNRESOLVED")
+    verdict = authoritative_public_verdict(result.get("recommendation") or {})
     decision = result.get("decision") or {}
     why_title = why_section_title(verdict, decision, block)
     why_not = dedupe_reason_blocks(

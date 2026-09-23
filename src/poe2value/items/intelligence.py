@@ -47,6 +47,7 @@ def enrich_fast_result(
         result["slot_comparisons"] = ranked
         result["recommendation"] = best
         result["value"] = best.get("value")
+        result["damage_claim"] = best.get("damage_claim") or (best.get("evaluation_outcome") or {}).get("damage_claim") or {}
         result["power_per_currency"] = best.get("power_per_currency")
         result["best_slot"] = {
             "pob_slot": best.get("pob_slot"),
@@ -64,6 +65,8 @@ def enrich_fast_result(
         result["slot_comparisons"] = ranking["slot_comparisons"]
         result["recommendation"] = ranking["recommendation"]
         result["value"] = (ranking["recommendation"] or {}).get("value")
+        selected = ranking["recommendation"] or {}
+        result["damage_claim"] = selected.get("damage_claim") or (selected.get("evaluation_outcome") or {}).get("damage_claim") or {}
         result["power_per_currency"] = (ranking["recommendation"] or {}).get("power_per_currency")
         result["pareto"] = ranking["pareto"]
         best = ranking["recommendation"]
@@ -73,6 +76,7 @@ def enrich_fast_result(
             comparisons,
             primary_field=primary.get("pob_field") or "CombinedDPS",
             primary_confidence=primary.get("confidence") or "high",
+            offense_coverage=result.get("offense_coverage"),
         )
     else:
         result["multi_profile"] = None

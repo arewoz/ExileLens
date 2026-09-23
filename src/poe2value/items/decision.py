@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from poe2value.items.evaluation_outcome import authoritative_public_verdict, authoritative_verdict_reason
+
 
 class ReasonCategory(str, Enum):
     BREAKPOINT = "BREAKPOINT"
@@ -55,7 +57,7 @@ def derive_swap_risk(
     """How dangerous swapping would be — distinct from evaluation confidence."""
     decision = decision or {}
     offense_coverage = offense_coverage or {}
-    verdict = str(comparison.get("verdict") or "UNRESOLVED")
+    verdict = authoritative_public_verdict(comparison)
     warnings = comparison.get("warnings") or []
     codes = {str(item.get("code") or "") for item in warnings}
     offense_state = str(offense_coverage.get("state") or "")
@@ -71,7 +73,7 @@ def derive_swap_risk(
     if "RES_DEFICIT_WORSENED" in codes:
         score += 1
         details.append("resistance deficit worsens")
-    if verdict in {"DOWNGRADE", "STRONG_DOWNGRADE"}:
+    if verdict in {"DOWNGRADE", "STRONG_DOWNGRADE", "MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE", "NOT_VIABLE"}:
         score += 1
         details.append("overall downgrade")
     if codes & {"RESOURCE_FAILURE", "MAIN_SKILL_INVALID", "BUILD_INVALID"}:
@@ -175,12 +177,20 @@ class ItemDecisionSummary:
 
 
 _VERDICT_HEADLINES = {
+    "MEANINGFUL_UPGRADE": "Meaningful upgrade",
+    "MINOR_UPGRADE": "Minor upgrade",
     "STRONG_UPGRADE": "Strong upgrade",
     "CLEAR_UPGRADE": "Clear upgrade",
     "OFFENSE_UPGRADE": "Offense upgrade",
     "DEFENSE_UPGRADE": "Defense upgrade",
     "TRADEOFF": "Tradeoff",
     "SIDEGRADE": "Sidegrade",
+    "MINOR_DOWNGRADE": "Minor downgrade",
+    "MEANINGFUL_DOWNGRADE": "Meaningful downgrade",
+    "NOT_VIABLE": "Not viable",
+    "UNCERTAIN": "Uncertain",
+    "UNSUPPORTED": "Unsupported",
+    "NOT_EVALUATED": "Couldn't evaluate",
     "DOWNGRADE": "Downgrade",
     "STRONG_DOWNGRADE": "Strong downgrade",
     "UNRESOLVED": "Unresolved",
@@ -507,6 +517,10 @@ def assess_confidence(
     primary_metric: dict[str, Any] | None = None,
 ) -> tuple[EvaluationConfidence, list[str]]:
     evidence: list[str] = []
+    outcome = comparison.get("evaluation_outcome") or {}
+    quality = str(outcome.get("evaluation_quality") or "")
+    if quality and quality != "FULL":
+        evidence.append(f"Evaluation quality {quality}")
     primary = primary_metric or {}
     if primary.get("confidence") == "low" or primary.get("low_confidence"):
         evidence.append("Primary offense metric unresolved")
@@ -521,6 +535,8 @@ def assess_confidence(
     offense = profile.get("primary_offense") or {}
     if offense.get("availability") == "missing":
         evidence.append("Primary offense unavailable")
+    if quality and quality != "FULL":
+        return EvaluationConfidence.LOW, evidence
     if len(evidence) >= 2:
         return EvaluationConfidence.LOW, evidence
     if evidence:
@@ -531,11 +547,14 @@ def assess_confidence(
 def _style_bucket(verdict: str, build_repair: bool) -> str:
     if build_repair:
         return "repair"
-    if verdict in {"STRONG_UPGRADE", "CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE"}:
+    if verdict in {
+        "STRONG_UPGRADE", "CLEAR_UPGRADE", "OFFENSE_UPGRADE", "DEFENSE_UPGRADE",
+        "MEANINGFUL_UPGRADE", "MINOR_UPGRADE",
+    }:
         return "upgrade"
     if verdict == "TRADEOFF":
         return "tradeoff"
-    if verdict in {"DOWNGRADE", "STRONG_DOWNGRADE"}:
+    if verdict in {"DOWNGRADE", "STRONG_DOWNGRADE", "MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE", "NOT_VIABLE"}:
         return "downgrade"
     return "tradeoff"
 
@@ -552,7 +571,7 @@ def build_decision_summary(
     except ValueError:
         selected = RecommendationStyle.BALANCED
 
-    verdict = str(comparison.get("verdict") or "UNRESOLVED")
+    verdict = authoritative_public_verdict(comparison)
     profile = comparison.get("metric_profile") or {}
     resist = comparison.get("resist_caps") or {}
     warnings = comparison.get("warnings") or []
@@ -577,8 +596,9 @@ def build_decision_summary(
         unique.append(item)
 
     why = unique[:4]
-    if len(why) < 2 and comparison.get("verdict_explanation"):
-        for line in str(comparison.get("verdict_explanation")).split(". "):
+    authoritative_explanation = authoritative_verdict_reason(comparison)
+    if len(why) < 2 and authoritative_explanation:
+        for line in authoritative_explanation.split(". "):
             line = line.strip()
             if not line:
                 continue
@@ -599,7 +619,8 @@ def build_decision_summary(
             if len(why) >= 2:
                 break
 
-    build_repair = _is_build_repair(unique, verdict)
+    non_directional = verdict in {"UNCERTAIN", "UNSUPPORTED", "NOT_EVALUATED"}
+    build_repair = False if non_directional else _is_build_repair(unique, verdict)
     if build_repair:
         why.insert(
             0,
@@ -625,6 +646,7 @@ def build_decision_summary(
     headline = _VERDICT_HEADLINES.get(verdict, verdict.replace("_", " ").title())
     if build_repair and verdict not in {"DOWNGRADE", "STRONG_DOWNGRADE"}:
         headline = "Build repair"
+    recommendation_tag = "" if non_directional else tag_map.get(bucket, tag_map["tradeoff"])
 
     slot = best_slot_label or comparison.get("pob_slot") or comparison.get("product_slot") or ""
     if slot and not best_slot_label:
@@ -632,7 +654,7 @@ def build_decision_summary(
 
     return ItemDecisionSummary(
         headline=headline,
-        recommendation_tag=tag_map.get(bucket, tag_map["tradeoff"]),
+        recommendation_tag=recommendation_tag,
         verdict=verdict,
         why_reasons=why,
         confidence=confidence.value,

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from poe2value.items.evaluation_outcome import authoritative_public_verdict, authoritative_verdict_reason
+
 
 def build_comparison_trace(result: dict[str, Any]) -> dict[str, Any]:
     rec = result.get("recommendation") or {}
@@ -56,8 +58,8 @@ def build_comparison_trace(result: dict[str, Any]) -> dict[str, Any]:
             "guardrails": ((rec.get("value") or {}).get("guardrails")) or [],
             "consequences": resist,
             "score": rec.get("value"),
-            "verdict": rec.get("verdict"),
-            "explanation": rec.get("verdict_explanation"),
+            "verdict": authoritative_public_verdict(rec),
+            "explanation": authoritative_verdict_reason(rec),
         },
         "restore": {
             "pass": restore.get("pass"),

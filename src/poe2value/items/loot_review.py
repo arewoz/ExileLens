@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from poe2value.items.evaluation_outcome import VERDICT_ORDER, authoritative_public_verdict
+
 
 class LootCategory(str, Enum):
     STRONG_UPGRADES = "STRONG UPGRADES"
@@ -14,6 +16,7 @@ class LootCategory(str, Enum):
     BUILD_REPAIRS = "BUILD REPAIRS"
     TRADEOFFS = "TRADEOFFS"
     DOWNGRADES = "DOWNGRADES"
+    UNCERTAIN = "UNCERTAIN"
 
 
 _UPGRADE_VERDICTS = {
@@ -77,7 +80,7 @@ class LootReviewSession:
             self.started_at = time.time()
         recommendation = result.get("recommendation") or {}
         decision = result.get("decision") or {}
-        verdict = str(recommendation.get("verdict") or "UNRESOLVED")
+        verdict = authoritative_public_verdict(recommendation)
         category = categorize_loot(verdict, build_repair=bool(decision.get("build_repair")))
         content_hash = str((result.get("raw_input") or {}).get("content_hash") or "")
         entry = LootReviewEntry(
@@ -97,7 +100,10 @@ class LootReviewSession:
         return entry
 
     def ranked(self) -> list[LootReviewEntry]:
-        return sorted(self.entries, key=lambda item: (-(item.rating or 0), item.item_name))
+        return sorted(
+            self.entries,
+            key=lambda item: (VERDICT_ORDER.get(item.verdict, 99), -(item.rating or 0), item.item_name),
+        )
 
     def by_category(self) -> dict[str, list[LootReviewEntry]]:
         grouped: dict[str, list[LootReviewEntry]] = {cat.value: [] for cat in LootCategory}
@@ -115,14 +121,16 @@ class LootReviewSession:
 
 
 def categorize_loot(verdict: str, *, build_repair: bool = False) -> LootCategory:
+    if verdict in {"UNCERTAIN", "UNSUPPORTED", "NOT_EVALUATED"}:
+        return LootCategory.UNCERTAIN
     if build_repair:
         return LootCategory.BUILD_REPAIRS
-    if verdict == "STRONG_UPGRADE":
+    if verdict in {"STRONG_UPGRADE", "MEANINGFUL_UPGRADE"}:
         return LootCategory.STRONG_UPGRADES
-    if verdict in _UPGRADE_VERDICTS:
+    if verdict in _UPGRADE_VERDICTS or verdict == "MINOR_UPGRADE":
         return LootCategory.UPGRADES
     if verdict == "TRADEOFF":
         return LootCategory.TRADEOFFS
-    if verdict in {"DOWNGRADE", "STRONG_DOWNGRADE"}:
+    if verdict in {"DOWNGRADE", "STRONG_DOWNGRADE", "MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE", "NOT_VIABLE"}:
         return LootCategory.DOWNGRADES
     return LootCategory.TRADEOFFS

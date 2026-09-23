@@ -19,6 +19,7 @@ from poe2value.items.build_intel.relevance import assign_build_mods, candidate_s
 from poe2value.items.build_intel.thresholds import assess_thresholds
 from poe2value.items.build_intel.verdicts import classify_product_verdict, classify_significance, overlay_verdict_label
 from poe2value.items.decision import EvaluationConfidence, assess_confidence
+from poe2value.items.evaluation_outcome import authoritative_public_verdict
 from poe2value.items.ranking import enrich_slot_comparison
 from poe2value.items.value_profiles import SCORE_SCALE
 
@@ -125,7 +126,7 @@ def _slot_notes(payload: dict[str, Any], *, selected_slot: str) -> list[SlotComp
             SlotComparisonNote(
                 pob_slot=str(comparison.get("pob_slot") or ""),
                 product_slot=str(comparison.get("product_slot") or ""),
-                product_verdict=str(intel.get("product_verdict") or comparison.get("verdict") or ""),
+                product_verdict=str(intel.get("product_verdict") or authoritative_public_verdict(comparison, default="")),
                 score_delta=((comparison.get("value") or {}).get("score_delta")),
                 selected=str(comparison.get("pob_slot") or "") == selected_slot,
                 blocked=str(intel.get("product_verdict") or "") in {"BLOCKED", "UNSAFE"}
@@ -179,7 +180,7 @@ def compare_slot(
     )
     hard_problems = constraints_from_thresholds(thresholds)
     build_fixes = [item for item in thresholds if item.is_build_fix]
-    ranking_verdict = str(comparison.get("verdict") or "UNRESOLVED")
+    ranking_verdict = authoritative_public_verdict(comparison)
     product = classify_product_verdict(
         ranking_verdict=ranking_verdict,
         axes=axes,

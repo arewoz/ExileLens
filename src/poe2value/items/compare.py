@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from poe2value.items.evaluation_outcome import VERDICT_ORDER, authoritative_public_verdict
+
 MAX_PINNED = 4
 PIN_LABELS = ("A", "B", "C", "D")
 STALE_BUILD_CHANGED = "BUILD CHANGED"
@@ -35,7 +37,7 @@ class CompareEntry:
             "pin_label": self.pin_label,
             "is_current": self.is_current,
             "compare_active": self.pinned and not self.is_current and not self.stale,
-            "verdict": (self.result.get("recommendation") or {}).get("verdict"),
+            "verdict": authoritative_public_verdict(self.result.get("recommendation") or {}),
             "best_slot": (self.result.get("best_slot") or {}).get("label"),
             "rating": ((self.result.get("recommendation") or {}).get("value") or {}).get("rating"),
         }
@@ -151,7 +153,13 @@ class PinCompareState:
         candidates = [item for item in self.entries if not item.is_current and not item.stale]
         if not candidates:
             return None
-        return max(candidates, key=lambda item: float(((item.result.get("recommendation") or {}).get("value") or {}).get("rating") or 0))
+        def key(item: CompareEntry) -> tuple[int, float]:
+            recommendation = item.result.get("recommendation") or {}
+            verdict = authoritative_public_verdict(recommendation)
+            rating = float((recommendation.get("value") or {}).get("rating") or 0)
+            return VERDICT_ORDER.get(verdict, 99), -rating
+
+        return min(candidates, key=key)
 
 
 def _entry_compare_key(entry: CompareEntry, profile: str) -> tuple[str, str, str, str]:
@@ -196,7 +204,7 @@ def build_compare_summary(state: PinCompareState, *, profile: str = "BALANCED") 
                 "pin_label": entry.pin_label,
                 "item_name": entry.item_name,
                 "rating": value.get("rating"),
-                "verdict": rec.get("verdict"),
+                "verdict": authoritative_public_verdict(rec),
                 "display_name": f"{entry.pin_label} — {entry.item_name}" if entry.pin_label else entry.item_name,
             }
         )
@@ -204,11 +212,13 @@ def build_compare_summary(state: PinCompareState, *, profile: str = "BALANCED") 
     winner_entry = best_current_pin(state, profile=profile) if comparable else None
     best_current = None
     if winner_entry is not None:
-        best_current = {
-            "pin_label": winner_entry.pin_label,
-            "item_name": winner_entry.item_name,
-            "label": f"BEST CURRENT OPTION: {winner_entry.pin_label}",
-        }
+        winner_verdict = authoritative_public_verdict(winner_entry.result.get("recommendation") or {})
+        if winner_verdict not in {"UNCERTAIN", "UNSUPPORTED", "NOT_EVALUATED"}:
+            best_current = {
+                "pin_label": winner_entry.pin_label,
+                "item_name": winner_entry.item_name,
+                "label": f"BEST CURRENT OPTION: {winner_entry.pin_label}",
+            }
     return {
         "title": "PINNED ITEMS",
         "rows": rows,

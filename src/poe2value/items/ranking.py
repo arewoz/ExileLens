@@ -6,7 +6,11 @@ from typing import Any
 
 from poe2value.items.consequences import build_warnings
 from poe2value.items.display_thresholds import DEFAULT_DISPLAY_THRESHOLDS
-from poe2value.items.evaluation_outcome import build_evaluation_outcome, sync_value_with_outcome
+from poe2value.items.evaluation_outcome import (
+    authoritative_public_verdict,
+    build_evaluation_outcome,
+    sync_value_with_outcome,
+)
 from poe2value.items.native_metric_discovery import promote_unresolved_primary_with_component
 from poe2value.items.offense_coverage import (
     apply_offense_coverage_to_profile,
@@ -293,6 +297,7 @@ def enrich_slot_comparison(
     value = sync_value_with_outcome(value, outcome)
     power = compute_power_per_currency(float(value["score_delta"]), price)
     comparison["evaluation_outcome"] = outcome.to_dict()
+    comparison["damage_claim"] = dict(outcome.damage_claim)
     comparison["metric_profile"] = metric_profile
     comparison["normalized_metrics"] = metric_profile
     comparison["resist_caps"] = resist
@@ -357,14 +362,16 @@ def _pareto_summary(ranked: list[dict[str, Any]]) -> dict[str, Any]:
     if not ranked:
         return {"status": "UNRESOLVED", "reason": "no slot comparisons"}
     best = ranked[0]
-    verdict = best["verdict"]
+    verdict = authoritative_public_verdict(best)
     if verdict in {
+        "MEANINGFUL_UPGRADE",
+        "MINOR_UPGRADE",
         Verdict.STRONG_UPGRADE.value,
         Verdict.CLEAR_UPGRADE.value,
         Verdict.OFFENSE_UPGRADE.value,
         Verdict.DEFENSE_UPGRADE.value,
     }:
         return {"status": "DOMINATES", "verdict": verdict, "slot": best.get("product_slot")}
-    if verdict == Verdict.TRADEOFF.value:
+    if verdict in {"SIDEGRADE", Verdict.TRADEOFF.value}:
         return {"status": "TRADEOFF", "verdict": verdict, "slot": best.get("product_slot")}
     return {"status": "NEITHER_DOMINATES", "verdict": verdict, "slot": best.get("product_slot")}
