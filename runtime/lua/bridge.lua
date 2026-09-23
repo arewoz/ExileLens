@@ -2129,6 +2129,16 @@ local function find_effect_by_reference(reference)
 	return matches[1][1], matches[1][2], matches[1][3], nil, matches[1][4]
 end
 
+local function effect_calculation_matches(requested, actual)
+	if type(requested) ~= "table" or type(actual) ~= "table" then return false end
+	if requested.semantic_id ~= actual.semantic_id then return false end
+	if (requested.stage_count or nil) ~= (actual.stage_count or nil) then return false end
+	if (requested.calculation_mode or "DIRECT") ~= (actual.calculation_mode or "DIRECT") then return false end
+	if (requested.output_table or "mainOutput") ~= (actual.output_table or "mainOutput") then return false end
+	if (requested.owner or "PLAYER") ~= (actual.owner or "PLAYER") then return false end
+	return true
+end
+
 local function read_effect_metrics(reference, opts)
 	opts = opts or {}
 	local group_index, group, display_skill, find_error, selector = find_effect_by_reference(reference)
@@ -2137,7 +2147,7 @@ local function read_effect_metrics(reference, opts)
 	end
 	local cached, cache_status = cached_effect_report(group_index, group, display_skill, selector, opts)
 	if cached then
-		if not cached.reference or cached.reference.semantic_id ~= reference.semantic_id then
+		if not cached.reference or not effect_calculation_matches(reference, cached.reference) then
 			return {
 				status = "UNAVAILABLE", reason = "CACHE_IDENTITY_MISMATCH",
 				cache_status = "CACHE_IDENTITY_MISMATCH", reference = reference,
@@ -2177,6 +2187,9 @@ local function read_effect_metrics(reference, opts)
 			return
 		end
 		identity = attach_damage_owner(identity)
+		if not effect_calculation_matches(reference, component_reference(identity)) then
+			error("selected effect calculation did not match requested reference")
+		end
 		result = {
 			status = "MEASURED", source = "TRANSACTIONAL_RECALC", cache_status = cache_status,
 			selected = true, enabled = true, calculable = true, name = identity.skill_name,
