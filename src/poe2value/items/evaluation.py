@@ -289,6 +289,7 @@ def _evaluate_item_impl(
         broad_dot = primary_metric.semantic_quantity in {DamageQuantity.SKILL_DOT, DamageQuantity.AILMENT_DPS}
         report_indices = None if broad_dot else build_info.get("native_damage_group_indices") or []
         report_key = (baseline_fingerprint, context, build_info.get("main_socket_group"),
+                      build_info.get("weapon_set", 1), str(build_info.get("active_skill_set_id") or ""),
                       tuple(report_indices or ()))
         try:
             report = report_cache.get(report_key)

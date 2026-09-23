@@ -362,6 +362,53 @@ exceeds the 1.5s acceptable boundary before the two additional fixes are even
 counted), so performance stays a bounded, honestly-reported gap rather than a claimed
 pass.
 
+## Weapon-set component contexts (Slice 3, internal)
+
+Slice 2 identifies *which* PoB effect to measure (`ComponentReference`).
+Slice 3 qualifies *under which weapon set* it is measured
+(`CalculationContext`: `weapon_set` 1/2 plus the active skill-set id for
+cache identity; the skill set itself is never switched). Effect semantic
+identity stays context-independent: the same effect in set 1 and set 2 is
+the same semantic effect, but two disjoint cache observations
+(`ContextualComponentReference`, composition -- never a `semantic_id`
+suffix).
+
+The local PoB revision exposes no `weaponSetEnvs`/`usingSkillSet` API. The
+weapon set is the active item set's `useSecondWeaponSet` boolean; its
+calculation effects (Condition:WeaponSet1/2, weapon-slot inclusion with
+`" Swap"` stripping, `group.slotEnabled` gating, weapon-set-tagged
+jewel/passive mods) all flow through a full recalc. The bridge reproduces
+PoB's own switch (ItemsTab weaponSwap buttons: flag + build-dirty + main
+socket group re-pin to the first group on the newly active set, minus UI
+undo history) and owns the whole transaction: snapshot, switch, recalc,
+verify activation (fail closed), resolve the exact reference, read
+PoB-native metrics, restore, recalc, verify exact restoration
+(`RESTORE_FAILED` + unhealthy worker on any mismatch, same as Slice 2).
+
+Logical active slots (`Weapon 1`/`Weapon 2` via `active_weapon_slot`)
+remain the only product-facing weapon API and are completely unchanged.
+Slice 3 adds an INTERNAL exact-physical path (`set_item_physical`,
+bypassing `active_weapon_slot`) addressing `Weapon 1`, `Weapon 2`,
+`Weapon 1 Swap`, `Weapon 2 Swap` directly. `ProductSlot.OFFHAND_2` is
+still unreachable legacy enum completeness and is not repurposed.
+
+New worker methods (all explicit/lazy; ordinary Item Check never calls
+them and pays zero extra frames):
+
+| Method | Description |
+|---|---|
+| `read_effect_metrics(reference, weapon_set=1\|2)` | One component under one weapon set; `UNAVAILABLE`/`NOT_VALID_IN_CONTEXT` where PoB has no valid calculation, never a synthetic zero |
+| `evaluate_effect_candidate(reference, weapon_set, physical_slot, item_raw)` | Baseline + candidate + same-component delta for one component with a candidate in one exact physical slot; proves the opposite set byte-identical and restores everything exactly |
+| `get_weapon_set_context()` | Current weapon-set context plus the four physical weapon raws (diagnostic) |
+
+`fingerprint_components`, the semantic restore comparator (full and
+structural), `build_info`, and the evaluation context identity all carry
+`weapon_set` + `active_skill_set_id`, so a set-1 observation can never be
+reused as set-2 (and vice versa) from any ExileLens cache. Contextual
+deltas are component evidence only: they never become public
+`MEANINGFUL_UPGRADE` verdicts and no cross-set composition, trigger-rate,
+projectile, rotation, or practical-DPS inference exists.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`

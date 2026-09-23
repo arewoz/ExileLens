@@ -51,6 +51,13 @@ class EvaluationContextIdentity:
     loadout: str = ""
     item_set: str = ""
     calculation_context: str = "MAP"
+    #: Slice 3: the PoB weapon set (1 or 2) this identity was observed under.
+    #: Folded in so a set-1 observation can never serve a set-2 request.
+    weapon_set: int = 1
+    #: Active PoB skill-set id. Slice 3 evaluates only the currently active
+    #: skill set, but the id participates in identity so a cached result can
+    #: never cross skill sets either.
+    active_skill_set_id: str = ""
     worker_generation: int = 0
     #: Folded in so a cached result computed with the opposite setting can never be
     #: served: this setting changes the measured baseline/candidate metrics, not
@@ -94,8 +101,21 @@ def identity_from_state(
     calculation_context: str,
     worker_generation: int,
     ignore_socketed_mods: bool = False,
+    weapon_set: int | None = None,
+    active_skill_set_id: str | None = None,
 ) -> EvaluationContextIdentity:
     components = dict(fingerprint_components or {})
+    raw_weapon_set = weapon_set if weapon_set is not None else components.get("weapon_set", 1)
+    try:
+        resolved_weapon_set = int(raw_weapon_set)
+    except (TypeError, ValueError):
+        resolved_weapon_set = 1
+    if resolved_weapon_set not in (1, 2):
+        resolved_weapon_set = 1
+    if active_skill_set_id is not None:
+        resolved_skill_set = str(active_skill_set_id or "")
+    else:
+        resolved_skill_set = str(components.get("active_skill_set_id") or "")
     skill = {
         key: components.get(key)
         for key in (
@@ -137,6 +157,8 @@ def identity_from_state(
         loadout=loadout,
         item_set=item_set,
         calculation_context=calculation_context,
+        weapon_set=resolved_weapon_set,
+        active_skill_set_id=resolved_skill_set,
         worker_generation=int(worker_generation),
         ignore_socketed_mods=bool(ignore_socketed_mods),
     )

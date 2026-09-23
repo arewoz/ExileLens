@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -116,3 +117,69 @@ def product_slot_to_pob(product_slot: ProductSlot) -> str:
 
 
 EVALUABLE_POB_SLOTS = tuple(POB_TO_PRODUCT.keys())
+
+#: Exact physical weapon storage slots in PoB's ItemsTab. The bridge already
+#: documents that these four objects are independent and that the active pair
+#: is selected per item set by `useSecondWeaponSet`. Normal product code must
+#: never name a Swap slot; Slice 3 contextual evaluation addresses them only
+#: through :class:`PhysicalEvaluationTarget` below.
+PHYSICAL_WEAPON_SLOTS: tuple[str, ...] = ("Weapon 1", "Weapon 2", "Weapon 1 Swap", "Weapon 2 Swap")
+
+#: Physical slot by (logical product slot, weapon set). Only weapon-category
+#: product slots have a physical contextual target.
+_PHYSICAL_WEAPON_TARGET: dict[tuple[str, int], str] = {
+    (ProductSlot.WEAPON_1.value, 1): "Weapon 1",
+    (ProductSlot.WEAPON_1.value, 2): "Weapon 1 Swap",
+    (ProductSlot.WEAPON_2.value, 1): "Weapon 2",
+    (ProductSlot.WEAPON_2.value, 2): "Weapon 2 Swap",
+    (ProductSlot.OFFHAND_1.value, 1): "Weapon 2",
+    (ProductSlot.OFFHAND_1.value, 2): "Weapon 2 Swap",
+}
+
+WEAPON_PRODUCT_SLOTS = frozenset({ProductSlot.WEAPON_1, ProductSlot.WEAPON_2, ProductSlot.OFFHAND_1})
+
+
+@dataclass(frozen=True)
+class PhysicalEvaluationTarget:
+    """INTERNAL address of an exact physical weapon slot in one weapon set.
+
+    ``logical_product_slot`` is the product-facing slot the candidate was
+    resolved for; ``physical_pob_slot`` is the exact PoB storage slot that
+    will be mutated; ``weapon_set`` is 1 or 2. This is not a new public
+    ``ProductSlot`` and never surfaces Swap names to product callers.
+    """
+
+    logical_product_slot: str
+    physical_pob_slot: str
+    weapon_set: int
+
+    @classmethod
+    def from_parts(cls, logical_product_slot: ProductSlot | str, weapon_set: int) -> "PhysicalEvaluationTarget":
+        logical = logical_product_slot.value if isinstance(logical_product_slot, ProductSlot) else str(logical_product_slot)
+        if int(weapon_set) not in (1, 2):
+            raise ValueError("weapon_set must be 1 or 2")
+        physical = _PHYSICAL_WEAPON_TARGET.get((logical, int(weapon_set)))
+        if physical is None:
+            raise ValueError(f"no physical weapon target for logical slot {logical!r}")
+        return cls(logical_product_slot=logical, physical_pob_slot=physical, weapon_set=int(weapon_set))
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "logical_product_slot": self.logical_product_slot,
+            "physical_pob_slot": self.physical_pob_slot,
+            "weapon_set": self.weapon_set,
+        }
+
+
+def opposite_physical_slot(physical_pob_slot: str) -> str:
+    """The physical slot holding the same logical weapon in the other set."""
+    mapping = {
+        "Weapon 1": "Weapon 1 Swap",
+        "Weapon 1 Swap": "Weapon 1",
+        "Weapon 2": "Weapon 2 Swap",
+        "Weapon 2 Swap": "Weapon 2",
+    }
+    try:
+        return mapping[physical_pob_slot]
+    except KeyError as exc:
+        raise ValueError(f"not a physical weapon slot: {physical_pob_slot!r}") from exc

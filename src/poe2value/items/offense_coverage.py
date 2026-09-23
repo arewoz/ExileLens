@@ -703,8 +703,10 @@ class OffenseCoverageAuditor:
         fingerprint: str,
         context: str,
         primary_field: str,
+        weapon_set: int | str = 1,
+        active_skill_set_id: int | str = "",
     ) -> str:
-        return f"{fingerprint}|{context}|{primary_field}|v{OFFENSE_COVERAGE_VERSION}"
+        return f"{fingerprint}|{context}|{primary_field}|ws{weapon_set}|ss{active_skill_set_id}|v{OFFENSE_COVERAGE_VERSION}"
 
     def get_cached(
         self,
@@ -712,8 +714,10 @@ class OffenseCoverageAuditor:
         fingerprint: str,
         context: str,
         primary_field: str,
+        weapon_set: int | str = 1,
+        active_skill_set_id: int | str = "",
     ) -> OffenseCoverage | None:
-        payload = self._cache.get(self.cache_key(fingerprint=fingerprint, context=context, primary_field=primary_field))
+        payload = self._cache.get(self.cache_key(fingerprint=fingerprint, context=context, primary_field=primary_field, weapon_set=weapon_set, active_skill_set_id=active_skill_set_id))
         if payload is None:
             return None
         return OffenseCoverage(**payload)
@@ -727,9 +731,14 @@ class OffenseCoverageAuditor:
         context: str = "MAP",
         generation: int = 0,
         force: bool = False,
+        weapon_set: int | str = 1,
+        active_skill_set_id: int | str = "",
     ) -> OffenseCoverage:
         primary = resolve_primary_metric(build_info, baseline_metrics)
-        key = self.cache_key(fingerprint=fingerprint, context=context, primary_field=primary.pob_field)
+        info = build_info or {}
+        weapon_set = info.get("weapon_set", weapon_set)
+        active_skill_set_id = info.get("active_skill_set_id", active_skill_set_id)
+        key = self.cache_key(fingerprint=fingerprint, context=context, primary_field=primary.pob_field, weapon_set=weapon_set, active_skill_set_id=active_skill_set_id)
         if not force:
             cached = self._cache.get(key)
             if cached is not None:

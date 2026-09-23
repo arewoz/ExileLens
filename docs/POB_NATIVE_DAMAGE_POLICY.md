@@ -47,6 +47,18 @@ restore transaction is required. Enumeration and exact component metrics do
 not establish whole-build composition. This layer does not infer trigger
 relationships, projectile overlap, stacks, rotation, or practical DPS.
 
+### Weapon-set-qualified observations (Slice 3)
+
+The same component may be measurable in one weapon set and unavailable in
+the other. Such observations are qualified by a `CalculationContext`
+(weapon set 1/2); an unavailable context reports `UNAVAILABLE` /
+`NOT_VALID_IN_CONTEXT`, never a measured zero. Zero damage and unavailable
+are different claims. A same-component delta measured in one context is
+component evidence only: it is not a whole-build damage claim, it never
+promotes to a public directional verdict by itself, and no cross-set
+composition is inferred from it. Slice 4 will decide what cross-context
+evidence proves.
+
 `FullDPS=0` with no included groups means **not configured**, not zero build
 damage. A raw FullDPS number by itself, especially one supplied without
 matching group metadata, does not authorize aggregate selection. The
