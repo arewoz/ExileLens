@@ -160,6 +160,7 @@ def collect_candidate_evidence(
         physical_targets=targets,
         provenance={
             "candidate_fingerprint": fingerprint,
+            "source_identity": provenance["source_identity"],
             "source_revision": revision_before,
             "build_generation": generation_before,
         },

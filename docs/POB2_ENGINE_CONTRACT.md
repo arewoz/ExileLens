@@ -454,6 +454,26 @@ references are explicit caller input -- automatic semantic grouping into
 gameplay interactions is unsupported and reported as such. No whole-build
 composition exists yet and no public verdict consumes this evidence.
 
+## Composition eligibility (Slice 4C, internal, no product consumer)
+
+`src/poe2value/items/contextual_composition.py` answers only whether a
+Slice 4B evidence bundle is comparable, complete, and internally
+consistent enough to be eligible for later guarded interpretation:
+`ELIGIBLE` / `NOT_ELIGIBLE` / `INSUFFICIENT_EVIDENCE`, with structured
+reasons. Source identity was promoted into required proof unanimity
+(candidate fingerprint, source identity, revision, generation must all
+agree). Eligibility additionally requires a `COMMON_RESPONSE` proof,
+every required observation measured with verified restore, and a
+complete required set derived from real per-context effect-catalog
+enumeration (`derive_required_scope`, no truncation). The existing
+`OffenseCoverageAuditor` was not sufficient for this: it validates
+primary-metric responsiveness, not component-set completeness. Unproven
+coverage, subsets, unavailable/divergent/near-zero evidence, and restore
+failures yield `INSUFFICIENT_EVIDENCE` (`COVERAGE_UNPROVEN`,
+`SUBSET_INCOMPLETE`) or `NOT_ELIGIBLE`, never eligibility. No metric is
+summed, averaged, or projected; eligibility is scope-bounded (never
+whole-build) and never a product verdict.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`

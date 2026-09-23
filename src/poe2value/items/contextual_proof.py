@@ -29,15 +29,17 @@ no ratio or percentage is claimed on a near-zero baseline (same 0.5
 absolute threshold the rest of the pipeline uses).
 
 Same-candidate binding: every measurement carries provenance
-(``candidate_fingerprint``, ``source_revision``, ``build_generation``).
-Callers should source the fingerprint from
+(``candidate_fingerprint``, ``source_identity``, ``source_revision``,
+``build_generation``). Callers should source the fingerprint from
 ``evaluation_identity.candidate_fingerprint`` (the exact candidate text
-evaluated) and the revision/generation from the engine that performed the
-evaluation. The classifier requires unanimous provenance where present and
-refuses any definitive relationship claim when no provenance is present at
-all: a proof must never compare component A measured for candidate X with
-component B measured for candidate Y, nor silently compare stale
-measurements from different loaded builds.
+evaluated) and the identity/revision/generation from the engine that
+performed the evaluation. The classifier requires unanimous provenance
+where present and refuses any definitive relationship claim when no
+provenance is present at all: a proof must never compare component A
+measured for candidate X with component B measured for candidate Y, nor
+silently compare stale measurements from different loaded builds -- and
+different source identities never compare even if revision tokens happen
+to match.
 """
 
 from __future__ import annotations
@@ -141,7 +143,11 @@ class ContextualMeasurement:
     restore_pass: bool | None = None
     #: Provenance binding one proof's measurements to a single candidate
     #: evaluation. Empty/absent means "unproven", never "any candidate".
+    #: ``source_identity`` is the canonical loaded-source key
+    #: (``loaded_source_ref.key``); different sources never compare even
+    #: when revision tokens coincide.
     candidate_fingerprint: str = ""
+    source_identity: str = ""
     source_revision: str = ""
     build_generation: int | None = None
 
@@ -158,6 +164,7 @@ class ContextualMeasurement:
         context: Mapping[str, Any],
         physical_target: Mapping[str, Any] | None = None,
         candidate_fingerprint: str = "",
+        source_identity: str = "",
         source_revision: str = "",
         build_generation: int | None = None,
     ) -> "ContextualMeasurement":
@@ -167,10 +174,10 @@ class ContextualMeasurement:
         measurement was requested with (the result itself carries the
         measured outputs). ``candidate_fingerprint`` should be
         ``evaluation_identity.candidate_fingerprint`` of the exact evaluated
-        text; ``source_revision``/``build_generation`` identify the loaded
-        build the measurement came from. Raises ``ValueError`` on malformed
-        identity, so a proof can never be built on an unidentified
-        observation.
+        text; ``source_identity``/``source_revision``/``build_generation``
+        identify the loaded build the measurement came from. Raises
+        ``ValueError`` on malformed identity, so a proof can never be built
+        on an unidentified observation.
         """
         qualified = ContextualComponentReference.from_dict(
             {"component": dict(reference), "context": dict(context)}
@@ -213,6 +220,7 @@ class ContextualMeasurement:
             frames=dict(result["frames"]) if isinstance(result.get("frames"), Mapping) else None,
             restore_pass=bool(restore.get("pass")) if isinstance(restore, Mapping) and "pass" in restore else None,
             candidate_fingerprint=str(candidate_fingerprint or ""),
+            source_identity=str(source_identity or ""),
             source_revision=str(source_revision or ""),
             build_generation=generation,
         )
@@ -230,6 +238,7 @@ class ContextualMeasurement:
             "frames": dict(self.frames) if self.frames is not None else None,
             "restore_pass": self.restore_pass,
             "candidate_fingerprint": self.candidate_fingerprint,
+            "source_identity": self.source_identity,
             "source_revision": self.source_revision,
             "build_generation": self.build_generation,
         }
@@ -245,10 +254,10 @@ def collect_measurements(
 ) -> list[ContextualMeasurement]:
     """Pair Slice 3 results with the identities they were requested with.
 
-    ``provenance`` (``candidate_fingerprint`` / ``source_revision`` /
-    ``build_generation``) is attached uniformly when one candidate evaluation
-    produced every result -- the normal case. Length mismatch is a caller
-    error (fail closed), never silent truncation.
+    ``provenance`` (``candidate_fingerprint`` / ``source_identity`` /
+    ``source_revision`` / ``build_generation``) is attached uniformly when
+    one candidate evaluation produced every result -- the normal case.
+    Length mismatch is a caller error (fail closed), never silent truncation.
     """
     targets = list(physical_targets) if physical_targets is not None else [None] * len(results)
     if not (len(results) == len(references) == len(contexts) == len(targets)):
@@ -261,6 +270,7 @@ def collect_measurements(
             context=context,
             physical_target=target,
             candidate_fingerprint=proof.get("candidate_fingerprint", ""),
+            source_identity=proof.get("source_identity", ""),
             source_revision=proof.get("source_revision", ""),
             build_generation=proof.get("build_generation"),
         )
@@ -347,9 +357,10 @@ def _proof_shell(
     )
 
 
-def _provenance_key(measurement: ContextualMeasurement) -> tuple[str, str, int | None]:
+def _provenance_key(measurement: ContextualMeasurement) -> tuple[str, str, str, int | None]:
     return (
         measurement.candidate_fingerprint,
+        measurement.source_identity,
         measurement.source_revision,
         measurement.build_generation,
     )
@@ -413,7 +424,7 @@ def classify_relationship(
                 tolerance,
             )
 
-    if all(key == ("", "", None) for key in provenances):
+    if all(key == ("", "", "", None) for key in provenances):
         return _proof_shell(
             ContextualRelationship.INSUFFICIENT_EVIDENCE,
             "CANDIDATE_PROVENANCE_UNPROVEN",
@@ -520,9 +531,9 @@ def prove_candidate_relationship(
     """One-call helper: lift Slice 3 results, classify, return proof dict.
 
     ``provenance`` binds every result to one candidate evaluation
-    (``candidate_fingerprint`` / ``source_revision`` / ``build_generation``);
-    omitting it yields ``INSUFFICIENT_EVIDENCE`` rather than an unbound
-    claim.
+    (``candidate_fingerprint`` / ``source_identity`` / ``source_revision`` /
+    ``build_generation``); omitting it yields ``INSUFFICIENT_EVIDENCE``
+    rather than an unbound claim.
     """
     measurements = collect_measurements(
         results,
