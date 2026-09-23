@@ -110,6 +110,78 @@ function Get-ReleaseDependencyPins {
     return $pins
 }
 
+function Get-ReleaseLockPins {
+    param([string]$RepoRoot)
+    # Parses the generated hash lock. This is separate from
+    # Get-ReleaseDependencyPins on purpose: the direct requirements file must
+    # stay simple `Package==Version` lines, while only the lock understands
+    # `\` continuations and `--hash=sha256:...` entries.
+    $lock = Join-Path $RepoRoot "packaging\requirements-release.lock"
+    if (-not (Test-Path $lock)) {
+        throw "Missing hash-locked release requirements: $lock (refresh with: py -3.12 scripts\lock_release_deps.py)"
+    }
+    $entries = @{}
+    $current = $null
+    $lineNumber = 0
+    foreach ($raw in Get-Content -Path $lock) {
+        $lineNumber++
+        $text = $raw.Trim()
+        if (-not $text -or $text.StartsWith("#")) { continue }
+        $continues = $false
+        if ($text.EndsWith("\")) {
+            $continues = $true
+            $text = $text.Substring(0, $text.Length - 1).Trim()
+        }
+        if (-not $text) { continue }
+        if ($null -eq $current) {
+            if ($text -notmatch '^([A-Za-z0-9_.-]+)==([A-Za-z0-9_.+!-]+)$') {
+                throw "Release lock must use exact package pins, got ${lock}:$lineNumber`: $text"
+            }
+            $current = $Matches[1].ToLowerInvariant().Replace("_", "-")
+            if ($entries.ContainsKey($current)) {
+                throw "Release lock has a duplicate entry for ${current} (${lock}:$lineNumber)"
+            }
+            $entries[$current] = @{ Version = $Matches[2]; Hashes = @() }
+            if (-not $continues) { $current = $null }
+        }
+        else {
+            if ($text -notmatch '^--hash=sha256:([0-9a-fA-F]{64})$') {
+                throw "Release lock entry $current must list --hash=sha256 pins, got ${lock}:$lineNumber`: $text"
+            }
+            $entries[$current].Hashes += $Matches[1].ToLowerInvariant()
+            if (-not $continues) { $current = $null }
+        }
+    }
+    if ($null -ne $current) { throw "Release lock has a truncated entry for ${current}: $lock" }
+    foreach ($name in @($entries.Keys)) {
+        if ($entries[$name].Hashes.Count -eq 0) {
+            throw "Release lock entry $name==$($entries[$name].Version) has no hashes; --require-hashes cannot verify it"
+        }
+    }
+    if ($entries.Count -eq 0) { throw "Release lock contains no package pins: $lock" }
+    return $entries
+}
+
+function Assert-ReleaseLockConsistency {
+    param([string]$RepoRoot, [hashtable]$Pins)
+    # Fail-closed: every direct pin must appear in the hash lock with the same
+    # exact version, so the two files cannot silently drift apart.
+    $locked = Get-ReleaseLockPins -RepoRoot $RepoRoot
+    $errors = @()
+    foreach ($name in @($Pins.Keys | Sort-Object)) {
+        $key = $name.ToLowerInvariant().Replace("_", "-")
+        if (-not $locked.ContainsKey($key)) {
+            $errors += "direct pin $name==$($Pins[$name]) is missing from packaging\requirements-release.lock"
+        }
+        elseif ($locked[$key].Version -ne $Pins[$name]) {
+            $errors += "drift: direct pin $name==$($Pins[$name]) does not match lock $name==$($locked[$key].Version) (refresh with: py -3.12 scripts\lock_release_deps.py)"
+        }
+    }
+    if ($errors.Count -gt 0) {
+        throw ("Release dependency drift detected:`n  - " + ($errors -join "`n  - "))
+    }
+}
+
 function Test-ReleaseVenv {
     param([string]$PythonExecutable, [string]$PinnedVersion, [hashtable]$Pins)
     if (-not (Test-Path $PythonExecutable)) { return $false }
@@ -133,6 +205,7 @@ function Assert-ReleaseVenvPreflight {
     $venvRoot = Join-Path $RepoRoot ".release-venv"
     $venvPython = Join-Path $venvRoot "Scripts\python.exe"
     $pins = Get-ReleaseDependencyPins -RepoRoot $RepoRoot
+    Assert-ReleaseLockConsistency -RepoRoot $RepoRoot -Pins $pins
 
     if (-not (Test-Path $venvPython)) {
         Write-Host "==> Creating isolated release venv: $venvRoot"
@@ -140,8 +213,8 @@ function Assert-ReleaseVenvPreflight {
         if ($LASTEXITCODE -ne 0) { throw "Could not create release venv: $venvRoot" }
     }
     if (-not (Test-ReleaseVenv -PythonExecutable $venvPython -PinnedVersion $base.PinnedVersion -Pins $pins)) {
-        Write-Host "==> Installing pinned release dependencies..."
-        & $venvPython -m pip install --disable-pip-version-check --requirement (Join-Path $RepoRoot "packaging\requirements-release.txt")
+        Write-Host "==> Installing hash-locked release dependencies..."
+        & $venvPython -m pip install --disable-pip-version-check --require-hashes --requirement (Join-Path $RepoRoot "packaging\requirements-release.lock")
         if ($LASTEXITCODE -ne 0) { throw "Could not install pinned release dependencies" }
     }
     if (-not (Test-ReleaseVenv -PythonExecutable $venvPython -PinnedVersion $base.PinnedVersion -Pins $pins)) {
