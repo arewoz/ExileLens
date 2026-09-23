@@ -27,6 +27,17 @@ change rather than independent additive damage. That is evidence only:
 Safety mirrors Slice 3: unavailable data is never converted to zero, and
 no ratio or percentage is claimed on a near-zero baseline (same 0.5
 absolute threshold the rest of the pipeline uses).
+
+Same-candidate binding: every measurement carries provenance
+(``candidate_fingerprint``, ``source_revision``, ``build_generation``).
+Callers should source the fingerprint from
+``evaluation_identity.candidate_fingerprint`` (the exact candidate text
+evaluated) and the revision/generation from the engine that performed the
+evaluation. The classifier requires unanimous provenance where present and
+refuses any definitive relationship claim when no provenance is present at
+all: a proof must never compare component A measured for candidate X with
+component B measured for candidate Y, nor silently compare stale
+measurements from different loaded builds.
 """
 
 from __future__ import annotations
@@ -128,6 +139,11 @@ class ContextualMeasurement:
     source: str = ""
     frames: Mapping[str, Any] | None = None
     restore_pass: bool | None = None
+    #: Provenance binding one proof's measurements to a single candidate
+    #: evaluation. Empty/absent means "unproven", never "any candidate".
+    candidate_fingerprint: str = ""
+    source_revision: str = ""
+    build_generation: int | None = None
 
     @property
     def cache_identity(self) -> str:
@@ -141,13 +157,20 @@ class ContextualMeasurement:
         reference: Mapping[str, Any],
         context: Mapping[str, Any],
         physical_target: Mapping[str, Any] | None = None,
+        candidate_fingerprint: str = "",
+        source_revision: str = "",
+        build_generation: int | None = None,
     ) -> "ContextualMeasurement":
         """Lift one Slice 3 ``evaluate_effect_candidate`` result.
 
         ``reference``/``context``/``physical_target`` are the inputs the
         measurement was requested with (the result itself carries the
-        measured outputs). Raises ``ValueError`` on malformed identity, so a
-        proof can never be built on an unidentified observation.
+        measured outputs). ``candidate_fingerprint`` should be
+        ``evaluation_identity.candidate_fingerprint`` of the exact evaluated
+        text; ``source_revision``/``build_generation`` identify the loaded
+        build the measurement came from. Raises ``ValueError`` on malformed
+        identity, so a proof can never be built on an unidentified
+        observation.
         """
         qualified = ContextualComponentReference.from_dict(
             {"component": dict(reference), "context": dict(context)}
@@ -173,6 +196,12 @@ class ContextualMeasurement:
             candidate_block.get("source") if isinstance(candidate_block, Mapping) else ""
         )
         restore = result.get("restore")
+        if build_generation is not None and isinstance(build_generation, bool):
+            raise ValueError("build_generation must be an integer or None")
+        try:
+            generation = int(build_generation) if build_generation is not None else None
+        except (TypeError, ValueError) as exc:
+            raise ValueError("build_generation must be an integer or None") from exc
         return cls(
             qualified=qualified,
             physical_target=dict(physical_target) if isinstance(physical_target, Mapping) else None,
@@ -183,6 +212,9 @@ class ContextualMeasurement:
             source=str(candidate_source or baseline_source or ""),
             frames=dict(result["frames"]) if isinstance(result.get("frames"), Mapping) else None,
             restore_pass=bool(restore.get("pass")) if isinstance(restore, Mapping) and "pass" in restore else None,
+            candidate_fingerprint=str(candidate_fingerprint or ""),
+            source_revision=str(source_revision or ""),
+            build_generation=generation,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -197,6 +229,9 @@ class ContextualMeasurement:
             "source": self.source,
             "frames": dict(self.frames) if self.frames is not None else None,
             "restore_pass": self.restore_pass,
+            "candidate_fingerprint": self.candidate_fingerprint,
+            "source_revision": self.source_revision,
+            "build_generation": self.build_generation,
         }
 
 
@@ -206,17 +241,28 @@ def collect_measurements(
     references: list[Mapping[str, Any]],
     contexts: list[Mapping[str, Any]],
     physical_targets: list[Mapping[str, Any] | None] | None = None,
+    provenance: Mapping[str, Any] | None = None,
 ) -> list[ContextualMeasurement]:
     """Pair Slice 3 results with the identities they were requested with.
 
-    Length mismatch is a caller error (fail closed), never silent truncation.
+    ``provenance`` (``candidate_fingerprint`` / ``source_revision`` /
+    ``build_generation``) is attached uniformly when one candidate evaluation
+    produced every result -- the normal case. Length mismatch is a caller
+    error (fail closed), never silent truncation.
     """
     targets = list(physical_targets) if physical_targets is not None else [None] * len(results)
     if not (len(results) == len(references) == len(contexts) == len(targets)):
         raise ValueError("results, references, contexts and physical targets must align one-to-one")
+    proof = dict(provenance) if isinstance(provenance, Mapping) else {}
     return [
         ContextualMeasurement.from_candidate_result(
-            result, reference=reference, context=context, physical_target=target
+            result,
+            reference=reference,
+            context=context,
+            physical_target=target,
+            candidate_fingerprint=proof.get("candidate_fingerprint", ""),
+            source_revision=proof.get("source_revision", ""),
+            build_generation=proof.get("build_generation"),
         )
         for result, reference, context, target in zip(results, references, contexts, targets)
     ]
@@ -228,6 +274,12 @@ class ContextualProof:
 
     Never a verdict: no ranking/scoring input, no directional claim, no
     summed cross-context value anywhere in this structure.
+
+    ``scope`` is a machine-readable capability label: this layer proves only
+    observed response consistency, never whole-interaction deltas.
+    ``exact`` is False in Slice 4A: ``COMMON_RESPONSE`` is explicitly
+    approximate (empirically similar within ``tolerance``), not a
+    mathematically exact common factor, and must never be consumed as one.
     """
 
     classification: ContextualRelationship
@@ -237,6 +289,8 @@ class ContextualProof:
     factors: dict[str, float] = field(default_factory=dict)
     representative_factor: float | None = None
     tolerance: float = COMMON_RESPONSE_RELATIVE_TOLERANCE
+    scope: str = "OBSERVED_RESPONSE_CONSISTENCY"
+    exact: bool = False
     assumptions: list[str] = field(default_factory=list)
     limitations: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -250,6 +304,8 @@ class ContextualProof:
             "factors": dict(self.factors),
             "representative_factor": self.representative_factor,
             "tolerance": self.tolerance,
+            "scope": self.scope,
+            "exact": self.exact,
             "assumptions": list(self.assumptions),
             "limitations": list(self.limitations),
             "warnings": list(self.warnings),
@@ -268,6 +324,37 @@ _BASE_LIMITATIONS = (
 )
 
 
+def _proof_shell(
+    classification: ContextualRelationship,
+    reason: str,
+    measurements: list[ContextualMeasurement],
+    tolerance: float,
+    *,
+    compared_fields: list[str] | None = None,
+    factors: dict[str, float] | None = None,
+    representative_factor: float | None = None,
+) -> ContextualProof:
+    return ContextualProof(
+        classification=classification,
+        reason=reason,
+        measurements=list(measurements),
+        compared_fields=list(compared_fields or []),
+        factors=dict(factors or {}),
+        representative_factor=representative_factor,
+        tolerance=tolerance,
+        assumptions=list(_BASE_ASSUMPTIONS),
+        limitations=list(_BASE_LIMITATIONS),
+    )
+
+
+def _provenance_key(measurement: ContextualMeasurement) -> tuple[str, str, int | None]:
+    return (
+        measurement.candidate_fingerprint,
+        measurement.source_revision,
+        measurement.build_generation,
+    )
+
+
 def classify_relationship(
     measurements: list[ContextualMeasurement],
     *,
@@ -278,42 +365,61 @@ def classify_relationship(
 
     ``field_name`` restricts comparison to one PoB output field; otherwise
     every numeric field with a significant baseline in *all* observations is
-    compared (deterministic sorted order). Degrades safely: unavailable or
-    non-finite data yields ``NOT_COMPARABLE``; near-zero baselines or
-    agreement on no measurable change yields ``INSUFFICIENT_EVIDENCE``.
+    compared independently (deterministic sorted order): the relationship is
+    common only when *every* compared field's per-observation ratios agree
+    within ``tolerance``. Semantically different PoB quantities are never
+    averaged together; ``representative_factor`` is derived only after every
+    per-field condition is satisfied.
+
+    Fail-closed ordering: too few observations, then provenance mismatch,
+    then unavailable/missing data, then unproven provenance, then field
+    analysis. ``COMMON_RESPONSE`` is explicitly approximate (``exact`` is
+    False): empirically similar within tolerance, not an exact common
+    factor.
     """
     if tolerance <= 0:
         raise ValueError("tolerance must be positive")
     if len(measurements) < 2:
-        return ContextualProof(
-            classification=ContextualRelationship.INSUFFICIENT_EVIDENCE,
-            reason="NEED_AT_LEAST_TWO_OBSERVATIONS",
-            measurements=list(measurements),
-            tolerance=tolerance,
-            assumptions=list(_BASE_ASSUMPTIONS),
-            limitations=list(_BASE_LIMITATIONS),
+        return _proof_shell(
+            ContextualRelationship.INSUFFICIENT_EVIDENCE,
+            "NEED_AT_LEAST_TWO_OBSERVATIONS",
+            measurements,
+            tolerance,
+        )
+
+    provenances = {_provenance_key(measurement) for measurement in measurements}
+    if len(provenances) > 1:
+        return _proof_shell(
+            ContextualRelationship.NOT_COMPARABLE,
+            "PROVENANCE_MISMATCH",
+            measurements,
+            tolerance,
         )
 
     for measurement in measurements:
         if measurement.status != "MEASURED":
-            return ContextualProof(
-                classification=ContextualRelationship.NOT_COMPARABLE,
-                reason=f"OBSERVATION_NOT_MEASURED:{measurement.status}"
+            return _proof_shell(
+                ContextualRelationship.NOT_COMPARABLE,
+                f"OBSERVATION_NOT_MEASURED:{measurement.status}"
                 + (f":{measurement.reason}" if measurement.reason else ""),
-                measurements=list(measurements),
-                tolerance=tolerance,
-                assumptions=list(_BASE_ASSUMPTIONS),
-                limitations=list(_BASE_LIMITATIONS),
+                measurements,
+                tolerance,
             )
         if not measurement.baseline_output or not measurement.candidate_output:
-            return ContextualProof(
-                classification=ContextualRelationship.NOT_COMPARABLE,
-                reason="OBSERVATION_MISSING_OUTPUT",
-                measurements=list(measurements),
-                tolerance=tolerance,
-                assumptions=list(_BASE_ASSUMPTIONS),
-                limitations=list(_BASE_LIMITATIONS),
+            return _proof_shell(
+                ContextualRelationship.NOT_COMPARABLE,
+                "OBSERVATION_MISSING_OUTPUT",
+                measurements,
+                tolerance,
             )
+
+    if all(key == ("", "", None) for key in provenances):
+        return _proof_shell(
+            ContextualRelationship.INSUFFICIENT_EVIDENCE,
+            "CANDIDATE_PROVENANCE_UNPROVEN",
+            measurements,
+            tolerance,
+        )
 
     if field_name is not None:
         candidate_fields = [str(field_name)]
@@ -341,81 +447,61 @@ def classify_relationship(
 
     if not usable_fields:
         reason = "FIELD_NOT_COMPARABLE" if field_name is not None else "NEAR_ZERO_BASELINE_REFUSES_RATIO"
-        return ContextualProof(
-            classification=ContextualRelationship.INSUFFICIENT_EVIDENCE,
-            reason=reason,
-            measurements=list(measurements),
+        return _proof_shell(
+            ContextualRelationship.INSUFFICIENT_EVIDENCE,
+            reason,
+            measurements,
+            tolerance,
             compared_fields=candidate_fields if field_name is None else [str(field_name)],
-            tolerance=tolerance,
-            assumptions=list(_BASE_ASSUMPTIONS),
-            limitations=list(_BASE_LIMITATIONS),
         )
 
-    factors: dict[str, float] = {}
+    # Per-field ratios: one ratio per (observation, field). A field supports
+    # a common response only when its own ratios agree across observations.
+    field_means: dict[str, float] = {}
     material_change = False
-    for index, measurement in enumerate(measurements):
+    for compared in usable_fields:
         ratios: list[float] = []
-        for compared in usable_fields:
+        for measurement in measurements:
             before = float((measurement.baseline_output or {})[compared])
             after = float((measurement.candidate_output or {})[compared])
             ratios.append(after / before)
             if abs(after - before) > RESPONSE_MIN_CHANGE:
                 material_change = True
-        # One factor per observation: the mean ratio across compared fields.
-        # Multi-field observations must first agree with themselves; a wide
-        # internal spread means the observation has no single response.
-        internal_spread = (max(ratios) - min(ratios)) / max(abs(sum(ratios) / len(ratios)), 1e-9)
-        if internal_spread > tolerance:
-            return ContextualProof(
-                classification=ContextualRelationship.DIVERGENT_RESPONSE,
-                reason="OBSERVATION_FIELDS_DISAGREE",
-                measurements=list(measurements),
+        mean = sum(ratios) / len(ratios)
+        spread = (max(ratios) - min(ratios)) / max(abs(mean), 1e-9)
+        if spread > tolerance:
+            return _proof_shell(
+                ContextualRelationship.DIVERGENT_RESPONSE,
+                f"FIELD_DIVERGES:{compared}",
+                measurements,
+                tolerance,
                 compared_fields=usable_fields,
-                tolerance=tolerance,
-                assumptions=list(_BASE_ASSUMPTIONS),
-                limitations=list(_BASE_LIMITATIONS),
             )
-        factors[measurement.cache_identity] = sum(ratios) / len(ratios)
+        field_means[compared] = mean
 
-    values = list(factors.values())
-    mean = sum(values) / len(values)
-    spread = (max(values) - min(values)) / max(abs(mean), 1e-9)
-    if spread > tolerance:
-        return ContextualProof(
-            classification=ContextualRelationship.DIVERGENT_RESPONSE,
-            reason="RESPONSE_FACTORS_DIVERGE",
-            measurements=list(measurements),
-            compared_fields=usable_fields,
-            factors=factors,
-            representative_factor=mean,
-            tolerance=tolerance,
-            assumptions=list(_BASE_ASSUMPTIONS),
-            limitations=list(_BASE_LIMITATIONS),
-        )
     if not material_change:
-        return ContextualProof(
-            classification=ContextualRelationship.INSUFFICIENT_EVIDENCE,
-            reason="NO_MEASURABLE_CHANGE",
-            measurements=list(measurements),
+        return _proof_shell(
+            ContextualRelationship.INSUFFICIENT_EVIDENCE,
+            "NO_MEASURABLE_CHANGE",
+            measurements,
+            tolerance,
             compared_fields=usable_fields,
-            factors=factors,
-            representative_factor=mean,
-            tolerance=tolerance,
-            assumptions=list(_BASE_ASSUMPTIONS),
-            limitations=list(_BASE_LIMITATIONS),
+            factors=field_means,
+            representative_factor=sum(field_means.values()) / len(field_means),
         )
+    representative = sum(field_means.values()) / len(field_means)
     return ContextualProof(
         classification=ContextualRelationship.COMMON_RESPONSE,
         reason="SHARED_PROPORTIONAL_RESPONSE",
         measurements=list(measurements),
         compared_fields=usable_fields,
-        factors=factors,
-        representative_factor=mean,
+        factors=field_means,
+        representative_factor=representative,
         tolerance=tolerance,
         assumptions=list(_BASE_ASSUMPTIONS),
         limitations=list(_BASE_LIMITATIONS),
         warnings=[
-            "Common response is shared-response evidence only: it does not establish causality.",
+            "Common response is approximately shared within tolerance: it is not an exact common factor and does not establish causality.",
             "Do not add component values across weapon sets on the basis of this proof.",
         ],
     )
@@ -427,14 +513,22 @@ def prove_candidate_relationship(
     references: list[Mapping[str, Any]],
     contexts: list[Mapping[str, Any]],
     physical_targets: list[Mapping[str, Any] | None] | None = None,
+    provenance: Mapping[str, Any] | None = None,
     field_name: str | None = None,
     tolerance: float = COMMON_RESPONSE_RELATIVE_TOLERANCE,
 ) -> dict[str, Any]:
-    """One-call helper: lift Slice 3 results, classify, return proof dict."""
+    """One-call helper: lift Slice 3 results, classify, return proof dict.
+
+    ``provenance`` binds every result to one candidate evaluation
+    (``candidate_fingerprint`` / ``source_revision`` / ``build_generation``);
+    omitting it yields ``INSUFFICIENT_EVIDENCE`` rather than an unbound
+    claim.
+    """
     measurements = collect_measurements(
         results,
         references=references,
         contexts=contexts,
         physical_targets=physical_targets,
+        provenance=provenance,
     )
     return classify_relationship(measurements, field_name=field_name, tolerance=tolerance).to_dict()

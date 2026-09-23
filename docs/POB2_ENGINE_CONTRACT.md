@@ -417,15 +417,26 @@ results into `ContextualMeasurement` inputs (qualified reference, physical
 target, baseline/candidate outputs, provenance) and classifies their
 relationship into exactly one of `COMMON_RESPONSE`, `DIVERGENT_RESPONSE`,
 `INSUFFICIENT_EVIDENCE`, or `NOT_COMPARABLE`, returned as an inspectable
-`ContextualProof` dict for later slices. The common-response check compares
-per-observation response factors (after/before) within 5% relative spread,
-refuses ratios on baselines at or below the pipeline-wide 0.5 response
-epsilon, never converts unavailable data to zero, and treats uniform
-no-change as insufficient rather than a match. A `COMMON_RESPONSE` match is
-shared-response evidence only: it does not establish causality and never
-authorizes adding component values across weapon sets. This layer is not
-imported by evaluation, ranking, or verdict code and does not influence any
-public Item Check result.
+`ContextualProof` dict for later slices. Every measurement carries
+provenance (`candidate_fingerprint` from
+`evaluation_identity.candidate_fingerprint`, plus `source_revision` and
+`build_generation` from the evaluating engine); the classifier requires
+unanimous provenance where present, fails closed with `PROVENANCE_MISMATCH`
+on any disagreement, and refuses unbound inputs with
+`CANDIDATE_PROVENANCE_UNPROVEN` -- a proof can never compare component A
+measured for candidate X with component B measured for candidate Y. The
+common-response check compares each shared significant field's own
+after/before ratios independently within 5% relative spread (no averaging
+of unlike PoB quantities; the representative factor is derived only after
+every per-field condition holds), refuses ratios on baselines at or below
+the pipeline-wide 0.5 response epsilon, never converts unavailable data to
+zero, and treats uniform no-change as insufficient rather than a match.
+`COMMON_RESPONSE` is explicitly approximate (`exact: false`, machine
+readable alongside `scope: OBSERVED_RESPONSE_CONSISTENCY`): empirically
+similar within tolerance, never an exact common factor, never causation,
+and never authorization to add component values across weapon sets. This
+layer is not imported by evaluation, ranking, or verdict code and does not
+influence any public Item Check result.
 
 ## Tested engine revision
 

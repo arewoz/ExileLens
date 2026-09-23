@@ -52,6 +52,10 @@ def _unavailable_result(reason: str = "NOT_VALID_IN_CONTEXT") -> dict:
 def _prove(pairs: list[tuple[dict, dict, dict, dict]], **kwargs) -> dict:
     """pairs: (reference, context, before-output, after-output)."""
     results = [_measured_result(before, after) for _, _, before, after in pairs]
+    kwargs.setdefault(
+        "provenance",
+        {"candidate_fingerprint": "candX", "source_revision": "rev1", "build_generation": 3},
+    )
     return prove_candidate_relationship(
         results,
         references=[reference for reference, _, _, _ in pairs],
@@ -73,7 +77,10 @@ def test_common_proportional_response_is_evidence_not_verdict() -> None:
     assert proof["reason"] == "SHARED_PROPORTIONAL_RESPONSE"
     assert proof["representative_factor"] == pytest.approx(2.0)
     assert set(proof["compared_fields"]) == {"CombinedDPS", "TotalDPS"}
+    assert set(proof["factors"]) == {"CombinedDPS", "TotalDPS"}
     assert all(value == pytest.approx(2.0) for value in proof["factors"].values())
+    assert proof["scope"] == "OBSERVED_RESPONSE_CONSISTENCY"
+    assert proof["exact"] is False
     assert any("causality" in warning.lower() for warning in proof["warnings"])
     assert any("must never be added" in limitation.lower() or "never be added" in limitation.lower()
                for limitation in proof["limitations"])
@@ -90,8 +97,8 @@ def test_divergent_response_is_distinguished() -> None:
         ]
     )
     assert proof["classification"] == ContextualRelationship.DIVERGENT_RESPONSE.value
-    assert proof["reason"] == "RESPONSE_FACTORS_DIVERGE"
-    assert proof["representative_factor"] is not None
+    assert proof["reason"] == "FIELD_DIVERGES:CombinedDPS"
+    assert proof["representative_factor"] is None
 
 
 def test_near_zero_baseline_refuses_ratio() -> None:
@@ -237,7 +244,7 @@ def test_non_finite_and_mismatched_inputs_fail_closed() -> None:
         classify_relationship(measurements, tolerance=0.0)
 
 
-def test_internal_field_disagreement_diverges() -> None:
+def test_per_field_disagreement_diverges_with_field_named() -> None:
     proof = _prove(
         [
             (_reference("EffectAPlayer"), {"weapon_set": 1},
@@ -249,7 +256,147 @@ def test_internal_field_disagreement_diverges() -> None:
         ]
     )
     assert proof["classification"] == ContextualRelationship.DIVERGENT_RESPONSE.value
-    assert proof["reason"] == "OBSERVATION_FIELDS_DISAGREE"
+    assert proof["reason"] == "FIELD_DIVERGES:TotalDPS"
+
+
+def test_averaging_trap_diverges_under_per_field_policy() -> None:
+    """Values chosen so a per-observation-mean policy would pass at the
+    default 5% tolerance (both internal spreads and the mean spread are
+    within tolerance) while one field's own ratios diverge ~9.9%.
+
+    obs1 ratios: CombinedDPS 2.1525, TotalDPS 2.0475 (mean 2.10);
+    obs2 ratios: CombinedDPS 1.95, TotalDPS 2.05 (mean 2.00).
+    """
+    proof = _prove(
+        [
+            (_reference("EffectAPlayer"), {"weapon_set": 1},
+             {"CombinedDPS": 100.0, "TotalDPS": 100.0},
+             {"CombinedDPS": 215.25, "TotalDPS": 204.75}),
+            (_reference("EffectAPlayer"), {"weapon_set": 2},
+             {"CombinedDPS": 100.0, "TotalDPS": 100.0},
+             {"CombinedDPS": 195.0, "TotalDPS": 205.0}),
+        ]
+    )
+    assert proof["classification"] == ContextualRelationship.DIVERGENT_RESPONSE.value
+    assert proof["reason"] == "FIELD_DIVERGES:CombinedDPS"
+    # No per-observation mean of unlike quantities exists anywhere.
+    assert set(proof["factors"]) == set()
+
+
+def test_tolerance_boundary_is_deterministic() -> None:
+    just_inside = _prove(
+        [
+            (_reference("EffectAPlayer"), {"weapon_set": 1},
+             {"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+            (_reference("EffectAPlayer"), {"weapon_set": 2},
+             {"CombinedDPS": 100.0}, {"CombinedDPS": 209.0}),
+        ]
+    )
+    assert just_inside["classification"] == ContextualRelationship.COMMON_RESPONSE.value
+    just_outside = _prove(
+        [
+            (_reference("EffectAPlayer"), {"weapon_set": 1},
+             {"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+            (_reference("EffectAPlayer"), {"weapon_set": 2},
+             {"CombinedDPS": 100.0}, {"CombinedDPS": 211.0}),
+        ]
+    )
+    assert just_outside["classification"] == ContextualRelationship.DIVERGENT_RESPONSE.value
+
+
+def test_exact_zero_after_nonzero_baseline_is_a_valid_zero_ratio() -> None:
+    proof = _prove(
+        [
+            (_reference("EffectAPlayer"), {"weapon_set": 1},
+             {"CombinedDPS": 100.0}, {"CombinedDPS": 0.0}),
+            (_reference("EffectAPlayer"), {"weapon_set": 2},
+             {"CombinedDPS": 50.0}, {"CombinedDPS": 0.0}),
+        ]
+    )
+    assert proof["classification"] == ContextualRelationship.COMMON_RESPONSE.value
+    assert proof["representative_factor"] == pytest.approx(0.0)
+
+
+def test_provenance_mismatch_fails_closed() -> None:
+    pairs = [
+        (_reference("EffectAPlayer"), {"weapon_set": 1},
+         {"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+        (_reference("EffectAPlayer"), {"weapon_set": 2},
+         {"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+    ]
+    results = [_measured_result(before, after) for _, _, before, after in pairs]
+    references = [reference for reference, _, _, _ in pairs]
+    contexts = [context for _, context, _, _ in pairs]
+
+    other_candidate = prove_candidate_relationship(
+        results,
+        references=references,
+        contexts=contexts,
+        provenance={"candidate_fingerprint": "candX", "source_revision": "rev1", "build_generation": 3},
+    )
+    assert other_candidate["classification"] == ContextualRelationship.COMMON_RESPONSE.value
+
+    measurements = collect_measurements(results, references=references, contexts=contexts)
+    tampered = [
+        ContextualMeasurement.from_candidate_result(
+            results[0],
+            reference=references[0],
+            context=contexts[0],
+            candidate_fingerprint="candX",
+            source_revision="rev1",
+            build_generation=3,
+        ),
+        ContextualMeasurement.from_candidate_result(
+            results[1],
+            reference=references[1],
+            context=contexts[1],
+            candidate_fingerprint="candY",
+            source_revision="rev1",
+            build_generation=3,
+        ),
+    ]
+    assert measurements[0].candidate_fingerprint == ""
+    mixed = classify_relationship(tampered)
+    assert mixed.classification == ContextualRelationship.NOT_COMPARABLE
+    assert mixed.reason == "PROVENANCE_MISMATCH"
+
+    tampered_generation = [
+        ContextualMeasurement.from_candidate_result(
+            results[0],
+            reference=references[0],
+            context=contexts[0],
+            candidate_fingerprint="candX",
+            build_generation=3,
+        ),
+        ContextualMeasurement.from_candidate_result(
+            results[1],
+            reference=references[1],
+            context=contexts[1],
+            candidate_fingerprint="candX",
+            build_generation=4,
+        ),
+    ]
+    stale = classify_relationship(tampered_generation)
+    assert stale.classification == ContextualRelationship.NOT_COMPARABLE
+    assert stale.reason == "PROVENANCE_MISMATCH"
+
+
+def test_unproven_provenance_is_insufficient_not_common() -> None:
+    pairs = [
+        (_reference("EffectAPlayer"), {"weapon_set": 1},
+         {"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+        (_reference("EffectAPlayer"), {"weapon_set": 2},
+         {"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+    ]
+    results = [_measured_result(before, after) for _, _, before, after in pairs]
+    proof = prove_candidate_relationship(
+        results,
+        references=[reference for reference, _, _, _ in pairs],
+        contexts=[context for _, context, _, _ in pairs],
+    )
+    assert proof["classification"] == ContextualRelationship.INSUFFICIENT_EVIDENCE.value
+    assert proof["reason"] == "CANDIDATE_PROVENANCE_UNPROVEN"
+    assert proof["representative_factor"] is None
 
 
 def _module_source(name: str) -> str:
