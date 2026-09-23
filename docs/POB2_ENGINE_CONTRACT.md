@@ -409,6 +409,24 @@ deltas are component evidence only: they never become public
 `MEANINGFUL_UPGRADE` verdicts and no cross-set composition, trigger-rate,
 projectile, rotation, or practical-DPS inference exists.
 
+## Contextual proof layer (Slice 4A, internal, evidence only)
+
+`src/poe2value/items/contextual_proof.py` is a small deterministic domain
+layer on top of Slice 3 measurements. It lifts `evaluate_effect_candidate`
+results into `ContextualMeasurement` inputs (qualified reference, physical
+target, baseline/candidate outputs, provenance) and classifies their
+relationship into exactly one of `COMMON_RESPONSE`, `DIVERGENT_RESPONSE`,
+`INSUFFICIENT_EVIDENCE`, or `NOT_COMPARABLE`, returned as an inspectable
+`ContextualProof` dict for later slices. The common-response check compares
+per-observation response factors (after/before) within 5% relative spread,
+refuses ratios on baselines at or below the pipeline-wide 0.5 response
+epsilon, never converts unavailable data to zero, and treats uniform
+no-change as insufficient rather than a match. A `COMMON_RESPONSE` match is
+shared-response evidence only: it does not establish causality and never
+authorizes adding component values across weapon sets. This layer is not
+imported by evaluation, ranking, or verdict code and does not influence any
+public Item Check result.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`
