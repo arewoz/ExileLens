@@ -438,6 +438,22 @@ and never authorization to add component values across weapon sets. This
 layer is not imported by evaluation, ranking, or verdict code and does not
 influence any public Item Check result.
 
+## Evidence orchestration (Slice 4B, internal, no product consumer)
+
+`src/poe2value/items/contextual_evidence.py` collects one candidate's
+Slice 3 physical-candidate measurements across caller-supplied contextual
+observations and feeds them to the Slice 4A classifier, returning an
+evidence bundle (candidate/source provenance, per-observation identity,
+status, baseline/candidate outputs, deltas, unavailable list, proof with
+scope/exactness, frame totals). Provenance comes only from real context:
+`candidate_fingerprint` of the exact evaluated text plus the engine's
+loaded revision token, source identity, and build generation; missing or
+drifting provenance fails closed, restore failures propagate and stop
+collection, and observations are never summed across contexts. Component
+references are explicit caller input -- automatic semantic grouping into
+gameplay interactions is unsupported and reported as such. No whole-build
+composition exists yet and no public verdict consumes this evidence.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`
