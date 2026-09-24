@@ -1907,6 +1907,22 @@ local function equipment_snapshot()
 	return equipment
 end
 
+-- Physical equipment snapshot: raw slot keys with NO active-weapon-slot
+-- translation. `equipment_snapshot()` above resolves logical Weapon 1/2
+-- through the active set, so one physical Swap item appears under two
+-- keys; that translated view is correct for baseline/restore comparison
+-- (same translation on both sides) but unusable for placement isolation,
+-- where the check must see exactly which physical slot changed.
+local function physical_equipment_snapshot()
+	local equipment = {}
+	for _, slot_name in ipairs(slot_names()) do
+		local slot = build.itemsTab.slots[slot_name]
+		local item = slot and slot.selItemId and build.itemsTab.items[slot.selItemId]
+		equipment[slot_name] = (item and item.raw) or ""
+	end
+	return equipment
+end
+
 function M.fingerprint_components()
 	local equipment = equipment_snapshot()
 	local config = {}
@@ -2691,11 +2707,18 @@ local function evaluate_effect_candidate_in_context(params)
 	local original_semantic = semantic_state()
 	local original_metrics = collect_metrics()
 	local original_equipment = equipment_snapshot()
-	local original_physical_id = it.slots[physical_slot].selItemId or 0
+	local original_physical_equipment = physical_equipment_snapshot()
 	local opposite_slot = physical_slot:match(" Swap$") and physical_slot:gsub(" Swap$", "")
 		or (physical_slot .. " Swap")
 	local original_opposite_raw = slot_item_raw_physical(opposite_slot)
 	local created = {}
+	-- Every slot's selection, not just the target physical slot: PoB may
+	-- disturb a paired slot (e.g. the same-set offhand when a candidate's
+	-- base type conflicts with it), and only a full revert can undo that.
+	local original_selection = {}
+	for slot_name, slot in pairs(it.slots) do
+		original_selection[slot_name] = slot.selItemId or 0
+	end
 
 	local function fail_restore(details)
 		STATE.healthy = false
@@ -2704,9 +2727,11 @@ local function evaluate_effect_candidate_in_context(params)
 	end
 
 	local function restore_all()
-		local slot = it.slots[physical_slot]
-		if slot.selItemId ~= original_physical_id then
-			slot:SetSelItemId(original_physical_id)
+		for slot_name, item_id in pairs(original_selection) do
+			local slot = it.slots[slot_name]
+			if slot and slot.selItemId ~= item_id then
+				slot:SetSelItemId(item_id)
+			end
 		end
 		for _, item_id in ipairs(created) do
 			discard_item(item_id)
@@ -2752,6 +2777,23 @@ local function evaluate_effect_candidate_in_context(params)
 	end
 	local active = weapon_set_context()
 
+	-- Every non-target slot must keep its exact equipped item. The target
+	-- slot itself is excluded: holding the candidate there is the point.
+	-- A cross-base placement can disturb a paired slot (e.g. the same-set
+	-- offhand when its item conflicts with the candidate's base type);
+	-- such disturbance aborts measurement instead of corrupting it.
+	local function disturbed_slots()
+		local current = physical_equipment_snapshot()
+		local disturbed = {}
+		for slot_name, raw in pairs(original_physical_equipment) do
+			if slot_name ~= physical_slot and (current[slot_name] or "") ~= (raw or "") then
+				disturbed[#disturbed + 1] = slot_name
+			end
+		end
+		table.sort(disturbed)
+		return disturbed
+	end
+
 	local outcome
 	local ok, err = pcall(function()
 		local baseline = read_effect_metrics(reference, {})
@@ -2767,12 +2809,25 @@ local function evaluate_effect_candidate_in_context(params)
 		if item_id and not was_cached then
 			created[#created + 1] = item_id
 		end
+		local disturbed_before = disturbed_slots()
+		if #disturbed_before > 0 then
+			outcome = {
+				status = "UNAVAILABLE", reason = "NOT_VALID_IN_CONTEXT",
+				baseline = baseline, candidate = nil, delta = nil,
+				disturbed_slots = disturbed_before,
+			}
+			return
+		end
 		recalc()
 		frames.candidate_settle = frames.candidate_settle + 1
-		-- The placement must touch ONLY the requested physical slot.
-		if slot_item_raw_physical(opposite_slot) ~= original_opposite_raw then
-			error({ code = "CALC_FAILED", message = "candidate placement mutated the opposite weapon set",
-				details = { physical_slot = physical_slot, opposite_slot = opposite_slot } })
+		local disturbed_after = disturbed_slots()
+		if #disturbed_after > 0 then
+			outcome = {
+				status = "UNAVAILABLE", reason = "NOT_VALID_IN_CONTEXT",
+				baseline = baseline, candidate = nil, delta = nil,
+				disturbed_slots = disturbed_after,
+			}
+			return
 		end
 		local candidate = read_effect_metrics(reference, {})
 		if candidate.status ~= "MEASURED" then
