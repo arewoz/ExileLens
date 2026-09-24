@@ -8,10 +8,13 @@ after a hook or clipboard notification are fully executable here.
 
 from __future__ import annotations
 
+import json
 import os
-from types import SimpleNamespace
+import sys
+from pathlib import Path
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if sys.platform != "win32":
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 
@@ -158,48 +161,121 @@ def test_overlay_missing_item_check_first_paint_is_visible_and_onscreen() -> Non
     overlay.deleteLater()
 
 
-def test_overlay_unrecoverable_click_pin_and_tray_exit_paths(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Dismiss, pin, and the actual tray Exit handler always leave a recovery path."""
+def test_overlay_unrecoverable_native_production_wiring(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    tmp_path: Path,
+) -> None:
+    """A native Windows Qt session proves all production lifecycle wiring."""
+    assert sys.platform == "win32", "overlay-unrecoverable is a native Windows release contract"
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     app = _app()
-    from poe2value.app.item_dismiss import ItemDismissController
-    from poe2value.platform.windows.mouse_hook import WM_LBUTTONDOWN
-    from poe2value.ui.overlay import OverlayWindow
-    from poe2value.ui.tray import TrayManager
+    assert app.platformName().lower() == "windows"
+    app.setQuitOnLastWindowClosed(False)
 
-    overlay = OverlayWindow(AppSettings())
-    overlay.show_analyzing(21)
-    controller = SimpleNamespace(
-        has_inflight_gameplay_request=False,
-        presentation_generation=3,
-        invalidated=0,
-    )
-    controller.invalidate_presentation = lambda: setattr(controller, "invalidated", controller.invalidated + 1)
-    dismiss = ItemDismissController()
-    dismiss.bind(overlay=overlay, controller=controller)
-    dismiss._active = True
-    dismiss._on_hook_click(WM_LBUTTONDOWN, 0, 0)
-    assert controller.invalidated == 1
+    from poe2value.app.main import Poe2ValueApp
+    from poe2value.app.settings import settings_path
+    from poe2value.platform.windows.mouse_hook import WM_LBUTTONDOWN
+    from poe2value.ui.pinned_item_overlay import PinnedItemOverlay
+
+    runtime = Poe2ValueApp()
+    runtime.settings.context = "BOSS"
+    quit_requested: list[bool] = []
+    runtime._compose_primary_ui(quit_callback=lambda: quit_requested.append(True))
+
+    def cleanup() -> None:
+        from PySide6.QtCore import QCoreApplication, QEvent
+
+        runtime.controller.shutdown()
+        menu = runtime.tray.contextMenu()
+        runtime.tray.setContextMenu(None)
+        if menu is not None:
+            menu.deleteLater()
+        runtime.tray.deleteLater()
+        runtime.dashboard.deleteLater()
+        runtime.overlay.deleteLater()
+        runtime.controller.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        app.processEvents()
+
+    request.addfinalizer(cleanup)
+    monkeypatch.setattr(runtime.controller.price_check_hotkey, "start", lambda: True)
+    runtime._wire_signals()
+    assert runtime.controller is not None
+    assert runtime.overlay is not None
+    assert runtime.dashboard is not None
+    assert runtime.tray is not None
+    controller = runtime.controller
+    overlay = runtime.overlay
+
+    # A real controller signal opens the real overlay. The OS hook itself is the
+    # external boundary; its built-in simulator still traverses the production
+    # MouseClickDismissHook.clicked -> ItemDismissController queued connection.
+    controller.evaluation_started.emit(21)
+    controller.analyzing.emit(21)
+    app.processEvents()
+    assert overlay.isVisible() and overlay.requested_visible
+    dismissed_generation = controller.presentation_generation
+    controller.item_dismiss._active = True
+    controller.item_dismiss.hook.simulate_click(WM_LBUTTONDOWN)
+    app.processEvents()
+    assert controller.presentation_generation == dismissed_generation + 1
     assert not overlay.isVisible()
     assert not overlay.requested_visible
 
-    overlay.show_analyzing(22)
-    pinned: list[bool] = []
-    overlay.set_pin_handlers(on_pin=lambda: pinned.append(True) or True, can_pin=lambda: True)
-    overlay._on_pin_clicked()
-    assert pinned == [True]
+    stale_result = {
+        "request_meta": {"request_id": 21, "presentation_generation": dismissed_generation},
+        "presentation": {"item_name": "Stale result", "compact_surface": True},
+    }
+    controller.evaluation_finished.emit(21, stale_result)
+    app.processEvents()
     assert not overlay.isVisible()
+    assert not overlay.requested_visible
 
-    saved: list[bool] = []
-    quit_called: list[bool] = []
-    monkeypatch.setattr("poe2value.ui.tray.save_settings", lambda _settings: saved.append(True))
-    monkeypatch.setattr(app, "quit", lambda: quit_called.append(True))
-    tray_like = SimpleNamespace(
-        dashboard=SimpleNamespace(_remember_geometry=lambda: None),
-        overlay=SimpleNamespace(remember_position=lambda: None),
-        settings=AppSettings(),
-    )
-    TrayManager._quit(tray_like)
-    assert saved == [True]
-    assert quit_called == [True]
-    dismiss.stop()
-    overlay.deleteLater()
+    # Substitute only the completed evaluation payload, then drive the real
+    # overlay Pin button and the real pinned overlay Unpin button.
+    result = {
+        "raw_input": {"content_hash": "native-overlay-contract"},
+        "pob_parse": {"display_name": "Native Contract Ring"},
+        "recommendation": {"evaluation_outcome": {"verdict": "SIDEGRADE"}},
+        "request_meta": {
+            "request_id": 22,
+            "presentation_generation": controller.presentation_generation,
+        },
+        "presentation": {
+            "item_name": "Native Contract Ring",
+            "rarity": "Rare",
+            "base_type": "Sapphire Ring",
+            "compact_surface": True,
+            "surface_mode": "PASSIVE_COMPACT",
+        },
+    }
+    controller._last_result = result
+    controller.evaluation_started.emit(22)
+    controller.evaluation_finished.emit(22, result)
+    app.processEvents()
+    assert overlay.isVisible()
+    overlay._panel._pin_button.click()
+    app.processEvents()
+    assert not overlay.isVisible()
+    assert len(controller._pinned_windows) == 1
+    pinned = next(iter(controller._pinned_windows.values()))
+    assert isinstance(pinned, PinnedItemOverlay)
+    assert pinned.isVisible()
+    assert controller._pin_compare.pinned_count() == 1
+
+    pinned._unpin_btn.click()
+    app.processEvents()
+    assert controller._pinned_windows == {}
+    assert controller._pin_compare.pinned_count() == 0
+    assert not pinned.isVisible()
+
+    # Trigger the QAction created by TrayManager.rebuild_menu(), not its handler.
+    # The production composition's explicit callback seam intercepts only the
+    # irreversible process-wide quit boundary.
+    exit_action = next(action for action in runtime.tray.contextMenu().actions() if action.text() == "Exit")
+    exit_action.trigger()
+    app.processEvents()
+    assert quit_requested == [True]
+    saved = json.loads(settings_path().read_text(encoding="utf-8"))
+    assert saved["context"] == "BOSS"

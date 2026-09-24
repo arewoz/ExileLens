@@ -22,6 +22,7 @@ class TrayManager(QSystemTrayIcon):
         overlay,
         dashboard: DashboardWindow,
         on_setup=None,
+        on_quit=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -30,6 +31,7 @@ class TrayManager(QSystemTrayIcon):
         self.overlay = overlay
         self.dashboard = dashboard
         self._on_setup = on_setup
+        self._on_quit = on_quit
 
         self.setToolTip(APP_NAME)
         self.setIcon(create_tray_icon())
@@ -427,6 +429,9 @@ class TrayManager(QSystemTrayIcon):
         self.dashboard._remember_geometry()
         self.overlay.remember_position()
         save_settings(self.settings)
+        if self._on_quit is not None:
+            self._on_quit()
+            return
         from PySide6.QtWidgets import QApplication
 
         app = QApplication.instance()

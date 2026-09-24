@@ -128,11 +128,9 @@ class Poe2ValueApp:
 
         if overlay_disabled():
             self.settings.overlay_enabled = False
-        self.controller = EvaluationController(self.settings)
-        self.overlay = OverlayWindow(self.settings)
+        self._compose_primary_ui()
         if is_enabled(FeatureModule.MARKET_ASSISTANT):
             self.market_assist_overlay = MarketAssistantOverlay(self.settings)
-        self.dashboard = DashboardWindow(self.settings, self.controller)
         if is_enabled(FeatureModule.LIVE_TREE_OVERLAY):
             self.tree_overlay = LiveTreeOverlayWindow()
             self.capture_overlay = CalibrationCaptureOverlay()
@@ -140,24 +138,9 @@ class Poe2ValueApp:
             self.capture_overlay.cancelled.connect(self._on_capture_cancelled)
         self.clipboard = ClipboardWatcher()
 
-        assert self.overlay is not None
-        self.overlay.set_placement_callback(self.controller.record_overlay_placement)
-        self.overlay.set_pin_handlers(
-            on_pin=self.controller.pin_from_overlay,
-            can_pin=self.controller.can_pin_more,
-        )
-        self.overlay.set_retry_handler(self.controller.retry_last_item_check)
-        self.controller.pin_compare_changed.connect(self._on_pin_compare_changed)
-        self.tray = TrayManager(
-            self.settings,
-            self.controller,
-            self.overlay,
-            self.dashboard,
-            on_setup=lambda: self._show_onboarding(manual=True),
-        )
         self._show_tray()
 
-        self.controller.item_dismiss.bind(overlay=self.overlay, controller=self.controller)
+        assert self.controller is not None
         self.controller.price_check_hotkey.bind(controller=self.controller)
         self._set_item_check_active(True)
         self._wire_signals()
@@ -179,6 +162,32 @@ class Poe2ValueApp:
             QTimer.singleShot(0, self._show_onboarding)
         QTimer.singleShot(0, self._start_engine)
         return app.exec()
+
+    def _compose_primary_ui(self, *, quit_callback=None) -> None:
+        """Build the production Item Check UI without starting external inputs or PoB."""
+        self.controller = EvaluationController(self.settings)
+        self.overlay = OverlayWindow(self.settings)
+        self.dashboard = DashboardWindow(self.settings, self.controller)
+
+        self.overlay.set_placement_callback(self.controller.record_overlay_placement)
+        self.overlay.set_pin_handlers(
+            on_pin=self.controller.pin_from_overlay,
+            can_pin=self.controller.can_pin_more,
+        )
+        self.overlay.set_retry_handler(self.controller.retry_last_item_check)
+        self.controller.pin_compare_changed.connect(self._on_pin_compare_changed)
+        if quit_callback is None:
+            app = QApplication.instance()
+            quit_callback = app.quit if app is not None else None
+        self.tray = TrayManager(
+            self.settings,
+            self.controller,
+            self.overlay,
+            self.dashboard,
+            on_setup=lambda: self._show_onboarding(manual=True),
+            on_quit=quit_callback,
+        )
+        self.controller.item_dismiss.bind(overlay=self.overlay, controller=self.controller)
 
     # --- lifecycle / recovery -------------------------------------------------------
 
