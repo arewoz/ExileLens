@@ -195,6 +195,103 @@
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CTXDIAG-CATALOGS-ENUMERATE-RESTORE",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_contextual_diagnostic_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CTXDIAG-FULL-CHAIN-WEAPON-SWAP",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_contextual_diagnostic_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "EFFENUM-BOUND-AND-ORDINARY-CHECK",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_effect_level_enumeration.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "EFFENUM-CACHE-MISS-FALLBACK",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_effect_level_enumeration.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "EFFENUM-MALFORMED-FAIL-CLOSED",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_effect_level_enumeration.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "EFFENUM-READS-DETERMINISTIC",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_effect_level_enumeration.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee",
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "EFFENUM-SIBLING-COMPONENTS",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_effect_level_enumeration.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
@@ -600,6 +697,23 @@
     },
     {
       "archetypes": [
+        "ailment",
+        "dot",
+        "spell",
+        "unusual_skill_part"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "STAGE-CHANNEL-RELEASE-IGNITE-VERDICT",
+      "manifest_id": "CORE04-STAGE-CONTEXT",
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "weapon_swap"
       ],
       "depth": "VERDICT",
@@ -639,14 +753,168 @@
       "result": "PASS",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-CORRUPT-RESTORE-FAILS-CLOSED",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-CROSS-SET-READ-RESTORE",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-FAILURES-CLOSE-AND-RESTORE",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-ORDINARY-CHECK-NO-CONTEXT-RPCS",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-PHYSICAL-SET1-LEAVES-SET2",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-PHYSICAL-SET2-ISOLATED",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-REPEATED-SWITCH-DETERMINISTIC",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "WSCTX-SIBLING-ISOLATION",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_weapon_set_component_contexts.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "XBASE-CROSS-OFFHAND-UNAVAILABLE",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_contextual_incompatible_placement_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "XBASE-CROSS-PRIMARY-UNAVAILABLE",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_contextual_incompatible_placement_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "weapon_swap"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "XBASE-SAME-BASE-MEASURES",
+      "manifest_id": "CORE04-WEAPON-SWAP",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_contextual_incompatible_placement_real_pob.py",
+      "total_variants": 1
     }
   ],
   "result_counts": {
-    "EXPECTED_UNCERTAIN": 5,
-    "PASS": 42
+    "EXPECTED_UNCERTAIN": 6,
+    "PASS": 60
   },
-  "supported_count": 47,
-  "total_count": 47,
+  "supported_count": 66,
+  "total_count": 66,
   "uncovered_archetypes": [
     "ascendancy",
     "es_scaling",

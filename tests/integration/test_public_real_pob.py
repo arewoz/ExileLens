@@ -795,3 +795,61 @@ def test_skill_native_dot_repeated_evaluation_does_not_leak_state(real_pob_engin
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
     assert second_row["restore"]["pass"] is True
+
+
+STAGE_CHANNEL_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_stage_context.xml"
+
+
+def test_stage_context_channel_release_ignite_offense_is_measured_truthfully(real_pob_engine) -> None:
+    """CORE04-STAGE-CONTEXT: channel-release build whose offense is ignite-dominant.
+
+    Mercenary/Gemling Legionnaire "Flameblast" (CHANNEL_RELEASE, stage_count 1,
+    sole stat set, whole part): the real PoB baseline for this fixture resolves
+    the primary metric to PoB's own IgniteDPS directly (OffenseKind.DOT_DPS,
+    DamageQuantity.AILMENT_DPS, ailment IGNITE, high confidence) -- the same
+    ailment-dominant branch as the poison fixture, this time for ignite. This is
+    the corpus's first ignite-dominant verdict-level evidence: the mixed
+    hit+ailment fixture covers ignite only as a CombinedDPS component, never as
+    the selected primary field.
+
+    The candidate is the shared offense ring fixture. On this build it measures
+    a real ~13%-class ignite loss with MEASURED support, while the channel
+    stage identity (stage_count 1, CHANNEL_RELEASE, sole stat set, whole part)
+    is retained on both sides and restore is exact. Per the documented
+    ailment-dominant policy (see the poison-ailment test and
+    docs/POB_NATIVE_DAMAGE_POLICY.md), a correctly measured ailment change still
+    reports PARTIAL quality / UNCERTAIN verdict -- truthful caution for this
+    mechanic, never a confident directional verdict.
+    """
+    result = evaluate_item(_item("core04_offense_ring.txt"), real_pob_engine, build_path=str(STAGE_CHANNEL_BUILD))
+
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Ring 1", "Ring 2"}
+    for row in result["slot_comparisons"]:
+        assert row["baseline"]["primary_skill"]["skill_name"] == "Flameblast"
+        assert row["candidate"]["primary_skill"]["skill_name"] == "Flameblast"
+        assert row["baseline"]["primary_skill"]["stage_count"] == 1
+        assert row["candidate"]["primary_skill"]["stage_count"] == 1
+        assert row["baseline"]["primary_skill"]["calculation_mode"] == "CHANNEL_RELEASE"
+        assert row["candidate"]["primary_skill"]["calculation_mode"] == "CHANNEL_RELEASE"
+        assert row["candidate"]["item_present"] is True
+
+        baseline_metric = row["baseline_primary_metric"]
+        assert baseline_metric["pob_field"] == "IgniteDPS"
+        assert baseline_metric["selected"] == "DOT_DPS"
+        assert baseline_metric["semantic_quantity"] == "AILMENT_DPS"
+        assert baseline_metric["ailment"] == "IGNITE"
+        assert baseline_metric["stat_set_key"] == "FlameblastPlayer:sole-set"
+        assert baseline_metric["part_key"] == "FlameblastPlayer:whole"
+        assert baseline_metric["stage_count"] == 1
+        assert baseline_metric["calculation_mode"] == "CHANNEL_RELEASE"
+
+        outcome = row["evaluation_outcome"]
+        offense = outcome["item_impact"]["axes"]["OFFENSE"]
+        assert offense["support"] == "MEASURED"
+        assert offense["direction"] == "NEGATIVE"
+        assert offense["significant"] is True
+        assert offense["magnitude_pct"] < -5.0
+        assert outcome["evaluation_quality"] == "PARTIAL"
+        assert outcome["verdict"] == "UNCERTAIN"
+
+        assert row["restore"]["pass"] is True

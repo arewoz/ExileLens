@@ -35,6 +35,10 @@ from tests.corpus_coverage.report import build_report, render_markdown, to_json_
 SUITES: tuple[tuple[str, str], ...] = (
     ("tests/integration/test_public_build_corpus.py", "build_corpus"),
     ("tests/integration/test_public_real_pob.py", "real_pob"),
+    ("tests/integration/test_weapon_set_component_contexts.py", "real_pob"),
+    ("tests/integration/test_contextual_incompatible_placement_real_pob.py", "real_pob"),
+    ("tests/integration/test_contextual_diagnostic_real_pob.py", "real_pob"),
+    ("tests/integration/test_effect_level_enumeration.py", "real_pob"),
     ("tests/test_core_04_adversarial_item_check.py", "itemcheck"),
 )
 

@@ -460,6 +460,213 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.DOT,),
         manifest_id="CORE04-SKILL-NATIVE-DOT",
     ),
+    CoverageCase(
+        id="STAGE-CHANNEL-RELEASE-IGNITE-VERDICT",
+        test_file="tests/integration/test_public_real_pob.py",
+        node_name="test_stage_context_channel_release_ignite_offense_is_measured_truthfully",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "The corpus's first ignite-dominant verdict-level evidence (the mixed "
+            "hit+ailment fixture covers ignite only as a CombinedDPS component): the "
+            "channel-release Flameblast build resolves IgniteDPS/AILMENT_DPS/DOT_DPS, "
+            "retains stage_count 1 / CHANNEL_RELEASE / sole stat set on both sides, "
+            "measures a real ignite loss with MEASURED support, and still reports "
+            "PARTIAL quality / UNCERTAIN verdict -- the truthful ailment-dominant "
+            "classification, never a confident directional verdict."
+        ),
+        archetypes=(Archetype.SPELL, Archetype.AILMENT, Archetype.DOT, Archetype.UNUSUAL_SKILL_PART),
+        manifest_id="CORE04-STAGE-CONTEXT",
+    ),
+)
+
+# ---------------------------------------------------------------------------
+# Slice 3-4D real-PoB gates (CR-01 consolidation) — verdict-level in the
+# "drives the real PoB worker" sense. These assert truthful component
+# evidence (context identity, physical isolation, availability, exact
+# restore), never a public EvaluationOutcome/PublicVerdict; see
+# docs/COMMUNITY_REGRESSION_MATRIX.md for the per-scenario mapping. Each
+# entry below points at an existing, currently-passing test -- nothing here
+# invents coverage.
+# ---------------------------------------------------------------------------
+SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="WSCTX-CROSS-SET-READ-RESTORE",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_same_reference_reads_under_both_sets_with_exact_restore",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="The same ComponentReference reads under set 1 and set 2 as two disjoint cache observations (shared component identity, distinct context identity) with exact fingerprint/equipment restore.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-REPEATED-SWITCH-DETERMINISTIC",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_repeated_set_switching_is_deterministic",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Repeated set2->set1->set2 component reads are deterministic per set (same status, same output when measured).",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-SIBLING-ISOLATION",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_sibling_effects_share_no_context_observation",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two sibling effects under two weapon sets yield four disjoint context cache identities -- no observation is ever shared.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-PHYSICAL-SET2-ISOLATED",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_physical_set2_candidate_is_isolated_and_restored",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="A candidate placed in the exact physical Weapon 1 Swap slot measures a real component delta with the opposite set byte-identical and the fingerprint restored.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-PHYSICAL-SET1-LEAVES-SET2",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_physical_set1_candidate_leaves_set2_identical",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="A set-1 physical placement never touches set 2 (both swap slots byte-identical) and restores exactly.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-FAILURES-CLOSE-AND-RESTORE",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_context_failures_close_and_restore",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Invalid weapon set, cross-set physical slot, and failed candidate calculation all fail closed with the baseline fingerprint and context restored.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-CORRUPT-RESTORE-FAILS-CLOSED",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_corrupt_contextual_restore_fails_closed",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="A corrupted contextual restore raises RestoreFailed and the next load re-parses a known-good baseline (mirrors the ordinary-path recovery contract).",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="WSCTX-ORDINARY-CHECK-NO-CONTEXT-RPCS",
+        test_file="tests/integration/test_weapon_set_component_contexts.py",
+        node_name="test_ordinary_item_check_uses_no_context_path_and_is_unchanged",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Ordinary ring Item Check invokes zero contextual RPCs and keeps its FULL/MEANINGFUL_UPGRADE result -- the contextual path is explicit-only.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="XBASE-SAME-BASE-MEASURES",
+        test_file="tests/integration/test_contextual_incompatible_placement_real_pob.py",
+        node_name="test_compatible_same_base_replacements_still_measure",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Same-base replacements in both weapon sets still measure normally with clean restore (the FIX-02 guard never over-fires on compatible placements).",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="XBASE-CROSS-OFFHAND-UNAVAILABLE",
+        test_file="tests/integration/test_contextual_incompatible_placement_real_pob.py",
+        node_name="test_cross_base_offhand_disturbance_is_unavailable_not_corrupt",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="A cross-base placement that would disturb the paired offhand aborts to UNAVAILABLE/NOT_VALID_IN_CONTEXT naming the disturbed slot, restores exactly, and leaves the worker healthy for the next transaction.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="XBASE-CROSS-PRIMARY-UNAVAILABLE",
+        test_file="tests/integration/test_contextual_incompatible_placement_real_pob.py",
+        node_name="test_cross_base_primary_disturbance_is_unavailable_not_corrupt",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="A cross-base placement disturbing the primary pairing aborts to UNAVAILABLE/NOT_VALID_IN_CONTEXT with exact restore and the original weapon set retained.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="CTXDIAG-CATALOGS-ENUMERATE-RESTORE",
+        test_file="tests/integration/test_contextual_diagnostic_real_pob.py",
+        node_name="test_both_weapon_set_catalogs_enumerate_with_restore",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Both weapon-set effect catalogs enumerate (set-2 read costs zero settle frames) with disjoint context identities and exact set/fingerprint/weapon restore.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="CTXDIAG-FULL-CHAIN-WEAPON-SWAP",
+        test_file="tests/integration/test_contextual_diagnostic_real_pob.py",
+        node_name="test_full_diagnostic_chain_on_weapon_swap",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Full read-only diagnostic chain (candidate -> measurements -> evidence -> proof -> scope -> eligibility) on the weapon-swap fixture: schema-complete, provenance-bound, restore-exact, and ordinary Item Check still uses zero contextual RPCs.",
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORE04-WEAPON-SWAP",
+    ),
+    CoverageCase(
+        id="EFFENUM-SIBLING-COMPONENTS",
+        test_file="tests/integration/test_effect_level_enumeration.py",
+        node_name="test_additional_granted_effects_are_distinct_cache_backed_components",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Sibling granted effects (EscapeShot/IceFragment, InfernalCry/CorpseExplosion) share one group but carry distinct semantic and cache identities, all GlobalCache-backed and measured.",
+        archetypes=(Archetype.WEAPON_SWAP, Archetype.MELEE),
+    ),
+    CoverageCase(
+        id="EFFENUM-READS-DETERMINISTIC",
+        test_file="tests/integration/test_effect_level_enumeration.py",
+        node_name="test_exact_effect_reads_do_not_cross_contaminate_and_are_deterministic",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Repeated catalog listings are identical and exact sibling reads return their own identities from GLOBAL_CACHE without cross-contamination and without a restore transaction.",
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-MELEE-WEAPON",
+    ),
+    CoverageCase(
+        id="EFFENUM-CACHE-MISS-FALLBACK",
+        test_file="tests/integration/test_effect_level_enumeration.py",
+        node_name="test_cache_miss_fallback_restores_selected_effect_and_calc_state",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="A forced cache miss falls back to a transactional recalc that measures the exact requested semantic identity and restores main-skill identity, fingerprint, stat set, part, stage, and calculation mode.",
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-MELEE-WEAPON",
+    ),
+    CoverageCase(
+        id="EFFENUM-MALFORMED-FAIL-CLOSED",
+        test_file="tests/integration/test_effect_level_enumeration.py",
+        node_name="test_malformed_effect_results_fail_closed_and_restore",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Malformed cache entries and malformed fallback results surface as UNAVAILABLE with the precise reason, never a synthetic output, with the fingerprint restored.",
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORE04-MELEE-WEAPON",
+    ),
+    CoverageCase(
+        id="EFFENUM-BOUND-AND-ORDINARY-CHECK",
+        test_file="tests/integration/test_effect_level_enumeration.py",
+        node_name="test_effect_bound_and_ordinary_item_check_behavior",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Cross-cutting bound: the effect catalog is capped at 8 with explicit truncation, and ordinary ring Item Check keeps its FULL/MEANINGFUL_UPGRADE result.",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -611,4 +818,4 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
-ALL_CASES: tuple[CoverageCase, ...] = BUILD_CORPUS_IDENTITY_CASES + REAL_POB_VERDICT_CASES + POLICY_UNIT_CASES
+ALL_CASES: tuple[CoverageCase, ...] = BUILD_CORPUS_IDENTITY_CASES + REAL_POB_VERDICT_CASES + SLICE_3_4D_REAL_POB_CASES + POLICY_UNIT_CASES
