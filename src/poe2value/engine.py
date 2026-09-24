@@ -661,8 +661,8 @@ class Engine:
 
         A failure here means the build state is no longer trustworthy going forward. It
         raises RestoreFailed, which invalidates the loaded build so the next evaluation
-        starts from a real reload. The result already delivered stays valid: it was
-        measured from a baseline an earlier transaction verified.
+        starts from a real reload. Callers using deferred Item Check evaluation must
+        finalize before delivering success, so a restore failure suppresses that result.
         """
         from poe2value.worker import decorate_restored_block
 

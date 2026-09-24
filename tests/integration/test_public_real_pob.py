@@ -50,6 +50,14 @@ def test_supported_offense_and_defense_comparisons_are_measured(real_pob_engine)
     assert offense["restore"]["pass"] is True and defense["restore"]["pass"] is True
 
 
+def test_off02_non_weapon_ring_item_check_completes(real_pob_engine) -> None:
+    """FIX-P1A: a Ring must not evaluate OFF-02's weapon-only predicate."""
+    result = evaluate_item(_item("core04_offense_ring.txt"), real_pob_engine, build_path=str(BUILD))
+    assert result["paired_offhand_cleared"] is False
+    assert result["paired_offhand_slot"] == ""
+    assert any(row["pob_slot"] == "Ring 1" and row["restore"]["pass"] is True for row in result["slot_comparisons"])
+
+
 def test_ring_tradeoff_and_best_slot_remain_semantic(real_pob_engine) -> None:
     result = evaluate_item(_item("core04_tradeoff_ring.txt"), real_pob_engine, build_path=str(BUILD))
     ring_one = next(row for row in result["slot_comparisons"] if row["pob_slot"] == "Ring 1")

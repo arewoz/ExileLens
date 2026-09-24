@@ -36,7 +36,7 @@ from poe2value.items.offense_coverage import OffenseCoverageAuditor, infer_offen
 from poe2value.items.ranking import rank_slot_comparisons
 from poe2value.items.raw_input import ItemInputSource, RawItemInput
 from poe2value.items.recognition import ItemClassification
-from poe2value.items.slots import ProductSlot, pob_slot_to_product
+from poe2value.items.slots import ProductSlot, WEAPON_TYPES, pob_slot_to_product
 from poe2value.items.socket_normalize import strip_socketed_modifiers
 from poe2value.items.value_layer import parse_profile
 

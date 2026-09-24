@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from poe2value.items.compact_tooltip import replacing_line
+from poe2value.items.evaluation import WEAPON_TYPES as evaluation_weapon_types
 from poe2value.items.more_info import build_more_info
+from poe2value.items.slots import WEAPON_TYPES
 
 pytestmark = pytest.mark.itemcheck
 
@@ -45,3 +47,13 @@ def test_paired_offhand_name_is_disclosed_in_compact_tooltip_and_more_info() -> 
     more_info = build_more_info(model)
     verdict = next(section for section in more_info["sections"] if section["id"] == "verdict_header")
     assert "Replacing: Ashen Staff · Weapon 1 (also removes Dawn Guard)" in verdict["lines"]
+
+
+def test_off02_uses_the_canonical_weapon_type_registry() -> None:
+    """A non-weapon Item Check reaches this branch; keep the import explicit.
+
+    Before FIX-P1A, evaluating a Ring raised ``NameError`` here because OFF-02
+    referenced this registry without importing it.
+    """
+    assert evaluation_weapon_types is WEAPON_TYPES
+    assert "Ring" not in evaluation_weapon_types
