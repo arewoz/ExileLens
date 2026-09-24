@@ -725,10 +725,13 @@ class OverlayWindow(QWidget):
         save_settings(self.settings)
 
     def _sync_hotkey_hint(self) -> None:
+        from poe2value.ui.health import hotkey_display
+
         show = bool(getattr(self.settings, "show_hotkey_hints", True))
         dismissed = bool(getattr(self.settings, "hotkey_hints_dismissed", False))
         count = int(getattr(self.settings, "hotkey_hints_success_count", 0) or 0)
         visible = show and not dismissed and count < 5
+        self._panel.set_hotkey_hint_text(f"{hotkey_display(self.settings)} to analyze")
         self._panel.set_hotkey_hint_visible(visible)
 
     def _capture_first_show_geometry(self, request_id: int) -> None:

@@ -518,6 +518,15 @@ class ItemOverlayPanel(QWidget):
         self._hotkey_hint.setVisible(visible)
         self._hint_dismiss.setVisible(visible)
 
+    def set_hotkey_hint_text(self, text: str) -> None:
+        """Show the configured chord instead of a hardcoded default.
+
+        The constructor default ("Shift+C to analyze") is kept as the
+        fallback so existing callers that never set a chord render exactly
+        as before.
+        """
+        self._hotkey_hint.setText(text or "Shift+C to analyze")
+
     def set_pinned_state(self, pinned: bool) -> None:
         self._pinned = bool(pinned)
         self._pin_button.setText("Pinned" if self._pinned else "Pin")

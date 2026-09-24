@@ -14,6 +14,46 @@ from poe2value.pob.lua_host import LuaHost
 from poe2value.tooltip_perf import perf_enabled
 
 
+def _configure_std_streams_utf8() -> None:
+    """Ensure stdout/stderr use UTF-8 encoding on all platforms.
+
+    On Windows, subprocess pipes default to the active code page (charmap).
+    Reconfigure the text wrappers to UTF-8 so Unicode in build data, paths,
+    item names, and PoB output cannot terminate the worker.
+    """
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace", write_through=True)
+    except Exception:
+        pass
+    try:
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace", write_through=True)
+    except Exception:
+        pass
+    # For frozen/windowed builds where streams may be None or lack reconfigure,
+    # fall back to binary wrappers with explicit encoding.
+    if getattr(sys, "frozen", False):
+        try:
+            if sys.stdout is not None and hasattr(sys.stdout, "buffer"):
+                import io
+
+                sys.stdout = io.TextIOWrapper(
+                    sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+                )
+        except Exception:
+            pass
+        try:
+            if sys.stderr is not None and hasattr(sys.stderr, "buffer"):
+                import io
+
+                sys.stderr = io.TextIOWrapper(
+                    sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+                )
+        except Exception:
+            pass
+
+
 def decorate_build_result(result: dict[str, Any]) -> dict[str, Any]:
     if "fingerprint" in result:
         result["fingerprint_hash"] = fingerprint_hash(result["fingerprint"])
@@ -29,6 +69,23 @@ def decorate_effect_result(result: dict[str, Any]) -> dict[str, Any]:
     reference = result.get("reference")
     if isinstance(reference, dict):
         result["reference"] = ComponentReference.from_dict(reference).to_dict()
+    return result
+
+
+def decorate_contextual_effect_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Normalise a Slice 3 weapon-set-qualified effect read.
+
+    The nested ``baseline``/``candidate`` blocks carry their own references;
+    only the top-level reference (when present) is normalised here.
+    """
+    result = decorate_effect_result(result)
+    for key in ("baseline", "candidate"):
+        block = result.get(key)
+        if isinstance(block, dict) and isinstance(block.get("reference"), dict):
+            try:
+                block["reference"] = ComponentReference.from_dict(block["reference"]).to_dict()
+            except (TypeError, ValueError):
+                pass
     return result
 
 
@@ -250,6 +307,7 @@ class WorkerSession:
         max_effects: int = MAX_EFFECTS,
         force_cache_miss: bool = False,
         malformed_cache: bool = False,
+        weapon_set: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"max_effects": max_effects}
         if indices is not None:
@@ -258,6 +316,10 @@ class WorkerSession:
             params["force_cache_miss"] = True
         if malformed_cache:
             params["malformed_cache"] = True
+        if weapon_set is not None:
+            if int(weapon_set) not in (1, 2):
+                raise ValueError("weapon_set must be 1 or 2")
+            params["weapon_set"] = int(weapon_set)
         return normalize_effect_catalog(self.request("list_calculable_effects", params))
 
     def read_effect_metrics(
@@ -267,6 +329,7 @@ class WorkerSession:
         force_cache_miss: bool = False,
         malformed_cache: bool = False,
         malformed_fallback: bool = False,
+        weapon_set: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"reference": dict(reference)}
         if force_cache_miss:
@@ -275,7 +338,39 @@ class WorkerSession:
             params["malformed_cache"] = True
         if malformed_fallback:
             params["malformed_fallback"] = True
-        return decorate_effect_result(self.request("read_effect_metrics", params))
+        if weapon_set is not None:
+            if int(weapon_set) not in (1, 2):
+                raise ValueError("weapon_set must be 1 or 2")
+            params["weapon_set"] = int(weapon_set)
+        return decorate_contextual_effect_result(self.request("read_effect_metrics", params))
+
+    def get_weapon_set_context(self) -> dict[str, Any]:
+        return self.request("get_weapon_set_context", {})
+
+    def evaluate_effect_candidate(
+        self,
+        reference: dict[str, Any],
+        *,
+        weapon_set: int,
+        physical_slot: str,
+        item_raw: str,
+        test_fault: str | None = None,
+    ) -> dict[str, Any]:
+        """Slice 3 internal: measure one component with a candidate in one exact physical weapon slot."""
+        from poe2value.items.effect_components import ComponentReference
+
+        raw_reference = ComponentReference.from_dict(dict(reference)).to_dict()
+        if int(weapon_set) not in (1, 2):
+            raise ValueError("weapon_set must be 1 or 2")
+        params: dict[str, Any] = {
+            "reference": raw_reference,
+            "weapon_set": int(weapon_set),
+            "physical_slot": str(physical_slot),
+            "item_raw": str(item_raw),
+        }
+        if test_fault:
+            params["test_fault"] = test_fault
+        return decorate_contextual_effect_result(self.request("evaluate_effect_candidate", params))
 
     def apply_live_equipment(self, equipment: list[dict[str, Any]]) -> dict[str, Any]:
         result = self.request("apply_live_equipment", {"equipment": equipment})
@@ -446,6 +541,7 @@ def run_worker_stdio(config: PobConfig | None = None) -> int:
 
 def run_worker_entrypoint(config: PobConfig | None = None) -> int:
     """Windowed/frozen-safe worker boundary: never let startup exceptions escape."""
+    _configure_std_streams_utf8()
     try:
         return run_worker_stdio(config)
     except Exception as exc:  # noqa: BLE001 - this is the child process crash boundary

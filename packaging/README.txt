@@ -73,6 +73,15 @@ HOW TO USE
 
 Path of Exile 2 must be the foreground application.
 
+UNCERTAIN means ExileLens does not have enough evidence for a reliable
+verdict. It is not a judgment on the item. Open More info for the detailed
+breakdown whenever a result needs explanation.
+
+Market listings: Copy Item is an action you perform inside Path of Exile 2.
+Copied item text enters the same Item Check pipeline described above.
+While a Market Assistant capture session is running, copied items feed that
+session instead of opening competing Item Check results.
+
 
 CONTROLS
 --------
@@ -91,6 +100,20 @@ More info >
 
 Copy diagnostics
     Copy evaluation data for bug reports.
+
+
+HOTKEY
+------
+
+The default Item Check hotkey is SHIFT + C. It can be changed under
+Dashboard -> Settings -> Hotkey (Change button), where a Test button
+listens for the new chord to confirm it is detected.
+
+If the hotkey never fires, check that Path of Exile 2 is the foreground
+application, that no other tool uses the same chord, and that ExileLens
+runs at the same privilege level as the game: if PoE2 runs as
+administrator, run ExileLens as administrator too. Settings shows an
+elevation note when a mismatch is detected.
 
 
 CURRENT BETA FEATURES
@@ -112,8 +135,10 @@ CURRENT BETA FEATURES
 Supported equipment:
 Helmet, Body Armour, Gloves, Boots, Belt, Ring, Amulet,
 1H/2H weapons and Offhand/Focus.
+Jewels placed in allocated passive-tree sockets.
 
-Jewels are currently unsupported.
+A small number of special jewels that alter passive-tree connectivity
+cannot be evaluated.
 
 
 MARKET PRICING
@@ -129,9 +154,9 @@ The main purpose of this release is:
 KNOWN LIMITATIONS
 -----------------
 
-- Jewels are unsupported.
 - Some PoE2 mechanics may not be fully modeled by PoB or ExileLens.
 - Some results may therefore be partial.
+- A small number of special jewels that alter passive-tree connectivity cannot be evaluated.
 - Your PoB build is the comparison baseline, not automatically your live in-game gear.
 - The first analysis after launch may be slower while the PoB worker starts.
 - Some multi-monitor / DPI setups may still have UI issues.
@@ -144,7 +169,8 @@ Overlay does not appear:
 - Make sure ExileLens is running in the system tray.
 - Make sure PoE2 is in the foreground.
 - Make sure a valid item tooltip is visible.
-- Try Shift+C again.
+- Press the configured hotkey again (default Shift+C; see HOTKEY above
+  if you rebound it or suspect a conflict).
 
 "No build loaded":
 - Select or reload the correct build XML from ExileLens.
@@ -160,6 +186,7 @@ PoB worker fails:
 
 Partial / unsupported result:
 - ExileLens could not fully evaluate the item or mechanic.
+- UNCERTAIN means there was not enough evidence for a reliable verdict.
 - Please report suspicious results.
 
 
@@ -182,7 +209,7 @@ BUG REPORTS
 
 Main log:
 
-    %LOCALAPPDATA%\poe2-value-overlay\logs\poe2value.log
+    %LOCALAPPDATA%\ExileLens\logs\poe2value.log
 
 When reporting a bug, please include:
 

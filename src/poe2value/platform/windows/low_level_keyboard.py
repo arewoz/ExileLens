@@ -170,6 +170,35 @@ class LowLevelKeyboardHook(QObject):
             thread.join(timeout=2.0)
         self._thread = None
 
+    def process_key_event(
+        self,
+        *,
+        vk: int,
+        is_down: bool,
+        extra_info: int = 0,
+        injected: bool = False,
+        poe_foreground: bool | None = None,
+    ) -> HookDecision:
+        """Process one hook event; used by the native callback and deterministic tests."""
+        active = is_poe_foreground() if poe_foreground is None else bool(poe_foreground)
+        if is_down and int(vk) == 0x43 and "ctrl" in _modifiers_from_tracker(self.chord_tracker):
+            if int(extra_info) != EXILELENS_INJECT_TAG:
+                note_foreign_ctrl_c_copy("injected" if injected else "physical")
+        released = self.chord_tracker.observe(vk=int(vk), is_down=bool(is_down))
+        decision = self.matcher.handle(
+            vk=int(vk), is_down=bool(is_down), extra_info=int(extra_info),
+            modifiers=_modifiers_from_tracker(self.chord_tracker), poe_foreground=active,
+            test_mode=self._test_mode,
+        )
+        if decision.fire:
+            self.chord_tracker.arm()
+            (self.tested if self._test_mode else self.triggered).emit()
+        if released:
+            self.binding_released.emit()
+        elif decision.matched and is_down and not active:
+            self.seen_not_poe.emit()
+        return decision
+
     def _message_loop(self) -> None:
         self._thread_id = int(kernel32.GetCurrentThreadId())
         def callback(code: int, wparam: int, lparam: int) -> int:
@@ -177,31 +206,10 @@ class LowLevelKeyboardHook(QObject):
                 return int(user32.CallNextHookEx(self._hook, code, wparam, lparam))
             event = ctypes.cast(lparam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
             down = int(wparam) in (WM_KEYDOWN, WM_SYSKEYDOWN)
-            if down and int(event.vkCode) == 0x43 and "ctrl" in current_modifiers():
-                # Any Ctrl+C ExileLens does not own suppresses passive clipboard
-                # capture — including one injected by another overlay. Only our own
-                # tagged injection is exempt; it is claimed by sequence ownership.
-                if int(event.dwExtraInfo) != EXILELENS_INJECT_TAG:
-                    note_foreign_ctrl_c_copy(
-                        "injected" if int(event.flags) & LLKHF_INJECTED else "physical"
-                    )
-            vk = int(event.vkCode)
-            released = self.chord_tracker.observe(vk=vk, is_down=down)
-            modifiers = _modifiers_from_tracker(self.chord_tracker)
-            decision = self.matcher.handle(
-                vk=vk, is_down=down, extra_info=int(event.dwExtraInfo),
-                modifiers=modifiers, poe_foreground=is_poe_foreground(), test_mode=self._test_mode,
+            decision = self.process_key_event(
+                vk=int(event.vkCode), is_down=down, extra_info=int(event.dwExtraInfo),
+                injected=bool(int(event.flags) & LLKHF_INJECTED),
             )
-            if decision.fire:
-                self.chord_tracker.arm()
-                if self._test_mode:
-                    self.tested.emit()
-                else:
-                    self.triggered.emit()
-            if released:
-                self.binding_released.emit()
-            elif decision.matched and down and not is_poe_foreground():
-                self.seen_not_poe.emit()
             return 1 if decision.consume else int(user32.CallNextHookEx(self._hook, code, wparam, lparam))
 
         assert HOOKPROC is not None

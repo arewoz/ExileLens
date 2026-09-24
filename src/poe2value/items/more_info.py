@@ -124,6 +124,18 @@ def _verdict_header(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str,
     from poe2value.items.slots import is_jewel_socket_pob_slot
 
     is_jewel = is_jewel_socket_pob_slot(slot)
+    paired_offhand_cleared = model.get("paired_offhand_cleared")
+    paired_offhand_slot = model.get("paired_offhand_slot") or ""
+    paired_offhand_name = str(model.get("paired_offhand_name") or "").strip()
+    if paired_offhand_cleared and paired_offhand_slot:
+        # Production evaluation carries the verified removed item directly.
+        # Retain the replacement-choice fallback for older/synthetic models.
+        if not paired_offhand_name:
+            for choice in (model.get("replacement_choices") or []):
+                if choice.get("slot") == paired_offhand_slot:
+                    paired_offhand_name = str(choice.get("replacing_item") or choice.get("item_name") or "").strip()
+                    break
+
     # More Info is bound to one outcome (including a non-best ring). Never read the
     # compact Best line, which always comes from replacement_choices. A jewel
     # socket's raw tree-node id ("Jewel 11184") is never player copy here either
@@ -137,10 +149,14 @@ def _verdict_header(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str,
     elif outcome.get("replacing_item"):
         suffix = "" if is_jewel else (f" · {slot}" if slot else "")
         replacing = f"Replacing: {outcome['replacing_item']}" + suffix
+        if paired_offhand_cleared and paired_offhand_name:
+            replacing += f" (also removes {paired_offhand_name})"
     elif slot and not is_jewel:
         replacing = slot
     else:
         replacing = ""
+    if not replacing and paired_offhand_cleared and paired_offhand_name:
+        replacing = f"Also removes {paired_offhand_name}"
     if replacing:
         lines.append(replacing)
     if not lines:

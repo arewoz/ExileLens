@@ -362,6 +362,136 @@ exceeds the 1.5s acceptable boundary before the two additional fixes are even
 counted), so performance stays a bounded, honestly-reported gap rather than a claimed
 pass.
 
+## Weapon-set component contexts (Slice 3, internal)
+
+Slice 2 identifies *which* PoB effect to measure (`ComponentReference`).
+Slice 3 qualifies *under which weapon set* it is measured
+(`CalculationContext`: `weapon_set` 1/2 plus the active skill-set id for
+cache identity; the skill set itself is never switched). Effect semantic
+identity stays context-independent: the same effect in set 1 and set 2 is
+the same semantic effect, but two disjoint cache observations
+(`ContextualComponentReference`, composition -- never a `semantic_id`
+suffix).
+
+The local PoB revision exposes no `weaponSetEnvs`/`usingSkillSet` API. The
+weapon set is the active item set's `useSecondWeaponSet` boolean; its
+calculation effects (Condition:WeaponSet1/2, weapon-slot inclusion with
+`" Swap"` stripping, `group.slotEnabled` gating, weapon-set-tagged
+jewel/passive mods) all flow through a full recalc. The bridge reproduces
+PoB's own switch (ItemsTab weaponSwap buttons: flag + build-dirty + main
+socket group re-pin to the first group on the newly active set, minus UI
+undo history) and owns the whole transaction: snapshot, switch, recalc,
+verify activation (fail closed), resolve the exact reference, read
+PoB-native metrics, restore, recalc, verify exact restoration
+(`RESTORE_FAILED` + unhealthy worker on any mismatch, same as Slice 2).
+
+Logical active slots (`Weapon 1`/`Weapon 2` via `active_weapon_slot`)
+remain the only product-facing weapon API and are completely unchanged.
+Slice 3 adds an INTERNAL exact-physical path (`set_item_physical`,
+bypassing `active_weapon_slot`) addressing `Weapon 1`, `Weapon 2`,
+`Weapon 1 Swap`, `Weapon 2 Swap` directly. `ProductSlot.OFFHAND_2` is
+still unreachable legacy enum completeness and is not repurposed.
+
+New worker methods (all explicit/lazy; ordinary Item Check never calls
+them and pays zero extra frames):
+
+| Method | Description |
+|---|---|
+| `read_effect_metrics(reference, weapon_set=1\|2)` | One component under one weapon set; `UNAVAILABLE`/`NOT_VALID_IN_CONTEXT` where PoB has no valid calculation, never a synthetic zero |
+| `evaluate_effect_candidate(reference, weapon_set, physical_slot, item_raw)` | Baseline + candidate + same-component delta for one component with a candidate in one exact physical slot; proves the opposite set byte-identical and restores everything exactly |
+| `get_weapon_set_context()` | Current weapon-set context plus the four physical weapon raws (diagnostic) |
+
+`fingerprint_components`, the semantic restore comparator (full and
+structural), `build_info`, and the evaluation context identity all carry
+`weapon_set` + `active_skill_set_id`, so a set-1 observation can never be
+reused as set-2 (and vice versa) from any ExileLens cache. Contextual
+deltas are component evidence only: they never become public
+`MEANINGFUL_UPGRADE` verdicts and no cross-set composition, trigger-rate,
+projectile, rotation, or practical-DPS inference exists.
+
+## Contextual proof layer (Slice 4A, internal, evidence only)
+
+`src/poe2value/items/contextual_proof.py` is a small deterministic domain
+layer on top of Slice 3 measurements. It lifts `evaluate_effect_candidate`
+results into `ContextualMeasurement` inputs (qualified reference, physical
+target, baseline/candidate outputs, provenance) and classifies their
+relationship into exactly one of `COMMON_RESPONSE`, `DIVERGENT_RESPONSE`,
+`INSUFFICIENT_EVIDENCE`, or `NOT_COMPARABLE`, returned as an inspectable
+`ContextualProof` dict for later slices. Every measurement carries
+provenance (`candidate_fingerprint` from
+`evaluation_identity.candidate_fingerprint`, plus `source_revision` and
+`build_generation` from the evaluating engine); the classifier requires
+unanimous provenance where present, fails closed with `PROVENANCE_MISMATCH`
+on any disagreement, and refuses unbound inputs with
+`CANDIDATE_PROVENANCE_UNPROVEN` -- a proof can never compare component A
+measured for candidate X with component B measured for candidate Y. The
+common-response check compares each shared significant field's own
+after/before ratios independently within 5% relative spread (no averaging
+of unlike PoB quantities; the representative factor is derived only after
+every per-field condition holds), refuses ratios on baselines at or below
+the pipeline-wide 0.5 response epsilon, never converts unavailable data to
+zero, and treats uniform no-change as insufficient rather than a match.
+`COMMON_RESPONSE` is explicitly approximate (`exact: false`, machine
+readable alongside `scope: OBSERVED_RESPONSE_CONSISTENCY`): empirically
+similar within tolerance, never an exact common factor, never causation,
+and never authorization to add component values across weapon sets. This
+layer is not imported by evaluation, ranking, or verdict code and does not
+influence any public Item Check result.
+
+## Evidence orchestration (Slice 4B, internal, no product consumer)
+
+`src/poe2value/items/contextual_evidence.py` collects one candidate's
+Slice 3 physical-candidate measurements across caller-supplied contextual
+observations and feeds them to the Slice 4A classifier, returning an
+evidence bundle (candidate/source provenance, per-observation identity,
+status, baseline/candidate outputs, deltas, unavailable list, proof with
+scope/exactness, frame totals). Provenance comes only from real context:
+`candidate_fingerprint` of the exact evaluated text plus the engine's
+loaded revision token, source identity, and build generation; missing or
+drifting provenance fails closed, restore failures propagate and stop
+collection, and observations are never summed across contexts. Component
+references are explicit caller input -- automatic semantic grouping into
+gameplay interactions is unsupported and reported as such. No whole-build
+composition exists yet and no public verdict consumes this evidence.
+
+## Composition eligibility (Slice 4C, internal, no product consumer)
+
+`src/poe2value/items/contextual_composition.py` answers only whether a
+Slice 4B evidence bundle is comparable, complete, and internally
+consistent enough to be eligible for later guarded interpretation:
+`ELIGIBLE` / `NOT_ELIGIBLE` / `INSUFFICIENT_EVIDENCE`, with structured
+reasons. Source identity was promoted into required proof unanimity
+(candidate fingerprint, source identity, revision, generation must all
+agree). Eligibility additionally requires a `COMMON_RESPONSE` proof,
+every required observation measured with verified restore, and a
+complete required set derived from real per-context effect-catalog
+enumeration (`derive_required_scope`, no truncation). The existing
+`OffenseCoverageAuditor` was not sufficient for this: it validates
+primary-metric responsiveness, not component-set completeness. Unproven
+coverage, subsets, unavailable/divergent/near-zero evidence, and restore
+failures yield `INSUFFICIENT_EVIDENCE` (`COVERAGE_UNPROVEN`,
+`SUBSET_INCOMPLETE`) or `NOT_ELIGIBLE`, never eligibility. No metric is
+summed, averaged, or projected; eligibility is scope-bounded (never
+whole-build) and never a product verdict.
+
+## Diagnostic consumer (Slice 4D, read-only, no product consumer)
+
+`src/poe2value/items/contextual_diagnostics.py` (`run_contextual_diagnostic`)
+exercises candidate -> measurements -> evidence -> proof -> required scope
+-> eligibility on real PoB state and reports what can actually be proven
+and why no more can be proven. It enumerates each requested set's catalog
+per socket group through a transient bridge-owned context switch
+(`list_calculable_effects(weapon_set=...)`, with full restore
+verification; omitted `weapon_set` keeps the original zero-extra-frame
+path), accepts caller-supplied catalogs, fails closed where catalogs are
+missing or truncated, verifies post-run baseline equivalence
+(fingerprint, weapon set, physical weapons) raising `RestoreFailed` on
+mismatch, and always reports `whole_build: false` and
+`public_verdict_affected: false`. Validated live on
+`core04_weapon_swap` (15/15 effects measured, restore pass) with a
+truthful `INSUFFICIENT_EVIDENCE / NEAR_ZERO_BASELINE_REFUSES_RATIO`
+outcome. No exact community (Voltaic Barrier) fixture exists locally.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`

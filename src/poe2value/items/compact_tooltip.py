@@ -679,9 +679,28 @@ def replacing_line(model: dict[str, Any]) -> str:
     diagnostics). A jewel candidate with several legal placements instead gets
     a single best-fit line plus a truthful count of how many sockets were
     checked, never a socket-by-socket listing.
+
+    Two-hand weapon candidates that would clear an equipped offhand are
+    disclosed as a paired change: "Replacing: X (also removes offhand Y)".
     """
     outcome = model.get("evaluation_outcome") or {}
     choices = _replacement_choices(model)
+    paired_offhand_cleared = model.get("paired_offhand_cleared")
+    paired_offhand_slot = model.get("paired_offhand_slot") or ""
+    paired_offhand_name = str(model.get("paired_offhand_name") or "").strip()
+    if paired_offhand_cleared and paired_offhand_slot:
+        # Production evaluation carries the verified removed item directly.
+        # Retain choice/outcome fallbacks for older and synthetic callers.
+        if not paired_offhand_name:
+            for choice in choices:
+                if choice.get("slot") == paired_offhand_slot:
+                    paired_offhand_name = str(choice.get("replacing_item") or choice.get("item_name") or "").strip()
+                    break
+        if not paired_offhand_name:
+            # Fallback: check the outcome's replacing_item if it matches the offhand slot
+            if outcome.get("replacement_slot") == paired_offhand_slot:
+                paired_offhand_name = str(outcome.get("replacing_item") or "").strip()
+
     if len(choices) > 1:
         best = next((item for item in choices if item.get("selected") or item.get("best")), choices[0])
         slot = str(best.get("slot") or outcome.get("replacement_slot") or "").strip()
@@ -700,7 +719,8 @@ def replacing_line(model: dict[str, Any]) -> str:
         if name:
             if is_jewel:
                 return f"Best fit: Replacing {name}{checked}"
-            return f"Best: {slot} — {name}" if slot else f"Replacing: {name}"
+            suffix = f" (also removes {paired_offhand_name})" if paired_offhand_cleared and paired_offhand_name else ""
+            return f"Best: {slot} — {name}{suffix}" if slot else f"Replacing: {name}{suffix}"
         if is_jewel:
             return f"Best fit found{checked}"
         return f"Best: {slot}" if slot else ""
@@ -714,8 +734,12 @@ def replacing_line(model: dict[str, Any]) -> str:
         compared = model.get("compared_against") or {}
         name = str(compared.get("name") or "").strip()
     if name:
-        return f"Replacing: {name}"
-    return _compared_with_line(model)
+        suffix = f" (also removes {paired_offhand_name})" if paired_offhand_cleared and paired_offhand_name else ""
+        return f"Replacing: {name}{suffix}"
+    compared = _compared_with_line(model)
+    if paired_offhand_cleared and paired_offhand_name:
+        return f"{compared} (also removes {paired_offhand_name})" if compared else f"Also removes {paired_offhand_name}"
+    return compared
 
 
 def slot_verdict_lines(model: dict[str, Any]) -> list[dict[str, Any]]:

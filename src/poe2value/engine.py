@@ -95,10 +95,14 @@ class SubprocessWorkerClient:
 
     def _command(self) -> tuple[list[str], dict[str, str]]:
         env = dict(os.environ)
+        # Force UTF-8 mode in the child Python process so its stdio uses UTF-8
+        # regardless of the active Windows code page. This prevents
+        # 'charmap' codec errors when Unicode appears in build data or paths.
+        env["PYTHONUTF8"] = "1"
         if is_frozen():
             cmd = [sys.executable, "--poe2value-worker"]
         else:
-            cmd = [sys.executable, "-m", "poe2value.worker"]
+            cmd = [sys.executable, "-X", "utf8", "-m", "poe2value.worker"]
             env["PYTHONPATH"] = str(repo_root() / "src")
         env["POB2_PATH"] = str(self.config.pob_path)
         return cmd, env
@@ -434,8 +438,14 @@ class Engine:
         max_effects: int = 8,
         force_cache_miss: bool = False,
         malformed_cache: bool = False,
+        weapon_set: int | None = None,
     ) -> dict[str, Any]:
-        """Return a bounded effect catalog; normal reads are GlobalCache-backed."""
+        """Return a bounded effect catalog; normal reads are GlobalCache-backed.
+
+        ``weapon_set`` (1/2) is explicit-diagnostic only: it enumerates under
+        a transient bridge-owned context switch. Ordinary callers omit it
+        and pay zero extra frames.
+        """
         from poe2value.items.effect_components import normalize_effect_catalog
 
         session = self._session
@@ -445,6 +455,7 @@ class Engine:
                 max_effects=max_effects,
                 force_cache_miss=force_cache_miss,
                 malformed_cache=malformed_cache,
+                weapon_set=weapon_set,
             )
         params: dict[str, Any] = {"max_effects": max_effects}
         if indices is not None:
@@ -453,6 +464,10 @@ class Engine:
             params["force_cache_miss"] = True
         if malformed_cache:
             params["malformed_cache"] = True
+        if weapon_set is not None:
+            if int(weapon_set) not in (1, 2):
+                raise ValueError("weapon_set must be 1 or 2")
+            params["weapon_set"] = int(weapon_set)
         return normalize_effect_catalog(self._call("list_calculable_effects", params))
 
     def read_effect_metrics(
@@ -462,16 +477,24 @@ class Engine:
         force_cache_miss: bool = False,
         malformed_cache: bool = False,
         malformed_fallback: bool = False,
+        weapon_set: int | None = None,
     ) -> dict[str, Any]:
-        """Read one exact semantic effect, transactionally recalculating on cache miss."""
+        """Read one exact semantic effect, transactionally recalculating on cache miss.
+
+        ``weapon_set`` (1/2) is Slice 3 internal: it routes through the
+        bridge-owned context transaction. Ordinary callers omit it and pay
+        zero extra frames.
+        """
         from poe2value.items.effect_components import ComponentReference
-        from poe2value.worker import decorate_effect_result
+        from poe2value.worker import decorate_contextual_effect_result
 
         raw_reference = (
             reference.to_dict()
             if isinstance(reference, ComponentReference)
             else ComponentReference.from_dict(dict(reference)).to_dict()
         )
+        if weapon_set is not None and int(weapon_set) not in (1, 2):
+            raise ValueError("weapon_set must be 1 or 2")
         session = self._session
         if isinstance(session, WorkerSession):
             return self._guard_restore(lambda: session.read_effect_metrics(
@@ -479,6 +502,7 @@ class Engine:
                 force_cache_miss=force_cache_miss,
                 malformed_cache=malformed_cache,
                 malformed_fallback=malformed_fallback,
+                weapon_set=weapon_set,
             ))
         params: dict[str, Any] = {"reference": raw_reference}
         if force_cache_miss:
@@ -487,7 +511,53 @@ class Engine:
             params["malformed_cache"] = True
         if malformed_fallback:
             params["malformed_fallback"] = True
-        return self._guard_restore(lambda: decorate_effect_result(self._call("read_effect_metrics", params)))
+        if weapon_set is not None:
+            params["weapon_set"] = int(weapon_set)
+        return self._guard_restore(lambda: decorate_contextual_effect_result(self._call("read_effect_metrics", params)))
+
+    def get_weapon_set_context(self) -> dict[str, Any]:
+        """Slice 3 internal diagnostic: current weapon-set context + physical weapon raws."""
+        return self._call("get_weapon_set_context", {})
+
+    def evaluate_effect_candidate(
+        self,
+        reference: dict[str, Any] | Any,
+        *,
+        weapon_set: int,
+        physical_slot: str,
+        item_raw: str,
+        test_fault: str | None = None,
+    ) -> dict[str, Any]:
+        """Slice 3 internal: one component, one context, one exact physical slot.
+
+        Component evidence only; never a public Item Check verdict.
+        """
+        from poe2value.items.effect_components import ComponentReference
+        from poe2value.worker import decorate_contextual_effect_result
+
+        raw_reference = (
+            reference.to_dict()
+            if isinstance(reference, ComponentReference)
+            else ComponentReference.from_dict(dict(reference)).to_dict()
+        )
+        if int(weapon_set) not in (1, 2):
+            raise ValueError("weapon_set must be 1 or 2")
+        session = self._session
+        if isinstance(session, WorkerSession):
+            return self._guard_restore(lambda: session.evaluate_effect_candidate(
+                raw_reference, weapon_set=int(weapon_set),
+                physical_slot=str(physical_slot), item_raw=str(item_raw),
+                test_fault=test_fault,
+            ))
+        params: dict[str, Any] = {
+            "reference": raw_reference,
+            "weapon_set": int(weapon_set),
+            "physical_slot": str(physical_slot),
+            "item_raw": str(item_raw),
+        }
+        if test_fault:
+            params["test_fault"] = test_fault
+        return self._guard_restore(lambda: decorate_contextual_effect_result(self._call("evaluate_effect_candidate", params)))
 
     def invalidate_build(self) -> None:
         """Forget the loaded build so the next ``ensure_build_ready`` does a real reload.
@@ -591,8 +661,8 @@ class Engine:
 
         A failure here means the build state is no longer trustworthy going forward. It
         raises RestoreFailed, which invalidates the loaded build so the next evaluation
-        starts from a real reload. The result already delivered stays valid: it was
-        measured from a baseline an earlier transaction verified.
+        starts from a real reload. Callers using deferred Item Check evaluation must
+        finalize before delivering success, so a restore failure suppresses that result.
         """
         from poe2value.worker import decorate_restored_block
 

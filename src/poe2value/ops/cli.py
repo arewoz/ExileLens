@@ -30,7 +30,9 @@ def main(argv: list[str] | None = None) -> int:
 
     rg = sub.add_parser("release-gate", help="PASS/BLOCKED release decision")
     rg.add_argument("--allow-dirty", action="store_true")
+    rg.add_argument("--require-artifact", action="store_true")
     rg.add_argument("--run-smoke", action="store_true")
+    sub.add_parser("release-regressions", help="run mandatory declared P0 release regressions")
 
     gu = sub.add_parser("game-update", help="classify patch notes and select tests")
     gu.add_argument("--notes", type=Path)
@@ -113,9 +115,21 @@ def main(argv: list[str] | None = None) -> int:
                 "smoke passed" if smoke["ok"] else "smoke failed",
                 data=smoke,
             )
-        report = evaluate_release_gate(root=root, allow_dirty=args.allow_dirty, smoke_result=smoke_result)
+        report = evaluate_release_gate(
+            root=root,
+            allow_dirty=args.allow_dirty,
+            require_artifact=args.require_artifact,
+            smoke_result=smoke_result,
+        )
         _print(report.to_dict(), as_json=as_json, text=report.format_text())
         return 0 if report.verdict is GateVerdict.PASS else 2
+
+    if args.command == "release-regressions":
+        from poe2value.ops.release_regressions import run_mandatory_release_regressions
+
+        payload = run_mandatory_release_regressions(root=root)
+        _print(payload, as_json=as_json)
+        return 0 if payload["status"] == "PASS" else 2
 
     if args.command == "game-update":
         from poe2value.ops.game_update import run_game_update

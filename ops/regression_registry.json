@@ -1,0 +1,161 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "id": "hotkey-shift-c-after-focus",
+      "title": "Shift+C stops working after focus/Alt-Tab",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Foreground change, Alt-Tab, or hotkey release tracking loss",
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_hotkey_shift_c_after_focus_recovers_missed_keyup"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "item-capture-fail",
+      "title": "Item capture fails / hovered item cannot be read",
+      "subsystem": "item_slots_classes",
+      "trigger": "Clipboard empty, non-item text, locale clipboard, or watcher HWND failure",
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_item_capture_fail_rejects_empty_and_routes_real_watcher_event"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "overlay-missing",
+      "title": "Overlay fails to appear",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Lifecycle stuck before result, geometry off-screen, or overlay disabled",
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_overlay_missing_item_check_first_paint_is_visible_and_onscreen"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "overlay-unrecoverable",
+      "title": "Overlay impossible to close/recover",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Click-dismiss, pin, or tray exit path broken",
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_overlay_unrecoverable_native_production_wiring"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "stale-pob-build",
+      "title": "Stale PoB build/equipment after build updated",
+      "subsystem": "pob_import",
+      "trigger": "File changed on disk but evaluator/cache still uses previous bytes",
+      "tests": [
+        {
+          "path": "tests/test_pob_import_load_reliability.py",
+          "nodeid": "tests/test_pob_import_load_reliability.py::test_ensure_source_ready_skips_reload_until_save"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "market-no-comparables",
+      "title": "Market search succeeds but no useful comparables survive filtering",
+      "subsystem": "trade_api",
+      "trigger": "Similarity/family filters discard the fetched pool",
+      "tests": [],
+      "status": "uncovered",
+      "severity": "P1",
+      "coverage_gap": "No maintained market-comparable filtering regression exists in this public checkout."
+    },
+    {
+      "id": "fx-normalization",
+      "title": "FX normalization incorrect values",
+      "subsystem": "currency_economy",
+      "trigger": "Exchange payload parsed as 1:1 or inverted rate",
+      "tests": [],
+      "status": "uncovered",
+      "severity": "P1",
+      "coverage_gap": "No maintained exchange-rate normalization regression exists in this public checkout."
+    },
+    {
+      "id": "item-class-tooltip-gap",
+      "title": "Tooltip works for one item class but fails for another",
+      "subsystem": "item_slots_classes",
+      "trigger": "Unsupported class, slot mapping miss, or fixture gap",
+      "tests": [],
+      "status": "uncovered",
+      "severity": "P1",
+      "coverage_gap": "Existing Item Check tests cover selected classes but no maintained matrix proves tooltip parity across the required class set."
+    },
+    {
+      "id": "ring-two-slots",
+      "title": "Ring evaluation mishandles two ring slots",
+      "subsystem": "item_slots_classes",
+      "trigger": "Ring 1 vs Ring 2 comparison / best-of-slot selection",
+      "tests": [
+        {
+          "path": "tests/integration/test_public_real_pob.py",
+          "nodeid": "tests/integration/test_public_real_pob.py::test_ring_tradeoff_and_best_slot_remain_semantic"
+        }
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "contradictory-verdict",
+      "title": "Contradictory verdict presentation",
+      "subsystem": "items_modifiers",
+      "trigger": "Score band disagrees with headline, or ranking vs public verdict leak",
+      "tests": [
+        {
+          "path": "tests/test_core_04_adversarial_item_check.py",
+          "nodeid": "tests/test_core_04_adversarial_item_check.py::test_meaningful_cross_axis_tradeoff_is_not_flattened_by_aggregate_score"
+        }
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "unsupported-overconfidence",
+      "title": "Unsupported mechanics shown with excessive certainty",
+      "subsystem": "skills_gems",
+      "trigger": "UNMEASURED/UNSUPPORTED offense presented as a certain upgrade",
+      "tests": [
+        {
+          "path": "tests/test_offense_fallback_truthfulness.py",
+          "nodeid": "tests/test_offense_fallback_truthfulness.py::test_tester_scenario_end_to_end_is_no_longer_a_confident_downgrade"
+        }
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "more-info-secondary-ui",
+      "title": "More Info / secondary UI regressions",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Drawer geometry, More Info content, or expand/collapse",
+      "tests": [
+        {
+          "path": "tests/test_more_info_drawer_layout_fix.py",
+          "nodeid": "tests/test_more_info_drawer_layout_fix.py::test_content_starts_at_top_after_switching_from_dense_to_sparse"
+        }
+      ],
+      "status": "covered",
+      "severity": "P2"
+    }
+  ]
+}

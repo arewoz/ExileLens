@@ -36,7 +36,7 @@ from poe2value.items.offense_coverage import OffenseCoverageAuditor, infer_offen
 from poe2value.items.ranking import rank_slot_comparisons
 from poe2value.items.raw_input import ItemInputSource, RawItemInput
 from poe2value.items.recognition import ItemClassification
-from poe2value.items.slots import ProductSlot, pob_slot_to_product
+from poe2value.items.slots import ProductSlot, WEAPON_TYPES, pob_slot_to_product
 from poe2value.items.socket_normalize import strip_socketed_modifiers
 from poe2value.items.value_layer import parse_profile
 
@@ -270,6 +270,47 @@ def _evaluate_item_impl(
                 {"allocated_jewel_socket_count": allocated_count},
             )
         raise NoCompatibleSlot("item has no compatible replacement slots in the loaded build")
+    # Detect two-hand weapon candidate that would auto-clear an equipped offhand.
+    # This is a paired-slot change: equipping a two-hander in Weapon 1 removes
+    # the offhand from Weapon 2. Ordinary Item Check only evaluates Weapon 1,
+    # but the comparison delta includes the offhand loss. We flag this so the
+    # presentation layer can disclose the full scope of the change.
+    paired_offhand_cleared = False
+    paired_offhand_slot = ""
+    paired_offhand_name = ""
+    paired_offhand_physical_slot = ""
+    paired_offhand_raw = ""
+    item_type = pob_parse.item.get("type")
+    is_two_hand = pob_parse.item.get("two_hand") or (item_type in WEAPON_TYPES and "twohand" in str(pob_parse.item.get("base_tags") or "").lower())
+    # Check for two-hand via base tags more reliably
+    base_tags = pob_parse.item.get("base_tags") or {}
+    if base_tags.get("twohand"):
+        is_two_hand = True
+    if is_two_hand and "Weapon 1" in compatible_slots:
+        # Read current equipment to see if an offhand is equipped in Weapon 2
+        try:
+            equipment_payload = engine.get_equipment() or {}
+        except Exception:
+            equipment_payload = {}
+        equipment_by_slot = {
+            str(entry.get("slot")): entry
+            for entry in (equipment_payload.get("equipment") or [])
+            if isinstance(entry, dict)
+        }
+        weapon2_entry = equipment_by_slot.get("Weapon 2")
+        if weapon2_entry and weapon2_entry.get("equipped"):
+            offhand_type = weapon2_entry.get("type") or ""
+            if offhand_type in ("Shield", "Focus", "Quiver"):
+                # The logical Weapon 2 entry may be backed by Weapon 2 Swap.
+                # Keep that physical source so the measured candidate fingerprint
+                # can prove this exact active offhand was actually cleared.
+                paired_offhand_slot = "Weapon 2"
+                paired_offhand_physical_slot = str(weapon2_entry.get("physical_slot") or "Weapon 2")
+                paired_offhand_name = str(
+                    weapon2_entry.get("name") or weapon2_entry.get("base_name") or ""
+                ).strip()
+                paired_offhand_raw = str(weapon2_entry.get("raw") or "")
+
     if pob_parse.weapon_layout == "AMBIGUOUS_WEAPON_LAYOUT" and len([s for s in compatible_slots if s.startswith("Weapon")]) > 1:
         # Evaluate all weapon-compatible slots rather than failing.
         pass
@@ -289,6 +330,7 @@ def _evaluate_item_impl(
         broad_dot = primary_metric.semantic_quantity in {DamageQuantity.SKILL_DOT, DamageQuantity.AILMENT_DPS}
         report_indices = None if broad_dot else build_info.get("native_damage_group_indices") or []
         report_key = (baseline_fingerprint, context, build_info.get("main_socket_group"),
+                      build_info.get("weapon_set", 1), str(build_info.get("active_skill_set_id") or ""),
                       tuple(report_indices or ()))
         try:
             report = report_cache.get(report_key)
@@ -376,6 +418,27 @@ def _evaluate_item_impl(
     batch_baseline = batch["baseline"]
     measured_slots = batch.get("slots") or []
     batch_ms = (time.perf_counter() - t_batch) * 1000
+
+    # Disclosure is based on PoB's measured candidate equipment, not on a
+    # guessed incompatibility. A two-hander only reports a paired removal when
+    # it actually cleared the classified active offhand in this transaction.
+    if paired_offhand_slot and paired_offhand_raw:
+        weapon1_measurement = next(
+            (
+                entry
+                for entry in measured_slots
+                if entry.get("slot") == "Weapon 1" and not entry.get("error")
+            ),
+            None,
+        )
+        candidate_equipment = (
+            (weapon1_measurement or {}).get("candidate", {}).get("equipment") or {}
+        )
+        if not str(candidate_equipment.get(paired_offhand_physical_slot) or "").strip():
+            paired_offhand_cleared = True
+    if not paired_offhand_cleared:
+        paired_offhand_slot = ""
+        paired_offhand_name = ""
     slot_perf = batch.get("perf")
     if isinstance(slot_perf, dict):
         timings.per_slot_pob_ms["__transaction__"] = {
@@ -562,6 +625,9 @@ def _evaluate_item_impl(
             }
             for slot in compatible_slots
         ],
+        "paired_offhand_cleared": paired_offhand_cleared,
+        "paired_offhand_slot": paired_offhand_slot,
+        "paired_offhand_name": paired_offhand_name if paired_offhand_cleared else "",
         "slot_comparisons": ranking["slot_comparisons"],
         "failed_slot_outcomes": failed_slot_outcomes,
         "recommendation": ranking["recommendation"],

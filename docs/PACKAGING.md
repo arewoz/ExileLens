@@ -48,9 +48,10 @@ To recreate only the shortcut after a rebuild:
 - PySide6 (Qt) runtime and plugins
 - `poe2value` Python package
 - `runtime/lua/` bridge scripts used by the PoB worker subprocess
+- `README.txt` (install/setup/troubleshooting guide, staged from `packaging/`)
 - the MIT-licensed PoB headless support definitions documented in `THIRD_PARTY_NOTICES.txt`
 
-**Not bundled:** the Path of Building application/runtime/data, build XML files, or user settings (`%LOCALAPPDATA%\poe2-value-overlay\settings.json`). A Git checkout is not required.
+**Not bundled:** the Path of Building application/runtime/data, build XML files, or user settings (`%LOCALAPPDATA%\ExileLens\settings.json`). A Git checkout is not required.
 
 ## Supported PoB folders
 

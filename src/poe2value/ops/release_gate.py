@@ -20,7 +20,7 @@ REQUIRED_PACKAGING = (
     "packaging/version_info.txt",
     "packaging/poe2value-gui.spec",
     "scripts/build_exe.ps1",
-    "scripts/package_closed_public_rc.ps1",
+    "scripts/create_desktop_shortcut.ps1",
 )
 
 
@@ -97,7 +97,7 @@ def _version_files_coherent(root: Path) -> CheckResult:
 def _compatibility(root: Path) -> list[CheckResult]:
     results: list[CheckResult] = []
     try:
-        manifest = load_manifest()
+        manifest = load_manifest(root / "ops" / "compatibility.json")
     except Exception as exc:  # noqa: BLE001 — gate must stay runnable
         return [CheckResult("compatibility_manifest", GateVerdict.BLOCKED, Severity.P0, str(exc))]
     results.append(CheckResult("compatibility_manifest", GateVerdict.PASS, detail="manifest parsed"))
@@ -131,16 +131,24 @@ def _compatibility(root: Path) -> list[CheckResult]:
     return results
 
 
-def _p0_registry() -> CheckResult:
-    open_p0 = [entry for entry in load_registry() if entry.severity == "P0" and entry.status in {"open", "broken"}]
-    if open_p0:
+def _p0_registry(root: Path) -> CheckResult:
+    try:
+        entries = load_registry(root / "ops" / "regression_registry.json", root=root)
+    except Exception as exc:  # noqa: BLE001 — gate must report invalid release inputs
+        return CheckResult("known_p0", GateVerdict.BLOCKED, Severity.P0, f"regression registry unavailable: {exc}")
+    uncovered_p0 = [entry for entry in entries if entry.severity == "P0" and entry.status != "covered"]
+    if uncovered_p0:
         return CheckResult(
             "known_p0",
             GateVerdict.BLOCKED,
             Severity.P0,
-            "open P0 regressions: " + ", ".join(entry.id for entry in open_p0),
+            "P0 regressions lacking verified coverage: " + ", ".join(entry.id for entry in uncovered_p0),
         )
-    return CheckResult("known_p0", GateVerdict.PASS, detail="no open P0 registry entries")
+    return CheckResult(
+        "known_p0",
+        GateVerdict.PASS,
+        detail="all required P0 entries declare verified source evidence; execution is required separately",
+    )
 
 
 def _dirty_tree(root: Path, *, allow_dirty: bool) -> CheckResult:
@@ -174,14 +182,14 @@ def _debug_deps(root: Path) -> CheckResult:
     return CheckResult("debug_dependencies", GateVerdict.PASS, detail="runtime deps do not include pytest/pyinstaller")
 
 
-def _expected_artifact(root: Path) -> CheckResult:
+def _expected_artifact(root: Path, *, required: bool = False) -> CheckResult:
     exe = root / "dist" / "ExileLens" / "ExileLens.exe"
     if exe.is_file():
         return CheckResult("release_artifact", GateVerdict.PASS, detail=str(exe))
     return CheckResult(
         "release_artifact",
-        GateVerdict.WARN,
-        Severity.P2,
+        GateVerdict.BLOCKED if required else GateVerdict.WARN,
+        Severity.P0 if required else Severity.P2,
         "dist/ExileLens/ExileLens.exe not built (run scripts/build_exe.ps1 for a packaged release)",
     )
 
@@ -190,17 +198,18 @@ def evaluate_release_gate(
     *,
     root: Path | None = None,
     allow_dirty: bool = False,
+    require_artifact: bool = False,
     smoke_result: CheckResult | None = None,
 ) -> ReleaseGateReport:
     base = root or repo_root()
     checks = [
         _version_files_coherent(base),
         *_compatibility(base),
-        _p0_registry(),
+        _p0_registry(base),
         _dirty_tree(base, allow_dirty=allow_dirty),
         _packaging(base),
         _debug_deps(base),
-        _expected_artifact(base),
+        _expected_artifact(base, required=require_artifact),
     ]
     if smoke_result is not None:
         checks.append(smoke_result)

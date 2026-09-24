@@ -10,7 +10,9 @@ from xml.etree import ElementTree
 import pytest
 
 from poe2value.errors import RestoreFailed, SlotResolutionFailed
+from poe2value.items.compact_tooltip import replacing_line
 from poe2value.items.evaluation import evaluate_item
+from poe2value.items.more_info import build_more_info
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,6 +50,78 @@ def test_supported_offense_and_defense_comparisons_are_measured(real_pob_engine)
     assert offense["evaluation_outcome"]["item_impact"]["axes"]["OFFENSE"]["direction"] == "POSITIVE"
     assert defense["evaluation_outcome"]["item_impact"]["axes"]["DEFENSE"]["direction"] == "POSITIVE"
     assert offense["restore"]["pass"] is True and defense["restore"]["pass"] is True
+
+
+def test_off02_non_weapon_ring_item_check_completes(real_pob_engine) -> None:
+    """FIX-P1A: a Ring must not evaluate OFF-02's weapon-only predicate."""
+    result = evaluate_item(_item("core04_offense_ring.txt"), real_pob_engine, build_path=str(BUILD))
+    assert result["paired_offhand_cleared"] is False
+    assert result["paired_offhand_slot"] == ""
+    assert any(row["pob_slot"] == "Ring 1" and row["restore"]["pass"] is True for row in result["slot_comparisons"])
+
+
+def test_off02_two_hand_candidate_discloses_the_real_removed_shield(real_pob_engine) -> None:
+    """OFF-02: disclosure follows PoB's actual two-hand transaction, end to end.
+
+    The candidate is a real Two Hand Mace and this build really has a one-hand
+    mace plus a tower shield.  The candidate fingerprint must show Weapon 2
+    cleared; the bridge summary, evaluation payload, presentation model, and
+    both player-facing surfaces must all identify that exact shield.
+    """
+    candidate = _equipped_item(MELEE_BUILD, "Weapon 1") + "\n40% increased Physical Damage\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(ONEHAND_BUILD))
+
+    equipment = {
+        entry["slot"]: entry
+        for entry in real_pob_engine.get_equipment()["equipment"]
+        if isinstance(entry, dict)
+    }
+    active_offhand = equipment["Weapon 2"]
+    shield_name = "Gloom Ward, Tawhoan Tower Shield"
+    assert active_offhand["name"] == shield_name
+    assert active_offhand["type"] == "Shield"
+    assert active_offhand["physical_slot"] == "Weapon 2"
+
+    row = next(entry for entry in result["slot_comparisons"] if entry["pob_slot"] == "Weapon 1")
+    assert result["pob_parse"]["item"]["type"] == "Two Hand Mace"
+    assert row["candidate"]["equipment"]["Weapon 2"] == ""
+    assert result["paired_offhand_cleared"] is True
+    assert result["paired_offhand_slot"] == "Weapon 2"
+    assert result["paired_offhand_name"] == shield_name
+    assert row["restore"]["pass"] is True
+
+    model = result["presentation"]
+    assert model["paired_offhand_cleared"] is True
+    assert model["paired_offhand_slot"] == "Weapon 2"
+    assert model["paired_offhand_name"] == shield_name
+    assert shield_name in replacing_line(model)
+
+    more_info = build_more_info(model)
+    verdict = next(section for section in more_info["sections"] if section["id"] == "verdict_header")
+    assert any(shield_name in line for line in verdict["lines"])
+
+
+def test_off02_uses_the_active_swap_offhand_and_restores_it(real_pob_engine) -> None:
+    """OFF-02 reads the actual active quiver, not the inactive primary shield."""
+    candidate = _equipped_item(MELEE_BUILD, "Weapon 1") + "\n40% increased Physical Damage\n"
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(WEAPON_SWAP_BUILD))
+
+    equipment = {
+        entry["slot"]: entry
+        for entry in real_pob_engine.get_equipment()["equipment"]
+        if isinstance(entry, dict)
+    }
+    assert equipment["Weapon 2"]["name"] == "Cadiro's Gambit, Primed Quiver"
+    assert equipment["Weapon 2"]["type"] == "Quiver"
+    assert equipment["Weapon 2"]["physical_slot"] == "Weapon 2 Swap"
+
+    row = next(entry for entry in result["slot_comparisons"] if entry["pob_slot"] == "Weapon 1")
+    assert row["candidate"]["equipment"]["Weapon 2 Swap"] == ""
+    assert result["paired_offhand_cleared"] is True
+    assert result["paired_offhand_slot"] == "Weapon 2"
+    assert result["paired_offhand_name"] == "Cadiro's Gambit, Primed Quiver"
+    assert result["presentation"]["paired_offhand_name"] == "Cadiro's Gambit, Primed Quiver"
+    assert row["restore"]["pass"] is True
 
 
 def test_ring_tradeoff_and_best_slot_remain_semantic(real_pob_engine) -> None:
@@ -795,3 +869,61 @@ def test_skill_native_dot_repeated_evaluation_does_not_leak_state(real_pob_engin
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
     assert second_row["restore"]["pass"] is True
+
+
+STAGE_CHANNEL_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_stage_context.xml"
+
+
+def test_stage_context_channel_release_ignite_offense_is_measured_truthfully(real_pob_engine) -> None:
+    """CORE04-STAGE-CONTEXT: channel-release build whose offense is ignite-dominant.
+
+    Mercenary/Gemling Legionnaire "Flameblast" (CHANNEL_RELEASE, stage_count 1,
+    sole stat set, whole part): the real PoB baseline for this fixture resolves
+    the primary metric to PoB's own IgniteDPS directly (OffenseKind.DOT_DPS,
+    DamageQuantity.AILMENT_DPS, ailment IGNITE, high confidence) -- the same
+    ailment-dominant branch as the poison fixture, this time for ignite. This is
+    the corpus's first ignite-dominant verdict-level evidence: the mixed
+    hit+ailment fixture covers ignite only as a CombinedDPS component, never as
+    the selected primary field.
+
+    The candidate is the shared offense ring fixture. On this build it measures
+    a real ~13%-class ignite loss with MEASURED support, while the channel
+    stage identity (stage_count 1, CHANNEL_RELEASE, sole stat set, whole part)
+    is retained on both sides and restore is exact. Per the documented
+    ailment-dominant policy (see the poison-ailment test and
+    docs/POB_NATIVE_DAMAGE_POLICY.md), a correctly measured ailment change still
+    reports PARTIAL quality / UNCERTAIN verdict -- truthful caution for this
+    mechanic, never a confident directional verdict.
+    """
+    result = evaluate_item(_item("core04_offense_ring.txt"), real_pob_engine, build_path=str(STAGE_CHANNEL_BUILD))
+
+    assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Ring 1", "Ring 2"}
+    for row in result["slot_comparisons"]:
+        assert row["baseline"]["primary_skill"]["skill_name"] == "Flameblast"
+        assert row["candidate"]["primary_skill"]["skill_name"] == "Flameblast"
+        assert row["baseline"]["primary_skill"]["stage_count"] == 1
+        assert row["candidate"]["primary_skill"]["stage_count"] == 1
+        assert row["baseline"]["primary_skill"]["calculation_mode"] == "CHANNEL_RELEASE"
+        assert row["candidate"]["primary_skill"]["calculation_mode"] == "CHANNEL_RELEASE"
+        assert row["candidate"]["item_present"] is True
+
+        baseline_metric = row["baseline_primary_metric"]
+        assert baseline_metric["pob_field"] == "IgniteDPS"
+        assert baseline_metric["selected"] == "DOT_DPS"
+        assert baseline_metric["semantic_quantity"] == "AILMENT_DPS"
+        assert baseline_metric["ailment"] == "IGNITE"
+        assert baseline_metric["stat_set_key"] == "FlameblastPlayer:sole-set"
+        assert baseline_metric["part_key"] == "FlameblastPlayer:whole"
+        assert baseline_metric["stage_count"] == 1
+        assert baseline_metric["calculation_mode"] == "CHANNEL_RELEASE"
+
+        outcome = row["evaluation_outcome"]
+        offense = outcome["item_impact"]["axes"]["OFFENSE"]
+        assert offense["support"] == "MEASURED"
+        assert offense["direction"] == "NEGATIVE"
+        assert offense["significant"] is True
+        assert offense["magnitude_pct"] < -5.0
+        assert outcome["evaluation_quality"] == "PARTIAL"
+        assert outcome["verdict"] == "UNCERTAIN"
+
+        assert row["restore"]["pass"] is True

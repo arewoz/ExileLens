@@ -186,6 +186,128 @@ local function slot_item_raw(slot_name)
 	return item and item.raw or nil
 end
 
+-- Slice 3: weapon-set calculation contexts. The local PoB revision
+-- (97cb973f) exposes no `weaponSetEnvs`/`usingSkillSet` API; the weapon set
+-- is the per-active-item-set `useSecondWeaponSet` boolean. Its calculation
+-- effects all flow through a full recalc: CalcSetup.lua reads the flag for
+-- the Condition:WeaponSet1/2 flag, weapon-slot inclusion (skipping the
+-- inactive pair, stripping " Swap" off the survivor) and group.slotEnabled
+-- gating; PassiveSpec/C Tags consume weapon-set-tagged jewel/passive mods;
+-- CalcActiveSkill/CalcPerform resolve minion weapon items per item set.
+-- The active skill-set id is carried as context identity (Slice 3 evaluates
+-- only the currently active skill set).
+local PHYSICAL_WEAPON_SLOTS = {
+	["Weapon 1"] = 1, ["Weapon 2"] = 1,
+	["Weapon 1 Swap"] = 2, ["Weapon 2 Swap"] = 2,
+}
+
+local function weapon_set_number()
+	return (build.itemsTab.activeItemSet.useSecondWeaponSet and 2 or 1)
+end
+
+local function weapon_set_context()
+	return {
+		weapon_set = weapon_set_number(),
+		use_second_weapon_set = build.itemsTab.activeItemSet.useSecondWeaponSet and true or false,
+		active_item_set_id = build.itemsTab.activeItemSetId,
+		active_skill_set_id = build.skillsTab and build.skillsTab.activeSkillSetId or nil,
+	}
+end
+
+-- Reproduce PoB's own weapon-set switch (ItemsTab.lua weaponSwap1/weaponSwap2
+-- button handlers) minus UI undo history: set the flag, mark the build dirty,
+-- and re-pin the main socket group when it lives on the now-inactive set
+-- (first group whose slot belongs to the newly active set). AddUndoState is
+-- deliberately not called: it records UI undo history, not calculation state;
+-- the transaction snapshots below own restore verification instead.
+local function apply_weapon_set(target)
+	local want_second = (target == 2)
+	local it = build.itemsTab
+	if ((it.activeItemSet.useSecondWeaponSet and true or false) == want_second) then
+		return false
+	end
+	it.activeItemSet.useSecondWeaponSet = want_second
+	build.buildFlag = true
+	local main = build.skillsTab.socketGroupList[build.mainSocketGroup]
+	if main and main.slot and it.slots[main.slot] and it.slots[main.slot].weaponSet
+		and it.slots[main.slot].weaponSet ~= target then
+		for index, grp in ipairs(build.skillsTab.socketGroupList) do
+			if grp.slot and it.slots[grp.slot] and it.slots[grp.slot].weaponSet == target then
+				build.mainSocketGroup = index
+				break
+			end
+		end
+	end
+	return true
+end
+
+-- Exact physical weapon access, bypassing `active_weapon_slot`. Normal Item
+-- Check must never call these: they exist only for Slice 3 contextual
+-- evaluation, which addresses the inactive set explicitly.
+local function slot_item_raw_physical(physical_slot)
+	local slot = build.itemsTab.slots[physical_slot]
+	if not slot then return nil end
+	local item = slot.selItemId and build.itemsTab.items[slot.selItemId]
+	return item and item.raw or nil
+end
+
+local function set_item_physical(physical_slot, raw, item_cache)
+	if PHYSICAL_WEAPON_SLOTS[physical_slot] == nil and build.itemsTab.slots[physical_slot] == nil then
+		error({ code = "SLOT_INVALID", message = "unknown slot: " .. tostring(physical_slot), details = { slot = physical_slot } })
+	end
+	local it = build.itemsTab
+	local slot = it.slots[physical_slot]
+	if not slot then
+		error({ code = "SLOT_INVALID", message = "unknown slot: " .. tostring(physical_slot), details = { slot = physical_slot } })
+	end
+	if not raw then
+		slot:SetSelItemId(0)
+		it:PopulateSlots()
+		build.buildFlag = true
+		return nil
+	end
+	local cached_id = item_cache and item_cache[raw]
+	if cached_id and it.items[cached_id] then
+		local ok, err = pcall(function()
+			slot:SetSelItemId(cached_id)
+			it:PopulateSlots()
+		end)
+		if not ok then
+			error({ code = "ITEM_INCOMPATIBLE", message = tostring(err), details = { slot = physical_slot } })
+		end
+		build.buildFlag = true
+		return cached_id, true
+	end
+	local item = new("Item")
+	local ok, err = pcall(function() item:ParseRaw(raw) end)
+	if not ok then
+		error({ code = "ITEM_PARSE_FAILED", message = tostring(err), details = { slot = physical_slot } })
+	end
+	if not item.base then
+		error({ code = "ITEM_PARSE_FAILED", message = "item has no recognised base type", details = { slot = physical_slot } })
+	end
+	it:AddItem(item, true)
+	ok, err = pcall(function()
+		slot:SetSelItemId(item.id)
+		it:PopulateSlots()
+	end)
+	if not ok then
+		it.items[item.id] = nil
+		for index, id in ipairs(it.itemOrderList) do
+			if id == item.id then
+				table.remove(it.itemOrderList, index)
+				break
+			end
+		end
+		error({ code = "ITEM_INCOMPATIBLE", message = tostring(err), details = { slot = physical_slot } })
+	end
+	build.buildFlag = true
+	if item_cache then
+		item_cache[raw] = item.id
+	end
+	return item.id, false
+end
+
 local EVALUABLE_SLOTS = {
 	["Helmet"] = true,
 	["Body Armour"] = true,
@@ -456,19 +578,23 @@ local function resolve_compatible_slots_for_item(item)
 end
 
 local function slot_item_summary(slot_name)
-	local slot = build.itemsTab.slots[active_weapon_slot(slot_name)]
+	local physical_slot = active_weapon_slot(slot_name)
+	local slot = build.itemsTab.slots[physical_slot]
 	if not slot then return nil end
 	local item = slot.selItemId and build.itemsTab.items[slot.selItemId]
 	if not item then
-		return { slot = slot_name, equipped = false }
+		return { slot = slot_name, physical_slot = physical_slot, equipped = false }
 	end
 	return {
 		slot = slot_name,
+		physical_slot = physical_slot,
 		equipped = true,
 		item_id = item.id,
 		base_name = item.baseName,
 		name = item.name,
 		rarity = item.rarity,
+		type = item.type,
+		sub_type = item.base and item.base.subType or nil,
 		raw = item.raw,
 	}
 end
@@ -1720,6 +1846,11 @@ local function build_info()
 		ascendancy_nodes = select(2, build.spec:CountAllocNodes()),
 		active_loadout = STATE.active_loadout or active_loadout_name(),
 		active_item_set_id = STATE.active_item_set_id or build.itemsTab.activeItemSetId,
+		-- Slice 3: weapon-set calculation context (see CalculationContext).
+		-- Ordinary Item Check never switches it; explicit contextual requests do.
+		weapon_set = weapon_set_number(),
+		use_second_weapon_set = build.itemsTab.activeItemSet.useSecondWeaponSet and true or false,
+		active_skill_set_id = build.skillsTab and build.skillsTab.activeSkillSetId or nil,
 	}
 end
 
@@ -1780,6 +1911,22 @@ local function equipment_snapshot()
 	return equipment
 end
 
+-- Physical equipment snapshot: raw slot keys with NO active-weapon-slot
+-- translation. `equipment_snapshot()` above resolves logical Weapon 1/2
+-- through the active set, so one physical Swap item appears under two
+-- keys; that translated view is correct for baseline/restore comparison
+-- (same translation on both sides) but unusable for placement isolation,
+-- where the check must see exactly which physical slot changed.
+local function physical_equipment_snapshot()
+	local equipment = {}
+	for _, slot_name in ipairs(slot_names()) do
+		local slot = build.itemsTab.slots[slot_name]
+		local item = slot and slot.selItemId and build.itemsTab.items[slot.selItemId]
+		equipment[slot_name] = (item and item.raw) or ""
+	end
+	return equipment
+end
+
 function M.fingerprint_components()
 	local equipment = equipment_snapshot()
 	local config = {}
@@ -1824,6 +1971,12 @@ function M.fingerprint_components()
 		main_output_table = main_identity and main_identity.output_table or "mainOutput",
 		active_loadout = STATE.active_loadout or active_loadout_name(),
 		active_item_set_id = STATE.active_item_set_id or (build.itemsTab and build.itemsTab.activeItemSetId or nil),
+		-- Slice 3: the weapon-set calculation context participates in every
+		-- fingerprint so a set-1 observation can never be reused as set-2
+		-- (and vice versa), and skill-set crossings are equally rejected.
+		weapon_set = weapon_set_number(),
+		use_second_weapon_set = build.itemsTab.activeItemSet.useSecondWeaponSet and true or false,
+		active_skill_set_id = build.skillsTab and build.skillsTab.activeSkillSetId or nil,
 	}
 end
 
@@ -2037,6 +2190,10 @@ local function semantic_state()
 		loadout = active_loadout_name(),
 		item_set = build.itemsTab.activeItemSetId,
 		tree_set = build.treeTab and build.treeTab.activeSpec or nil,
+		-- Slice 3: the weapon-set context is declarative calc input (PoB only
+		-- reads it, never writes it), so both comparators track it.
+		weapon_set = weapon_set_number(),
+		active_skill_set_id = build.skillsTab and build.skillsTab.activeSkillSetId or nil,
 	}
 end
 
@@ -2056,12 +2213,20 @@ local function semantic_summary(state)
 		full_dps_config = state.full_dps_config,
 		loadout = state.loadout,
 		item_set = state.item_set,
+		weapon_set = state.weapon_set,
+		active_skill_set_id = state.active_skill_set_id,
 	}
 end
 
 local function compare_semantic(a, b)
 	if a.loadout ~= b.loadout or tostring(a.item_set) ~= tostring(b.item_set) or a.tree_set ~= b.tree_set then
 		return "RESTORE_LOADOUT_MISMATCH"
+	end
+	if (a.weapon_set or 1) ~= (b.weapon_set or 1) then
+		return "RESTORE_WEAPON_SET_MISMATCH"
+	end
+	if tostring(a.active_skill_set_id or "") ~= tostring(b.active_skill_set_id or "") then
+		return "RESTORE_SKILL_SET_MISMATCH"
 	end
 	if a.main_key ~= b.main_key then
 		if a.main_skill == b.main_skill and a.stat_set_key ~= b.stat_set_key then
@@ -2230,6 +2395,185 @@ local function read_effect_metrics(reference, opts)
 	return result
 end
 
+-- ===== Slice 3: weapon-set-qualified component contexts =====================
+-- Python must never perform a procedural toggle/recalc/read/toggle-back
+-- sequence: the bridge owns the whole transaction. Both functions below
+-- snapshot, switch (via PoB's own flag + UI re-pin rule), recalculate,
+-- verify the requested context is active, resolve the exact
+-- ComponentReference, read PoB-native metrics, restore, recalculate and
+-- verify exact restoration. Any restore mismatch raises RESTORE_FAILED and
+-- marks the worker unhealthy, following the existing fail-closed policy.
+--
+-- Full restore fields verified after a context switch AND after a physical
+-- candidate substitution: active item set id, useSecondWeaponSet (weapon
+-- set), all four physical weapon raws (both pairs, via equipment_equal on
+-- the full physical snapshot), active skill-set id, main socket group,
+-- effect selection (mainActiveSkill), mainActiveSkillCalcs, stat set/part/
+-- stage, calculation mode, damage owner/output table, FullDPS membership
+-- and counts (via compare_semantic), equipment fingerprint, calculation
+-- fingerprint (via metrics_equal), and the selected component identity.
+-- Transient internal revision counters are never compared.
+
+local function check_weapon_set_param(value)
+	if value == nil then return nil end
+	local target = tonumber(value)
+	if target ~= 1 and target ~= 2 then
+		error({ code = "CALC_FAILED", message = "weapon_set must be 1 or 2",
+			details = { weapon_set = value } })
+	end
+	return target
+end
+
+local function read_effect_in_weapon_context(reference, target_set, opts)
+	opts = opts or {}
+	local original_set = weapon_set_number()
+	local original_snap = snapshot_skill_state()
+	local original_semantic = semantic_state()
+	local original_metrics = collect_metrics()
+	local original_equipment = equipment_snapshot()
+	local frames = { context_settle = 0, restore_settle = 0 }
+	if target_set ~= original_set then
+		apply_weapon_set(target_set)
+		recalc()
+		frames.context_settle = frames.context_settle + 1
+		if weapon_set_number() ~= target_set then
+			local actual = weapon_set_number()
+			pcall(function()
+				apply_weapon_set(original_set)
+				restore_skill_state(original_snap)
+				recalc()
+			end)
+			error({ code = "CALC_FAILED", message = "requested weapon context did not activate",
+				details = { requested_weapon_set = target_set, actual_weapon_set = actual } })
+		end
+	end
+	local active = weapon_set_context()
+	local ok, result = pcall(read_effect_metrics, reference, opts)
+	if target_set ~= original_set then
+		local restore_ok, restore_err = pcall(function()
+			apply_weapon_set(original_set)
+			restore_skill_state(original_snap)
+			recalc()
+		end)
+		frames.restore_settle = frames.restore_settle + 1
+		if not restore_ok then
+			STATE.healthy = false
+			error({ code = "RESTORE_FAILED", message = tostring(restore_err),
+				details = { reason = "CONTEXT_RESTORE_EXCEPTION" } })
+		end
+		local semantic_error = compare_semantic(original_semantic, semantic_state())
+		local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), original_equipment)
+		local metrics_ok, bad_metric, restored_value, baseline_value =
+			metrics_equal(collect_metrics(), original_metrics, 0.5)
+		if semantic_error or not eq_ok or not metrics_ok then
+			STATE.healthy = false
+			error({ code = "RESTORE_FAILED",
+				message = "weapon context switch did not restore the original calculation",
+				details = {
+					reason = semantic_error
+						or ((not eq_ok) and "RESTORE_EQUIPMENT_MISMATCH")
+						or "CONTEXT_RESTORE_METRICS_MISMATCH",
+					bad_slot = bad_slot, bad_metric = bad_metric,
+					baseline_value = baseline_value, restored_value = restored_value,
+				},
+			})
+		end
+	end
+	if not ok then
+		if type(result) == "table" and result.code then error(result) end
+		error({ code = "CALC_FAILED", message = "contextual effect read failed: " .. tostring(result) })
+	end
+	-- Context-qualified status: a component valid in one set and absent in
+	-- the other is UNAVAILABLE there, never a synthetic zero.
+	result.context = active
+	result.requested_weapon_set = target_set
+	result.frames = frames
+	if result.status == "UNAVAILABLE" and result.reason == "EFFECT_NOT_FOUND" then
+		result.reason = "NOT_VALID_IN_CONTEXT"
+	end
+	if result.restore == nil then
+		result.restore = { status = (target_set == original_set) and "NOT_REQUIRED" or "OK", pass = true }
+	end
+	return result
+end
+
+-- Component-relative delta between two PoB-native outputs for the SAME
+-- reference. Only fields numeric on both sides are compared; a zero/near-
+-- zero baseline yields no percentage (no manufactured rate). This is
+-- component evidence only, never a whole-build claim.
+
+-- Slice 4D follow-up: weapon-set-qualified effect catalog enumeration.
+-- Same bridge-owned switch/restore envelope as
+-- `read_effect_in_weapon_context`, but enumerating (read-only,
+-- GlobalCache-backed, no skill selection) instead of measuring. Lets an
+-- explicit diagnostic caller list effects for an inactive set without
+-- persistently switching the build. Absent `weapon_set`, the plain
+-- `effect_catalog` path below runs with zero extra frames.
+local function list_effects_in_weapon_context(indices, requested_max, target_set, opts)
+	opts = opts or {}
+	local original_set = weapon_set_number()
+	local original_snap = snapshot_skill_state()
+	local original_semantic = semantic_state()
+	local original_metrics = collect_metrics()
+	local original_equipment = equipment_snapshot()
+	local frames = { context_settle = 0, restore_settle = 0 }
+	if target_set ~= original_set then
+		apply_weapon_set(target_set)
+		recalc()
+		frames.context_settle = frames.context_settle + 1
+		if weapon_set_number() ~= target_set then
+			local actual = weapon_set_number()
+			pcall(function()
+				apply_weapon_set(original_set)
+				restore_skill_state(original_snap)
+				recalc()
+			end)
+			error({ code = "CALC_FAILED", message = "requested weapon context did not activate",
+				details = { requested_weapon_set = target_set, actual_weapon_set = actual } })
+		end
+	end
+	local active = weapon_set_context()
+	local ok, catalog = pcall(effect_catalog, indices, requested_max, opts)
+	if target_set ~= original_set then
+		local restore_ok, restore_err = pcall(function()
+			apply_weapon_set(original_set)
+			restore_skill_state(original_snap)
+			recalc()
+		end)
+		frames.restore_settle = frames.restore_settle + 1
+		if not restore_ok then
+			STATE.healthy = false
+			error({ code = "RESTORE_FAILED", message = tostring(restore_err),
+				details = { reason = "CONTEXT_RESTORE_EXCEPTION" } })
+		end
+		local semantic_error = compare_semantic(original_semantic, semantic_state())
+		local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), original_equipment)
+		local metrics_ok, bad_metric, restored_value, baseline_value =
+			metrics_equal(collect_metrics(), original_metrics, 0.5)
+		if semantic_error or not eq_ok or not metrics_ok then
+			STATE.healthy = false
+			error({ code = "RESTORE_FAILED",
+				message = "weapon context switch did not restore the original calculation",
+				details = {
+					reason = semantic_error
+						or ((not eq_ok) and "RESTORE_EQUIPMENT_MISMATCH")
+						or "CONTEXT_RESTORE_METRICS_MISMATCH",
+					bad_slot = bad_slot, bad_metric = bad_metric,
+					baseline_value = baseline_value, restored_value = restored_value,
+				},
+			})
+		end
+	end
+	if not ok then
+		if type(catalog) == "table" and catalog.code then error(catalog) end
+		error({ code = "CALC_FAILED", message = "contextual catalog enumeration failed: " .. tostring(catalog) })
+	end
+	catalog.context = active
+	catalog.requested_weapon_set = target_set
+	catalog.frames = frames
+	return catalog
+end
+
 -- PERF-06: the structural half of compare_semantic -- everything in a semantic_state()
 -- snapshot that PERF-05's research proved is fresh (rebuilt every recalc, for every
 -- enabled group, regardless of which one is mainSocketGroup) or independent of recalc
@@ -2259,6 +2603,12 @@ end
 local function compare_semantic_structural(a, b)
 	if a.loadout ~= b.loadout or tostring(a.item_set) ~= tostring(b.item_set) or a.tree_set ~= b.tree_set then
 		return "RESTORE_LOADOUT_MISMATCH"
+	end
+	if (a.weapon_set or 1) ~= (b.weapon_set or 1) then
+		return "RESTORE_WEAPON_SET_MISMATCH"
+	end
+	if tostring(a.active_skill_set_id or "") ~= tostring(b.active_skill_set_id or "") then
+		return "RESTORE_SKILL_SET_MISMATCH"
 	end
 	if a.main_key ~= b.main_key then
 		if a.main_skill == b.main_skill and a.stat_set_key ~= b.stat_set_key then
@@ -2308,6 +2658,239 @@ local function discard_item(item_id)
 			break
 		end
 	end
+end
+
+local function component_delta(before_out, after_out)
+	before_out = before_out or {}
+	after_out = after_out or {}
+	local fields = {}
+	for _, k in ipairs(ACTOR_OUTPUT_FIELDS) do fields[#fields + 1] = k end
+	for _, k in ipairs(PLAYER_AILMENT_FIELDS) do fields[#fields + 1] = k end
+	local entries = {}
+	for _, field in ipairs(fields) do
+		local before, after = before_out[field], after_out[field]
+		if type(before) == "number" and type(after) == "number" then
+			local entry = { before = before, after = after, absolute = after - before, relative_pct = nil }
+			if math.abs(before) > 0.5 then
+				entry.relative_pct = (after / before - 1.0) * 100.0
+			end
+			entries[field] = entry
+		end
+	end
+	return entries
+end
+
+local function evaluate_effect_candidate_in_context(params)
+	params = params or {}
+	local reference = params.reference
+	if type(reference) ~= "table" then
+		error({ code = "CALC_FAILED", message = "reference is required" })
+	end
+	local target_set = check_weapon_set_param(params.weapon_set)
+	if target_set == nil then
+		error({ code = "CALC_FAILED", message = "weapon_set is required" })
+	end
+	local physical_slot = params.physical_slot
+	if PHYSICAL_WEAPON_SLOTS[physical_slot] == nil then
+		error({ code = "SLOT_INVALID", message = "unknown physical weapon slot: " .. tostring(physical_slot),
+			details = { slot = physical_slot } })
+	end
+	if PHYSICAL_WEAPON_SLOTS[physical_slot] ~= target_set then
+		error({ code = "CALC_FAILED", message = "physical slot does not belong to the requested weapon set",
+			details = { physical_slot = physical_slot, weapon_set = target_set } })
+	end
+	if params.item_raw == nil then
+		error({ code = "ITEM_PARSE_FAILED", message = "item_raw is required" })
+	end
+	local tolerance = params.tolerance or 0.5
+	local frames = { context_settle = 0, candidate_settle = 0, restore_settle = 0 }
+
+	local it = build.itemsTab
+	local original_set = weapon_set_number()
+	local original_snap = snapshot_skill_state()
+	local original_semantic = semantic_state()
+	local original_metrics = collect_metrics()
+	local original_equipment = equipment_snapshot()
+	local original_physical_equipment = physical_equipment_snapshot()
+	local opposite_slot = physical_slot:match(" Swap$") and physical_slot:gsub(" Swap$", "")
+		or (physical_slot .. " Swap")
+	local original_opposite_raw = slot_item_raw_physical(opposite_slot)
+	local created = {}
+	-- Every slot's selection, not just the target physical slot: PoB may
+	-- disturb a paired slot (e.g. the same-set offhand when a candidate's
+	-- base type conflicts with it), and only a full revert can undo that.
+	local original_selection = {}
+	for slot_name, slot in pairs(it.slots) do
+		original_selection[slot_name] = slot.selItemId or 0
+	end
+
+	local function fail_restore(details)
+		STATE.healthy = false
+		error({ code = "RESTORE_FAILED", message = "contextual candidate evaluation did not restore the original build",
+			details = details })
+	end
+
+	local function restore_all()
+		for slot_name, item_id in pairs(original_selection) do
+			local slot = it.slots[slot_name]
+			if slot and slot.selItemId ~= item_id then
+				slot:SetSelItemId(item_id)
+			end
+		end
+		for _, item_id in ipairs(created) do
+			discard_item(item_id)
+		end
+		created = {}
+		it:PopulateSlots()
+		apply_weapon_set(original_set)
+		restore_skill_state(original_snap)
+		if params.test_fault == "corrupt_restore" then
+			build.mainSocketGroup = (original_snap.main_index % #original_snap.list) + 1
+		end
+		recalc()
+		frames.restore_settle = frames.restore_settle + 1
+	end
+
+	local function verify_restored(stage)
+		local semantic_error = compare_semantic(original_semantic, semantic_state())
+		local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), original_equipment)
+		local metrics_ok, bad_metric, restored_value, baseline_value =
+			metrics_equal(collect_metrics(), original_metrics, tolerance)
+		if semantic_error or not eq_ok or not metrics_ok then
+			fail_restore({
+				reason = semantic_error
+					or ((not eq_ok) and "RESTORE_EQUIPMENT_MISMATCH")
+					or "CONTEXT_RESTORE_METRICS_MISMATCH",
+				stage = stage, bad_slot = bad_slot, bad_metric = bad_metric,
+				baseline_value = baseline_value, restored_value = restored_value,
+			})
+		end
+	end
+
+	-- Settle into the requested context first (PoB computes; ExileLens compares).
+	if target_set ~= original_set then
+		apply_weapon_set(target_set)
+		recalc()
+		frames.context_settle = frames.context_settle + 1
+		if weapon_set_number() ~= target_set then
+			local actual = weapon_set_number()
+			pcall(restore_all)
+			error({ code = "CALC_FAILED", message = "requested weapon context did not activate",
+				details = { requested_weapon_set = target_set, actual_weapon_set = actual } })
+		end
+	end
+	local active = weapon_set_context()
+
+	-- Every non-target slot must keep its exact equipped item. The target
+	-- slot itself is excluded: holding the candidate there is the point.
+	-- A cross-base placement can disturb a paired slot (e.g. the same-set
+	-- offhand when its item conflicts with the candidate's base type);
+	-- such disturbance aborts measurement instead of corrupting it.
+	local function disturbed_slots()
+		local current = physical_equipment_snapshot()
+		local disturbed = {}
+		for slot_name, raw in pairs(original_physical_equipment) do
+			if slot_name ~= physical_slot and (current[slot_name] or "") ~= (raw or "") then
+				disturbed[#disturbed + 1] = slot_name
+			end
+		end
+		table.sort(disturbed)
+		return disturbed
+	end
+
+	local outcome
+	local ok, err = pcall(function()
+		local baseline = read_effect_metrics(reference, {})
+		if baseline.status ~= "MEASURED" then
+			outcome = {
+				status = baseline.status, reason = baseline.reason == "EFFECT_NOT_FOUND"
+					and "NOT_VALID_IN_CONTEXT" or baseline.reason,
+				baseline = baseline, candidate = nil, delta = nil,
+			}
+			return
+		end
+		local item_id, was_cached = set_item_physical(physical_slot, params.item_raw, nil)
+		if item_id and not was_cached then
+			created[#created + 1] = item_id
+		end
+		local disturbed_before = disturbed_slots()
+		if #disturbed_before > 0 then
+			outcome = {
+				status = "UNAVAILABLE", reason = "NOT_VALID_IN_CONTEXT",
+				baseline = baseline, candidate = nil, delta = nil,
+				disturbed_slots = disturbed_before,
+			}
+			return
+		end
+		recalc()
+		frames.candidate_settle = frames.candidate_settle + 1
+		local disturbed_after = disturbed_slots()
+		if #disturbed_after > 0 then
+			outcome = {
+				status = "UNAVAILABLE", reason = "NOT_VALID_IN_CONTEXT",
+				baseline = baseline, candidate = nil, delta = nil,
+				disturbed_slots = disturbed_after,
+			}
+			return
+		end
+		local candidate = read_effect_metrics(reference, {})
+		if candidate.status ~= "MEASURED" then
+			outcome = {
+				status = "UNAVAILABLE", reason = "EFFECT_REMOVED_BY_CANDIDATE",
+				baseline = baseline, candidate = candidate, delta = nil,
+			}
+			return
+		end
+		-- No pin_main_skill here (unlike tx_measure): both reads resolve the
+		-- exact effect by semantic identity, never by list position, so group
+		-- reordering across the candidate frame cannot misattribute output.
+		-- Same-component proof is the semantic-id match below, enforced by
+		-- read_effect_metrics itself (CACHE_IDENTITY_MISMATCH / selection
+		-- mismatch fail closed there).
+		outcome = {
+			status = "MEASURED",
+			baseline = baseline,
+			candidate = candidate,
+			delta = component_delta(baseline.output, candidate.output),
+		}
+	end)
+
+	-- The restore runs even when the measurement failed: the build must never
+	-- be left holding a candidate item or a switched weapon set.
+	local restore_ok, restore_err = pcall(restore_all)
+	if not restore_ok then
+		fail_restore({ reason = "CONTEXT_RESTORE_EXCEPTION", stage = "restore", error = tostring(restore_err) })
+	end
+	verify_restored("final")
+
+	if not ok then
+		if type(err) == "table" and err.code then error(err) end
+		error({ code = "ITEM_INCOMPATIBLE", message = tostring(err) })
+	end
+
+	outcome.context = active
+	outcome.requested_weapon_set = target_set
+	outcome.physical_target = {
+		physical_pob_slot = physical_slot,
+		weapon_set = target_set,
+		opposite_slot = opposite_slot,
+		opposite_set_unchanged = slot_item_raw_physical(opposite_slot) == original_opposite_raw,
+	}
+	outcome.frames = frames
+	-- `frames` counts this transaction's own settle passes (context switch,
+	-- candidate placement, final restore). Each nested effect read settles
+	-- independently on a cache miss only; its `source` field
+	-- (GLOBAL_CACHE vs TRANSACTIONAL_RECALC) says whether it did.
+	outcome.restore = {
+		status = "OK", pass = true,
+		main_effect_semantic_id = original_semantic.main_effect_semantic_id,
+		stat_set_key = original_semantic.stat_set_key,
+		part_key = original_semantic.part_key,
+		stage_count = original_semantic.stage_count,
+		calculation_mode = original_semantic.calculation_mode,
+		weapon_set = original_set,
+	}
+	return outcome
 end
 
 -- Apply `changes` ({ slot, raw } with raw=nil clearing the slot), measure, restore, verify.
@@ -3458,6 +4041,16 @@ function M.dispatch(req)
 	end
 
 	if method == "list_calculable_effects" then
+		-- Targeted fix: an explicit `weapon_set` (1/2) enumerates under a
+		-- transient bridge-owned context switch with full restore
+		-- verification. Absent: today's behavior, zero extra frames.
+		local target = check_weapon_set_param(params.weapon_set)
+		if target ~= nil then
+			return list_effects_in_weapon_context(params.indices, params.max_effects, target, {
+				force_cache_miss = params.force_cache_miss and true or nil,
+				malformed_cache = params.malformed_cache and true or nil,
+			})
+		end
 		return effect_catalog(params.indices, params.max_effects, {
 			force_cache_miss = params.force_cache_miss and true or nil,
 			malformed_cache = params.malformed_cache and true or nil,
@@ -3465,11 +4058,37 @@ function M.dispatch(req)
 	end
 
 	if method == "read_effect_metrics" then
+		-- Slice 3: an explicit `weapon_set` (1/2) routes through the
+		-- bridge-owned context transaction. Absent: today's behavior, zero
+		-- extra frames, ordinary Item Check untouched.
+		local target = check_weapon_set_param(params.weapon_set)
+		if target ~= nil then
+			return read_effect_in_weapon_context(params.reference, target, {
+				force_cache_miss = params.force_cache_miss and true or nil,
+				malformed_cache = params.malformed_cache and true or nil,
+				malformed_fallback = params.malformed_fallback and true or nil,
+			})
+		end
 		return read_effect_metrics(params.reference, {
 			force_cache_miss = params.force_cache_miss and true or nil,
 			malformed_cache = params.malformed_cache and true or nil,
 			malformed_fallback = params.malformed_fallback and true or nil,
 		})
+	end
+
+	if method == "evaluate_effect_candidate" then
+		return evaluate_effect_candidate_in_context(params)
+	end
+
+	if method == "get_weapon_set_context" then
+		local ctx = weapon_set_context()
+		local equipment = {}
+		for _, slot_name in ipairs({ "Weapon 1", "Weapon 2", "Weapon 1 Swap", "Weapon 2 Swap" }) do
+			equipment[slot_name] = slot_item_raw_physical(slot_name) or ""
+		end
+		ctx.physical_weapons = equipment
+		ctx.fingerprint = M.fingerprint_components()
+		return ctx
 	end
 
 	if method == "get_skill_report" then
