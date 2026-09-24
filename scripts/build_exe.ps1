@@ -48,6 +48,10 @@ try {
         throw "Expected executable not found: $ExePath"
     }
 
+    # Ship the install/setup/troubleshooting guide alongside the executable;
+    # release.yml zips this directory verbatim.
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "packaging\README.txt") -Destination (Join-Path $DistDir "README.txt") -Force
+
     $Version = Get-CanonicalVersion
     if ($Version -notmatch '^\d+\.\d+\.\d+(b\d+)?$') { throw "Canonical version has an unsupported format: $Version" }
     $Deps = Get-BuildDependencyVersions -PythonExecutable $PythonExe

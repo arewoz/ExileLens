@@ -33,12 +33,12 @@ See [`SECURITY.md`](SECURITY.md) for details about the application's security mo
 1. Install [Path of Building Community for Path of Exile 2](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2) separately.
 2. Download the latest ExileLens Windows ZIP package and its `SHA256SUMS.txt` from [GitHub Releases](https://github.com/arewoz/ExileLens/releases).
 3. Optionally verify the ZIP against `SHA256SUMS.txt`, then extract the ZIP.
-4. Start `ExileLens.exe`.
+4. Start `ExileLens.exe`. The ZIP also contains `README.txt` with setup, controls, and troubleshooting.
 5. During setup, select your Path of Building 2 installation and saved build.
 6. Start Path of Exile 2.
 7. Hover an item and press `Shift+C`.
 
-ExileLens copies the hovered item's text using Path of Exile 2's normal copy-item functionality, evaluates it against your selected PoB2 build and displays the result in the overlay.
+ExileLens copies the hovered item's text using Path of Exile 2's normal copy-item functionality, evaluates it against your selected PoB2 build and displays the result in the overlay. The hotkey can be changed under Dashboard → Settings → Hotkey.
 
 ## Requirements
 
@@ -76,7 +76,7 @@ Current limitations include:
 
 - Windows only
 - Path of Building 2 is required
-- Jewels are currently unsupported
+- Jewels are supported, except a small number of special jewels that alter passive-tree connectivity
 - Some Path of Exile 2 mechanics may be partial or unsupported in PoB2 or ExileLens
 - Some minion, proxy, triggered or otherwise complex damage setups may not produce a definitive evaluation
 - Some items may return an `UNCERTAIN` result rather than an upgrade or downgrade
@@ -124,3 +124,12 @@ The release build creates an isolated `.release-venv` from:
 
 ```text
 packaging/requirements-release.txt
+```
+
+then builds the executable with:
+
+```powershell
+.\scripts\build_exe.ps1
+```
+
+See [`docs/PACKAGING.md`](docs/PACKAGING.md) for prerequisites (pinned Python 3.12) and output layout.
