@@ -6,40 +6,56 @@
       "title": "Shift+C stops working after focus/Alt-Tab",
       "subsystem": "game_client_input_ui",
       "trigger": "Foreground change, Alt-Tab, or hotkey release tracking loss",
-      "tests": [],
-      "status": "uncovered",
-      "severity": "P0",
-      "coverage_gap": "No maintained test exercises global hotkey release tracking across a foreground change."
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_hotkey_shift_c_after_focus_recovers_missed_keyup"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
     },
     {
       "id": "item-capture-fail",
       "title": "Item capture fails / hovered item cannot be read",
       "subsystem": "item_slots_classes",
       "trigger": "Clipboard empty, non-item text, locale clipboard, or watcher HWND failure",
-      "tests": [],
-      "status": "uncovered",
-      "severity": "P0",
-      "coverage_gap": "The maintained market-copy router tests do not exercise the native clipboard watcher, HWND ownership, or locale capture path."
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_item_capture_fail_rejects_empty_and_routes_real_watcher_event"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
     },
     {
       "id": "overlay-missing",
       "title": "Overlay fails to appear",
       "subsystem": "game_client_input_ui",
       "trigger": "Lifecycle stuck before result, geometry off-screen, or overlay disabled",
-      "tests": [],
-      "status": "uncovered",
-      "severity": "P0",
-      "coverage_gap": "No maintained test covers the overlay lifecycle plus screen geometry from accepted Item Check through visible panel."
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_overlay_missing_item_check_first_paint_is_visible_and_onscreen"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
     },
     {
       "id": "overlay-unrecoverable",
       "title": "Overlay impossible to close/recover",
       "subsystem": "game_client_input_ui",
       "trigger": "Click-dismiss, pin, or tray exit path broken",
-      "tests": [],
-      "status": "uncovered",
-      "severity": "P0",
-      "coverage_gap": "No maintained test exercises click-dismiss, pin, and tray recovery as a complete lifecycle."
+      "tests": [
+        {
+          "path": "tests/test_p0_regression_contracts.py",
+          "nodeid": "tests/test_p0_regression_contracts.py::test_overlay_unrecoverable_click_pin_and_tray_exit_paths"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
     },
     {
       "id": "stale-pob-build",
