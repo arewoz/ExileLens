@@ -48,14 +48,10 @@
       "title": "Overlay impossible to close/recover",
       "subsystem": "game_client_input_ui",
       "trigger": "Click-dismiss, pin, or tray exit path broken",
-      "tests": [
-        {
-          "path": "tests/test_p0_regression_contracts.py",
-          "nodeid": "tests/test_p0_regression_contracts.py::test_overlay_unrecoverable_click_pin_and_tray_exit_paths"
-        }
-      ],
-      "status": "covered",
-      "severity": "P0"
+      "tests": [],
+      "status": "uncovered",
+      "severity": "P0",
+      "coverage_gap": "No deterministic regression establishes the original unrecoverable pin/tray lifecycle; the existing test covered only direct callback behavior."
     },
     {
       "id": "stale-pob-build",

@@ -39,31 +39,56 @@ Item Level: 80
 
 
 def test_hotkey_shift_c_after_focus_recovers_missed_keyup(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A swallowed KEYUP must unlatch one capture and leave the hotkey usable."""
+    """A focus-loss missed KEYUP resets the real hook state and permits one new capture."""
     _app()
     import poe2value.app.price_check_hotkey as hotkey_module
     from poe2value.app.price_check_hotkey import PriceCheckHotkeyController
+    from poe2value.platform.windows.hotkey_binding import HotkeyBinding
+    from poe2value.platform.windows.low_level_keyboard import LowLevelKeyboardHook
 
-    monkeypatch.setattr(hotkey_module, "is_poe_foreground", lambda: True)
+    foreground = {"poe": True}
+    monkeypatch.setattr(hotkey_module, "is_poe_foreground", lambda: foreground["poe"])
     monkeypatch.setattr(
         hotkey_module,
         "evaluate_poe_foreground_match",
-        lambda: {"poe_match_result": "match"},
+        lambda: {"poe_match_result": "match", "accepted": foreground["poe"]},
     )
     hotkey = PriceCheckHotkeyController(release_wait_ms=100)
     hotkey._active = True
     hotkey._combo_physically_down = lambda: False  # type: ignore[method-assign]
+    low = LowLevelKeyboardHook(HotkeyBinding.parse("shift+c"))
+    hotkey.hook._low_level = low
+    low.triggered.connect(hotkey.hook.triggered)
+    low.binding_released.connect(hotkey.hook.binding_released)
     captured: list[tuple[int, object]] = []
     hotkey.capture_requested.connect(lambda request_id, anchor: captured.append((request_id, anchor)))
 
-    # This models the actual problematic state: hook saw the chord down but focus
-    # changed before it received KEYUP. The watchdog must reconcile OS state.
-    hotkey._begin_release_wait((120, 240), capture_id=7)
-    hotkey._on_release_watchdog()
+    # Normal hook path sees Shift+C and arms both matcher and chord tracker.
+    low.process_key_event(vk=0x10, is_down=True, poe_foreground=True)
+    low.process_key_event(vk=0x43, is_down=True, poe_foreground=True)
+    _app().processEvents()
+    assert hotkey.waiting_for_release
+    assert low.chord_tracker.armed and low.matcher.key_down
 
-    assert captured == [(7, (120, 240))]
+    # Alt-Tab/focus loss swallows the KEYUP. The watchdog must cancel and reset.
+    foreground["poe"] = False
+    hotkey._on_release_watchdog()
     assert not hotkey.waiting_for_release
-    assert hotkey._last_release_source == "os_state_reconcile"
+    assert not low.chord_tracker.armed
+    assert not low.chord_tracker.binding_keys_down()
+    assert not low.matcher.key_down
+
+    # Back in PoE, one legitimate next press/release produces exactly one capture.
+    foreground["poe"] = True
+    low.process_key_event(vk=0x10, is_down=True, poe_foreground=True)
+    low.process_key_event(vk=0x43, is_down=True, poe_foreground=True)
+    _app().processEvents()
+    low.process_key_event(vk=0x43, is_down=False, poe_foreground=True)
+    low.process_key_event(vk=0x10, is_down=False, poe_foreground=True)
+    _app().processEvents()
+    assert len(captured) == 1
+    assert captured[0][0] == 2
+    assert not hotkey.waiting_for_release
     hotkey.deleteLater()
 
 
@@ -80,10 +105,19 @@ def test_item_capture_fail_rejects_empty_and_routes_real_watcher_event(monkeypat
         is_poe_foreground_fn=lambda: True,
     )
     failed: list[tuple[int, str]] = []
+    ready: list[tuple[int, str]] = []
     coordinator.capture_failed.connect(lambda request_id, message: failed.append((request_id, message)))
+    coordinator.capture_ready.connect(lambda request_id, text, _anchor, _sequence: ready.append((request_id, text)))
     assert coordinator.begin_capture((120, 240), request_id=40) == 40
     assert coordinator.route_clipboard_event(text="", sequence=2, anchor_screen_px=(120, 240))
     assert failed == [(40, "Could not read hovered item.")]
+    assert ready == []
+    assert coordinator.is_idle
+
+    # A failed owned capture must not strand the coordinator or replay stale text.
+    assert coordinator.begin_capture((120, 240), request_id=41) == 41
+    assert coordinator.route_clipboard_event(text=_market_ring(), sequence=2, anchor_screen_px=(120, 240))
+    assert ready == [(41, _market_ring())]
     assert coordinator.is_idle
 
     watcher = ClipboardWatcher()
