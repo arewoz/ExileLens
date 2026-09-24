@@ -6,7 +6,7 @@ import pathlib
 
 import pytest
 
-from poe2value.items.contextual_proof import (
+from exilelens.items.contextual_proof import (
     ContextualMeasurement,
     ContextualRelationship,
     classify_relationship,
@@ -400,7 +400,7 @@ def test_unproven_provenance_is_insufficient_not_common() -> None:
 
 
 def _module_source(name: str) -> str:
-    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "poe2value"
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "exilelens"
     return (root / name).read_text(encoding="utf-8")
 
 

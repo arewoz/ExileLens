@@ -71,7 +71,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m poe2value.ops.cli release-regressions
+          python -m exilelens.ops.cli release-regressions
           if ($LASTEXITCODE -ne 0) { throw 'Mandatory P0 regression runner failed.' }
 
       - name: Run source release gate
@@ -79,7 +79,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m poe2value.ops.cli release-gate
+          python -m exilelens.ops.cli release-gate
           if ($LASTEXITCODE -ne 0) { throw 'Source release gate blocked.' }
 
       - name: Record validation result

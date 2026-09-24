@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.socket_normalize import strip_socketed_modifiers
+from exilelens.items.socket_normalize import strip_socketed_modifiers
 
 pytestmark = pytest.mark.itemcheck
 

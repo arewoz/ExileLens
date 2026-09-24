@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.items.evaluation import evaluate_item
+from exilelens.items.evaluation import evaluate_item
 
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "fixtures" / "builds" / "public_corpus"

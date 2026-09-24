@@ -7,15 +7,15 @@ import pathlib
 
 import pytest
 
-from poe2value.items.contextual_composition import (
+from exilelens.items.contextual_composition import (
     CATALOG_ENUMERATED,
     CompositionEligibility,
     CompositionScope,
     assess_composition_eligibility,
     derive_required_scope,
 )
-from poe2value.items.contextual_evidence import EvidenceObservation, collect_candidate_evidence
-from poe2value.items.contextual_proof import (
+from exilelens.items.contextual_evidence import EvidenceObservation, collect_candidate_evidence
+from exilelens.items.contextual_proof import (
     ContextualMeasurement,
     ContextualRelationship,
     classify_relationship,
@@ -377,7 +377,7 @@ def test_assessment_has_no_verdict_or_aggregation() -> None:
 
 
 def _module_source(name: str) -> str:
-    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "poe2value"
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "exilelens"
     return (root / name).read_text(encoding="utf-8")
 
 

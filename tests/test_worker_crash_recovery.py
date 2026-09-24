@@ -13,16 +13,16 @@ from typing import Any
 
 import pytest
 
-from poe2value.app import controller as controller_module
-from poe2value.app.controller import (
+from exilelens.app import controller as controller_module
+from exilelens.app.controller import (
     EvaluationController,
     EvaluationRequest,
     EvaluationTiming,
     _EvaluationWorker,
 )
-from poe2value.app.scheduler import BoundedEvaluationScheduler
-from poe2value.errors import RestoreFailed, WorkerUnhealthy
-from poe2value.items.evaluation_identity import EvaluationContextIdentity
+from exilelens.app.scheduler import BoundedEvaluationScheduler
+from exilelens.errors import RestoreFailed, WorkerUnhealthy
+from exilelens.items.evaluation_identity import EvaluationContextIdentity
 
 pytestmark = pytest.mark.itemcheck
 

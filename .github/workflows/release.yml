@@ -69,7 +69,7 @@ jobs:
         shell: pwsh
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-        run: python -m poe2value.ops.cli release-gate
+        run: python -m exilelens.ops.cli release-gate
 
       - name: Install mandatory release-test dependencies
         shell: pwsh
@@ -79,7 +79,7 @@ jobs:
         shell: pwsh
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-        run: python -m poe2value.ops.cli release-regressions
+        run: python -m exilelens.ops.cli release-regressions
 
       - name: Build the official Windows onedir distribution
         shell: pwsh
@@ -89,7 +89,7 @@ jobs:
         shell: pwsh
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-        run: python -m poe2value.ops.cli release-gate --require-artifact
+        run: python -m exilelens.ops.cli release-gate --require-artifact
 
       - name: Package and verify release assets
         shell: pwsh
@@ -101,7 +101,7 @@ jobs:
           $distDir = Join-Path $env:GITHUB_WORKSPACE 'dist\ExileLens'
           $exePath = Join-Path $distDir 'ExileLens.exe'
           $expectedSourceVersion = $env:RELEASE_VERSION.Substring(1)
-          $sourceVersion = (& .\.release-venv\Scripts\python.exe -c "from poe2value._version import __version__; print(__version__)").Trim()
+          $sourceVersion = (& .\.release-venv\Scripts\python.exe -c "from exilelens._version import __version__; print(__version__)").Trim()
           if ($LASTEXITCODE -ne 0 -or $sourceVersion -ne $expectedSourceVersion) {
             throw "Requested tag $env:RELEASE_VERSION does not match the checked-out source version v$sourceVersion."
           }

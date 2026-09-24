@@ -23,13 +23,13 @@ a fixture, test, or registry entry.
   in the manifest — it's used by the strategic suite via a hardcoded path.
 - **Strategic real-PoB suite**: `tests/integration/test_public_real_pob.py`
   (`real_pob` marker) — 7 hand-written scenarios that call
-  `poe2value.items.evaluation.evaluate_item` against the real PoB2 engine and assert
+  `exilelens.items.evaluation.evaluate_item` against the real PoB2 engine and assert
   an actual `EvaluationOutcome`/`PublicVerdict`.
 - **Policy safety-net suite**: `tests/test_core_04_adversarial_item_check.py`
   (`itemcheck` marker, no engine) — deterministic, worker-shaped unit tests of the
   verdict/quality contract itself (guardrails, resistance-cap state machine,
   malformed-metric handling, slot selection/mapping, identity/fingerprinting).
-- **Existing truthfulness vocabulary** (`src/poe2value/items/evaluation_outcome.py`):
+- **Existing truthfulness vocabulary** (`src/exilelens/items/evaluation_outcome.py`):
   `EvaluationQuality` (`FULL/PARTIAL/UNSUPPORTED/FAILED`) and `PublicVerdict`
   (directional verdicts, plus `UNCERTAIN`, `UNSUPPORTED`, `NOT_EVALUATED`). These are
   the product's own semantics and this coverage system reuses them rather than

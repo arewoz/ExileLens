@@ -23,7 +23,7 @@ def pob_config():
     by tests, and a configured path is validated rather than silently skipped.
     """
 
-    from poe2value.config import PobConfig, detect_common_pob_installation, validate_pob_path
+    from exilelens.config import PobConfig, detect_common_pob_installation, validate_pob_path
 
     explicit = os.environ.get("POB2_PATH", "").strip()
     if explicit:
@@ -41,7 +41,7 @@ def pob_config():
 
 @pytest.fixture(scope="module")
 def real_pob_engine(pob_config):
-    from poe2value.engine import Engine
+    from exilelens.engine import Engine
 
     with Engine(pob_config, use_subprocess=True) as engine:
         yield engine

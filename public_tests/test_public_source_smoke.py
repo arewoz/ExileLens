@@ -16,7 +16,7 @@ def test_release_build_inputs_are_present_and_pinned() -> None:
         "scripts/build_exe.ps1",
         "scripts/release_python_preflight.ps1",
         "scripts/validate_release_binary_provenance.py",
-        "packaging/poe2value-gui.spec",
+        "packaging/exilelens-gui.spec",
     ):
         assert (ROOT / relative).is_file(), relative
 

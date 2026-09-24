@@ -1,6 +1,6 @@
 # PoB2 Engine Contract (Phase 1)
 
-Stable product-facing API implemented by the persistent worker (`runtime/lua/bridge.lua`) and exposed through `poe2value.engine.Engine`.
+Stable product-facing API implemented by the persistent worker (`runtime/lua/bridge.lua`) and exposed through `exilelens.engine.Engine`.
 
 ## Lifecycle
 
@@ -44,7 +44,7 @@ Contexts are **in-memory only**. Saved build files are never modified.
 
 ## Normalized metrics
 
-Product layer maps raw PoB fields via `poe2value.metrics.normalize_metrics`:
+Product layer maps raw PoB fields via `exilelens.metrics.normalize_metrics`:
 
 - `offense.primary_dps` ← `CombinedDPS` (fallback `FullDPS`, `AverageDamage`)
 - `defense.ehp` ← `TotalEHP`
@@ -85,7 +85,7 @@ Application `load_build` goes through `EvaluationController` so loadout, numeric
 | `WEAPON_1` | `Weapon 1` | Main hand / 2H |
 | `WEAPON_2` | `Weapon 2` | Dual-wield second weapon |
 | `OFFHAND_1` | `Weapon 2` | Shield / Focus / Quiver. Logical "currently-active offhand": the M1.1 `active_weapon_slot` bridge translation (`runtime/lua/bridge.lua`) transparently resolves this to the physical `Weapon 2 Swap` slot whenever the build's active item set has `useSecondWeaponSet=true`, so product code never needs a distinct "active second weapon set" offhand concept — see M1.2 offhand-support coverage (`docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md`). |
-| `OFFHAND_2` | `Weapon 2 Swap` | **Confirmed unreachable from live data (re-verified M1.2).** Declared only for `product_slot_to_pob`'s enum completeness; `EVALUABLE_SLOTS` in `runtime/lua/bridge.lua` never reports `"Weapon 2 Swap"` as a compatible slot, so `pob_slot_to_product` can never produce `OFFHAND_2` from a real engine response, even during an active second weapon set (see `src/poe2value/items/slots.py`'s in-code comment). Do not build new logic on this branch. |
+| `OFFHAND_2` | `Weapon 2 Swap` | **Confirmed unreachable from live data (re-verified M1.2).** Declared only for `product_slot_to_pob`'s enum completeness; `EVALUABLE_SLOTS` in `runtime/lua/bridge.lua` never reports `"Weapon 2 Swap"` as a compatible slot, so `pob_slot_to_product` can never produce `OFFHAND_2` from a real engine response, even during an active second weapon set (see `src/exilelens/items/slots.py`'s in-code comment). Do not build new logic on this branch. |
 
 Phase 2 engine methods:
 
@@ -411,7 +411,7 @@ projectile, rotation, or practical-DPS inference exists.
 
 ## Contextual proof layer (Slice 4A, internal, evidence only)
 
-`src/poe2value/items/contextual_proof.py` is a small deterministic domain
+`src/exilelens/items/contextual_proof.py` is a small deterministic domain
 layer on top of Slice 3 measurements. It lifts `evaluate_effect_candidate`
 results into `ContextualMeasurement` inputs (qualified reference, physical
 target, baseline/candidate outputs, provenance) and classifies their
@@ -440,7 +440,7 @@ influence any public Item Check result.
 
 ## Evidence orchestration (Slice 4B, internal, no product consumer)
 
-`src/poe2value/items/contextual_evidence.py` collects one candidate's
+`src/exilelens/items/contextual_evidence.py` collects one candidate's
 Slice 3 physical-candidate measurements across caller-supplied contextual
 observations and feeds them to the Slice 4A classifier, returning an
 evidence bundle (candidate/source provenance, per-observation identity,
@@ -456,7 +456,7 @@ composition exists yet and no public verdict consumes this evidence.
 
 ## Composition eligibility (Slice 4C, internal, no product consumer)
 
-`src/poe2value/items/contextual_composition.py` answers only whether a
+`src/exilelens/items/contextual_composition.py` answers only whether a
 Slice 4B evidence bundle is comparable, complete, and internally
 consistent enough to be eligible for later guarded interpretation:
 `ELIGIBLE` / `NOT_ELIGIBLE` / `INSUFFICIENT_EVIDENCE`, with structured
@@ -476,7 +476,7 @@ whole-build) and never a product verdict.
 
 ## Diagnostic consumer (Slice 4D, read-only, no product consumer)
 
-`src/poe2value/items/contextual_diagnostics.py` (`run_contextual_diagnostic`)
+`src/exilelens/items/contextual_diagnostics.py` (`run_contextual_diagnostic`)
 exercises candidate -> measurements -> evidence -> proof -> required scope
 -> eligibility on real PoB state and reports what can actually be proven
 and why no more can be proven. It enumerates each requested set's catalog

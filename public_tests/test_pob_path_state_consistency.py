@@ -11,9 +11,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
-from poe2value.app.settings import AppSettings
-from poe2value.items.item_check_settings import ItemCheckProSettings
-from poe2value.ui.dashboard_pages import SettingsPage
+from exilelens.app.settings import AppSettings
+from exilelens.items.item_check_settings import ItemCheckProSettings
+from exilelens.ui.dashboard_pages import SettingsPage
 
 
 def _make_valid_pob(root: Path) -> Path:
@@ -77,8 +77,8 @@ def test_invalid_candidate_keeps_valid_connection(monkeypatch, tmp_path: Path) -
     page._pob_edit.setText(str(tmp_path / "not-a-pob"))
 
     saved: list[str] = []
-    monkeypatch.setattr("poe2value.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
-    monkeypatch.setattr("poe2value.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
 
     page._apply_pob_path()
 
@@ -95,8 +95,8 @@ def test_invalid_candidate_keeps_unconfigured_state(monkeypatch, tmp_path: Path)
     page._pob_edit.setText(str(tmp_path / "not-a-pob"))
 
     saved: list[str] = []
-    monkeypatch.setattr("poe2value.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
-    monkeypatch.setattr("poe2value.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
 
     page._apply_pob_path()
 
@@ -114,8 +114,8 @@ def test_valid_candidate_persists_and_restarts(monkeypatch, tmp_path: Path) -> N
     page._pob_edit.setText(str(candidate))
 
     saved: list[str] = []
-    monkeypatch.setattr("poe2value.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
-    monkeypatch.setattr("poe2value.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
 
     page._apply_pob_path()
 

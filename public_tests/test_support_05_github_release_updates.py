@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.app import update_check
-from poe2value.app.settings import AppSettings
-from poe2value.ui import recovery_actions
+from exilelens.app import update_check
+from exilelens.app.settings import AppSettings
+from exilelens.ui import recovery_actions
 
 
 def test_canonical_version_ordering() -> None:

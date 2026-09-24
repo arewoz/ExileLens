@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.evaluation_identity import EvaluationContextIdentity, identity_from_state
-from poe2value.items.item_check_settings import ItemCheckProSettings
-from poe2value.items.result_cache import evaluation_cache_key
+from exilelens.items.evaluation_identity import EvaluationContextIdentity, identity_from_state
+from exilelens.items.item_check_settings import ItemCheckProSettings
+from exilelens.items.result_cache import evaluation_cache_key
 
 pytestmark = pytest.mark.itemcheck
 

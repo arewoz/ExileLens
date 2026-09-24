@@ -2,7 +2,7 @@
 
 The canonical user-facing product name is **ExileLens**.
 
-`src/poe2value/branding.py` is the single source of truth:
+`src/exilelens/branding.py` is the single source of truth for user-facing identity:
 
 | Constant | Value | Used for |
 | --- | --- | --- |
@@ -13,29 +13,39 @@ The canonical user-facing product name is **ExileLens**.
 
 Contextual windows use an em dash: `ExileLens — Price Check`, `ExileLens — Setup`.
 
+## Python package and versioning
+
+| Identifier | Value | Notes |
+| --- | --- | --- |
+| Python package | `exilelens` | import path under `src/exilelens/` |
+| Distribution (PyPI/local) | `exilelens` | `pyproject.toml`; version from `exilelens._version.__version__` only |
+| Console scripts | `exilelens`, `exilelens-gui` | primary CLI entry points |
+| User data | `%LOCALAPPDATA%\\ExileLens` | canonical settings directory |
+
 ## Icon
 
 * Source artwork: `assets/app/exilelens.png` — the high-resolution original. Never resized in place.
 * Windows icon: `assets/app/exilelens.ico` — multi-resolution (16/24/32/48/64/128/256), transparency preserved.
 * Regenerate with `python scripts/make_app_icon.py` (also run automatically by `scripts/build_exe.ps1`).
 
-The ICO is embedded into `ExileLens.exe` by `packaging/poe2value-gui.spec` (`EXE(icon=...)`), and the same
+The ICO is embedded into `ExileLens.exe` by `packaging/exilelens-gui.spec` (`EXE(icon=...)`), and the same
 assets are bundled as data so the running app can set the Qt window and tray icon from them.
+
+Windows `version_info.txt` is generated from `src/exilelens/_version.py` via
+`scripts/generate_packaging_version_info.py` (also invoked by `scripts/build_exe.ps1`).
 
 ## Intentionally preserved legacy identifiers
 
-These are **not** user-facing. Renaming them would break existing installs or working scripts, so they keep
-their historical names:
+These are **not** user-facing. They remain for migration, external compatibility, or immutable runtime contracts:
 
 | Identifier | Why it stays |
 | --- | --- |
-| Python package `poe2value` | thousands of intra-repo imports, `--poe2value-worker` subprocess arg, PyInstaller hidden imports |
-| Console script `poe2value` / `poe2value-gui` | existing scripts, docs and test invocations; `exilelens` / `exilelens-gui` added as aliases |
-| Distribution name `poe2-value-overlay` in `pyproject.toml` | existing editable installs and virtualenvs resolve by this name |
-| `%LOCALAPPDATA%/poe2-value-overlay/` settings directory | a cosmetic rename must not make existing user configuration, calibration state or build selections disappear |
-| Trade API user agents (`poe2-value-overlay/0.5 (price-check)`, `poe2-value-overlay/phase35`) | GGG rate-limit policy is keyed to a stable user agent; changing it silently is a live-traffic change, not a rename |
-| Spec filename `packaging/poe2value-gui.spec` | referenced by `scripts/build_exe.ps1` and CI notes; the artifacts it produces are named ExileLens |
-| `LOCK_NAME` in `app/single_instance.py` | the single-instance mutex is not user-facing. Renaming it would let an old `PoE2ValueForMyBuild.exe` and a new `ExileLens.exe` run at the same time, both registering the Price Check hotkey and both spending the same per-IP trade budget — exactly what MARKET-01B13 added the lock to prevent. |
-| `"PoE2 Value"` in `EXCLUDE_TITLE_HINTS` | kept alongside `"ExileLens"` so any stale window is still excluded from PoE-window detection |
+| Console scripts `poe2value` / `poe2value-gui` | alias entry points for existing scripts and editable installs |
+| `%LOCALAPPDATA%/poe2-value-overlay/` | legacy settings directory; copied once into `ExileLens` on first launch |
+| Log file `logs/poe2value.log` | support workflows and docs reference this filename |
+| Worker flag `--poe2value-worker` | accepted alongside `--exilelens-worker` for older packaged builds |
+| Trade API user agents (`poe2-value-overlay/0.5 (price-check)`, `poe2-value-overlay/phase35`) | GGG rate-limit policy is keyed to a stable user agent |
+| `LOCK_NAME` in `app/single_instance.py` | mutex must match older `PoE2ValueForMyBuild.exe` installs |
+| `"PoE2 Value"` in `EXCLUDE_TITLE_HINTS` | stale window titles excluded from PoE-window detection |
 
 Historical task/exit reports under `docs/` keep the product name that was correct when they were written.
