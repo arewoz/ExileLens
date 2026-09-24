@@ -20,7 +20,7 @@ REQUIRED_PACKAGING = (
     "packaging/version_info.txt",
     "packaging/poe2value-gui.spec",
     "scripts/build_exe.ps1",
-    "scripts/package_closed_public_rc.ps1",
+    "scripts/create_desktop_shortcut.ps1",
 )
 
 
