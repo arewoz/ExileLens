@@ -139,6 +139,27 @@ jobs:
           "ARCHIVE_PATH=$archivePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "SUMS_PATH=$sumsPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+      - name: Validate official release notes
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $notesPath = Join-Path $env:GITHUB_WORKSPACE 'packaging\RELEASE_NOTES.md'
+          if (-not (Test-Path -LiteralPath $notesPath -PathType Leaf)) {
+            throw "Official release notes are missing: packaging/RELEASE_NOTES.md"
+          }
+          $expectedTag = $env:RELEASE_VERSION.Trim()
+          $expectedVersion = $expectedTag.Substring(1)
+          $heading = (Get-Content -LiteralPath $notesPath -TotalCount 1 -Encoding utf8).Trim()
+          if ($heading -notmatch "^#\s+ExileLens\s+$expectedVersion\b") {
+            throw "Release notes heading must be '# ExileLens $expectedVersion' for tag $expectedTag; got: $heading"
+          }
+          if ((Get-Item -LiteralPath $notesPath).Length -eq 0) {
+            throw 'Official release notes file is empty.'
+          }
+          "RELEASE_NOTES_PATH=$notesPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Create published release
         shell: pwsh
         env:
@@ -152,7 +173,7 @@ jobs:
             --target $commit `
             --title "ExileLens $env:RELEASE_VERSION - Beta" `
             --latest `
-            --generate-notes
+            --notes-file $env:RELEASE_NOTES_PATH
           if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the release.' }
 
       - name: Build Discord release announcement

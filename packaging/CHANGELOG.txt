@@ -5,19 +5,21 @@ EXILELENS CHANGELOG
 0.4.0b1
 -------
 
-User-visible improvements
--------------------------
+User-visible improvements (since 0.3.0b2)
+-----------------------------------------
 
-- Item Check now respects the **active weapon set** when your build uses Path of
-  Building's second weapon set (swap slots). Comparisons read and restore the
-  slots you are actually playing, not the inactive primary pair.
-- **Paired offhand disclosure** is more accurate when a two-handed weapon
+- **Paired offhand disclosure** is clearer when a two-handed weapon
   candidate would remove your equipped shield or change the active offhand:
   verdict and tooltip text name the real item PoB would drop, including swap-set
   quiver vs. primary shield cases.
 - **Weapon and offhand** comparisons are more reliable for one-hand + offhand
   builds, bow + quiver builds, shield replacements, and two-handed weapon
   upgrades, with restoration of equipment and build context after each check.
+- **Component-context Item Check** is more accurate for builds that use Path of
+  Building weapon-set swap slots (refines evaluation and restore for the slots
+  you are using; active weapon-set handling itself shipped in earlier betas).
+- **Non-weapon Item Check** no longer crashes on some ring and accessory
+  comparisons that previously failed during evaluation.
 - **PoB import and load** is more stable: ExileLens avoids unnecessary reloads
   while your build file is unchanged, reducing flicker and failed comparisons
   after switching builds.
