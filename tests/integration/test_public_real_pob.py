@@ -9,10 +9,10 @@ from xml.etree import ElementTree
 
 import pytest
 
-from poe2value.errors import RestoreFailed, SlotResolutionFailed
-from poe2value.items.compact_tooltip import replacing_line
-from poe2value.items.evaluation import evaluate_item
-from poe2value.items.more_info import build_more_info
+from exilelens.errors import RestoreFailed, SlotResolutionFailed
+from exilelens.items.compact_tooltip import replacing_line
+from exilelens.items.evaluation import evaluate_item
+from exilelens.items.more_info import build_more_info
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -368,7 +368,7 @@ def test_offhand_candidate_against_two_hand_weapon_fails_truthfully(real_pob_eng
     any slot: PoB's own `IsItemValidForSlot` (via `resolve_compatible_slots_for_item`,
     `runtime/lua/bridge.lua`) reports zero compatible slots and
     `weapon_layout == "UNSUPPORTED_EQUIPMENT_LAYOUT"` because the active weapon is
-    two-handed. `evaluate_item` (`src/poe2value/items/evaluation.py`) turns that into
+    two-handed. `evaluate_item` (`src/exilelens/items/evaluation.py`) turns that into
     a `SlotResolutionFailed` -- never a confident (silently wrong-slot) comparison.
     This is the invalid-offhand/build-combination case required by M1.2: PoB, not
     ExileLens, is the source of truth for the legality check, and no forced/partial

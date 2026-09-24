@@ -3,8 +3,8 @@
 ## Entry point
 
 ```bash
-poe2value evaluate-item --build fixtures/builds/V3.2-Fast-Mapper.xml --item fixtures/items/ring1_candidate.txt
-Get-Content fixtures/items/ring1_candidate.txt | poe2value evaluate-item --build fixtures/builds/V3.2-Fast-Mapper.xml
+exilelens evaluate-item --build fixtures/builds/V3.2-Fast-Mapper.xml --item fixtures/items/ring1_candidate.txt
+Get-Content fixtures/items/ring1_candidate.txt | exilelens evaluate-item --build fixtures/builds/V3.2-Fast-Mapper.xml
 ```
 
 ## Success payload

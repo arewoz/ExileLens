@@ -5,7 +5,7 @@ imported by `registry.py` (what coverage actually exists) and `report.py` (how t
 grade and present it).
 
 Grading reuses the product's own truthfulness semantics wherever they already exist
-(`poe2value.items.evaluation_outcome.EvaluationQuality` / `PublicVerdict`) rather than
+(`exilelens.items.evaluation_outcome.EvaluationQuality` / `PublicVerdict`) rather than
 inventing competing terminology. The five-way `CoverageResult` below is a *grading*
 layer on top of those existing enums: it answers "did this coverage case behave the
 way its author declared it should", not "what verdict did the product return".

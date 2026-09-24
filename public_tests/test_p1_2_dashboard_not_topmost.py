@@ -18,7 +18,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QWidget
 
-from poe2value.ui.window_policy import WindowInteractionPolicy, apply_window_interaction_policy
+from exilelens.ui.window_policy import WindowInteractionPolicy, apply_window_interaction_policy
 
 
 def _app() -> QApplication:
@@ -45,9 +45,9 @@ def test_over_the_game_tool_policy_is_unchanged_and_stays_on_top() -> None:
 
 
 def test_dashboard_window_uses_the_app_window_policy() -> None:
-    from poe2value.app.settings import AppSettings
-    from poe2value.app.controller import EvaluationController
-    from poe2value.ui.dashboard_window import DashboardWindow
+    from exilelens.app.settings import AppSettings
+    from exilelens.app.controller import EvaluationController
+    from exilelens.ui.dashboard_window import DashboardWindow
 
     app = _app()
     settings = AppSettings()

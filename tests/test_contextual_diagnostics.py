@@ -6,11 +6,11 @@ import pathlib
 
 import pytest
 
-from poe2value.errors import RestoreFailed
-from poe2value.items.contextual_composition import CompositionEligibility
-from poe2value.items.contextual_diagnostics import run_contextual_diagnostic
-from poe2value.items.contextual_evidence import EvidenceObservation
-from poe2value.items.contextual_proof import ContextualRelationship
+from exilelens.errors import RestoreFailed
+from exilelens.items.contextual_composition import CompositionEligibility
+from exilelens.items.contextual_diagnostics import run_contextual_diagnostic
+from exilelens.items.contextual_evidence import EvidenceObservation
+from exilelens.items.contextual_proof import ContextualRelationship
 
 pytestmark = pytest.mark.itemcheck
 
@@ -245,7 +245,7 @@ def test_restore_failure_and_drift_fail_closed() -> None:
 
 
 def _module_source(name: str) -> str:
-    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "poe2value"
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "exilelens"
     return (root / name).read_text(encoding="utf-8")
 
 

@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "poe2-value-overlay"
-version = "0.4.0b1"
+name = "exilelens"
+dynamic = ["version"]
 description = "ExileLens — real Path of Building 2 evaluation engine for Path of Exile 2"
 readme = "packaging/README.txt"
 requires-python = ">=3.10"
@@ -16,13 +16,16 @@ dependencies = [
 dev = ["pytest>=8.0", "pyinstaller>=6.0", "pillow>=10.0"]
 
 [project.scripts]
-poe2value = "poe2value.cli:main"
-poe2value-gui = "poe2value.app.main:main"
-exilelens = "poe2value.cli:main"
-exilelens-gui = "poe2value.app.main:main"
+exilelens = "exilelens.cli:main"
+exilelens-gui = "exilelens.app.main:main"
+poe2value = "exilelens.cli:main"
+poe2value-gui = "exilelens.app.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "exilelens._version.__version__" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

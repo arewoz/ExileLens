@@ -1,5 +1,5 @@
-# Windows version resource for ExileLens.exe.
-# ProductVersion/FileVersion strings must match src/poe2value/_version.py.
+# Generated from src/exilelens/_version.py — do not edit by hand.
+# Regenerate: python scripts/generate_packaging_version_info.py
 VSVersionInfo(
   ffi=FixedFileInfo(
     filevers=(0, 4, 0, 1),

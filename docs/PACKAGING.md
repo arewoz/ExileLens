@@ -46,7 +46,7 @@ To recreate only the shortcut after a rebuild:
 ## What gets bundled
 
 - PySide6 (Qt) runtime and plugins
-- `poe2value` Python package
+- `exilelens` Python package
 - `runtime/lua/` bridge scripts used by the PoB worker subprocess
 - `README.txt` (install/setup/troubleshooting guide, staged from `packaging/`)
 - the MIT-licensed PoB headless support definitions documented in `THIRD_PARTY_NOTICES.txt`
@@ -60,7 +60,7 @@ To recreate only the shortcut after a rebuild:
 
 ## Frozen worker subprocess
 
-The GUI spawns a worker subprocess (`--poe2value-worker`) from the same executable to avoid Lua/Qt DLL conflicts on Windows. PoB's `lua51.dll` is loaded from either the selected installation root or a checkout's `runtime` directory. Startup errors are caught inside the frozen worker boundary so an invalid path cannot produce PyInstaller's unhandled-exception dialog.
+The GUI spawns a worker subprocess (`--exilelens-worker`, with legacy `--poe2value-worker`) from the same executable to avoid Lua/Qt DLL conflicts on Windows. PoB's `lua51.dll` is loaded from either the selected installation root or a checkout's `runtime` directory. Startup errors are caught inside the frozen worker boundary so an invalid path cannot produce PyInstaller's unhandled-exception dialog.
 
 ## Windows release toolchain
 
@@ -68,7 +68,7 @@ The GUI spawns a worker subprocess (`--poe2value-worker`) from the same executab
 |--------|-------|-------|
 | Source compatibility | `requires-python >=3.10` | `pyproject.toml` |
 | Release build Python | exact patch from `.python-version` | repo root |
-| Packaging | PyInstaller onedir, UPX disabled | `packaging/poe2value-gui.spec` |
+| Packaging | PyInstaller onedir, UPX disabled | `packaging/exilelens-gui.spec` |
 
 After a release build, `dist\ExileLens\build_stamp.json` records the detected
 `python_version`, `pyinstaller_version`, `git_commit`, and `build_mode`.
@@ -79,7 +79,7 @@ Use the pinned release interpreter (not the default `python` if it differs):
 
 ```powershell
 py -3.12 -m pip install pyinstaller
-py -3.12 -m PyInstaller packaging/poe2value-gui.spec --noconfirm --clean
+py -3.12 -m PyInstaller packaging/exilelens-gui.spec --noconfirm --clean
 ```
 
 ## Git artifacts

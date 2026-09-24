@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.effect_components import ComponentReference, MAX_EFFECTS, normalize_effect_catalog
-from poe2value.items.evaluation_identity import identity_from_state
+from exilelens.items.effect_components import ComponentReference, MAX_EFFECTS, normalize_effect_catalog
+from exilelens.items.evaluation_identity import identity_from_state
 
 
 pytestmark = pytest.mark.itemcheck

@@ -20,13 +20,13 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.items.contextual_diagnostics import run_contextual_diagnostic
-from poe2value.items.contextual_evaluation import read_component_in_context
-from poe2value.items.contextual_evidence import EvidenceObservation
-from poe2value.items.effect_components import ContextualComponentReference
-from poe2value.items.evaluation import evaluate_item
-from poe2value.items.evaluation_identity import candidate_fingerprint
-from poe2value.items.slots import ProductSlot
+from exilelens.items.contextual_diagnostics import run_contextual_diagnostic
+from exilelens.items.contextual_evaluation import read_component_in_context
+from exilelens.items.contextual_evidence import EvidenceObservation
+from exilelens.items.effect_components import ContextualComponentReference
+from exilelens.items.evaluation import evaluate_item
+from exilelens.items.evaluation_identity import candidate_fingerprint
+from exilelens.items.slots import ProductSlot
 
 ROOT = Path(__file__).resolve().parents[2]
 WEAPON_SWAP = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_weapon_swap.xml"

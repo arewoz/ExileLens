@@ -26,12 +26,12 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.app.external_clipboard_capture import (
+from exilelens.app.external_clipboard_capture import (
     ExternalClipboardCandidate,
     ExternalClipboardDecision,
     ExternalClipboardRouter,
 )
-from poe2value.platform.windows.user_clipboard_copy import (
+from exilelens.platform.windows.user_clipboard_copy import (
     note_foreign_ctrl_c_copy,
     reset_user_ctrl_c_copy_state,
 )
@@ -144,7 +144,7 @@ def test_raw_clipboard_content_never_reaches_logs(caplog: pytest.LogRecord) -> N
     probe = max(text.splitlines(), key=len)
     assert len(probe) > 20  # a real mod line, not a header
 
-    with caplog.at_level(logging.INFO, logger="poe2value.app.external_clipboard_capture"):
+    with caplog.at_level(logging.INFO, logger="exilelens.app.external_clipboard_capture"):
         decision, _ = _evaluate(text, 41)
 
     assert decision is ExternalClipboardDecision.ACCEPTED

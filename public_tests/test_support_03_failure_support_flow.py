@@ -10,11 +10,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from poe2value.app.settings import AppSettings
-from poe2value.app.update_check import UpdateCheckService
-from poe2value.ui import recovery_actions
-from poe2value.ui.dashboard_pages import DiagnosticsPage
-from poe2value.ui.health import derive_health
+from exilelens.app.settings import AppSettings
+from exilelens.app.update_check import UpdateCheckService
+from exilelens.ui import recovery_actions
+from exilelens.ui.dashboard_pages import DiagnosticsPage
+from exilelens.ui.health import derive_health
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +46,7 @@ def test_copy_diagnostics_uses_explicit_safe_global_renderer(monkeypatch) -> Non
     clipboard = _Clipboard()
     monkeypatch.setattr(recovery_actions.QApplication, "clipboard", lambda: clipboard)
     monkeypatch.setattr(
-        "poe2value.app.diagnostics.render_global_diagnostics", lambda _controller: "SAFE REPORT"
+        "exilelens.app.diagnostics.render_global_diagnostics", lambda _controller: "SAFE REPORT"
     )
 
     assert recovery_actions.copy_diagnostics(object()) == "SAFE REPORT"

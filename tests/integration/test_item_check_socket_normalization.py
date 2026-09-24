@@ -14,9 +14,9 @@ from xml.etree import ElementTree
 
 import pytest
 
-from poe2value.errors import EngineError
-from poe2value.items.evaluation import evaluate_item
-from poe2value.items.socket_normalize import strip_socketed_modifiers
+from exilelens.errors import EngineError
+from exilelens.items.evaluation import evaluate_item
+from exilelens.items.socket_normalize import strip_socketed_modifiers
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_bow_quiver.xml"

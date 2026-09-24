@@ -8,7 +8,7 @@
   "pob": {
     "verified_commit": "97cb973f8a114d32010bc1a4195c170628771714",
     "status": "SUPPORTED",
-    "source": "SUPPORTED_POB_HEAD in src/poe2value/__init__.py — product refuses other revisions."
+    "source": "SUPPORTED_POB_HEAD in src/exilelens/__init__.py — product refuses other revisions."
   },
   "market": {
     "status": "VERIFIED",

@@ -13,15 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.errors import RestoreFailed
-from poe2value.items.contextual_evaluation import (
+from exilelens.errors import RestoreFailed
+from exilelens.items.contextual_evaluation import (
     evaluate_physical_candidate,
     list_component_contexts,
     read_component_in_context,
 )
-from poe2value.items.effect_components import ContextualComponentReference
-from poe2value.items.evaluation import evaluate_item
-from poe2value.items.slots import ProductSlot
+from exilelens.items.effect_components import ContextualComponentReference
+from exilelens.items.evaluation import evaluate_item
+from exilelens.items.slots import ProductSlot
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILDS = ROOT / "fixtures" / "builds"

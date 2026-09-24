@@ -16,7 +16,7 @@ BRIDGE = ROOT / "runtime" / "lua" / "bridge.lua"
 
 
 def _local_errors_module():
-    spec = importlib.util.spec_from_file_location("public_poe2value_errors", ROOT / "src" / "poe2value" / "errors.py")
+    spec = importlib.util.spec_from_file_location("public_poe2value_errors", ROOT / "src" / "exilelens" / "errors.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
