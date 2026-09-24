@@ -270,6 +270,37 @@ def _evaluate_item_impl(
                 {"allocated_jewel_socket_count": allocated_count},
             )
         raise NoCompatibleSlot("item has no compatible replacement slots in the loaded build")
+    # Detect two-hand weapon candidate that would auto-clear an equipped offhand.
+    # This is a paired-slot change: equipping a two-hander in Weapon 1 removes
+    # the offhand from Weapon 2. Ordinary Item Check only evaluates Weapon 1,
+    # but the comparison delta includes the offhand loss. We flag this so the
+    # presentation layer can disclose the full scope of the change.
+    paired_offhand_cleared = False
+    paired_offhand_slot = ""
+    item_type = pob_parse.item.get("type")
+    is_two_hand = pob_parse.item.get("two_hand") or (item_type in WEAPON_TYPES and "twohand" in str(pob_parse.item.get("base_tags") or "").lower())
+    # Check for two-hand via base tags more reliably
+    base_tags = pob_parse.item.get("base_tags") or {}
+    if base_tags.get("twohand"):
+        is_two_hand = True
+    if is_two_hand and "Weapon 1" in compatible_slots:
+        # Read current equipment to see if an offhand is equipped in Weapon 2
+        try:
+            equipment_payload = engine.get_equipment() or {}
+        except Exception:
+            equipment_payload = {}
+        equipment_by_slot = {
+            str(entry.get("slot")): entry
+            for entry in (equipment_payload.get("equipment") or [])
+            if isinstance(entry, dict)
+        }
+        weapon2_entry = equipment_by_slot.get("Weapon 2")
+        if weapon2_entry and weapon2_entry.get("equipped"):
+            offhand_type = weapon2_entry.get("type") or ""
+            if offhand_type in ("Shield", "Focus", "Quiver"):
+                paired_offhand_cleared = True
+                paired_offhand_slot = "Weapon 2"
+
     if pob_parse.weapon_layout == "AMBIGUOUS_WEAPON_LAYOUT" and len([s for s in compatible_slots if s.startswith("Weapon")]) > 1:
         # Evaluate all weapon-compatible slots rather than failing.
         pass
@@ -563,6 +594,8 @@ def _evaluate_item_impl(
             }
             for slot in compatible_slots
         ],
+        "paired_offhand_cleared": paired_offhand_cleared,
+        "paired_offhand_slot": paired_offhand_slot,
         "slot_comparisons": ranking["slot_comparisons"],
         "failed_slot_outcomes": failed_slot_outcomes,
         "recommendation": ranking["recommendation"],
