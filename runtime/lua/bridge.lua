@@ -2482,6 +2482,78 @@ end
 -- zero baseline yields no percentage (no manufactured rate). This is
 -- component evidence only, never a whole-build claim.
 
+-- Slice 4D follow-up: weapon-set-qualified effect catalog enumeration.
+-- Same bridge-owned switch/restore envelope as
+-- `read_effect_in_weapon_context`, but enumerating (read-only,
+-- GlobalCache-backed, no skill selection) instead of measuring. Lets an
+-- explicit diagnostic caller list effects for an inactive set without
+-- persistently switching the build. Absent `weapon_set`, the plain
+-- `effect_catalog` path below runs with zero extra frames.
+local function list_effects_in_weapon_context(indices, requested_max, target_set, opts)
+	opts = opts or {}
+	local original_set = weapon_set_number()
+	local original_snap = snapshot_skill_state()
+	local original_semantic = semantic_state()
+	local original_metrics = collect_metrics()
+	local original_equipment = equipment_snapshot()
+	local frames = { context_settle = 0, restore_settle = 0 }
+	if target_set ~= original_set then
+		apply_weapon_set(target_set)
+		recalc()
+		frames.context_settle = frames.context_settle + 1
+		if weapon_set_number() ~= target_set then
+			local actual = weapon_set_number()
+			pcall(function()
+				apply_weapon_set(original_set)
+				restore_skill_state(original_snap)
+				recalc()
+			end)
+			error({ code = "CALC_FAILED", message = "requested weapon context did not activate",
+				details = { requested_weapon_set = target_set, actual_weapon_set = actual } })
+		end
+	end
+	local active = weapon_set_context()
+	local ok, catalog = pcall(effect_catalog, indices, requested_max, opts)
+	if target_set ~= original_set then
+		local restore_ok, restore_err = pcall(function()
+			apply_weapon_set(original_set)
+			restore_skill_state(original_snap)
+			recalc()
+		end)
+		frames.restore_settle = frames.restore_settle + 1
+		if not restore_ok then
+			STATE.healthy = false
+			error({ code = "RESTORE_FAILED", message = tostring(restore_err),
+				details = { reason = "CONTEXT_RESTORE_EXCEPTION" } })
+		end
+		local semantic_error = compare_semantic(original_semantic, semantic_state())
+		local eq_ok, bad_slot = equipment_equal(equipment_snapshot(), original_equipment)
+		local metrics_ok, bad_metric, restored_value, baseline_value =
+			metrics_equal(collect_metrics(), original_metrics, 0.5)
+		if semantic_error or not eq_ok or not metrics_ok then
+			STATE.healthy = false
+			error({ code = "RESTORE_FAILED",
+				message = "weapon context switch did not restore the original calculation",
+				details = {
+					reason = semantic_error
+						or ((not eq_ok) and "RESTORE_EQUIPMENT_MISMATCH")
+						or "CONTEXT_RESTORE_METRICS_MISMATCH",
+					bad_slot = bad_slot, bad_metric = bad_metric,
+					baseline_value = baseline_value, restored_value = restored_value,
+				},
+			})
+		end
+	end
+	if not ok then
+		if type(catalog) == "table" and catalog.code then error(catalog) end
+		error({ code = "CALC_FAILED", message = "contextual catalog enumeration failed: " .. tostring(catalog) })
+	end
+	catalog.context = active
+	catalog.requested_weapon_set = target_set
+	catalog.frames = frames
+	return catalog
+end
+
 -- PERF-06: the structural half of compare_semantic -- everything in a semantic_state()
 -- snapshot that PERF-05's research proved is fresh (rebuilt every recalc, for every
 -- enabled group, regardless of which one is mainSocketGroup) or independent of recalc
@@ -3910,6 +3982,16 @@ function M.dispatch(req)
 	end
 
 	if method == "list_calculable_effects" then
+		-- Targeted fix: an explicit `weapon_set` (1/2) enumerates under a
+		-- transient bridge-owned context switch with full restore
+		-- verification. Absent: today's behavior, zero extra frames.
+		local target = check_weapon_set_param(params.weapon_set)
+		if target ~= nil then
+			return list_effects_in_weapon_context(params.indices, params.max_effects, target, {
+				force_cache_miss = params.force_cache_miss and true or nil,
+				malformed_cache = params.malformed_cache and true or nil,
+			})
+		end
 		return effect_catalog(params.indices, params.max_effects, {
 			force_cache_miss = params.force_cache_miss and true or nil,
 			malformed_cache = params.malformed_cache and true or nil,

@@ -8,10 +8,7 @@ import pytest
 
 from poe2value.errors import RestoreFailed
 from poe2value.items.contextual_composition import CompositionEligibility
-from poe2value.items.contextual_diagnostics import (
-    SET_CATALOG_UNAVAILABLE,
-    run_contextual_diagnostic,
-)
+from poe2value.items.contextual_diagnostics import run_contextual_diagnostic
 from poe2value.items.contextual_evidence import EvidenceObservation
 from poe2value.items.contextual_proof import ContextualRelationship
 
@@ -79,6 +76,7 @@ class FakeEngine:
         self.loaded_source_ref = _SourceRef("LOCAL_POB:/build.xml")
         self.source_generation = 7
         self.evaluate_calls = 0
+        self.catalog_calls: list = []
 
     def get_metrics(self):
         return {"fingerprint_hash": self._fingerprint}
@@ -92,7 +90,8 @@ class FakeEngine:
     def get_build_info(self):
         return {"build": {"skill_group_count": 3}}
 
-    def list_calculable_effects(self, indices=None):
+    def list_calculable_effects(self, indices=None, weapon_set=None):
+        self.catalog_calls.append(weapon_set)
         return _catalog(self._catalog_effects, truncated=self._catalog_truncated)
 
     def evaluate_effect_candidate(self, reference, *, weapon_set, physical_slot, item_raw):
@@ -190,14 +189,32 @@ def test_unavailable_and_unenumerated_set_exposed() -> None:
     assert report["unavailable"][0]["status"] == "UNAVAILABLE"
     assert report["composition_eligibility"] == CompositionEligibility.NOT_ELIGIBLE.value
 
-    cross_set = FakeEngine(
-        {**DOUBLE, ("EffectAPlayer", 1): ({"CombinedDPS": 100.0}, {"CombinedDPS": 200.0})},
-        ["EffectAPlayer"],
+def test_both_weapon_sets_enumerated_with_restore() -> None:
+    outputs = {
+        **DOUBLE,
+        ("EffectAPlayer", 1): ({"CombinedDPS": 100.0}, {"CombinedDPS": 200.0}),
+        ("EffectBPlayer", 1): ({"CombinedDPS": 50.0}, {"CombinedDPS": 100.0}),
+    }
+    engine = FakeEngine(outputs, ["EffectAPlayer", "EffectBPlayer"])
+    report = run_contextual_diagnostic(
+        engine,
+        candidate_text=TEXT,
+        observations=[
+            _observation("EffectAPlayer", 1),
+            _observation("EffectAPlayer", 2),
+            _observation("EffectBPlayer", 1),
+            _observation("EffectBPlayer", 2),
+        ],
     )
-    cross_report = _run(cross_set, [_observation("EffectAPlayer", 1), _observation("EffectAPlayer", 2)])
-    assert cross_report["eligibility_reason"] == "COVERAGE_UNPROVEN"
-    assert cross_report["completeness"]["missing_catalog_sets"] == [1]
-    assert cross_report["completeness"]["catalog_status"]["1"]["reason"] == SET_CATALOG_UNAVAILABLE
+    assert report["requested_contexts"] == [1, 2]
+    assert report["completeness"]["catalog_status"]["1"]["enumerated"] is True
+    assert report["completeness"]["catalog_status"]["2"]["enumerated"] is True
+    assert report["completeness"]["missing_catalog_sets"] == []
+    assert set(engine.catalog_calls) == {1, 2}
+    assert report["completeness"]["required_identities_count"] == 4
+    assert report["completeness"]["missing_identities"] == []
+    assert report["composition_eligibility"] == CompositionEligibility.ELIGIBLE.value
+    assert report["restore"]["pass"] is True
 
 
 def test_caller_supplied_catalogs_complete_scope() -> None:

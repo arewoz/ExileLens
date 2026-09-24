@@ -23,6 +23,7 @@ import pytest
 from poe2value.items.contextual_diagnostics import run_contextual_diagnostic
 from poe2value.items.contextual_evaluation import read_component_in_context
 from poe2value.items.contextual_evidence import EvidenceObservation
+from poe2value.items.effect_components import ContextualComponentReference
 from poe2value.items.evaluation import evaluate_item
 from poe2value.items.evaluation_identity import candidate_fingerprint
 from poe2value.items.slots import ProductSlot
@@ -52,6 +53,53 @@ def _all_references(engine) -> list[dict]:
             if reference.get("semantic_id"):
                 seen[reference["semantic_id"]] = reference
     return list(seen.values())
+
+
+def test_both_weapon_set_catalogs_enumerate_with_restore(real_pob_engine) -> None:
+    real_pob_engine.load_build(WEAPON_SWAP)
+    assert real_pob_engine.get_weapon_set_context()["weapon_set"] == 2
+    before_fingerprint = real_pob_engine.get_metrics()["fingerprint_hash"]
+    before_weapons = real_pob_engine.get_weapon_set_context()["physical_weapons"]
+
+    with pytest.raises(ValueError):
+        real_pob_engine.list_calculable_effects(weapon_set=3)
+
+    plain = real_pob_engine.list_calculable_effects()
+    assert "requested_weapon_set" not in plain
+
+    catalog_set2 = real_pob_engine.list_calculable_effects(weapon_set=2)
+    catalog_set1 = real_pob_engine.list_calculable_effects(weapon_set=1)
+
+    assert catalog_set2["requested_weapon_set"] == 2
+    assert catalog_set2["context"]["weapon_set"] == 2
+    assert catalog_set2["frames"] == {"context_settle": 0, "restore_settle": 0}
+    assert catalog_set1["requested_weapon_set"] == 1
+    assert catalog_set1["context"]["weapon_set"] == 1
+    assert catalog_set1["frames"] == {"context_settle": 1, "restore_settle": 1}
+    for catalog in (catalog_set1, catalog_set2):
+        assert isinstance(catalog.get("truncated"), bool)
+        assert catalog.get("effects")
+        for row in catalog["effects"]:
+            assert row["reference"]["semantic_id"]
+
+    # Same reference qualifies into two disjoint context identities.
+    shared = next(
+        row["reference"]
+        for row in catalog_set2["effects"]
+        if any(r["reference"]["semantic_id"] == row["reference"]["semantic_id"] for r in catalog_set1["effects"])
+    )
+    identities = {
+        ContextualComponentReference.from_dict(
+            {"component": shared, "context": {"weapon_set": weapon_set}}
+        ).cache_identity
+        for weapon_set in (1, 2)
+    }
+    assert len(identities) == 2
+
+    # Original build state restored: same set, fingerprint, and weapons.
+    assert real_pob_engine.get_weapon_set_context()["weapon_set"] == 2
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == before_fingerprint
+    assert real_pob_engine.get_weapon_set_context()["physical_weapons"] == before_weapons
 
 
 def test_full_diagnostic_chain_on_weapon_swap(real_pob_engine, monkeypatch) -> None:

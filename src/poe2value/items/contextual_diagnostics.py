@@ -8,11 +8,9 @@ exists, and ordinary Item Check behavior is unchanged.
 
 The diagnostic never switches the build's active weapon set persistently,
 never mutates product state, and performs no metric arithmetic. Catalog
-enumeration uses the existing zero-frame cache-backed list API for the
-currently active set only: other sets' catalogs cannot be enumerated
-without a context switch (``list_calculable_effects`` has no weapon-set
-parameter), so a scope spanning an unenumerated set fails closed with an
-explicit reason instead of guessing completeness.
+enumeration uses the existing cache-backed list API, qualified per
+requested weapon set through a transient bridge-owned context switch
+with full restore verification; truncation flags are preserved verbatim.
 """
 
 from __future__ import annotations
@@ -22,7 +20,6 @@ from typing import Any
 
 from poe2value.errors import RestoreFailed
 from poe2value.items.contextual_composition import (
-    CompositionScope,
     assess_composition_eligibility,
     derive_required_scope,
 )
@@ -33,13 +30,8 @@ from poe2value.items.contextual_evidence import (
 from poe2value.items.contextual_proof import COMMON_RESPONSE_RELATIVE_TOLERANCE
 
 __all__ = [
-    "SET_CATALOG_UNAVAILABLE",
     "run_contextual_diagnostic",
 ]
-
-#: Reported when a requested weapon set's effect catalog cannot be
-#: enumerated (only the active set is listable with the current API).
-SET_CATALOG_UNAVAILABLE = "SET_CATALOG_UNAVAILABLE"
 
 
 def _skill_group_count(engine: Any) -> int:
@@ -58,22 +50,25 @@ def _skill_group_count(engine: Any) -> int:
         return 0
 
 
-def _enumerate_current_catalog(engine: Any) -> dict[str, Any]:
-    """Enumerate the active set's full effect catalog, per socket group.
+def _enumerate_catalog(engine: Any, weapon_set: int) -> dict[str, Any]:
+    """Enumerate one weapon set's full effect catalog, per socket group.
 
     Per-group calls avoid the per-call effect cap hiding rows; truncation
-    flags are preserved verbatim. Cache-backed reads only (no candidate,
-    no context switch).
+    flags are preserved verbatim. The set is activated transiently by the
+    bridge with full restore verification (one context settle plus one
+    restore settle when it differs from the active set, zero otherwise);
+    enumeration itself is cache-backed reads only (no candidate, no skill
+    selection). Failures propagate -- no partial catalog is ever returned.
     """
     count = _skill_group_count(engine)
     if count <= 0:
-        payload = engine.list_calculable_effects()
-        return payload if isinstance(payload, Mapping) else {}
+        payload = engine.list_calculable_effects(weapon_set=int(weapon_set))
+        return dict(payload) if isinstance(payload, Mapping) else {}
     effects: list[dict[str, Any]] = []
     truncated = False
     total = 0
     for index in range(1, count + 1):
-        payload = engine.list_calculable_effects(indices=[index])
+        payload = engine.list_calculable_effects(indices=[index], weapon_set=int(weapon_set))
         if not isinstance(payload, Mapping):
             continue
         rows = payload.get("effects")
@@ -100,8 +95,8 @@ def run_contextual_diagnostic(
 
     ``observations`` are explicit caller-supplied contextual references;
     ``catalog_by_weapon_set`` optionally supplies caller-enumerated catalog
-    payloads for non-active sets (the diagnostic itself can only enumerate
-    the active set). Restore failures propagate; a post-run baseline
+    payloads; every other requested set is enumerated through a transient
+    bridge-owned switch. Restore failures propagate; a post-run baseline
     mismatch raises ``RestoreFailed``.
     """
     if not observations:
@@ -127,8 +122,10 @@ def run_contextual_diagnostic(
                 "caller_supplied": True,
                 "truncated": bool(payload.get("truncated")) if isinstance(payload, Mapping) else None,
             }
-        elif weapon_set == active_set:
-            payload = _enumerate_current_catalog(engine)
+        else:
+            # Transient bridge-owned switch with restore verification;
+            # failures propagate (fail closed, never a partial scope).
+            payload = _enumerate_catalog(engine, weapon_set)
             catalogs[weapon_set] = payload
             catalog_status[str(weapon_set)] = {
                 "enumerated": True,
@@ -136,13 +133,6 @@ def run_contextual_diagnostic(
                 "truncated": bool(payload.get("truncated")),
                 "total_effects": int(payload.get("total_effects") or 0),
             }
-        else:
-            catalog_status[str(weapon_set)] = {
-                "enumerated": False,
-                "reason": SET_CATALOG_UNAVAILABLE,
-            }
-    missing_catalog_sets = [ws for ws in requested_sets if ws not in catalogs]
-
     bundle = collect_candidate_evidence(
         engine,
         candidate_text=candidate_text,
@@ -151,22 +141,12 @@ def run_contextual_diagnostic(
         tolerance=tolerance,
     )
 
-    if missing_catalog_sets:
-        scope = CompositionScope(
-            weapon_sets=tuple(requested_sets),
-            required_cache_identities=frozenset(
-                row["cache_identity"] for row in bundle["observations"]
-            ),
-            basis="",
-            catalog_truncated=False,
-        )
-    else:
-        skill_set = ""
-        rows = bundle["observations"]
-        if rows:
-            context = (rows[0].get("qualified_reference") or {}).get("context") or {}
-            skill_set = context.get("active_skill_set_id", "")
-        scope = derive_required_scope(catalogs, active_skill_set_id=skill_set)
+    skill_set = ""
+    rows = bundle["observations"]
+    if rows:
+        context = (rows[0].get("qualified_reference") or {}).get("context") or {}
+        skill_set = context.get("active_skill_set_id", "")
+    scope = derive_required_scope(catalogs, active_skill_set_id=skill_set)
     assessment = assess_composition_eligibility(bundle, scope=scope)
 
     final_metrics = engine.get_metrics()
@@ -195,8 +175,8 @@ def run_contextual_diagnostic(
     observed = {str(row.get("cache_identity") or "") for row in bundle["observations"]}
     limitations = list(proof.get("limitations") or []) + list(assessment_dict.get("limitations") or [])
     limitations.append(
-        "Catalog enumeration covers only explicitly enumerated weapon sets; "
-        "other sets cannot be listed without a context switch under the current API."
+        "Catalog enumeration is per requested weapon set through a transient "
+        "bridge-owned switch; completeness holds only for enumerated sets."
     )
     return {
         "candidate": dict(bundle["candidate"]),
@@ -220,7 +200,7 @@ def run_contextual_diagnostic(
             "missing_identities": sorted(set(required) - observed),
             "catalog_truncated": {key: value.get("truncated") for key, value in catalog_status.items()},
             "catalog_status": catalog_status,
-            "missing_catalog_sets": list(missing_catalog_sets),
+            "missing_catalog_sets": [],
         },
         "assessment": assessment_dict,
         "composition_eligibility": str(assessment_dict.get("eligibility") or ""),

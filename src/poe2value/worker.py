@@ -267,6 +267,7 @@ class WorkerSession:
         max_effects: int = MAX_EFFECTS,
         force_cache_miss: bool = False,
         malformed_cache: bool = False,
+        weapon_set: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"max_effects": max_effects}
         if indices is not None:
@@ -275,6 +276,10 @@ class WorkerSession:
             params["force_cache_miss"] = True
         if malformed_cache:
             params["malformed_cache"] = True
+        if weapon_set is not None:
+            if int(weapon_set) not in (1, 2):
+                raise ValueError("weapon_set must be 1 or 2")
+            params["weapon_set"] = int(weapon_set)
         return normalize_effect_catalog(self.request("list_calculable_effects", params))
 
     def read_effect_metrics(

@@ -434,8 +434,14 @@ class Engine:
         max_effects: int = 8,
         force_cache_miss: bool = False,
         malformed_cache: bool = False,
+        weapon_set: int | None = None,
     ) -> dict[str, Any]:
-        """Return a bounded effect catalog; normal reads are GlobalCache-backed."""
+        """Return a bounded effect catalog; normal reads are GlobalCache-backed.
+
+        ``weapon_set`` (1/2) is explicit-diagnostic only: it enumerates under
+        a transient bridge-owned context switch. Ordinary callers omit it
+        and pay zero extra frames.
+        """
         from poe2value.items.effect_components import normalize_effect_catalog
 
         session = self._session
@@ -445,6 +451,7 @@ class Engine:
                 max_effects=max_effects,
                 force_cache_miss=force_cache_miss,
                 malformed_cache=malformed_cache,
+                weapon_set=weapon_set,
             )
         params: dict[str, Any] = {"max_effects": max_effects}
         if indices is not None:
@@ -453,6 +460,10 @@ class Engine:
             params["force_cache_miss"] = True
         if malformed_cache:
             params["malformed_cache"] = True
+        if weapon_set is not None:
+            if int(weapon_set) not in (1, 2):
+                raise ValueError("weapon_set must be 1 or 2")
+            params["weapon_set"] = int(weapon_set)
         return normalize_effect_catalog(self._call("list_calculable_effects", params))
 
     def read_effect_metrics(
