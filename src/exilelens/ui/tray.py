@@ -33,10 +33,12 @@ class TrayManager(QSystemTrayIcon):
         self._on_setup = on_setup
         self._on_quit = on_quit
 
-        self.setToolTip(APP_NAME)
+        self.setToolTip(f"{APP_NAME} {self.dashboard.update_service.installed_version_text}")
         self.setIcon(create_tray_icon())
         self.activated.connect(self._on_activated)
 
+        self._update_action: QAction | None = None
+        self._check_updates_action: QAction | None = None
         self._profile_actions: dict[str, QAction] = {}
         self._context_actions: dict[str, QAction] = {}
         self._loadout_actions: dict[str, QAction] = {}
@@ -51,6 +53,7 @@ class TrayManager(QSystemTrayIcon):
 
         self.rebuild_menu()
         dashboard.update_service.update_available.connect(self._show_update_available)
+        dashboard.update_service.state_changed.connect(self._on_update_state)
         controller.build_changed.connect(self._on_build_changed)
         controller.loadouts_changed.connect(self._on_loadouts_changed)
         controller.state_message.connect(self._show_message)
@@ -59,7 +62,7 @@ class TrayManager(QSystemTrayIcon):
 
     def rebuild_menu(self) -> None:
         menu = QMenu()
-        title = QAction(APP_NAME, self)
+        title = QAction(f"{APP_NAME} {self.dashboard.update_service.installed_version_text}", self)
         title.setEnabled(False)
         menu.addAction(title)
         menu.addSeparator()
@@ -172,6 +175,14 @@ class TrayManager(QSystemTrayIcon):
             self._overlay_menu.addAction(test_pat)
 
         menu.addSeparator()
+        self._check_updates_action = QAction("Check for Updates", self)
+        self._check_updates_action.triggered.connect(self.dashboard.update_service.check_now)
+        menu.addAction(self._check_updates_action)
+        self._update_action = QAction("Download Update", self)
+        self._update_action.triggered.connect(lambda: self.dashboard.navigate("diagnostics"))
+        self._update_action.setVisible(False)
+        menu.addAction(self._update_action)
+
         support_menu = menu.addMenu("Help && Support")
         discord_action = QAction("Discord / Community", self)
         discord_action.triggered.connect(self._open_discord)
@@ -418,12 +429,32 @@ class TrayManager(QSystemTrayIcon):
         self.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def _show_update_available(self, remote: str, installed: str) -> None:
+        if self._update_action is not None:
+            self._update_action.setText(f"Update Available: {remote}")
+            self._update_action.setVisible(True)
+        self.setToolTip(f"{APP_NAME} {installed} — update {remote} available")
         self.showMessage(
             APP_NAME,
             f"ExileLens {remote} is available\nYou're using {installed}",
             QSystemTrayIcon.MessageIcon.Information,
             8000,
         )
+
+    def _on_update_state(self, state: str, version: str) -> None:
+        installed = self.dashboard.update_service.installed_version_text
+        if state == "available":
+            if self._update_action is not None:
+                self._update_action.setText(f"Update Available: {version}")
+                self._update_action.setVisible(True)
+            self.setToolTip(f"{APP_NAME} {installed} — update {version} available")
+        elif state in ("current", "unchecked", "checking"):
+            if self._update_action is not None:
+                self._update_action.setVisible(False)
+            self.setToolTip(f"{APP_NAME} {installed}")
+        if self.contextMenu() is not None:
+            for action in self.contextMenu().actions():
+                if not action.isSeparator() and action.text().startswith(APP_NAME):
+                    action.setText(f"{APP_NAME} {installed}")
 
     def _quit(self) -> None:
         self.dashboard._remember_geometry()

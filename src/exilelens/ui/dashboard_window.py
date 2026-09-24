@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from exilelens.branding import window_title
 from exilelens.app.controller import EvaluationController
 from exilelens.app.settings import AppSettings, save_settings
-from exilelens.app.update_check import UpdateCheckService
+from exilelens.app.update_check import UpdateService
 from exilelens.app.modules.registry import FeatureModule, is_enabled
 from exilelens.ui import theme
 from exilelens.ui.app_header import AppHeader
@@ -85,7 +85,7 @@ class DashboardWindow(ManagedToolWindow):
         DashboardWindow._instance = self
         self.settings = settings
         self.controller = controller
-        self.update_service = UpdateCheckService(settings)
+        self.update_service = UpdateService(settings)
         self.setObjectName("dashboardRoot")
         self.setWindowTitle(window_title())
         self.setStyleSheet(DASHBOARD_STYLESHEET)
@@ -199,6 +199,21 @@ class DashboardWindow(ManagedToolWindow):
         self._progress_row.setVisible(False)
         content.addWidget(self._progress_row)
 
+        self._status_footer = QWidget()
+        self._status_footer.setObjectName("dashboardStatusFooter")
+        footer_l = QHBoxLayout(self._status_footer)
+        footer_l.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
+        self._version_label = QLabel("")
+        self._version_label.setObjectName("secondaryText")
+        self._update_indicator = QLabel("")
+        self._update_indicator.setObjectName("helperText")
+        self._update_indicator.setVisible(False)
+        footer_l.addWidget(self._version_label, 1)
+        footer_l.addWidget(self._update_indicator, 0)
+        content.addWidget(self._status_footer)
+        self.update_service.state_changed.connect(self._on_update_state_footer)
+        self._refresh_version_footer("unchecked", "")
+
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
@@ -307,6 +322,21 @@ class DashboardWindow(ManagedToolWindow):
         if hub is None or not hub.has_active():
             self._progress_label.setText("")
             self._progress_row.setVisible(False)
+
+    def _on_update_state_footer(self, state: str, version: str) -> None:
+        self._refresh_version_footer(state, version)
+
+    def _refresh_version_footer(self, state: str, version: str) -> None:
+        installed = self.update_service.installed_version_text
+        self._version_label.setText(f"ExileLens {installed}")
+        if state == "available":
+            self._update_indicator.setText(f"Update available: {version}")
+            self._update_indicator.setVisible(True)
+        elif state == "failed":
+            self._update_indicator.setText("Update check failed")
+            self._update_indicator.setVisible(True)
+        else:
+            self._update_indicator.setVisible(False)
 
     def on_hide(self) -> None:
         self._remember_geometry()

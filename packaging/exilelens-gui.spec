@@ -63,6 +63,10 @@ hiddenimports = [
     "exilelens.app.refine_price_hotkey",
     "exilelens.branding",
     "exilelens._version",
+    "exilelens.app.updates.service",
+    "exilelens.app.updates.manifest",
+    "exilelens.updater.install",
+    "cryptography.hazmat.primitives.asymmetric.ed25519",
     "exilelens.ui.profile_catalog",
 ]
 

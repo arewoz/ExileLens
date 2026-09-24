@@ -7,6 +7,7 @@ from pathlib import Path
 
 WORKER_ARG = "--exilelens-worker"
 LEGACY_WORKER_ARG = "--poe2value-worker"
+UPDATER_ARG = "--exilelens-updater"
 _WORKER_ARGS = {WORKER_ARG, LEGACY_WORKER_ARG}
 
 
@@ -17,7 +18,17 @@ def _maybe_run_worker_subprocess() -> None:
         raise SystemExit(run_worker_entrypoint())
 
 
+def _maybe_run_updater_subprocess() -> None:
+    if UPDATER_ARG in sys.argv:
+        from exilelens.updater.__main__ import main as updater_main
+
+        index = sys.argv.index(UPDATER_ARG)
+        job_args = sys.argv[index + 1 :]
+        raise SystemExit(updater_main(job_args or None))
+
+
 _maybe_run_worker_subprocess()
+_maybe_run_updater_subprocess()
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
@@ -103,6 +114,7 @@ class ExileLensApp:
     def run(self) -> int:
         apply_windows_app_id()
         app = QApplication(sys.argv)
+        app.setProperty("exilelens_app_shell", self)
         app.setQuitOnLastWindowClosed(False)
         app.setApplicationName(APP_NAME)
         app.setApplicationDisplayName(APP_NAME)
@@ -1089,6 +1101,21 @@ class ExileLensApp:
     def _on_market_capture_new_best(self) -> None:
         if self.market_assist_overlay:
             self.market_assist_overlay.flash_new_best()
+
+    def request_restart_for_update(self, *, parent_pid: int) -> None:
+        dashboard = getattr(self, "dashboard", None)
+        if dashboard is None:
+            return
+        if not dashboard.update_service.begin_restart_and_update(parent_pid=parent_pid):
+            return
+
+        def finish() -> None:
+            self.shutdown()
+            app = QApplication.instance()
+            if app is not None:
+                app.quit()
+
+        QTimer.singleShot(150, finish)
 
     def shutdown(self) -> None:
         if getattr(self, "_shutdown_done", False):

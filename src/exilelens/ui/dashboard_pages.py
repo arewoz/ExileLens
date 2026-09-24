@@ -758,13 +758,44 @@ class DiagnosticsPage(QWidget):
         updates = Section("Updates")
         self._update_status = QLabel("")
         self._update_status.setObjectName("helperText")
+        self._update_channel = QComboBox()
+        self._update_channel.addItem("Beta (pre-releases)", "beta")
+        self._update_channel.addItem("Stable", "stable")
+        channel = str(getattr(settings, "update_channel", "beta") or "beta")
+        idx = self._update_channel.findData(channel)
+        self._update_channel.setCurrentIndex(idx if idx >= 0 else 0)
+        self._update_channel.currentIndexChanged.connect(self._on_update_channel_changed)
         self._check_updates_btn = make_button("Check for updates", "secondary")
         self._check_updates_btn.clicked.connect(self.update_service.check_now)
+        self._download_btn = make_button("Download && Install", "primary")
+        self._download_btn.clicked.connect(self._start_download)
+        self._download_btn.setVisible(False)
+        self._restart_update_btn = make_button("Restart && Update", "primary")
+        self._restart_update_btn.clicked.connect(self._restart_and_update)
+        self._restart_update_btn.setVisible(False)
+        self._cancel_download_btn = make_button("Cancel download", "secondary")
+        self._cancel_download_btn.clicked.connect(self.update_service.cancel_download)
+        self._cancel_download_btn.setVisible(False)
+        self._download_progress = QLabel("")
+        self._download_progress.setObjectName("helperText")
+        self._download_progress.setVisible(False)
         self._open_releases_btn = make_button("Open GitHub Releases", "secondary")
         self._open_releases_btn.clicked.connect(self._open_github_releases)
         self._open_releases_btn.setVisible(False)
         updates.add_widget(self._update_status)
-        updates.add_layout(button_row([self._check_updates_btn, self._open_releases_btn]))
+        updates.add_widget(self._update_channel)
+        updates.add_layout(
+            button_row(
+                [
+                    self._check_updates_btn,
+                    self._download_btn,
+                    self._restart_update_btn,
+                    self._cancel_download_btn,
+                    self._open_releases_btn,
+                ]
+            )
+        )
+        updates.add_widget(self._download_progress)
 
         self._details = Disclosure("Technical details")
         self._build_info = QLabel()
@@ -817,6 +848,9 @@ class DiagnosticsPage(QWidget):
 
         self._details.toggled.connect(self._on_details_toggled)
         self.update_service.state_changed.connect(self._on_update_state)
+        self.update_service.download_progress.connect(self._on_download_progress)
+        self.update_service.download_state_changed.connect(self._on_download_state)
+        self.update_service.action_error.connect(self._on_update_action_error)
         self._on_update_state("unchecked", "")
         self.refresh()
 
@@ -867,7 +901,66 @@ class DiagnosticsPage(QWidget):
             text = f"Update available: {version}"
         self._update_status.setText(text)
         self._open_releases_btn.setVisible(state == "available")
+        self._download_btn.setVisible(state == "available")
         self._check_updates_btn.setEnabled(state != "checking")
+
+    def _on_update_channel_changed(self) -> None:
+        from exilelens.app.updates.channels import UpdateChannel
+
+        raw = self._update_channel.currentData()
+        self.update_service.set_channel(UpdateChannel.parse(raw))
+
+    def _start_download(self) -> None:
+        if not self.update_service.start_download():
+            return
+        self._cancel_download_btn.setVisible(True)
+        self._download_progress.setVisible(True)
+
+    def _restart_and_update(self) -> None:
+        import os
+
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        pid = os.getpid()
+        if app is not None and hasattr(app, "property") and callable(getattr(app, "property", None)):
+            shell = app.property("exilelens_app_shell")
+            if shell is not None and hasattr(shell, "request_restart_for_update"):
+                shell.request_restart_for_update(parent_pid=pid)
+                return
+        if self.update_service.begin_restart_and_update(parent_pid=pid):
+            if app is not None:
+                app.quit()
+
+    def _on_download_progress(self, done: int, total: int) -> None:
+        if total:
+            percent = int((done / total) * 100)
+            self._download_progress.setText(f"Downloading update… {percent}%")
+        else:
+            self._download_progress.setText("Downloading update…")
+        self._download_progress.setVisible(True)
+
+    def _on_download_state(self, state: str) -> None:
+        if state == "downloading":
+            self._download_btn.setEnabled(False)
+            self._cancel_download_btn.setVisible(True)
+            self._restart_update_btn.setVisible(False)
+        elif state == "ready":
+            self._download_btn.setEnabled(True)
+            self._cancel_download_btn.setVisible(False)
+            self._download_progress.setText("Update downloaded and verified.")
+            self._restart_update_btn.setVisible(True)
+        elif state == "installing":
+            self._download_progress.setText("Installing update…")
+            self._restart_update_btn.setVisible(False)
+        elif state == "error":
+            self._download_btn.setEnabled(True)
+            self._cancel_download_btn.setVisible(False)
+            self._restart_update_btn.setVisible(False)
+
+    def _on_update_action_error(self, message: str) -> None:
+        self._download_progress.setText(message)
+        self._download_progress.setVisible(bool(message))
 
     def refresh(self) -> None:
         from exilelens.app.diagnostics import build_global_diagnostics

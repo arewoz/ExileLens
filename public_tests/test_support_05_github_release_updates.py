@@ -10,6 +10,7 @@ import pytest
 
 from exilelens.app import update_check
 from exilelens.app.settings import AppSettings
+from exilelens.app.updates import service as update_service_module
 from exilelens.ui import recovery_actions
 
 
@@ -63,12 +64,12 @@ def test_client_uses_fixed_public_get_request_only() -> None:
 
     def opener(request, timeout):
         calls.append((request, timeout))
-        return _Response(json.dumps({"tag_name": "v0.2.0b3", "draft": False, "prerelease": False}).encode())
+        return _Response(json.dumps([{"tag_name": "v0.2.0b3", "draft": False, "prerelease": False, "assets": []}]).encode())
 
     result = update_check.GitHubReleaseClient(opener).latest_release()
     assert str(result.version) == "0.2.0b3"
     request, timeout = calls[0]
-    assert request.full_url == update_check.GITHUB_LATEST_RELEASE_API
+    assert update_check.GITHUB_RELEASES_API.split("?")[0] in request.full_url
     assert request.get_method() == "GET"
     assert timeout == update_check.TIMEOUT_SECONDS
     assert "sentinel" not in request.full_url + str(request.header_items()).lower()
@@ -78,7 +79,7 @@ def test_client_uses_fixed_public_get_request_only() -> None:
     "body",
     [
         b"{",
-        json.dumps({"tag_name": "bad-tag", "draft": False, "prerelease": False}).encode(),
+        json.dumps([{"tag_name": "bad-tag", "draft": False, "prerelease": False, "assets": []}]).encode(),
         b"[]",
     ],
 )
@@ -113,12 +114,12 @@ def test_service_binds_unexpected_client_failures_to_a_safe_state(monkeypatch) -
             raise ValueError("private sentinel must not escape")
 
     service = update_check.UpdateCheckService(AppSettings(), BrokenClient())
-    monkeypatch.setattr(update_check, "is_packaged", lambda: True)
-    monkeypatch.setattr(update_check, "save_settings", lambda _settings: None)
+    monkeypatch.setattr(update_service_module, "is_packaged", lambda: True)
+    monkeypatch.setattr(update_service_module, "save_settings", lambda _settings: None)
     states = []
     service.state_changed.connect(lambda state, value: states.append((state, value)))
     service._in_flight = True
-    service._finish(RuntimeError("request_failed"), manual=True)
+    service._finish_check(RuntimeError("request_failed"), manual=True)
 
     assert states == [("failed", "")]
 
@@ -128,9 +129,9 @@ def test_automatic_cooldown_and_manual_bypass(monkeypatch) -> None:
     client = update_check.GitHubReleaseClient()
     service = update_check.UpdateCheckService(settings, client, clock=lambda: 1000.0)
     calls = []
-    monkeypatch.setattr(update_check, "is_packaged", lambda: True)
-    monkeypatch.setattr(update_check, "save_settings", lambda _settings: None)
-    monkeypatch.setattr(service, "_start", lambda *, manual: calls.append(manual) or True)
+    monkeypatch.setattr(update_service_module, "is_packaged", lambda: True)
+    monkeypatch.setattr(update_service_module, "save_settings", lambda _settings: None)
+    monkeypatch.setattr(service, "_start_check", lambda *, manual: calls.append(manual) or True)
 
     assert service.start_automatic()
     assert not service.start_automatic()
@@ -147,23 +148,33 @@ def test_notification_is_once_per_newer_version(monkeypatch) -> None:
 
     settings = AppSettings()
     service = update_check.UpdateCheckService(settings)
-    monkeypatch.setattr(update_check, "save_settings", lambda _settings: None)
+    monkeypatch.setattr(update_service_module, "save_settings", lambda _settings: None)
     notifications = []
     service.update_available.connect(lambda remote, installed: notifications.append((remote, installed)))
-    newer = update_check.Release(update_check.ExileLensVersion.parse(newer_version), update_check.GITHUB_RELEASES_URL)
-    later = update_check.Release(update_check.ExileLensVersion.parse(later_version), update_check.GITHUB_RELEASES_URL)
+    newer = update_check.Release(
+        update_check.ExileLensVersion.parse(newer_version),
+        update_check.GITHUB_RELEASES_URL,
+        f"v{newer_version}",
+        True,
+    )
+    later = update_check.Release(
+        update_check.ExileLensVersion.parse(later_version),
+        update_check.GITHUB_RELEASES_URL,
+        f"v{later_version}",
+        True,
+    )
 
-    service._finish(newer, manual=False)
-    service._finish(newer, manual=False)
-    service._finish(later, manual=False)
+    service._finish_check(newer, manual=False)
+    service._finish_check(newer, manual=False)
+    service._finish_check(later, manual=False)
 
     assert notifications == [(newer_version, update_check.__version__), (later_version, update_check.__version__)]
 
 
 def test_source_builds_never_start_a_request(monkeypatch) -> None:
     service = update_check.UpdateCheckService(AppSettings())
-    monkeypatch.setattr(update_check, "is_packaged", lambda: False)
-    monkeypatch.setattr(service, "_start", lambda *, manual: pytest.fail("must not request"))
+    monkeypatch.setattr(update_service_module, "is_packaged", lambda: False)
+    monkeypatch.setattr(service, "_start_check", lambda *, manual: pytest.fail("must not request"))
     assert not service.start_automatic()
     assert not service.check_now()
 
