@@ -65,9 +65,21 @@ jobs:
           # The non-zero gh exit code is expected for a missing release; clear it so the pwsh wrapper passes.
           $global:LASTEXITCODE = 0
 
+      - name: Run source release gate
+        shell: pwsh
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: python -m poe2value.ops.cli release-gate
+
       - name: Build the official Windows onedir distribution
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -SkipShortcut
+
+      - name: Run packaged-artifact release gate
+        shell: pwsh
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: python -m poe2value.ops.cli release-gate --require-artifact
 
       - name: Package and verify release assets
         shell: pwsh

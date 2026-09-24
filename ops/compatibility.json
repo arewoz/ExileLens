@@ -1,0 +1,19 @@
+{
+  "exilelens_version": "0.3.0b2",
+  "game": {
+    "version": null,
+    "status": "UNVERIFIED",
+    "notes": "No verified Path of Exile 2 client version is recorded in this repository."
+  },
+  "pob": {
+    "verified_commit": "97cb973f8a114d32010bc1a4195c170628771714",
+    "status": "SUPPORTED",
+    "source": "SUPPORTED_POB_HEAD in src/poe2value/__init__.py — product refuses other revisions."
+  },
+  "market": {
+    "status": "VERIFIED",
+    "mode": "fixture",
+    "notes": "Offline/fixture market funnel is covered by unit tests. Live trade2 is not a verified compatibility status."
+  },
+  "last_full_verification": null
+}

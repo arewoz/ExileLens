@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "hotkey-shift-c-after-focus",
+      "title": "Shift+C stops working after focus/Alt-Tab",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Foreground change, Alt-Tab, or hotkey release tracking loss",
+      "tests": [
+        "tests/unit/test_hotkey_release_tracking.py",
+        "tests/unit/test_low_level_hotkey.py",
+        "tests/unit/test_cp04a_capture_ownership.py"
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "item-capture-fail",
+      "title": "Item capture fails / hovered item cannot be read",
+      "subsystem": "item_slots_classes",
+      "trigger": "Clipboard empty, non-item text, locale clipboard, or watcher HWND failure",
+      "tests": [
+        "tests/unit/test_external_clipboard_capture.py",
+        "tests/unit/test_clipboard_watcher.py",
+        "tests/unit/test_clipboard_locale.py",
+        "tests/unit/test_item_recognition.py"
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "overlay-missing",
+      "title": "Overlay fails to appear",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Lifecycle stuck before result, geometry off-screen, or overlay disabled",
+      "tests": [
+        "tests/unit/test_cp04_overlay_lifecycle.py",
+        "tests/unit/test_overlay_screen_bounds.py"
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "overlay-unrecoverable",
+      "title": "Overlay impossible to close/recover",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Click-dismiss, pin, or tray exit path broken",
+      "tests": [
+        "tests/unit/test_overlay_click_dismiss.py",
+        "tests/unit/test_overlay_pin.py"
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "stale-pob-build",
+      "title": "Stale PoB build/equipment after build updated",
+      "subsystem": "pob_import",
+      "trigger": "File changed on disk but evaluator/cache still uses previous bytes",
+      "tests": [
+        "tests/unit/test_build_source.py",
+        "tests/unit/test_build_reload_policy.py",
+        "tests/unit/test_build_revision.py"
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
+      "id": "market-no-comparables",
+      "title": "Market search succeeds but no useful comparables survive filtering",
+      "subsystem": "trade_api",
+      "trigger": "Similarity/family filters discard the fetched pool",
+      "tests": [
+        "tests/unit/test_market_01b6d_funnel_diag.py",
+        "tests/unit/test_market_01b7_comparable_features.py"
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "fx-normalization",
+      "title": "FX normalization incorrect values",
+      "subsystem": "currency_economy",
+      "trigger": "Exchange payload parsed as 1:1 or inverted rate",
+      "tests": [
+        "tests/unit/test_market_01b9a_clean_build.py"
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "item-class-tooltip-gap",
+      "title": "Tooltip works for one item class but fails for another",
+      "subsystem": "item_slots_classes",
+      "trigger": "Unsupported class, slot mapping miss, or fixture gap",
+      "tests": [
+        "tests/unit/test_item_recognition.py",
+        "tests/unit/test_external_clipboard_capture.py"
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "ring-two-slots",
+      "title": "Ring evaluation mishandles two ring slots",
+      "subsystem": "item_slots_classes",
+      "trigger": "Ring 1 vs Ring 2 comparison / best-of-slot selection",
+      "tests": [
+        "tests/unit/test_evaluation_outcome.py"
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "contradictory-verdict",
+      "title": "Contradictory verdict presentation",
+      "subsystem": "items_modifiers",
+      "trigger": "Score band disagrees with headline, or ranking vs public verdict leak",
+      "tests": [
+        "tests/unit/test_evaluation_outcome.py",
+        "tests/unit/test_cp03_compact_decision.py"
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "unsupported-overconfidence",
+      "title": "Unsupported mechanics shown with excessive certainty",
+      "subsystem": "skills_gems",
+      "trigger": "UNMEASURED/UNSUPPORTED offense presented as a certain upgrade",
+      "tests": [
+        "tests/unit/test_evaluation_outcome.py"
+      ],
+      "status": "covered",
+      "severity": "P1"
+    },
+    {
+      "id": "more-info-secondary-ui",
+      "title": "More Info / secondary UI regressions",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Drawer geometry, More Info content, or expand/collapse",
+      "tests": [
+        "tests/unit/test_cp05_more_info.py",
+        "tests/unit/test_overlay_expand_geometry.py",
+        "tests/unit/test_item_ux_detail_drawer.py"
+      ],
+      "status": "covered",
+      "severity": "P2"
+    }
+  ]
+}
