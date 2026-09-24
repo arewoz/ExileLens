@@ -201,12 +201,22 @@ def test_release_workflow_executes_mandatory_regressions_before_build_and_public
     artifact_gate = workflow.index("Run packaged-artifact release gate")
     package = workflow.index("Package and verify release assets")
     publish = workflow.index("Create published release")
-    assert source_gate < dependencies < regressions < build < artifact_gate < package < publish
+    notes = workflow.index("Validate official release notes")
+    assert source_gate < dependencies < regressions < build < artifact_gate < package < notes < publish
     assert "python -m poe2value.ops.cli release-regressions" in workflow
     assert "python -m pip install --disable-pip-version-check pytest PySide6" in workflow
+    assert "--notes-file" in workflow
+    assert "--generate-notes" not in workflow
     assert "continue-on-error" not in workflow
 
 
 def test_committed_compatibility_manifest_matches_current_source_version() -> None:
     manifest = json.loads((ROOT / "ops" / "compatibility.json").read_text(encoding="utf-8"))
-    assert manifest["exilelens_version"] == "0.3.0b2"
+    assert manifest["exilelens_version"] == "0.4.0b1"
+
+
+def test_official_release_notes_heading_matches_canonical_version() -> None:
+    from poe2value._version import __version__
+
+    heading = (ROOT / "packaging" / "RELEASE_NOTES.md").read_text(encoding="utf-8").splitlines()[0].strip()
+    assert heading == f"# ExileLens {__version__}"

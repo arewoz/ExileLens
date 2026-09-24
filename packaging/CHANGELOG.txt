@@ -2,6 +2,67 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.4.0b1
+-------
+
+User-visible improvements (since 0.3.0b2)
+-----------------------------------------
+
+- **Paired offhand disclosure** is clearer when a two-handed weapon
+  candidate would remove your equipped shield or change the active offhand:
+  verdict and tooltip text name the real item PoB would drop, including swap-set
+  quiver vs. primary shield cases.
+- **Weapon and offhand** comparisons are more reliable for one-hand + offhand
+  builds, bow + quiver builds, shield replacements, and two-handed weapon
+  upgrades, with restoration of equipment and build context after each check.
+- **Component-context Item Check** is more accurate for builds that use Path of
+  Building weapon-set swap slots (refines evaluation and restore for the slots
+  you are using; active weapon-set handling itself shipped in earlier betas).
+- **Non-weapon Item Check** no longer crashes on some ring and accessory
+  comparisons that previously failed during evaluation.
+- **PoB import and load** is more stable: ExileLens avoids unnecessary reloads
+  while your build file is unchanged, reducing flicker and failed comparisons
+  after switching builds.
+- **Worker stability** on Windows: improved Unicode handling for PoB subprocess
+  output and safer recovery when the calculation worker stops unexpectedly,
+  including deferred restoration so a late restore cannot show a false success.
+- Overlay and hotkey behavior includes reliability fixes (missed key-up recovery,
+  item capture routing, first-paint visibility for missing Item Check state).
+
+Internal reliability, diagnostics, and quality
+----------------------------------------------
+
+- Component-level offense evaluation and contextual proof plumbing for
+  weapon-set-aware measurements (not a separate player-facing mode).
+- Expanded real-PoB regression corpus and community regression matrix coverage
+  for weapon-set contexts, incompatible cross-base placements, and paired
+  offhand scenarios.
+- Mandatory P0 regression contracts and GitHub Actions PR validation on Windows
+  (native Qt, release gate) for main-branch integration.
+- Release workflow now runs source and packaged release gates plus mandatory P0
+  regressions before publishing a GitHub Release.
+
+Experimental / diagnostic-only (not normal product features)
+----------------------------------------------------------
+
+- Low-level contextual diagnostic and enumeration APIs used in tests and
+  engineering diagnostics. These do **not** provide automatic whole-build
+  cross-weapon-set evaluation in the desktop app.
+
+Known limitations
+-----------------
+
+- Item Check still evaluates one hovered item at a time; it does not
+  automatically compare every weapon-set combination across your whole build.
+- Some mechanics remain intentionally cautious or unsupported (for example
+  certain jewel sockets, multi-part skills without representative fixtures,
+  and builds that require explicit uncertainty rather than a directional
+  upgrade/downgrade).
+- Path of Exile 2 **game client version** compatibility is not verified in
+  this release manifest; only the supported Path of Building revision below
+  is recorded.
+
+
 0.3.0b2
 -------
 

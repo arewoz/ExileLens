@@ -16,6 +16,7 @@ from poe2value.ops.regression import load_registry
 
 REQUIRED_PACKAGING = (
     "packaging/CHANGELOG.txt",
+    "packaging/RELEASE_NOTES.md",
     "packaging/README.txt",
     "packaging/version_info.txt",
     "packaging/poe2value-gui.spec",
