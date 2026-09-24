@@ -474,6 +474,22 @@ failures yield `INSUFFICIENT_EVIDENCE` (`COVERAGE_UNPROVEN`,
 summed, averaged, or projected; eligibility is scope-bounded (never
 whole-build) and never a product verdict.
 
+## Diagnostic consumer (Slice 4D, read-only, no product consumer)
+
+`src/poe2value/items/contextual_diagnostics.py` (`run_contextual_diagnostic`)
+exercises candidate -> measurements -> evidence -> proof -> required scope
+-> eligibility on real PoB state and reports what can actually be proven
+and why no more can be proven. It enumerates the active set's catalog
+per socket group (cache-backed reads), accepts caller-supplied catalogs
+for other sets, fails closed where catalogs are missing
+(`SET_CATALOG_UNAVAILABLE`) or truncated, verifies post-run baseline
+equivalence (fingerprint, weapon set, physical weapons) raising
+`RestoreFailed` on mismatch, and always reports `whole_build: false` and
+`public_verdict_affected: false`. Validated live on
+`core04_weapon_swap` (15/15 effects measured, restore pass) with a
+truthful `INSUFFICIENT_EVIDENCE / NEAR_ZERO_BASELINE_REFUSES_RATIO`
+outcome. No exact community (Voltaic Barrier) fixture exists locally.
+
 ## Tested engine revision
 
 `97cb973f8a114d32010bc1a4195c170628771714`
