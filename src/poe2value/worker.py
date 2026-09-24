@@ -14,6 +14,46 @@ from poe2value.pob.lua_host import LuaHost
 from poe2value.tooltip_perf import perf_enabled
 
 
+def _configure_std_streams_utf8() -> None:
+    """Ensure stdout/stderr use UTF-8 encoding on all platforms.
+
+    On Windows, subprocess pipes default to the active code page (charmap).
+    Reconfigure the text wrappers to UTF-8 so Unicode in build data, paths,
+    item names, and PoB output cannot terminate the worker.
+    """
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace", write_through=True)
+    except Exception:
+        pass
+    try:
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace", write_through=True)
+    except Exception:
+        pass
+    # For frozen/windowed builds where streams may be None or lack reconfigure,
+    # fall back to binary wrappers with explicit encoding.
+    if getattr(sys, "frozen", False):
+        try:
+            if sys.stdout is not None and hasattr(sys.stdout, "buffer"):
+                import io
+
+                sys.stdout = io.TextIOWrapper(
+                    sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+                )
+        except Exception:
+            pass
+        try:
+            if sys.stderr is not None and hasattr(sys.stderr, "buffer"):
+                import io
+
+                sys.stderr = io.TextIOWrapper(
+                    sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+                )
+        except Exception:
+            pass
+
+
 def decorate_build_result(result: dict[str, Any]) -> dict[str, Any]:
     if "fingerprint" in result:
         result["fingerprint_hash"] = fingerprint_hash(result["fingerprint"])
@@ -501,6 +541,7 @@ def run_worker_stdio(config: PobConfig | None = None) -> int:
 
 def run_worker_entrypoint(config: PobConfig | None = None) -> int:
     """Windowed/frozen-safe worker boundary: never let startup exceptions escape."""
+    _configure_std_streams_utf8()
     try:
         return run_worker_stdio(config)
     except Exception as exc:  # noqa: BLE001 - this is the child process crash boundary

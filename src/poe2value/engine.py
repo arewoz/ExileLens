@@ -95,10 +95,14 @@ class SubprocessWorkerClient:
 
     def _command(self) -> tuple[list[str], dict[str, str]]:
         env = dict(os.environ)
+        # Force UTF-8 mode in the child Python process so its stdio uses UTF-8
+        # regardless of the active Windows code page. This prevents
+        # 'charmap' codec errors when Unicode appears in build data or paths.
+        env["PYTHONUTF8"] = "1"
         if is_frozen():
             cmd = [sys.executable, "--poe2value-worker"]
         else:
-            cmd = [sys.executable, "-m", "poe2value.worker"]
+            cmd = [sys.executable, "-X", "utf8", "-m", "poe2value.worker"]
             env["PYTHONPATH"] = str(repo_root() / "src")
         env["POB2_PATH"] = str(self.config.pob_path)
         return cmd, env
