@@ -71,6 +71,16 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}\src
         run: python -m poe2value.ops.cli release-gate
 
+      - name: Install mandatory release-test dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check pytest PySide6
+
+      - name: Run mandatory release regressions
+        shell: pwsh
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: python -m poe2value.ops.cli release-regressions
+
       - name: Build the official Windows onedir distribution
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -SkipShortcut

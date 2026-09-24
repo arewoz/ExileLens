@@ -133,18 +133,22 @@ def _compatibility(root: Path) -> list[CheckResult]:
 
 def _p0_registry(root: Path) -> CheckResult:
     try:
-        entries = load_registry(root / "ops" / "regression_registry.json")
+        entries = load_registry(root / "ops" / "regression_registry.json", root=root)
     except Exception as exc:  # noqa: BLE001 — gate must report invalid release inputs
         return CheckResult("known_p0", GateVerdict.BLOCKED, Severity.P0, f"regression registry unavailable: {exc}")
-    open_p0 = [entry for entry in entries if entry.severity == "P0" and entry.status in {"open", "broken"}]
-    if open_p0:
+    uncovered_p0 = [entry for entry in entries if entry.severity == "P0" and entry.status != "covered"]
+    if uncovered_p0:
         return CheckResult(
             "known_p0",
             GateVerdict.BLOCKED,
             Severity.P0,
-            "open P0 regressions: " + ", ".join(entry.id for entry in open_p0),
+            "P0 regressions lacking verified coverage: " + ", ".join(entry.id for entry in uncovered_p0),
         )
-    return CheckResult("known_p0", GateVerdict.PASS, detail="no open P0 registry entries")
+    return CheckResult(
+        "known_p0",
+        GateVerdict.PASS,
+        detail="all required P0 entries declare verified source evidence; execution is required separately",
+    )
 
 
 def _dirty_tree(root: Path, *, allow_dirty: bool) -> CheckResult:
