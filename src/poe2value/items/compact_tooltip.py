@@ -687,13 +687,15 @@ def replacing_line(model: dict[str, Any]) -> str:
     choices = _replacement_choices(model)
     paired_offhand_cleared = model.get("paired_offhand_cleared")
     paired_offhand_slot = model.get("paired_offhand_slot") or ""
-    paired_offhand_name = ""
+    paired_offhand_name = str(model.get("paired_offhand_name") or "").strip()
     if paired_offhand_cleared and paired_offhand_slot:
-        # Read the offhand item name from the baseline comparison
-        for choice in choices:
-            if choice.get("slot") == paired_offhand_slot:
-                paired_offhand_name = str(choice.get("replacing_item") or choice.get("item_name") or "").strip()
-                break
+        # Production evaluation carries the verified removed item directly.
+        # Retain choice/outcome fallbacks for older and synthetic callers.
+        if not paired_offhand_name:
+            for choice in choices:
+                if choice.get("slot") == paired_offhand_slot:
+                    paired_offhand_name = str(choice.get("replacing_item") or choice.get("item_name") or "").strip()
+                    break
         if not paired_offhand_name:
             # Fallback: check the outcome's replacing_item if it matches the offhand slot
             if outcome.get("replacement_slot") == paired_offhand_slot:
@@ -734,7 +736,10 @@ def replacing_line(model: dict[str, Any]) -> str:
     if name:
         suffix = f" (also removes {paired_offhand_name})" if paired_offhand_cleared and paired_offhand_name else ""
         return f"Replacing: {name}{suffix}"
-    return _compared_with_line(model)
+    compared = _compared_with_line(model)
+    if paired_offhand_cleared and paired_offhand_name:
+        return f"{compared} (also removes {paired_offhand_name})" if compared else f"Also removes {paired_offhand_name}"
+    return compared
 
 
 def slot_verdict_lines(model: dict[str, Any]) -> list[dict[str, Any]]:

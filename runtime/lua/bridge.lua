@@ -578,19 +578,23 @@ local function resolve_compatible_slots_for_item(item)
 end
 
 local function slot_item_summary(slot_name)
-	local slot = build.itemsTab.slots[active_weapon_slot(slot_name)]
+	local physical_slot = active_weapon_slot(slot_name)
+	local slot = build.itemsTab.slots[physical_slot]
 	if not slot then return nil end
 	local item = slot.selItemId and build.itemsTab.items[slot.selItemId]
 	if not item then
-		return { slot = slot_name, equipped = false }
+		return { slot = slot_name, physical_slot = physical_slot, equipped = false }
 	end
 	return {
 		slot = slot_name,
+		physical_slot = physical_slot,
 		equipped = true,
 		item_id = item.id,
 		base_name = item.baseName,
 		name = item.name,
 		rarity = item.rarity,
+		type = item.type,
+		sub_type = item.base and item.base.subType or nil,
 		raw = item.raw,
 	}
 end
