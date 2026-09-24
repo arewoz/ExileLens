@@ -1,0 +1,105 @@
+name: PR validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-p0:
+    name: Native Windows P0 validation
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: ${{ github.workspace }}\src
+    steps:
+      - name: Check out pull request commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up the pinned release Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Install mandatory release-test dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check pytest PySide6
+
+      - name: Native Qt preflight
+        id: preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Host "Runner OS: $([System.Environment]::OSVersion.VersionString)"
+          Write-Host "QT_QPA_PLATFORM: '$env:QT_QPA_PLATFORM'"
+          @'
+          import os
+          import platform
+          import sys
+          from PySide6.QtCore import qVersion
+          from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+
+          app = QApplication.instance() or QApplication([])
+          print(f"Python: {sys.version}")
+          print(f"Platform: {platform.platform()}")
+          print(f"Qt: {qVersion()}")
+          print(f"Qt platform plugin: {app.platformName()}")
+          print(f"System tray available: {QSystemTrayIcon.isSystemTrayAvailable()}")
+          print(f"Screens: {[screen.name() for screen in app.screens()]}")
+          if app.platformName().lower() != "windows":
+              raise SystemExit("Expected the native Windows Qt platform plugin")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows Qt preflight failed.' }
+
+      - name: Run native overlay production-wiring regression
+        id: native-regression
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pytest -o addopts= -q tests/test_p0_regression_contracts.py::test_overlay_unrecoverable_native_production_wiring
+          if ($LASTEXITCODE -ne 0) { throw 'Native overlay P0 regression failed.' }
+
+      - name: Run mandatory P0 regressions
+        id: mandatory-regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m poe2value.ops.cli release-regressions
+          if ($LASTEXITCODE -ne 0) { throw 'Mandatory P0 regression runner failed.' }
+
+      - name: Run source release gate
+        id: release-gate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m poe2value.ops.cli release-gate
+          if ($LASTEXITCODE -ne 0) { throw 'Source release gate blocked.' }
+
+      - name: Record validation result
+        if: always()
+        shell: pwsh
+        env:
+          CHECKED_OUT_SHA: ${{ github.sha }}
+          PREFLIGHT_RESULT: ${{ steps.preflight.outcome }}
+          NATIVE_REGRESSION_RESULT: ${{ steps.native-regression.outcome }}
+          MANDATORY_REGRESSIONS_RESULT: ${{ steps.mandatory-regressions.outcome }}
+          RELEASE_GATE_RESULT: ${{ steps.release-gate.outcome }}
+          JOB_RESULT: ${{ job.status }}
+        run: |
+          @"
+          ## PR validation (native Windows)
+
+          - Commit: ``$env:CHECKED_OUT_SHA``
+          - Native Qt preflight: ``$env:PREFLIGHT_RESULT``
+          - Native overlay production-wiring regression: ``$env:NATIVE_REGRESSION_RESULT``
+          - Mandatory P0 regressions: ``$env:MANDATORY_REGRESSIONS_RESULT``
+          - Source release gate: ``$env:RELEASE_GATE_RESULT``
+          - Overall job result: ``$env:JOB_RESULT``
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
