@@ -453,6 +453,8 @@ class _EvaluationWorker(QObject):
 
     def run_evaluation(self, request: EvaluationRequest) -> None:
         started = time.perf_counter() * 1000
+        payload: tuple[dict[str, Any], EvaluationTiming] | None = None
+        terminal_error: Exception | None = None
         try:
             assert self._engine is not None
             result = evaluate_item(
@@ -511,34 +513,38 @@ class _EvaluationWorker(QObject):
                 # Which exact build bytes produced this result (More Info / diagnostics).
                 "build_sha": source.short_sha if isinstance(source := getattr(self._engine, "loaded_source", None), BuildSource) else "",
             }
-            self.finished_eval.emit(request.request_id, (result, timing), None)
+            payload = (result, timing)
         except NotPoe2Item as exc:
-            self.finished_eval.emit(request.request_id, None, exc)
+            terminal_error = exc
         except Exception as exc:
-            self.finished_eval.emit(request.request_id, None, exc)
-        finally:
-            # The user already has the answer; restoring the build prepares the NEXT one.
-            # Runs in `finally` so a failed evaluation still cannot leave a candidate
-            # item equipped.
+            terminal_error = exc
+
+        try:
+            # Restoration is part of the transaction's terminal outcome.  Do not emit
+            # success first: a failed restore invalidates the engine state and must be
+            # reported as the single request error instead of reaching UI/cache as a
+            # normal evaluation result.
             self._finalize_deferred_restore()
+        except Exception as exc:  # noqa: BLE001 - preserve the typed engine failure
+            logger.exception("deferred PoB restore failed; suppressing evaluation result")
+            payload = None
+            terminal_error = exc
+
+        self.finished_eval.emit(request.request_id, payload, terminal_error)
 
     def _finalize_deferred_restore(self) -> None:
         """Complete the restore + verification parked by a deferred evaluation.
 
-        Runs after the result has been emitted, still on this thread and still inside the
+        Runs before the terminal worker signal, still on this thread and still inside the
         slot that handled the request, so the next queued evaluation cannot begin until it
-        returns. A failure means the build is no longer trustworthy going forward -- never
-        that the delivered result was wrong, which was measured from a baseline an earlier
-        transaction verified. Engine.finalize_transaction invalidates the loaded build on
-        failure, so the next Item Check reloads known-good bytes before measuring.
+        returns. Engine.finalize_transaction invalidates the loaded build on failure; the
+        exception is allowed to propagate so a successful result is never emitted for an
+        incompletely restored transaction.
         """
         engine = self._engine
         if engine is None or not hasattr(engine, "finalize_transaction"):
             return
-        try:
-            engine.finalize_transaction()
-        except Exception:
-            logger.exception("deferred PoB restore failed; the build will be reloaded before the next item")
+        engine.finalize_transaction()
 
     def run_analysis(self, request: AnalysisRequest) -> None:
         self._yield_analysis = False
