@@ -209,4 +209,4 @@ def test_release_workflow_executes_mandatory_regressions_before_build_and_public
 
 def test_committed_compatibility_manifest_matches_current_source_version() -> None:
     manifest = json.loads((ROOT / "ops" / "compatibility.json").read_text(encoding="utf-8"))
-    assert manifest["exilelens_version"] == "0.3.0b2"
+    assert manifest["exilelens_version"] == "0.4.0b1"
