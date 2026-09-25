@@ -1914,8 +1914,14 @@ class EvaluationController(QObject):
             self._build_file_revision = revision
 
     def _disk_revision_changed(self, path: str) -> bool:
+        resolved = str(Path(path).resolve())
         current = read_build_revision(path)
         if current is None:
+            # Missing or inaccessible files must not look unchanged vs the last load.
+            if self.build_info.is_ready and self.build_info.path == resolved:
+                return True
+            if self._build_file_revision is not None and self._build_file_revision.path == resolved:
+                return True
             return False
         if self._build_file_revision is None:
             if self.build_info.is_ready:

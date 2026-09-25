@@ -50,6 +50,7 @@ def _write_build(path: Path, name: str) -> BuildSource:
 class _EngineStub:
     def __init__(self, source: BuildSource) -> None:
         self.loaded_source = source
+        self.loaded_source_ref = LocalPobBuildSource(source.path).ref
         self.loaded_revision = SimpleNamespace(token=source.revision)
         self.reject_sha = ""
         self.load_calls: list[BuildSource] = []
@@ -59,8 +60,24 @@ class _EngineStub:
         if source.sha256 == self.reject_sha:
             raise RuntimeError("worker rejected changed build")
         self.loaded_source = source
+        self.loaded_source_ref = LocalPobBuildSource(path).ref
         self.loaded_revision = SimpleNamespace(token=source.revision)
         return {"build": {"name": Path(path).stem}}
+
+    def list_loadouts(self) -> dict:
+        return {"loadouts": [{"name": "Default"}], "active": "Default"}
+
+    def list_item_sets(self) -> dict:
+        return {"item_sets": [{"id": "1", "name": "Default"}], "active_id": "1"}
+
+    def get_metrics(self, *, context: str = "") -> dict:
+        return {"fingerprint": {}, "fingerprint_hash": "stub-fp", "raw": {}}
+
+    def get_equipment(self) -> dict:
+        return {"equipment": []}
+
+    def get_build_info(self) -> dict:
+        return {"name": Path(self.loaded_source.path).stem}
 
     def shutdown(self) -> None:
         return None
@@ -69,6 +86,8 @@ class _EngineStub:
 def _ready_controller(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    stub_capture_ready: bool = True,
 ) -> tuple[EvaluationController, _EngineStub, Path, list[EvaluationRequest]]:
     app = QApplication.instance() or QApplication([])
     assert app is not None
@@ -138,7 +157,33 @@ def _ready_controller(
         if resume_deferred:
             self._resume_deferred_evaluation()
 
-    controller._capture_ready_baseline = MethodType(capture_ready, controller)  # type: ignore[method-assign]
+    if stub_capture_ready:
+        controller._capture_ready_baseline = MethodType(capture_ready, controller)  # type: ignore[method-assign]
+    else:
+        import exilelens.tree.mutations as tree_mutations
+        from exilelens.tree.models import PassiveTreeSnapshot, TreeBaseline
+
+        def _minimal_tree_snapshot(*_args, **_kwargs):
+            baseline = TreeBaseline(
+                build_path="",
+                build_name="stub",
+                loadout="Default",
+                tree_set="Default",
+                item_set="1",
+                context="MAP",
+                profile="default",
+                generation=0,
+                fingerprint="stub-fp",
+                tree_fingerprint="tree-stub",
+            )
+            return PassiveTreeSnapshot(
+                baseline=baseline,
+                nodes={},
+                edges=[],
+                tree_set={"index": 0, "title": "Default"},
+            )
+
+        monkeypatch.setattr(tree_mutations, "load_tree_snapshot", _minimal_tree_snapshot)
     return controller, engine, build, submitted
 
 
@@ -261,5 +306,114 @@ def test_partial_xml_is_rejected_then_next_valid_save_recovers_consistently(
         assert controller.baseline_state.source_revision == recovered.revision
         assert controller._last_good_source is not None
         assert controller._last_good_source.sha256 == recovered.sha256
+    finally:
+        controller.shutdown()
+
+
+def test_disk_revision_changed_when_build_file_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    controller, _engine, build, _submitted = _ready_controller(tmp_path, monkeypatch)
+    try:
+        build.unlink()
+        assert controller._disk_revision_changed(str(build)) is True
+    finally:
+        controller.shutdown()
+
+
+def test_missing_build_file_rejects_item_check_without_evaluating_stale_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, engine, build, submitted = _ready_controller(tmp_path, monkeypatch)
+    errors: list[tuple[int, str]] = []
+    controller.evaluation_error.connect(lambda request_id, message: errors.append((request_id, message)))
+    previous = controller._last_good_source
+    assert previous is not None
+    try:
+        build.unlink()
+        request_id = controller.submit_clipboard_text(_item("Missing Build Ring"), copy_anchor_screen_px=(100, 200))
+
+        assert request_id == 1
+        assert submitted == []
+        assert controller._deferred_evaluation is None
+        assert controller.build_info.state is BuildState.READY
+        assert controller.baseline_state.source_revision == previous.revision
+        assert controller._last_good_source.sha256 == previous.sha256
+        assert controller._auto_reload_status == "FAILED_KEPT_PREVIOUS"
+        assert errors and errors[0][0] == request_id
+        assert "no longer exists" in errors[0][1] or "still using the build loaded" in errors[0][1]
+        assert engine.load_calls == []
+    finally:
+        controller.shutdown()
+
+
+def test_repeated_item_checks_while_build_missing_never_submit_evaluation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, _engine, build, submitted = _ready_controller(tmp_path, monkeypatch)
+    errors: list[int] = []
+    controller.evaluation_error.connect(lambda request_id, _message: errors.append(request_id))
+    try:
+        build.unlink()
+        first = controller.submit_clipboard_text(_item("First Missing"), copy_anchor_screen_px=(100, 200))
+        second = controller.submit_clipboard_text(_item("Second Missing"), copy_anchor_screen_px=(100, 200))
+
+        assert first == 1 and second == 2
+        assert submitted == []
+        assert errors == [1, 2]
+    finally:
+        controller.shutdown()
+
+
+def test_missing_build_file_restored_source_recovers_item_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, engine, build, submitted = _ready_controller(tmp_path, monkeypatch)
+    errors: list[tuple[int, str]] = []
+    controller.evaluation_error.connect(lambda request_id, message: errors.append((request_id, message)))
+    previous = controller._last_good_source
+    assert previous is not None
+    try:
+        build.unlink()
+        failed_id = controller.submit_clipboard_text(_item("While Missing"), copy_anchor_screen_px=(100, 200))
+        assert failed_id == 1
+        assert submitted == []
+        assert errors
+
+        restored = _write_build(build, "restored-after-missing")
+        recovered_id = controller.submit_clipboard_text(_item("After Restore"), copy_anchor_screen_px=(100, 200))
+
+        assert recovered_id == 2
+        assert [source.sha256 for source in engine.load_calls] == [restored.sha256]
+        assert len(submitted) == 1
+        assert submitted[0].request_id == recovered_id
+        assert controller.baseline_state.source_revision == restored.revision
+    finally:
+        controller.shutdown()
+
+
+def test_failed_reload_real_capture_ready_baseline_rejects_triggering_request(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller, engine, build, submitted = _ready_controller(tmp_path, monkeypatch, stub_capture_ready=False)
+    errors: list[tuple[int, str]] = []
+    controller.evaluation_error.connect(lambda request_id, message: errors.append((request_id, message)))
+    previous = controller._last_good_source
+    assert previous is not None
+    previous_generation = controller.baseline_generation
+    try:
+        changed = _write_build(build, "worker-rejected-real-capture")
+        engine.reject_sha = changed.sha256
+
+        request_id = controller.submit_clipboard_text(_item("Real Capture Ring"), copy_anchor_screen_px=(100, 200))
+
+        assert request_id == 1
+        assert [source.sha256 for source in engine.load_calls] == [changed.sha256, previous.sha256]
+        assert submitted == []
+        assert controller._deferred_evaluation is None
+        assert controller.build_info.state is BuildState.READY
+        assert controller.baseline_generation == previous_generation + 1
+        assert controller.baseline_state.source_revision == previous.revision
+        assert controller._last_good_source.sha256 == previous.sha256
+        assert controller._auto_reload_status == "FAILED_KEPT_PREVIOUS"
+        assert errors and errors[0][0] == request_id
     finally:
         controller.shutdown()

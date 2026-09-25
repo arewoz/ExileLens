@@ -96,6 +96,22 @@
         {
           "path": "tests/test_stale_build_reload_controller.py",
           "nodeid": "tests/test_stale_build_reload_controller.py::test_partial_xml_is_rejected_then_next_valid_save_recovers_consistently"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_missing_build_file_rejects_item_check_without_evaluating_stale_baseline"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_repeated_item_checks_while_build_missing_never_submit_evaluation"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_missing_build_file_restored_source_recovers_item_check"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_failed_reload_real_capture_ready_baseline_rejects_triggering_request"
         }
       ],
       "status": "covered",
