@@ -23,7 +23,10 @@ from exilelens.ui.overview_page import OverviewPage
 from exilelens.ui.dashboard_pages import DiagnosticsPage, SettingsPage
 from exilelens.ui.market_hub_page import MarketHubPage
 from exilelens.ui.gear_optimizer_page import GearOptimizerPage
+from exilelens.ui.components import make_button
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
+from exilelens.ui.ui_icons import apply_button_icon
+from exilelens.ui.update_actions import footer_update_summary, restart_and_update
 from exilelens.ui.tree_window import TreeWorkspace
 from exilelens.ui.managed_window import ManagedToolWindow, recover_window_geometry
 from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style
@@ -139,15 +142,27 @@ class DashboardWindow(ManagedToolWindow):
         # Community links sit below the stretch, pinned to the bottom of the rail
         # and visually separated from page navigation -- discoverable without
         # making the sidebar read as a support portal.
-        for label, tooltip, handler in (
-            ("Discord", "Join the ExileLens Discord for questions, feedback and community help.", self._open_discord),
-            ("Report an Issue", "Open the ExileLens issue tracker on GitHub to report a bug.", self._open_github_issues),
+        ui_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
+        for label, tooltip, handler, icon_name in (
+            (
+                "Discord",
+                "Join the ExileLens Discord for questions, feedback and community help.",
+                self._open_discord,
+                "discord",
+            ),
+            (
+                "Report an Issue",
+                "Open the ExileLens issue tracker on GitHub to report a bug.",
+                self._open_github_issues,
+                "github",
+            ),
         ):
             link = QPushButton(label)
             link.setObjectName("navButtonSecondary")
             link.setMinimumHeight(theme.NAV_ITEM_HEIGHT)
             link.setCursor(Qt.CursorShape.PointingHandCursor)
             link.setToolTip(tooltip)
+            apply_button_icon(link, icon_name, ui_scale=ui_scale)
             link.clicked.connect(handler)
             nav.addWidget(link)
 
@@ -203,16 +218,30 @@ class DashboardWindow(ManagedToolWindow):
         self._status_footer.setObjectName("dashboardStatusFooter")
         footer_l = QHBoxLayout(self._status_footer)
         footer_l.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
+        footer_l.setSpacing(theme.SPACE_SM)
+        self._update_check_state = "unchecked"
+        self._update_remote_version = ""
+        self._update_download_state = ""
+        self._update_progress_percent: int | None = None
+        self._update_indicator = QLabel("")
+        self._update_indicator.setObjectName("updateStatusText")
+        self._footer_download_btn = make_button("Download && Install", "primary")
+        apply_button_icon(self._footer_download_btn, "download", ui_scale=ui_scale)
+        self._footer_download_btn.clicked.connect(self._footer_update_action)
+        self._footer_download_btn.setVisible(False)
         self._version_label = QLabel("")
         self._version_label.setObjectName("secondaryText")
-        self._update_indicator = QLabel("")
-        self._update_indicator.setObjectName("helperText")
-        self._update_indicator.setVisible(False)
-        footer_l.addWidget(self._version_label, 1)
+        self._version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        footer_l.addStretch(1)
         footer_l.addWidget(self._update_indicator, 0)
+        footer_l.addWidget(self._footer_download_btn, 0)
+        footer_l.addWidget(self._version_label, 0)
         content.addWidget(self._status_footer)
         self.update_service.state_changed.connect(self._on_update_state_footer)
-        self._refresh_version_footer("unchecked", "")
+        self.update_service.download_state_changed.connect(self._on_update_download_state_footer)
+        self.update_service.download_progress.connect(self._on_update_download_progress_footer)
+        self.update_service.action_error.connect(self._on_update_action_error_footer)
+        self._refresh_version_footer()
 
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -324,19 +353,67 @@ class DashboardWindow(ManagedToolWindow):
             self._progress_row.setVisible(False)
 
     def _on_update_state_footer(self, state: str, version: str) -> None:
-        self._refresh_version_footer(state, version)
+        self._update_check_state = state
+        self._update_remote_version = version
+        if state in ("current", "unchecked", "unavailable"):
+            self._update_download_state = ""
+            self._update_progress_percent = None
+        self._refresh_version_footer()
 
-    def _refresh_version_footer(self, state: str, version: str) -> None:
-        installed = self.update_service.installed_version_text
-        self._version_label.setText(f"ExileLens {installed}")
-        if state == "available":
-            self._update_indicator.setText(f"Update available: {version}")
-            self._update_indicator.setVisible(True)
-        elif state == "failed":
-            self._update_indicator.setText("Update check failed")
-            self._update_indicator.setVisible(True)
+    def _on_update_download_state_footer(self, state: str) -> None:
+        self._update_download_state = state
+        if state != "downloading":
+            self._update_progress_percent = None
+        self._refresh_version_footer()
+
+    def _on_update_action_error_footer(self, message: str) -> None:
+        if message:
+            self._update_download_state = "error"
+            self._refresh_version_footer()
+
+    def _on_update_download_progress_footer(self, done: int, total: int) -> None:
+        if total:
+            self._update_progress_percent = int((done / total) * 100)
         else:
-            self._update_indicator.setVisible(False)
+            self._update_progress_percent = None
+        self._refresh_version_footer()
+
+    def _footer_update_action(self) -> None:
+        if self._update_download_state == "ready":
+            restart_and_update(self.update_service)
+            return
+        if self._update_check_state == "available":
+            self.update_service.start_download()
+
+    def _refresh_version_footer(self) -> None:
+        from exilelens._version import __version__
+
+        self._version_label.setText(f"ExileLens {__version__}")
+        summary = footer_update_summary(
+            self._update_check_state,
+            self._update_download_state,
+            self._update_remote_version,
+            self._update_progress_percent,
+        )
+        show_strip = bool(summary) or self._update_download_state in ("downloading", "ready", "installing", "error")
+        self._update_indicator.setText(summary)
+        self._update_indicator.setVisible(show_strip)
+        if self._update_download_state == "ready":
+            self._footer_download_btn.setText("Restart && Update")
+            self._footer_download_btn.setEnabled(True)
+            self._footer_download_btn.setVisible(True)
+        elif self._update_download_state == "downloading":
+            self._footer_download_btn.setText("Downloading…")
+            self._footer_download_btn.setEnabled(False)
+            self._footer_download_btn.setVisible(True)
+        elif self._update_download_state == "installing":
+            self._footer_download_btn.setVisible(False)
+        elif self._update_check_state == "available":
+            self._footer_download_btn.setText("Download && Install")
+            self._footer_download_btn.setEnabled(True)
+            self._footer_download_btn.setVisible(True)
+        else:
+            self._footer_download_btn.setVisible(False)
 
     def on_hide(self) -> None:
         self._remember_geometry()

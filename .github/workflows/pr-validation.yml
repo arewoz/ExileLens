@@ -30,7 +30,7 @@ jobs:
 
       - name: Install mandatory release-test dependencies
         shell: pwsh
-        run: python -m pip install --disable-pip-version-check pytest PySide6
+        run: python -m pip install --disable-pip-version-check pytest PySide6 ruff
 
       - name: Native Qt preflight
         id: preflight
@@ -57,6 +57,20 @@ jobs:
               raise SystemExit("Expected the native Windows Qt platform plugin")
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Native Windows Qt preflight failed.' }
+
+      - name: Startup static undefined-name check
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m exilelens.ops.startup_static_check
+          if ($LASTEXITCODE -ne 0) { throw 'Startup static check failed.' }
+
+      - name: Run mandatory application startup composition regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pytest -o addopts= -q tests/test_application_startup_composition.py public_tests/test_m4_3_desktop_polish.py
+          if ($LASTEXITCODE -ne 0) { throw 'Application startup composition regressions failed.' }
 
       - name: Run native overlay production-wiring regression
         id: native-regression
