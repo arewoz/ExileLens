@@ -2,6 +2,20 @@
   "version": 2,
   "entries": [
     {
+      "id": "application-startup-composition",
+      "title": "Application fails to start during Qt UI composition",
+      "subsystem": "game_client_input_ui",
+      "trigger": "Undefined names or exceptions while building dashboard, tray, or wiring startup signals",
+      "tests": [
+        {
+          "path": "public_tests/test_application_startup_composition.py",
+          "nodeid": "public_tests/test_application_startup_composition.py::test_application_startup_composition_and_tray_rebuild"
+        }
+      ],
+      "status": "covered",
+      "severity": "P0"
+    },
+    {
       "id": "hotkey-shift-c-after-focus",
       "title": "Shift+C stops working after focus/Alt-Tab",
       "subsystem": "game_client_input_ui",
