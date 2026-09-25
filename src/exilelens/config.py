@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -195,24 +196,92 @@ def required_pob_files(config: PobConfig) -> dict[str, Path]:
     }
 
 
-def detect_common_pob_installation() -> Path | None:
-    """Return a structurally plausible normal Windows PoB2 installation."""
+_POB_INSTALL_DIRECTORY_NAMES = (
+    "Path of Building Community (PoE2)",
+    "PathOfBuilding-PoE2",
+)
+
+
+def pob_installation_candidates(environ: Mapping[str, str] | None = None) -> tuple[Path, ...]:
+    """Return bounded PoB2 candidates in deterministic preference order.
+
+    This intentionally checks exact paths only. ``POB2_PATH`` is the supported
+    custom-location override; the remaining entries cover normal installers and
+    common places where a portable archive is extracted without recursively
+    walking user folders.
+    """
+    env = os.environ if environ is None else environ
     candidates: list[Path] = []
+
+    explicit = str(env.get("POB2_PATH") or "").strip()
+    if explicit:
+        candidates.append(Path(explicit).expanduser())
+
+    standard_name = _POB_INSTALL_DIRECTORY_NAMES[0]
     for variable, suffix in (
-        ("APPDATA", "Path of Building Community (PoE2)"),
-        ("LOCALAPPDATA", "Path of Building Community (PoE2)"),
-        ("LOCALAPPDATA", "Programs/Path of Building Community (PoE2)"),
-        ("ProgramFiles", "Path of Building Community (PoE2)"),
-        ("ProgramFiles(x86)", "Path of Building Community (PoE2)"),
+        ("APPDATA", standard_name),
+        ("LOCALAPPDATA", standard_name),
+        ("LOCALAPPDATA", f"Programs/{standard_name}"),
+        ("ProgramFiles", standard_name),
+        ("ProgramFiles(x86)", standard_name),
     ):
-        base = str(os.environ.get(variable) or "").strip()
+        base = str(env.get(variable) or "").strip()
         if base:
             candidates.append(Path(base) / suffix)
+
+    portable_roots: list[Path] = []
+    user_profile = str(env.get("USERPROFILE") or "").strip()
+    if user_profile:
+        profile = Path(user_profile)
+        portable_roots.extend((profile / "Documents", profile, profile / "Downloads", profile / "Desktop"))
+    for variable in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        base = str(env.get(variable) or "").strip()
+        if base:
+            portable_roots.append(Path(base) / "Documents")
+
+    for root in portable_roots:
+        for directory_name in _POB_INSTALL_DIRECTORY_NAMES:
+            candidates.append(root / directory_name)
+
+    # Windows paths are case-insensitive. Deduplication also prevents OneDrive
+    # aliases from probing the same directory repeatedly.
+    unique: list[Path] = []
+    seen: set[str] = set()
     for candidate in candidates:
+        key = os.path.normcase(os.path.normpath(str(candidate)))
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return tuple(unique)
+
+
+def _is_discoverable_pob2(candidate: Path) -> bool:
+    try:
         config = PobConfig(candidate)
-        if config.layout == "installed" and not any(
-            not path.exists() for label, path in required_pob_files(config).items() if not label.startswith("ExileLens")
-        ):
+        validate_pob_path(config)
+        identity = detect_pob_identity(candidate)
+    except (OSError, PobPathInvalid, UnsupportedPobRevision):
+        return False
+
+    # A missing manifest remains compatible with older PoB2 packages. A
+    # manifest that explicitly identifies another repository is stronger
+    # evidence and must not make a PoB1/untrusted lookalike auto-selectable.
+    if identity.status == "unverified" and "does not match" in identity.reason:
+        return False
+    try:
+        if (candidate / "Path of Building.exe").is_file() and not (
+            candidate / "Path of Building-PoE2.exe"
+        ).is_file():
+            return False
+    except OSError:
+        return False
+    return True
+
+
+def detect_common_pob_installation(environ: Mapping[str, str] | None = None) -> Path | None:
+    """Return the first validated PoB2 installation from the bounded candidates."""
+    for candidate in pob_installation_candidates(environ):
+        if _is_discoverable_pob2(candidate):
             return candidate
     return None
 
