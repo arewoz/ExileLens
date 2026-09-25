@@ -59,7 +59,7 @@ PYTHON_VERSION_FILE = REPO_ROOT / ".python-version"
 RESOLVED: dict[str, str] = {
     "altgraph": "0.17.5",
     "cffi": "2.1.1",
-    "cryptography": "44.0.2",
+    "cryptography": "50.0.0",
     "packaging": "26.3",
     "pefile": "2024.8.26",
     "pillow": "12.3.0",

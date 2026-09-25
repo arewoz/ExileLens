@@ -27,7 +27,7 @@ jobs:
 
       - name: Install signing dependencies
         shell: pwsh
-        run: python -m pip install --disable-pip-version-check "cryptography==44.0.2"
+        run: python -m pip install --disable-pip-version-check "cryptography==50.0.0"
 
       - name: Materialize signing key from secret
         shell: pwsh
