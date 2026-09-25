@@ -89,6 +89,14 @@ try {
     } | ConvertTo-Json -Compress
     [System.IO.File]::WriteAllText($StampPath, $Stamp)
 
+    Write-Host "==> Building and staging external updater..."
+    & (Join-Path $PSScriptRoot "build_updater.ps1")
+    if ($LASTEXITCODE -ne 0) { throw "Updater build failed" }
+    $UpdaterPath = Join-Path $DistDir "_internal\ExileLensUpdater.exe"
+    if (-not (Test-Path -LiteralPath $UpdaterPath)) {
+        throw "Expected updater not staged in distribution: $UpdaterPath"
+    }
+
     Write-Host ("==> Build metadata: python={0} pyinstaller={1} git={2} mode=onedir" -f $Deps.python_version, $Deps.pyinstaller_version, $Commit)
     Write-Host "==> Build complete: $ExePath ($Version)"
     if (-not $SkipShortcut) {

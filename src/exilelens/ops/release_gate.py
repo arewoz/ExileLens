@@ -20,7 +20,9 @@ REQUIRED_PACKAGING = (
     "packaging/README.txt",
     "packaging/version_info.txt",
     "packaging/exilelens-gui.spec",
+    "packaging/exilelens-updater.spec",
     "scripts/build_exe.ps1",
+    "scripts/build_updater.ps1",
     "scripts/create_desktop_shortcut.ps1",
     "scripts/generate_packaging_version_info.py",
 )
@@ -205,14 +207,79 @@ def _debug_deps(root: Path) -> CheckResult:
 
 def _expected_artifact(root: Path, *, required: bool = False) -> CheckResult:
     exe = root / "dist" / "ExileLens" / "ExileLens.exe"
-    if exe.is_file():
-        return CheckResult("release_artifact", GateVerdict.PASS, detail=str(exe))
-    return CheckResult(
-        "release_artifact",
-        GateVerdict.BLOCKED if required else GateVerdict.WARN,
-        Severity.P0 if required else Severity.P2,
-        "dist/ExileLens/ExileLens.exe not built (run scripts/build_exe.ps1 for a packaged release)",
-    )
+    updater = root / "dist" / "ExileLens" / "_internal" / "ExileLensUpdater.exe"
+    stamp = root / "dist" / "ExileLens" / "build_stamp.json"
+    if not exe.is_file():
+        return CheckResult(
+            "release_artifact",
+            GateVerdict.BLOCKED if required else GateVerdict.WARN,
+            Severity.P0 if required else Severity.P2,
+            "dist/ExileLens/ExileLens.exe not built (run scripts/build_exe.ps1 for a packaged release)",
+        )
+    if required and not updater.is_file():
+        return CheckResult(
+            "release_updater",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            "dist/ExileLens/_internal/ExileLensUpdater.exe missing (build_exe.ps1 must stage the updater)",
+        )
+    if required and not stamp.is_file():
+        return CheckResult(
+            "release_build_stamp",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            "dist/ExileLens/build_stamp.json missing from packaged build",
+        )
+    detail = str(exe)
+    if updater.is_file():
+        detail += f"; updater={updater}"
+    return CheckResult("release_artifact", GateVerdict.PASS, detail=detail)
+
+
+def _artifact_provenance(root: Path, *, required: bool = False) -> CheckResult:
+    if not required:
+        return CheckResult("artifact_provenance", GateVerdict.PASS, detail="not required pre-build")
+    stamp_path = root / "dist" / "ExileLens" / "build_stamp.json"
+    if not stamp_path.is_file():
+        return CheckResult(
+            "artifact_provenance",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            "build_stamp.json missing",
+        )
+    import json
+
+    try:
+        stamp = json.loads(stamp_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError, UnicodeError) as exc:
+        return CheckResult("artifact_provenance", GateVerdict.BLOCKED, Severity.P0, f"invalid build_stamp.json: {exc}")
+    if not isinstance(stamp, dict):
+        return CheckResult("artifact_provenance", GateVerdict.BLOCKED, Severity.P0, "build_stamp.json must be an object")
+    head = _git(root, "rev-parse", "HEAD")
+    stamp_commit = str(stamp.get("git_commit") or "").strip().lower()
+    if not head or stamp_commit != head:
+        return CheckResult(
+            "artifact_provenance",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            f"build_stamp git_commit {stamp_commit!r} != HEAD {head!r}",
+        )
+    stamp_version = str(stamp.get("version") or "").strip()
+    if stamp_version != __version__:
+        return CheckResult(
+            "artifact_provenance",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            f"build_stamp version {stamp_version!r} != canonical {__version__!r}",
+        )
+    if stamp.get("product") != "ExileLens" or stamp.get("schema_version") != 1:
+        return CheckResult(
+            "artifact_provenance",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            "build_stamp product/schema_version mismatch",
+        )
+    return CheckResult("artifact_provenance", GateVerdict.PASS, detail=f"stamp matches HEAD and v{__version__}")
 
 
 def evaluate_release_gate(
@@ -232,6 +299,7 @@ def evaluate_release_gate(
         _packaging(base),
         _debug_deps(base),
         _expected_artifact(base, required=require_artifact),
+        _artifact_provenance(base, required=require_artifact),
     ]
     if smoke_result is not None:
         checks.append(smoke_result)
