@@ -113,7 +113,11 @@ def test_bad_signature_is_rejected(test_private_key: Path) -> None:
         verify_signed_envelope(envelope)
 
 
-def test_prod_manifest_blocked_until_public_key_provisioned(test_private_key: Path) -> None:
+def test_prod_manifest_blocked_until_public_key_provisioned(test_private_key: Path, monkeypatch) -> None:
+    from exilelens.app.updates import trust
+
+    test_only = {trust.TEST_SIGNING_KEY_ID: trust.EMBEDDED_VERIFY_KEYS[trust.TEST_SIGNING_KEY_ID]}
+    monkeypatch.setattr(trust, "EMBEDDED_VERIFY_KEYS", test_only)
     manifest = {
         "schema": 1,
         "channel": "stable",
@@ -130,6 +134,13 @@ def test_prod_manifest_blocked_until_public_key_provisioned(test_private_key: Pa
     envelope = _sign_manifest(manifest, test_private_key)
     with pytest.raises(ManifestError, match="production_signing_unavailable"):
         verify_signed_envelope(envelope)
+
+
+def test_production_signing_configured_after_provisioning() -> None:
+    from exilelens.app.updates.trust import PROD_SIGNING_KEY_ID, production_signing_configured, verify_key_for
+
+    assert production_signing_configured()
+    assert verify_key_for(PROD_SIGNING_KEY_ID) is not None
 
 
 def test_zip_path_traversal_rejected(tmp_path: Path) -> None:
