@@ -188,18 +188,19 @@ class TrayManager(QSystemTrayIcon):
         self._update_action = QAction("Download Update", self)
         self._update_action.triggered.connect(self._on_update_action)
         self._update_action.setVisible(False)
-        apply_action_icon(self._update_action, "download", ui_scale=float(getattr(settings, "ui_scale", 1.0) or 1.0))
+        ui_scale = float(getattr(self.settings, "ui_scale", 1.0) or 1.0)
+        apply_action_icon(self._update_action, "download", ui_scale=ui_scale)
         menu.addAction(self._update_action)
 
         support_menu = menu.addMenu("Help && Support")
         discord_action = QAction("Discord / Community", self)
         discord_action.triggered.connect(self._open_discord)
-        apply_action_icon(discord_action, "discord", ui_scale=float(getattr(settings, "ui_scale", 1.0) or 1.0))
+        apply_action_icon(discord_action, "discord", ui_scale=ui_scale)
         support_menu.addAction(discord_action)
 
         report_issue_action = QAction("Report an Issue", self)
         report_issue_action.triggered.connect(self._open_github_issues)
-        apply_action_icon(report_issue_action, "github", ui_scale=float(getattr(settings, "ui_scale", 1.0) or 1.0))
+        apply_action_icon(report_issue_action, "github", ui_scale=ui_scale)
         support_menu.addAction(report_issue_action)
 
         logs_action = QAction("Open Logs Folder", self)

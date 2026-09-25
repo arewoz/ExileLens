@@ -51,6 +51,45 @@ def test_tray_and_footer_update_labels_stay_aligned() -> None:
     assert ready_visible and ready_enabled
 
 
+def test_tray_rebuild_menu_uses_settings_for_icons(monkeypatch, tmp_path) -> None:
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+
+    from exilelens.app.controller import EvaluationController
+    from exilelens.app.settings import AppSettings
+    from exilelens.ui.dashboard_window import DashboardWindow
+    from exilelens.ui.tray import TrayManager
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    QApplication.instance() or QApplication([])
+    settings = AppSettings()
+    controller = EvaluationController(settings)
+    dashboard = DashboardWindow(settings, controller)
+
+    class _OverlayStub:
+        def show_last_result(self, _payload) -> None:
+            return None
+
+        def remember_position(self) -> None:
+            return None
+
+    tray = TrayManager(settings, controller, _OverlayStub(), dashboard)
+    try:
+        tray.rebuild_menu()
+        menu = tray.contextMenu()
+        assert menu is not None
+        labels = [action.text() for action in menu.actions() if not action.isSeparator()]
+        assert any(text == "Check for Updates" for text in labels)
+        assert tray._update_action is not None
+        assert tray._check_updates_action is not None
+    finally:
+        controller.shutdown()
+        tray.deleteLater()
+        dashboard.deleteLater()
+
+
 def test_dashboard_footer_version_label(monkeypatch, tmp_path) -> None:
     import os
 
