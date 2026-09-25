@@ -961,6 +961,9 @@ class EvaluationController(QObject):
     ) -> None:
         super().__init__(parent)
         self.settings = settings
+        from exilelens.error_catalog.session import ErrorContextStore
+
+        self.error_context = ErrorContextStore()
         self.build_info = BuildInfo(context=settings.context)
         self.baseline_state = BaselineState(state=BuildState.NO_BUILD, context=settings.context)
         self._build_cache = build_cache or BuildCache()
@@ -1128,6 +1131,16 @@ class EvaluationController(QObject):
         self._pending_league_request: tuple[str, int, tuple[int, int] | None] | None = None
         self._queued_refreshes: dict[str, tuple[str, int, tuple[int, int] | None, Any, Any]] = {}
         self._queued_timers: dict[str, QTimer] = {}
+
+    @property
+    def _last_support_error_code(self) -> str:
+        last = self.error_context.last_error
+        return last.code if last else ""
+
+    @property
+    def _last_coverage_reason(self) -> str:
+        last = self.error_context.last_limitation
+        return last.code if last else ""
 
     def _require_module(self, module: FeatureModule, *, message: str) -> bool:
         if is_enabled(module):
@@ -1545,6 +1558,15 @@ class EvaluationController(QObject):
             time.sleep(0.01)
 
     def _fail_baseline(self, message: str) -> None:
+        from exilelens.error_catalog.integration import record_generic_failure
+
+        record_generic_failure(
+            self.error_context,
+            message,
+            el_code="EL-BLD-002",
+            subsystem="build",
+            stage="load_build",
+        )
         self._last_build_error = message
         logger.warning("build_load_failed path=%s reason=%s", self.build_info.path, message)
         self._accept_tree = False
@@ -1933,6 +1955,9 @@ class EvaluationController(QObject):
         try:
             source = read_build_source(resolved)
         except EngineError as exc:
+            from exilelens.error_catalog.integration import record_engine_error
+
+            record_engine_error(self.error_context, exc, subsystem="build", stage="read_build_source")
             if same_build:
                 self._keep_last_good_build(exc.message)
                 return
@@ -4082,6 +4107,7 @@ class EvaluationController(QObject):
         *,
         presentation_generation: int | None = None,
         title: str = "",
+        engine_error: EngineError | None = None,
         **extra: Any,
     ) -> None:
         if request_id != self._latest_request_id:
@@ -4095,6 +4121,25 @@ class EvaluationController(QObject):
             return
         self._stop_item_check_watchdog(request_id)
         self._item_check_lifecycle.mark_error(request_id, message, **extra)
+        from exilelens.error_catalog.integration import record_engine_error, record_generic_failure
+
+        stage = str(extra.get("stage") or "item_check")
+        if engine_error is not None:
+            record_engine_error(self.error_context, engine_error, subsystem="item_check", stage=stage)
+        else:
+            el_code = "EL-KEY-001" if stage == "unsupported_item_language" else "EL-CHK-013"
+            if "Build changed" in message or "revision changed" in message:
+                el_code = "EL-BLD-005"
+            elif "display item analysis" in message.lower():
+                el_code = "EL-CHK-014"
+            record_generic_failure(
+                self.error_context,
+                message,
+                el_code=el_code,
+                subsystem="item_check",
+                stage=stage,
+                context={k: v for k, v in extra.items() if k != "stage"},
+            )
         if title:
             self.evaluation_titled_error.emit(request_id, title, message)
         else:
@@ -4134,6 +4179,7 @@ class EvaluationController(QObject):
                         message,
                         presentation_generation=request_gen,
                         title=error_title,
+                        engine_error=error if isinstance(error, EngineError) else None,
                         **extra_fields,
                     )
                 elif payload is None:
@@ -4284,6 +4330,9 @@ class EvaluationController(QObject):
         pro = self.item_check_settings()
         result = self._apply_optional_presentation_enrichment(result, pro, request_id=request_id)
         self._last_result = result
+        from exilelens.error_catalog.integration import record_evaluation_outcome
+
+        record_evaluation_outcome(self.error_context, result)
         slot = str(((result.get("recommendation") or {}).get("pob_slot")) or "")
         self._item_check_lifecycle.advance(request_id, ItemCheckPhase.PRESENTATION_BUILT, slot=slot)
         self.evaluation_finished.emit(request_id, result)

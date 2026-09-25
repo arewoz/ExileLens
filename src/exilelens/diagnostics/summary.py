@@ -104,11 +104,16 @@ def _health_extended(controller: Any, settings: Any) -> dict[str, Any]:
 
 
 def _error_integration(controller: Any) -> dict[str, Any]:
-    return {
-        "last_error_code": sanitize_text(str(getattr(controller, "_last_support_error_code", "") or "none")),
-        "last_coverage_reason": sanitize_text(str(getattr(controller, "_last_coverage_reason", "") or "none")),
-        "support_session_id": support_session_id(),
-    }
+    store = getattr(controller, "error_context", None)
+    snapshot = store.diagnostic_snapshot() if store is not None else {}
+    return sanitize_value(
+        {
+            "support_session_id": support_session_id(),
+            "last_error_code": sanitize_text(str(getattr(controller, "_last_support_error_code", "") or "none")),
+            "last_coverage_reason": sanitize_text(str(getattr(controller, "_last_coverage_reason", "") or "none")),
+            "structured": snapshot,
+        }
+    )
 
 
 def build_extended_summary(

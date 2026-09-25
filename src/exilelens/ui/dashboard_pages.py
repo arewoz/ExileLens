@@ -750,6 +750,11 @@ class DiagnosticsPage(QWidget):
         self._support_hint.setWordWrap(True)
         self._support_hint.setVisible(False)
         health.add_widget(self._support_hint)
+        self._structured_error_hint = QLabel("")
+        self._structured_error_hint.setObjectName("helperText")
+        self._structured_error_hint.setWordWrap(True)
+        self._structured_error_hint.setVisible(False)
+        health.add_widget(self._structured_error_hint)
 
         report = Section("Report a problem")
         report_intro = QLabel(
@@ -916,6 +921,15 @@ class DiagnosticsPage(QWidget):
                 reproduction_notes=self._repro_notes.toPlainText(),
             )
         except SupportBundleError as exc:
+            from exilelens.error_catalog.integration import record_generic_failure
+
+            record_generic_failure(
+                self.controller.error_context,
+                str(exc),
+                el_code="EL-DIAG-001",
+                subsystem="diagnostics",
+                stage="export_bundle",
+            )
             self._report_status.setText(str(exc))
             return
         self._report_status.setText(f"Support package saved to {destination.name}")
@@ -969,6 +983,17 @@ class DiagnosticsPage(QWidget):
             self._support_hint.setVisible(True)
         else:
             self._support_hint.setVisible(False)
+
+        from exilelens.error_catalog.formatting import diagnostics_error_summary
+
+        store = getattr(self.controller, "error_context", None)
+        error_summary = diagnostics_error_summary(store.last_error if store is not None else None)
+        limitation = store.last_limitation if store is not None else None
+        if limitation is not None:
+            extra = f"Last evaluation note ({limitation.code}): {limitation.user_guidance}"
+            error_summary = f"{error_summary}\n{extra}".strip() if error_summary else extra
+        self._structured_error_hint.setText(error_summary)
+        self._structured_error_hint.setVisible(bool(error_summary))
 
         from exilelens.diagnostics import build_extended_summary, event_buffer, verbose_mode_active
         import json

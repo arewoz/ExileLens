@@ -401,7 +401,15 @@ class OverlayWindow(QWidget):
         """LANG-01: an error that carries its own headline (e.g. unsupported language)."""
         self.show_error(request_id, message, title=title)
 
-    def show_error(self, request_id: int, message: str, *, retry: bool = False, title: str = "") -> None:
+    def show_error(
+        self,
+        request_id: int,
+        message: str,
+        *,
+        retry: bool = False,
+        title: str = "",
+        structured_hint: str = "",
+    ) -> None:
         if self._presentation_stale(request_id):
             return
         if not self._begin_show(OverlayShowReason.EVALUATION_ERROR, request_id):
@@ -411,7 +419,7 @@ class OverlayWindow(QWidget):
         self._overlay_mode = "build_eval"
         self._price_check_panel.hide()
         self._panel.show()
-        self._panel.show_error(message, retry=retry, title=title)
+        self._panel.show_error(message, retry=retry, title=title, structured_hint=structured_hint)
         if self._geometry_transient or self._expansion_plan is None:
             self._geometry_transient = False
             self._expansion_plan = None
