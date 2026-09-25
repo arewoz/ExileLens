@@ -182,6 +182,22 @@ def test_download_verifies_size_and_hash(tmp_path: Path) -> None:
         )
 
 
+def test_install_preserves_external_user_settings(tmp_path: Path) -> None:
+    user_data = tmp_path / "UserData" / "ExileLens"
+    user_data.mkdir(parents=True)
+    settings_path = user_data / "settings.json"
+    settings_path.write_text('{"schema_version": 22, "update_channel": "beta"}', encoding="utf-8")
+    install_root = tmp_path / "install"
+    install_root.mkdir()
+    (install_root / "ExileLens.exe").write_bytes(b"old")
+    staged = tmp_path / "stage" / "ExileLens"
+    staged.mkdir(parents=True)
+    (staged / "ExileLens.exe").write_bytes(b"new")
+    backup = tmp_path / "backup"
+    updater_install.install_verified_update(install_root=install_root, staged_root=staged, backup_root=backup)
+    assert settings_path.read_text(encoding="utf-8") == '{"schema_version": 22, "update_channel": "beta"}'
+
+
 def test_updater_install_and_restore_backup(tmp_path: Path) -> None:
     install_root = tmp_path / "install"
     install_root.mkdir()

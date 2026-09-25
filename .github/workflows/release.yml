@@ -16,6 +16,7 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    environment: production-release
     steps:
       - name: Reject dispatches outside main
         shell: pwsh
@@ -94,6 +95,14 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}\src
         run: python -m exilelens.ops.cli release-gate --require-artifact
+
+      - name: Materialize production update signing key
+        shell: pwsh
+        env:
+          EXILELENS_UPDATE_SIGNING_KEY_B64: ${{ secrets.EXILELENS_UPDATE_SIGNING_KEY_B64 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\materialize_update_signing_key.ps1
 
       - name: Package and verify release assets
         shell: pwsh

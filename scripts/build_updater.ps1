@@ -10,7 +10,13 @@ $env:PYTHONPATH = Join-Path $RepoRoot "src"
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 & $PythonExe -m PyInstaller $SpecPath --noconfirm --clean
 if ($LASTEXITCODE -ne 0) { throw "Updater build failed" }
-$Built = Join-Path $RepoRoot "dist\ExileLensUpdater\ExileLensUpdater.exe"
+$Built = Join-Path $RepoRoot "dist\ExileLensUpdater.exe"
+if (-not (Test-Path -LiteralPath $Built)) {
+    $legacyBuilt = Join-Path $RepoRoot "dist\ExileLensUpdater\ExileLensUpdater.exe"
+    if (Test-Path -LiteralPath $legacyBuilt) {
+        $Built = $legacyBuilt
+    }
+}
 $Target = Join-Path $DistDir "ExileLensUpdater.exe"
 Copy-Item -LiteralPath $Built -Destination $Target -Force
 Write-Host "Updater copied to $Target"

@@ -19,8 +19,27 @@ Actions secrets or an offline HSM/vault.
 1. Generate Ed25519 keys on a trusted machine (not in the repo).
 2. Add the **raw 32-byte public key** (base64) to
    `src/exilelens/app/updates/trust.py` under `exilelens-prod-1`.
-3. Store the private key PEM as secret `EXILELENS_UPDATE_SIGNING_KEY` in the
-   release workflow environment.
+3. Store the **base64-encoded PEM bytes** (not the PEM text itself) as GitHub
+   Actions secret `EXILELENS_UPDATE_SIGNING_KEY_B64` on the `production-release`
+   environment. CI decodes it to a temp file via
+   `scripts/materialize_update_signing_key.ps1` and sets
+   `EXILELENS_UPDATE_SIGNING_KEY_PATH` for `scripts/sign_update_manifest.py`.
+
+   Generate keys and the exact secret payload locally:
+
+   ```powershell
+   powershell -File scripts\create_prod_update_key.ps1
+   ```
+
+   Install the public key into the app (public material only):
+
+   ```powershell
+   powershell -File scripts\install_prod_update_public_key.ps1 `
+     -PublicKeyPath "$env:USERPROFILE\.exilelens\signing\exilelens-prod-1\exilelens-prod-1-public.b64"
+   ```
+
+   Validate signing in CI without publishing a release: run workflow
+   **Validate update signing (no publish)** (`update-signing-validation.yml`).
 
 Until step 2 is complete, manifests signed with `exilelens-prod-1` are rejected
 at install time (`production_signing_unavailable`).
