@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.build_intel.engine import compare_slot
-from poe2value.items.compare import CompareEntry, PinCompareState, build_compare_summary
-from poe2value.items.comparison_trace import build_comparison_trace
-from poe2value.items.decision import build_decision_summary
-from poe2value.items.evaluation_outcome import EvaluationQuality, PublicVerdict, SCORED_RAW_FIELDS
-from poe2value.items.loot_review import LootCategory, LootReviewSession
-from poe2value.items.multi_profile import score_all_profiles
-from poe2value.items.presentation import build_presentation
-from poe2value.items.ranking import enrich_slot_comparison, rank_slot_comparisons
-from poe2value.items.slots import pob_slot_to_product
-from poe2value.items.upgrade_path import UpgradePathState, build_upgrade_path_block, classify_upgrade_path_state
+from exilelens.items.build_intel.engine import compare_slot
+from exilelens.items.compare import CompareEntry, PinCompareState, build_compare_summary
+from exilelens.items.comparison_trace import build_comparison_trace
+from exilelens.items.decision import build_decision_summary
+from exilelens.items.evaluation_outcome import EvaluationQuality, PublicVerdict, SCORED_RAW_FIELDS
+from exilelens.items.loot_review import LootCategory, LootReviewSession
+from exilelens.items.multi_profile import score_all_profiles
+from exilelens.items.presentation import build_presentation
+from exilelens.items.ranking import enrich_slot_comparison, rank_slot_comparisons
+from exilelens.items.slots import pob_slot_to_product
+from exilelens.items.upgrade_path import UpgradePathState, build_upgrade_path_block, classify_upgrade_path_state
 
 
 pytestmark = pytest.mark.itemcheck
@@ -200,7 +200,7 @@ def test_partial_component_report_without_materiality_evidence_does_not_overfire
 
 
 def test_outcome_presence_prevents_legacy_verdict_fallback() -> None:
-    from poe2value.items.evaluation_outcome import authoritative_public_verdict
+    from exilelens.items.evaluation_outcome import authoritative_public_verdict
 
     assert authoritative_public_verdict(
         {"evaluation_outcome": {}, "verdict": "STRONG_UPGRADE"}

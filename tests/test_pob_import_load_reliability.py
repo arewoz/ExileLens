@@ -29,10 +29,10 @@ from typing import Any
 
 import pytest
 
-from poe2value.build_sources import LocalPobBuildSource
-from poe2value.config import PobConfig, validate_pob_path
-from poe2value.engine import Engine, SubprocessWorkerClient
-from poe2value.errors import BuildNotFound, BuildParseFailed, PobPathInvalid, WorkerUnhealthy
+from exilelens.build_sources import LocalPobBuildSource
+from exilelens.config import PobConfig, validate_pob_path
+from exilelens.engine import Engine, SubprocessWorkerClient
+from exilelens.errors import BuildNotFound, BuildParseFailed, PobPathInvalid, WorkerUnhealthy
 
 pytestmark = pytest.mark.itemcheck
 

@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.app.build_state import BuildInfo, BuildState
-from poe2value.app.readiness import AppReadiness, derive_readiness
-from poe2value.app.settings import AppSettings, ONBOARDING_VERSION, complete_onboarding, load_settings, onboarding_required
-from poe2value.app.setup_status import SetupCheck
+from exilelens.app.build_state import BuildInfo, BuildState
+from exilelens.app.readiness import AppReadiness, derive_readiness
+from exilelens.app.settings import AppSettings, ONBOARDING_VERSION, complete_onboarding, load_settings, onboarding_required
+from exilelens.app.setup_status import SetupCheck
 
 
 pytestmark = pytest.mark.itemcheck
@@ -26,7 +26,7 @@ class Controller:
 @pytest.fixture(autouse=True)
 def usable_pob(monkeypatch):
     monkeypatch.setattr(
-        "poe2value.app.readiness.check_pob_folder",
+        "exilelens.app.readiness.check_pob_folder",
         lambda _path: SetupCheck(True, "FOUND", "PoB2 detected"),
     )
 
@@ -34,7 +34,7 @@ def usable_pob(monkeypatch):
 def test_clean_profile_requires_onboarding_and_completion_is_versioned(monkeypatch, tmp_path):
     settings = AppSettings()
     assert onboarding_required(settings)
-    monkeypatch.setattr("poe2value.app.settings.settings_path", lambda: tmp_path / "settings.json")
+    monkeypatch.setattr("exilelens.app.settings.settings_path", lambda: tmp_path / "settings.json")
     complete_onboarding(settings)
     assert settings.onboarding_version_completed == ONBOARDING_VERSION
     assert not onboarding_required(settings)
@@ -50,7 +50,7 @@ def test_existing_configured_profile_migrates_without_replaying_welcome():
 
 def test_skip_persistence_never_changes_runtime_readiness(monkeypatch):
     settings = AppSettings()
-    monkeypatch.setattr("poe2value.app.settings.save_settings", lambda _settings: None)
+    monkeypatch.setattr("exilelens.app.settings.save_settings", lambda _settings: None)
     complete_onboarding(settings)
     assert derive_readiness(settings, Controller()).state is AppReadiness.BUILD_REQUIRED
 
@@ -71,7 +71,7 @@ def test_readiness_uses_worker_and_build_state(controller, expected):
 
 def test_missing_pob_wins_over_optimistic_build(monkeypatch):
     monkeypatch.setattr(
-        "poe2value.app.readiness.check_pob_folder",
+        "exilelens.app.readiness.check_pob_folder",
         lambda _path: SetupCheck(False, "NOT FOUND", "Choose PoB2"),
     )
     ready_build = BuildInfo(path="build.xml", state=BuildState.READY)

@@ -16,6 +16,7 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    environment: production-release
     steps:
       - name: Reject dispatches outside main
         shell: pwsh
@@ -69,7 +70,7 @@ jobs:
         shell: pwsh
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-        run: python -m poe2value.ops.cli release-gate
+        run: python -m exilelens.ops.cli release-gate
 
       - name: Install mandatory release-test dependencies
         shell: pwsh
@@ -79,17 +80,29 @@ jobs:
         shell: pwsh
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-        run: python -m poe2value.ops.cli release-regressions
+        run: python -m exilelens.ops.cli release-regressions
 
       - name: Build the official Windows onedir distribution
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -SkipShortcut
 
+      - name: Build external updater binary
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_updater.ps1
+
       - name: Run packaged-artifact release gate
         shell: pwsh
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-        run: python -m poe2value.ops.cli release-gate --require-artifact
+        run: python -m exilelens.ops.cli release-gate --require-artifact
+
+      - name: Materialize production update signing key
+        shell: pwsh
+        env:
+          EXILELENS_UPDATE_SIGNING_KEY_B64: ${{ secrets.EXILELENS_UPDATE_SIGNING_KEY_B64 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\materialize_update_signing_key.ps1
 
       - name: Package and verify release assets
         shell: pwsh
@@ -101,7 +114,7 @@ jobs:
           $distDir = Join-Path $env:GITHUB_WORKSPACE 'dist\ExileLens'
           $exePath = Join-Path $distDir 'ExileLens.exe'
           $expectedSourceVersion = $env:RELEASE_VERSION.Substring(1)
-          $sourceVersion = (& .\.release-venv\Scripts\python.exe -c "from poe2value._version import __version__; print(__version__)").Trim()
+          $sourceVersion = (& .\.release-venv\Scripts\python.exe -c "from exilelens._version import __version__; print(__version__)").Trim()
           if ($LASTEXITCODE -ne 0 -or $sourceVersion -ne $expectedSourceVersion) {
             throw "Requested tag $env:RELEASE_VERSION does not match the checked-out source version v$sourceVersion."
           }
@@ -139,6 +152,39 @@ jobs:
           "ARCHIVE_PATH=$archivePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "SUMS_PATH=$sumsPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+          $manifestName = "ExileLens-$env:RELEASE_VERSION-win64.update.json"
+          $manifestPath = Join-Path $env:RUNNER_TEMP 'unsigned-manifest.json'
+          $signedManifestPath = Join-Path $env:RUNNER_TEMP $manifestName
+          $channel = if ($expectedSourceVersion -match 'b\d+$') { 'beta' } else { 'stable' }
+          $downloadUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:RELEASE_VERSION/$archiveName"
+          $unsigned = @{
+            schema = 1
+            channel = $channel
+            version = $expectedSourceVersion
+            tag = $env:RELEASE_VERSION
+            signing_key_id = 'exilelens-prod-1'
+            artifact = @{
+              filename = $archiveName
+              size = (Get-Item -LiteralPath $archivePath).Length
+              sha256 = $hash
+              url = $downloadUrl
+            }
+          }
+          $unsigned | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+          $signingKeyPath = $env:EXILELENS_UPDATE_SIGNING_KEY_PATH
+          if ([string]::IsNullOrWhiteSpace($signingKeyPath) -or -not (Test-Path -LiteralPath $signingKeyPath)) {
+            $signingKeyPath = Join-Path $env:GITHUB_WORKSPACE 'fixtures/update_signing/test_signing_key.pem'
+            $unsigned.signing_key_id = 'exilelens-test-1'
+            $unsigned | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+            Write-Warning 'Production update signing key unavailable; publishing test-signed update metadata.'
+          }
+          & .\.release-venv\Scripts\python.exe .\scripts\sign_update_manifest.py `
+            --manifest $manifestPath `
+            --private-key $signingKeyPath `
+            --output $signedManifestPath
+          if ($LASTEXITCODE -ne 0) { throw 'Signed update manifest generation failed.' }
+          "UPDATE_MANIFEST_PATH=$signedManifestPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Validate official release notes
         shell: pwsh
         env:
@@ -169,7 +215,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $commit = (git rev-parse HEAD).Trim()
           if ($commit -notmatch '^[0-9a-f]{40}$') { throw 'Could not determine the exact checked-out commit.' }
-          & gh release create $env:RELEASE_VERSION $env:ARCHIVE_PATH $env:SUMS_PATH `
+          & gh release create $env:RELEASE_VERSION $env:ARCHIVE_PATH $env:SUMS_PATH $env:UPDATE_MANIFEST_PATH `
             --target $commit `
             --title "ExileLens $env:RELEASE_VERSION - Beta" `
             --latest `

@@ -11,16 +11,16 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items import compact_tooltip
-from poe2value.items.compact_tooltip import (
+from exilelens.items import compact_tooltip
+from exilelens.items.compact_tooltip import (
     MAX_NOTES,
     MAX_REASONS,
     apply_compact_tooltip,
     select_impact_rows,
     verdict_headline,
 )
-from poe2value.items.evaluation_outcome import SCORE_SCALE, decide_verdict, EvaluationQuality
-from poe2value.items.presentation_copy import verdict_subtitle
+from exilelens.items.evaluation_outcome import SCORE_SCALE, decide_verdict, EvaluationQuality
+from exilelens.items.presentation_copy import verdict_subtitle
 
 pytestmark = pytest.mark.itemcheck
 

@@ -10,14 +10,14 @@ import copy
 
 import pytest
 
-from poe2value.items.baseline_item import resolve_baseline_item
-from poe2value.items.best_slot import select_best_comparison
-from poe2value.items.evaluation_identity import (
+from exilelens.items.baseline_item import resolve_baseline_item
+from exilelens.items.best_slot import select_best_comparison
+from exilelens.items.evaluation_identity import (
     EvaluationContextIdentity,
     candidate_fingerprint,
     canonical_candidate_text,
 )
-from poe2value.items.evaluation_outcome import (
+from exilelens.items.evaluation_outcome import (
     EvaluationQuality,
     PublicVerdict,
     SCORED_RAW_FIELDS,
@@ -25,12 +25,12 @@ from poe2value.items.evaluation_outcome import (
     classify_score_verdict,
     decide_verdict,
 )
-from poe2value.items.item_impact import interpret_item_impact
-from poe2value.items.ranking import enrich_slot_comparison
-from poe2value.items.resist_caps import CapState, analyze_resistance
-from poe2value.items.slots import ProductSlot, pob_slot_to_product
-from poe2value.items.value_profiles import SCORE_SCALE, ValueProfile, score_profile
-from poe2value.metrics import build_metric_profile
+from exilelens.items.item_impact import interpret_item_impact
+from exilelens.items.ranking import enrich_slot_comparison
+from exilelens.items.resist_caps import CapState, analyze_resistance
+from exilelens.items.slots import ProductSlot, pob_slot_to_product
+from exilelens.items.value_profiles import SCORE_SCALE, ValueProfile, score_profile
+from exilelens.metrics import build_metric_profile
 
 
 pytestmark = pytest.mark.itemcheck

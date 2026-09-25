@@ -8,8 +8,8 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $DistDir = Join-Path $RepoRoot "dist\ExileLens"
 $ExePath = Join-Path $DistDir "ExileLens.exe"
-$SpecPath = Join-Path $RepoRoot "packaging\poe2value-gui.spec"
-$BuildDir = Join-Path $RepoRoot "build\poe2value-gui"
+$SpecPath = Join-Path $RepoRoot "packaging\exilelens-gui.spec"
+$BuildDir = Join-Path $RepoRoot "build\exilelens-gui"
 $CollectToc = Join-Path $BuildDir "COLLECT-00.toc"
 $BinaryManifestPath = Join-Path $DistDir "binary_manifest.json"
 $ProvenanceScript = Join-Path $PSScriptRoot "validate_release_binary_provenance.py"
@@ -22,8 +22,8 @@ $PythonExe = $ReleaseVenv.Executable
 
 function Get-CanonicalVersion {
     $env:PYTHONPATH = Join-Path $RepoRoot "src"
-    $value = (& $PythonExe -c "from poe2value._version import __version__; print(__version__)").Trim()
-    if (-not $value) { throw "Failed to read canonical version from poe2value._version" }
+    $value = (& $PythonExe -c "from exilelens._version import __version__; print(__version__)").Trim()
+    if (-not $value) { throw "Failed to read canonical version from exilelens._version" }
     return $value
 }
 
@@ -35,6 +35,10 @@ try {
     # arbitrary developer, Codex, Poppler, and other host PATH entries.
     $env:PATH = Get-ControlledReleaseBuildPath -ReleaseVenvRoot $ReleaseVenv.Root
     $env:PYTHONPATH = Join-Path $RepoRoot "src"
+
+    Write-Host "==> Regenerating Windows version resources..."
+    & $PythonExe (Join-Path $PSScriptRoot "generate_packaging_version_info.py")
+    if ($LASTEXITCODE -ne 0) { throw "version resource generation failed" }
 
     Write-Host "==> Regenerating application icon..."
     & $PythonExe (Join-Path $PSScriptRoot "make_app_icon.py")

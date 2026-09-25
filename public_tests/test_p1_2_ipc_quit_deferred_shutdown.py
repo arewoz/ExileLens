@@ -1,6 +1,6 @@
 """Regression coverage for the IPC-quit native abort fixed in P1.2.
 
-``Poe2ValueApp._on_quit_requested`` runs nested inside QLocalSocket's own
+``ExileLensApp._on_quit_requested`` runs nested inside QLocalSocket's own
 readyRead delivery (InstanceServer -> quit_requested). Tearing the instance
 server down synchronously from inside that call stack crashed with a native
 "Fatal Python error: Aborted" on every ``--quit`` IPC shutdown, reproduced
@@ -21,7 +21,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
-from poe2value.app.main import Poe2ValueApp
+from exilelens.app.main import ExileLensApp
 
 
 def _app() -> QApplication:
@@ -31,9 +31,9 @@ def _app() -> QApplication:
 def test_on_quit_requested_does_not_shut_down_synchronously() -> None:
     app = _app()
     fake_self = SimpleNamespace(_setup_dialog=None, shutdown=Mock())
-    fake_self._finish_ipc_quit = lambda: Poe2ValueApp._finish_ipc_quit(fake_self)
+    fake_self._finish_ipc_quit = lambda: ExileLensApp._finish_ipc_quit(fake_self)
 
-    Poe2ValueApp._on_quit_requested(fake_self)
+    ExileLensApp._on_quit_requested(fake_self)
 
     # The whole point of the deferral: shutdown() (which destroys the very
     # InstanceServer/socket whose signal we are still nested inside) must not
@@ -54,7 +54,7 @@ def test_finish_ipc_quit_shuts_down_and_exits_the_app() -> None:
     exit_mock = Mock()
     app.exit = exit_mock  # type: ignore[method-assign]
     try:
-        Poe2ValueApp._finish_ipc_quit(fake_self)
+        ExileLensApp._finish_ipc_quit(fake_self)
     finally:
         del app.exit
 

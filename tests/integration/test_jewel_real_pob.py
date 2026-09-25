@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.items.evaluation import evaluate_item
+from exilelens.items.evaluation import evaluate_item
 
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "fixtures" / "builds" / "public_corpus"
@@ -69,8 +69,8 @@ def _rows(result: dict) -> dict[str, dict]:
 def test_jewel_candidate_is_routed_to_jewel_sockets_not_equipment_slots() -> None:
     """parse_item/resolve_compatible_slots classify a Jewel by dynamic socket
     name ("Jewel <nodeId>"), never as a fixed equipment ProductSlot -- see
-    poe2value.items.slots.is_jewel_socket_pob_slot."""
-    from poe2value.items.slots import is_jewel_socket_pob_slot
+    exilelens.items.slots.is_jewel_socket_pob_slot."""
+    from exilelens.items.slots import is_jewel_socket_pob_slot
 
     assert is_jewel_socket_pob_slot("Jewel 2491")
     assert not is_jewel_socket_pob_slot("Ring 1")

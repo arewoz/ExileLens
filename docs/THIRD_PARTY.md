@@ -15,7 +15,7 @@ PoB's installer intentionally excludes `src/HeadlessWrapper.lua` and `src/_Simpl
 
 ## Archived local tooling
 
-Stormweaver optimization scripts under `pob2-local-artifacts/tooling-archive/tools/` are local research artifacts. Phase 1 **adapted concepts** from `run.py`, `lab.lua`, and `mut.lua` into new files in this repository (`src/poe2value/pob/lua_host.py`, `runtime/lua/bridge.lua`). No bulk copy of the archive.
+Stormweaver optimization scripts under `pob2-local-artifacts/tooling-archive/tools/` are local research artifacts. Phase 1 **adapted concepts** from `run.py`, `lab.lua`, and `mut.lua` into new files in this repository (`src/exilelens/pob/lua_host.py`, `runtime/lua/bridge.lua`). No bulk copy of the archive.
 
 ## External references consulted (secondary)
 

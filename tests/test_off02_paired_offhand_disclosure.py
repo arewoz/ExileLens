@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.compact_tooltip import replacing_line
-from poe2value.items.evaluation import WEAPON_TYPES as evaluation_weapon_types
-from poe2value.items.more_info import build_more_info
-from poe2value.items.slots import WEAPON_TYPES
+from exilelens.items.compact_tooltip import replacing_line
+from exilelens.items.evaluation import WEAPON_TYPES as evaluation_weapon_types
+from exilelens.items.more_info import build_more_info
+from exilelens.items.slots import WEAPON_TYPES
 
 pytestmark = pytest.mark.itemcheck
 
