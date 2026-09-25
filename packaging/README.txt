@@ -43,12 +43,18 @@ INSTALLATION & SETUP
    - your Path of Building Community (PoE2) installation folder;
    - your PoB build XML.
 
+ExileLens automatically checks the usual AppData and Program Files locations,
+your standard Documents/Desktop/Downloads folders (including OneDrive
+Documents), and the POB2_PATH environment variable when it is set.
+
 The usual installation folder is:
 
     %APPDATA%\Path of Building Community (PoE2)
 
 Select the folder containing Path of Building-PoE2.exe, Launch.lua,
 lua51.dll, Data, and Modules. A Git checkout is not required.
+If automatic detection does not find a portable or custom installation, use
+Browse in Setup to select that folder manually.
 
 4. Save the setup.
 

@@ -138,7 +138,13 @@ class SetupDialog(_GeometryLockedDialog):
         build_row.addWidget(build_test)
         form.addRow("Build XML:", build_row)
 
-        self._status = QLabel("")
+        if detected:
+            initial_status = "PoB2 detected automatically. Use Browse… to choose a different folder."
+        elif not settings.pob_path:
+            initial_status = "PoB2 was not detected. Use Browse… to select its installation folder."
+        else:
+            initial_status = ""
+        self._status = QLabel(initial_status)
         form.addRow("Status:", self._status)
         layout.addLayout(form)
 
