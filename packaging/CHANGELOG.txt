@@ -2,6 +2,46 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.5.0b1
+-------
+
+User-visible improvements (since 0.4.0b1)
+-----------------------------------------
+
+- **Diagnostics 2.0 (player-facing):** Application health and Report a problem
+  flows with privacy-safe Copy diagnostics, support package export, and Advanced
+  diagnostics (event history and technical report in separate collapsible
+  sections).
+- **Unified updates:** ExileLens always offers the newest verified official
+  release (stable or beta) by version ordering. Update controls moved to
+  Settings; dashboard footer and tray stay synchronized.
+- **Structured error codes (M4.5):** Item Check, Path of Building, build,
+  worker, and update failures show stable EL-* codes with recommended recovery
+  actions. UNCERTAIN and UNSUPPORTED evaluation outcomes remain distinct from
+  application errors.
+- **Desktop polish:** Version footer, tray update actions, Discord and GitHub
+  navigation icons, and Patreon support link in the dashboard.
+- **PoB2 setup:** First-run and Settings can **auto-detect** a standard Path of
+  Building Community (PoE2) installation when no folder is saved yet; Browse
+  still overrides detection.
+- **Item Check reliability:** If your selected build file changes or
+  disappears on disk, ExileLens reloads safely and will **not** resume a check
+  against rolled-back or missing build bytes while keeping the last working
+  baseline loaded.
+
+Internal reliability, diagnostics, and quality
+----------------------------------------------
+
+- Mandatory Windows PR validation for startup composition, unified updates,
+  Diagnostics 2.0, and structured error regressions.
+- Release build script stages ExileLensUpdater.exe into the distribution;
+  packaged release gate blocks missing updater or build stamp.
+- Secure update pipeline unchanged: Ed25519-signed manifests, SHA-256 verified
+  downloads, external updater with rollback support.
+- Release dependency lock refreshed (**cryptography 50.0.0**) with full
+  `--require-hashes` closure for Windows builds.
+
+
 0.4.0b1
 -------
 
