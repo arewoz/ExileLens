@@ -5,7 +5,7 @@ import urllib.error
 import urllib.request
 from typing import Callable
 
-from exilelens.app.updates.channels import UpdateChannel, release_matches_channel
+from exilelens.app.updates.channels import UpdateChannel, release_matches_channel, select_newest_official_release
 from exilelens.app.updates.constants import GITHUB_RELEASES_API, NETWORK_TIMEOUT_SECONDS
 from exilelens.app.updates.version import ExileLensVersion, Release, parse_release_payload
 
@@ -43,11 +43,13 @@ class GitHubReleaseClient:
         releases = self.list_releases(per_page=1)
         return releases[0] if releases else None
 
+    def best_newest_release(self) -> Release | None:
+        return select_newest_official_release(self.list_releases())
+
     def best_release_for_channel(self, channel: UpdateChannel) -> Release | None:
+        """Legacy channel filter; unified updates use :meth:`best_newest_release`."""
         candidates = [row for row in self.list_releases() if release_matches_channel(row, channel)]
-        if not candidates:
-            return None
-        return max(candidates, key=lambda row: row.version)
+        return select_newest_official_release(candidates)
 
     def fetch_json(self, url: str, *, max_bytes: int = 512 * 1024) -> object:
         request = urllib.request.Request(

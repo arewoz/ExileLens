@@ -65,11 +65,15 @@ def copy_extended_diagnostic_summary(controller, settings, *, update_service=Non
     return report
 
 
-def copy_diagnostics(controller) -> str:  # noqa: ANN001
-    """Put the allowlisted global diagnostic report on the clipboard."""
-    # Keep every support surface on the explicit SUPPORT-02 representation.  In
-    # particular, do not delegate to a controller formatter that could later grow
-    # item, path, worker-stderr, or exception details.
+def copy_diagnostics(controller, settings=None, *, update_service=None) -> str:  # noqa: ANN001
+    """Copy the privacy-safe extended diagnostic summary when settings are available."""
+    resolved_settings = settings if settings is not None else getattr(controller, "settings", None)
+    if resolved_settings is not None:
+        return copy_extended_diagnostic_summary(
+            controller,
+            resolved_settings,
+            update_service=update_service,
+        )
     from exilelens.app.diagnostics import render_global_diagnostics
 
     report = render_global_diagnostics(controller)

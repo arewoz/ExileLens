@@ -185,7 +185,7 @@ class DashboardWindow(ManagedToolWindow):
         self._market = MarketHubPage(controller, settings) if is_enabled(FeatureModule.MARKET) else None
         self._tree = TreeWorkspace(controller, embed_mode=True) if is_enabled(FeatureModule.TREE_TOOLS) else None
         self._gear = GearOptimizerPage(controller) if is_enabled(FeatureModule.GEAR_OPTIMIZER) else None
-        self._settings_page = SettingsPage(settings, controller)
+        self._settings_page = SettingsPage(settings, controller, self.update_service)
         self._diagnostics = DiagnosticsPage(controller, settings, self.update_service)
         for page_id, widget in (
             ("overview", self._overview),
@@ -368,7 +368,7 @@ class DashboardWindow(ManagedToolWindow):
     def _on_update_state_footer(self, state: str, version: str) -> None:
         self._update_check_state = state
         self._update_remote_version = version
-        if state in ("current", "unchecked", "unavailable"):
+        if state in ("current", "unchecked", "unavailable", "verification_failed", "failed"):
             self._update_download_state = ""
             self._update_progress_percent = None
         self._refresh_version_footer()

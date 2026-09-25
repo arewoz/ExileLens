@@ -42,7 +42,21 @@ class _Controller:
         pass
 
 
-def test_copy_diagnostics_uses_explicit_safe_global_renderer(monkeypatch) -> None:
+def test_copy_diagnostics_uses_extended_summary_when_settings_available(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    clipboard = _Clipboard()
+    monkeypatch.setattr(recovery_actions.QApplication, "clipboard", lambda: clipboard)
+    monkeypatch.setattr(
+        recovery_actions,
+        "copy_extended_diagnostic_summary",
+        lambda _controller, _settings, **kwargs: "EXTENDED REPORT",
+    )
+
+    controller = _Controller()
+    assert recovery_actions.copy_diagnostics(controller) == "EXTENDED REPORT"
+
+
+def test_copy_diagnostics_falls_back_without_settings(monkeypatch) -> None:
     clipboard = _Clipboard()
     monkeypatch.setattr(recovery_actions.QApplication, "clipboard", lambda: clipboard)
     monkeypatch.setattr(
@@ -58,7 +72,11 @@ def test_diagnostics_copy_gives_non_blocking_feedback(monkeypatch) -> None:
     assert app is not None
     settings = AppSettings()
     page = DiagnosticsPage(_Controller(), settings, UpdateCheckService(settings))
-    monkeypatch.setattr(recovery_actions, "copy_diagnostics", lambda _controller: "SAFE REPORT")
+    monkeypatch.setattr(
+        recovery_actions,
+        "copy_diagnostics",
+        lambda _controller, _settings=None, **kwargs: "SAFE REPORT",
+    )
 
     page._copy()
 

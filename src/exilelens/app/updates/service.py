@@ -37,6 +37,12 @@ class UpdateAvailability:
     manifest: VerifiedUpdateManifest | None = None
 
 
+@dataclass(frozen=True)
+class NewestReleaseVerificationFailed:
+    release: Release
+    reason: str
+
+
 class UpdateService(QObject):
     """Background update checks and user-initiated secure downloads."""
 
@@ -166,17 +172,25 @@ class UpdateService(QObject):
 
         def run() -> None:
             try:
-                release = self.client.best_release_for_channel(self.channel())
-                result: Release | RuntimeError | None = release
-                if release is not None and release.manifest_asset_url:
-                    try:
-                        envelope = self.client.fetch_json(release.manifest_asset_url)
-                        manifest = verify_signed_envelope(envelope)
-                    except (ManifestError, RuntimeError) as exc:
-                        logger.warning("update_manifest_unavailable tag=%s error=%s", release.tag, exc)
-                        manifest = None
+                release = self.client.best_newest_release()
+                if release is None:
+                    result: object = None
+                else:
+                    installed = installed_version()
+                    if installed is not None and release.version <= installed:
+                        # Already on the newest listed release — no manifest fetch required.
+                        result = release
+                    elif not release.manifest_asset_url:
+                        result = NewestReleaseVerificationFailed(release, "missing_signed_manifest")
                     else:
-                        result = (release, manifest)
+                        try:
+                            envelope = self.client.fetch_json(release.manifest_asset_url)
+                            manifest = verify_signed_envelope(envelope)
+                        except (ManifestError, RuntimeError) as exc:
+                            logger.warning("update_manifest_unavailable tag=%s error=%s", release.tag, exc)
+                            result = NewestReleaseVerificationFailed(release, "manifest_verification_failed")
+                        else:
+                            result = (release, manifest)
             except Exception:
                 result = RuntimeError("request_failed")
             self._check_finished.emit(result, manual)
@@ -189,6 +203,20 @@ class UpdateService(QObject):
         self._verified_manifest = None
         if isinstance(result, RuntimeError):
             self.state_changed.emit("failed", "")
+            return
+        if isinstance(result, NewestReleaseVerificationFailed):
+            remote = str(result.release.version)
+            self.settings.update_latest_version = remote
+            self._availability = None
+            self.cancel_download()
+            self.download_state_changed.emit("")
+            save_settings(self.settings)
+            self.state_changed.emit("verification_failed", remote)
+            if manual:
+                self.action_error.emit(
+                    f"Release {remote} is available but could not be verified safely. "
+                    "ExileLens will not install an older release automatically."
+                )
             return
         manifest: VerifiedUpdateManifest | None = None
         release: Release | None
