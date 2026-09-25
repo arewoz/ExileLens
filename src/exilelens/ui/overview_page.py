@@ -14,7 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from exilelens.app.build_state import BuildState
 from exilelens.app.controller import EvaluationController
@@ -30,6 +30,7 @@ from exilelens.ui.components import (
 from exilelens.ui.health import hotkey_display
 from exilelens.ui.profile_catalog import PROFILE_CARDS
 from exilelens.ui.setup_dialog import pick_build_file
+from exilelens.ui.ui_icons import apply_button_icon
 
 _PROFILE_BY_VALUE = {card.profile.value: card for card in PROFILE_CARDS}
 
@@ -59,6 +60,7 @@ class OverviewPage(QWidget):
         layout.addWidget(self._build_section())
         layout.addWidget(self._profile_section())
         layout.addWidget(self._action_section())
+        layout.addWidget(self._support_section())
         layout.addStretch(1)
 
         controller.active_build_status_changed.connect(lambda _s: self.refresh())
@@ -134,12 +136,42 @@ class OverviewPage(QWidget):
         self._action_kind = ""
         return section
 
+    def _support_section(self) -> QWidget:
+        card = QFrame()
+        card.setObjectName("patreonSupportCard")
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(theme.SPACE_SM)
+
+        heading = QLabel("Enjoying ExileLens?")
+        heading.setObjectName("cardTitle")
+        layout.addWidget(heading)
+
+        body = QLabel("Support its continued development and help keep it free and open source.")
+        body.setObjectName("helperText")
+        body.setWordWrap(True)
+        layout.addWidget(body)
+
+        button = make_button("Support on Patreon", "secondary")
+        apply_button_icon(button, "patreon", ui_scale=float(getattr(self.settings, "ui_scale", 1.0) or 1.0))
+        button.setToolTip("Open ExileLens on Patreon")
+        button.clicked.connect(self._open_patreon)
+        layout.addLayout(button_row([button]))
+        return card
+
     # --- interactions -----------------------------------------------------------
 
     def _choose_build(self) -> None:
         path = pick_build_file(self.settings.build_path)
         if path:
             self.controller.change_build(path)
+
+    def _open_patreon(self) -> None:
+        from exilelens.ui.recovery_actions import open_patreon
+
+        open_patreon()
 
     def _set_profile(self, profile: str) -> None:
         self.controller.select_value_profile(profile)

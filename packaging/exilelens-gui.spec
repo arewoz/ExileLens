@@ -27,6 +27,7 @@ bundled_icons = [
     (str(ui_assets / "discord.svg"), "assets/ui"),
     (str(ui_assets / "github.svg"), "assets/ui"),
     (str(ui_assets / "download.svg"), "assets/ui"),
+    (str(ui_assets / "patreon.svg"), "assets/ui"),
 ]
 
 # Do not use collect_all("PySide6") — it drags in the full Qt distribution

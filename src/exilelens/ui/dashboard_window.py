@@ -143,7 +143,13 @@ class DashboardWindow(ManagedToolWindow):
         # and visually separated from page navigation -- discoverable without
         # making the sidebar read as a support portal.
         ui_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
-        for label, tooltip, handler, icon_name in (
+        for index, (label, tooltip, handler, icon_name) in enumerate((
+            (
+                "Support ExileLens",
+                "Support the continued development of free, open-source ExileLens on Patreon.",
+                self._open_patreon,
+                "patreon",
+            ),
             (
                 "Discord",
                 "Join the ExileLens Discord for questions, feedback and community help.",
@@ -156,7 +162,9 @@ class DashboardWindow(ManagedToolWindow):
                 self._open_github_issues,
                 "github",
             ),
-        ):
+        )):
+            if index == 1:
+                nav.addSpacing(theme.SPACE_SM)
             link = QPushButton(label)
             link.setObjectName("navButtonSecondary")
             link.setMinimumHeight(theme.NAV_ITEM_HEIGHT)
@@ -297,6 +305,11 @@ class DashboardWindow(ManagedToolWindow):
         from exilelens.ui.recovery_actions import open_discord_invite
 
         open_discord_invite()
+
+    def _open_patreon(self) -> None:
+        from exilelens.ui.recovery_actions import open_patreon
+
+        open_patreon()
 
     def _open_github_issues(self) -> None:
         from exilelens.ui.recovery_actions import open_github_issues

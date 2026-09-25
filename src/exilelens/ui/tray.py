@@ -198,6 +198,11 @@ class TrayManager(QSystemTrayIcon):
         apply_action_icon(discord_action, "discord", ui_scale=ui_scale)
         support_menu.addAction(discord_action)
 
+        patreon_action = QAction("Support on Patreon ↗", self)
+        patreon_action.triggered.connect(self._open_patreon)
+        apply_action_icon(patreon_action, "patreon", ui_scale=ui_scale)
+        support_menu.addAction(patreon_action)
+
         report_issue_action = QAction("Report an Issue", self)
         report_issue_action.triggered.connect(self._open_github_issues)
         apply_action_icon(report_issue_action, "github", ui_scale=ui_scale)
@@ -258,6 +263,11 @@ class TrayManager(QSystemTrayIcon):
         from exilelens.ui.recovery_actions import open_discord_invite
 
         open_discord_invite()
+
+    def _open_patreon(self) -> None:
+        from exilelens.ui.recovery_actions import open_patreon
+
+        open_patreon()
 
     def _open_github_issues(self) -> None:
         from exilelens.ui.recovery_actions import open_github_issues
