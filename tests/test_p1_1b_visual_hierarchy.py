@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.compact_tooltip import replacing_line, select_impact_rows, slot_verdict_lines
-from poe2value.items.slots import is_jewel_socket_pob_slot, jewel_socket_display_label
+from exilelens.items.compact_tooltip import replacing_line, select_impact_rows, slot_verdict_lines
+from exilelens.items.slots import is_jewel_socket_pob_slot, jewel_socket_display_label
 
 pytestmark = pytest.mark.itemcheck
 

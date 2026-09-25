@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from poe2value.ops import release_regressions
-from poe2value.ops.models import GateVerdict
-from poe2value.ops.regression import REQUIRED_P0_IDS, load_registry
-from poe2value.ops.release_gate import REQUIRED_PACKAGING, evaluate_release_gate
+from exilelens.ops import release_regressions
+from exilelens.ops.models import GateVerdict
+from exilelens.ops.regression import REQUIRED_P0_IDS, load_registry
+from exilelens.ops.release_gate import REQUIRED_PACKAGING, evaluate_release_gate
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -203,7 +203,7 @@ def test_release_workflow_executes_mandatory_regressions_before_build_and_public
     publish = workflow.index("Create published release")
     notes = workflow.index("Validate official release notes")
     assert source_gate < dependencies < regressions < build < artifact_gate < package < notes < publish
-    assert "python -m poe2value.ops.cli release-regressions" in workflow
+    assert "python -m exilelens.ops.cli release-regressions" in workflow
     assert "python -m pip install --disable-pip-version-check pytest PySide6" in workflow
     assert "--notes-file" in workflow
     assert "--generate-notes" not in workflow
@@ -216,7 +216,25 @@ def test_committed_compatibility_manifest_matches_current_source_version() -> No
 
 
 def test_official_release_notes_heading_matches_canonical_version() -> None:
-    from poe2value._version import __version__
+    from exilelens._version import __version__
 
     heading = (ROOT / "packaging" / "RELEASE_NOTES.md").read_text(encoding="utf-8").splitlines()[0].strip()
     assert heading == f"# ExileLens {__version__}"
+
+
+def test_stale_version_resource_blocks_release_gate(tmp_path: Path) -> None:
+    root = _valid_root(tmp_path)
+    version_path = root / "packaging" / "version_info.txt"
+    version_path.write_text(version_path.read_text(encoding="utf-8").replace("0.4.0b1", "9.9.9b9"), encoding="utf-8")
+
+    report = evaluate_release_gate(root=root, allow_dirty=True)
+
+    assert report.verdict is GateVerdict.BLOCKED
+    assert _result(report, "version_coherence").status is GateVerdict.BLOCKED
+
+
+def test_packaging_version_info_matches_generator() -> None:
+    from exilelens.ops.packaging_version import render_version_info
+
+    on_disk = (ROOT / "packaging" / "version_info.txt").read_text(encoding="utf-8")
+    assert on_disk == render_version_info()

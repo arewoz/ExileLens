@@ -18,7 +18,7 @@ if sys.platform != "win32":
 
 import pytest
 
-from poe2value.app.settings import AppSettings
+from exilelens.app.settings import AppSettings
 
 pytestmark = pytest.mark.itemcheck
 
@@ -44,10 +44,10 @@ Item Level: 80
 def test_hotkey_shift_c_after_focus_recovers_missed_keyup(monkeypatch: pytest.MonkeyPatch) -> None:
     """A focus-loss missed KEYUP resets the real hook state and permits one new capture."""
     _app()
-    import poe2value.app.price_check_hotkey as hotkey_module
-    from poe2value.app.price_check_hotkey import PriceCheckHotkeyController
-    from poe2value.platform.windows.hotkey_binding import HotkeyBinding
-    from poe2value.platform.windows.low_level_keyboard import LowLevelKeyboardHook
+    import exilelens.app.price_check_hotkey as hotkey_module
+    from exilelens.app.price_check_hotkey import PriceCheckHotkeyController
+    from exilelens.platform.windows.hotkey_binding import HotkeyBinding
+    from exilelens.platform.windows.low_level_keyboard import LowLevelKeyboardHook
 
     foreground = {"poe": True}
     monkeypatch.setattr(hotkey_module, "is_poe_foreground", lambda: foreground["poe"])
@@ -98,8 +98,8 @@ def test_hotkey_shift_c_after_focus_recovers_missed_keyup(monkeypatch: pytest.Mo
 def test_item_capture_fail_rejects_empty_and_routes_real_watcher_event(monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty owned Shift+C read fails visibly; watcher events still carry usable items."""
     _app()
-    from poe2value.app.price_check_capture import PriceCheckCaptureCoordinator
-    from poe2value.platform.windows.clipboard import ClipboardWatcher
+    from exilelens.app.price_check_capture import PriceCheckCaptureCoordinator
+    from exilelens.platform.windows.clipboard import ClipboardWatcher
 
     coordinator = PriceCheckCaptureCoordinator(
         send_copy=lambda: True,
@@ -145,7 +145,7 @@ def test_overlay_missing_item_check_first_paint_is_visible_and_onscreen() -> Non
     """Accepted Item Check first-paint reaches a visible, screen-clamped Qt overlay."""
     _app()
     from PySide6.QtGui import QGuiApplication
-    from poe2value.ui.overlay import OverlayWindow
+    from exilelens.ui.overlay import OverlayWindow
 
     overlay = OverlayWindow(AppSettings())
     overlay.set_anchor_cursor(11, (40, 40), physical_anchor=(40, 40))
@@ -173,12 +173,12 @@ def test_overlay_unrecoverable_native_production_wiring(
     assert app.platformName().lower() == "windows"
     app.setQuitOnLastWindowClosed(False)
 
-    from poe2value.app.main import Poe2ValueApp
-    from poe2value.app.settings import settings_path
-    from poe2value.platform.windows.mouse_hook import WM_LBUTTONDOWN
-    from poe2value.ui.pinned_item_overlay import PinnedItemOverlay
+    from exilelens.app.main import ExileLensApp
+    from exilelens.app.settings import settings_path
+    from exilelens.platform.windows.mouse_hook import WM_LBUTTONDOWN
+    from exilelens.ui.pinned_item_overlay import PinnedItemOverlay
 
-    runtime = Poe2ValueApp()
+    runtime = ExileLensApp()
     runtime.settings.context = "BOSS"
     quit_requested: list[bool] = []
     runtime._compose_primary_ui(quit_callback=lambda: quit_requested.append(True))

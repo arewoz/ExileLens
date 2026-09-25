@@ -1,0 +1,76 @@
+name: Validate update signing (no publish)
+
+on:
+  workflow_dispatch:
+    inputs:
+      use_production_secret:
+        description: "When true, require EXILELENS_UPDATE_SIGNING_KEY_B64 from the protected environment"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-signing:
+    runs-on: windows-latest
+    environment: production-release
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Install signing dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check "cryptography==44.0.2"
+
+      - name: Materialize signing key from secret
+        shell: pwsh
+        env:
+          EXILELENS_UPDATE_SIGNING_KEY_B64: ${{ secrets.EXILELENS_UPDATE_SIGNING_KEY_B64 }}
+          USE_PROD: ${{ inputs.use_production_secret }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:USE_PROD -eq 'true' -and [string]::IsNullOrWhiteSpace($env:EXILELENS_UPDATE_SIGNING_KEY_B64)) {
+            throw 'use_production_secret=true but EXILELENS_UPDATE_SIGNING_KEY_B64 is not configured on production-release.'
+          }
+          & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\materialize_update_signing_key.ps1
+          if ([string]::IsNullOrWhiteSpace($env:EXILELENS_UPDATE_SIGNING_KEY_PATH)) {
+            $env:EXILELENS_UPDATE_SIGNING_KEY_PATH = Join-Path $env:GITHUB_WORKSPACE 'fixtures/update_signing/test_signing_key.pem'
+            Write-Host 'Using test signing key for validation (production secret not materialized).'
+          }
+
+      - name: Sign and verify sample update manifest
+        shell: pwsh
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $unsigned = @{
+            schema = 1
+            channel = 'beta'
+            version = '0.0.0-signing-check'
+            tag = 'v0.0.0-signing-check'
+            signing_key_id = 'exilelens-test-1'
+            artifact = @{
+              filename = 'ExileLens-v0.0.0-signing-check-win64.zip'
+              size = 4
+              sha256 = ('0' * 64)
+              url = 'https://example.invalid/release.zip'
+            }
+          }
+          if ($env:EXILELENS_UPDATE_SIGNING_KEY_PATH -notmatch 'test_signing_key') {
+            $unsigned.signing_key_id = 'exilelens-prod-1'
+          }
+          $manifestPath = Join-Path $env:RUNNER_TEMP 'unsigned-manifest.json'
+          $signedPath = Join-Path $env:RUNNER_TEMP 'signed-manifest.json'
+          $unsigned | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+          python .\scripts\sign_update_manifest.py --manifest $manifestPath --private-key $env:EXILELENS_UPDATE_SIGNING_KEY_PATH --output $signedPath
+          if ($LASTEXITCODE -ne 0) { throw 'sign_update_manifest.py failed.' }
+          python .\scripts\verify_signed_update_manifest.py $signedPath
+          if ($LASTEXITCODE -ne 0) { throw 'Manifest verification failed.' }

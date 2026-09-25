@@ -32,7 +32,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 
-from poe2value.items.more_info import build_more_info
+from exilelens.items.more_info import build_more_info
 
 pytestmark = pytest.mark.itemcheck
 
@@ -109,7 +109,7 @@ def test_content_starts_at_top_after_switching_from_dense_to_sparse() -> None:
     """The reported bug: Dragon Brow (dense, Advanced expanded) followed by
     Bushwhack (sparse) must not leave blank space above the first section."""
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     drawer = DetailAnalysisDrawer()
     drawer.set_target_width(350)
@@ -135,7 +135,7 @@ def test_repeated_dense_sparse_cycling_never_accumulates_orphaned_spacers() -> N
     drawer instance) -- stress-cycle several results and confirm the layout
     item count stays bounded rather than growing without limit."""
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     drawer = DetailAnalysisDrawer()
     drawer.set_target_width(350)
@@ -166,7 +166,7 @@ def test_clear_body_removes_every_gap_spacer_it_added() -> None:
     the tracked widget list _clear_body() cleans up -- no bare QSpacerItem
     left for the layout to keep forever."""
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     drawer = DetailAnalysisDrawer()
     dense_block, dense_model = _block(dense=True, item_name="Dragon Brow")
@@ -181,7 +181,7 @@ def test_jewel_multi_slot_result_also_starts_at_top() -> None:
     """Manual-review companion case: a 2-socket Jewel comparison after a
     dense normal result must not inherit any leftover spacer offset either."""
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     drawer = DetailAnalysisDrawer()
     drawer.set_target_width(350)

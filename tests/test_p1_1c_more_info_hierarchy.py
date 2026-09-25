@@ -18,7 +18,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 
-from poe2value.items.more_info import (
+from exilelens.items.more_info import (
     ADVANCED_SECTION_IDS,
     MORE_INFO_SECTION_ORDER,
     _resist_summary,
@@ -205,7 +205,7 @@ def _helmet_downgrade_block():
 
 def test_advanced_disclosure_collapsed_by_default_and_toggles() -> None:
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     block, model = _helmet_downgrade_block()
     drawer = DetailAnalysisDrawer()
@@ -226,7 +226,7 @@ def test_advanced_disclosure_collapsed_by_default_and_toggles() -> None:
 
 def test_advanced_disclosure_resets_collapsed_for_a_new_result() -> None:
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     block, model = _helmet_downgrade_block()
     drawer = DetailAnalysisDrawer()
@@ -241,7 +241,7 @@ def test_advanced_disclosure_resets_collapsed_for_a_new_result() -> None:
 
 def test_normal_more_info_never_shows_raw_engine_state_names() -> None:
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     block, model = _helmet_downgrade_block()
     drawer = DetailAnalysisDrawer()
@@ -257,7 +257,7 @@ def test_normal_more_info_never_shows_raw_engine_state_names() -> None:
 
 def test_jewel_ring_selector_best_socket_identifiable_no_raw_ids_advanced_state_persists() -> None:
     _make_app()
-    from poe2value.ui.overlay_detail_drawer import DetailAnalysisDrawer
+    from exilelens.ui.overlay_detail_drawer import DetailAnalysisDrawer
 
     def outcome_for(node_id: int, score: float) -> dict[str, object]:
         return {

@@ -6,18 +6,18 @@ import io
 import sys
 from pathlib import Path
 
-from poe2value.config import PobConfig
-from poe2value.engine import SubprocessWorkerClient
-from poe2value import worker
+from exilelens.config import PobConfig
+from exilelens.engine import SubprocessWorkerClient
+from exilelens import worker
 
 
 def test_worker_command_forces_utf8_mode(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("poe2value.engine.is_frozen", lambda: False)
-    monkeypatch.setattr("poe2value.engine.repo_root", lambda: tmp_path)
+    monkeypatch.setattr("exilelens.engine.is_frozen", lambda: False)
+    monkeypatch.setattr("exilelens.engine.repo_root", lambda: tmp_path)
 
     command, env = SubprocessWorkerClient(PobConfig(pob_path=tmp_path))._command()
 
-    assert command == [sys.executable, "-X", "utf8", "-m", "poe2value.worker"]
+    assert command == [sys.executable, "-X", "utf8", "-m", "exilelens.worker"]
     assert env["PYTHONUTF8"] == "1"
     assert env["PYTHONPATH"] == str(tmp_path / "src")
 

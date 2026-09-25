@@ -6,18 +6,18 @@ import pathlib
 
 import pytest
 
-from poe2value.errors import RestoreFailed
-from poe2value.items.contextual_evidence import (
+from exilelens.errors import RestoreFailed
+from exilelens.items.contextual_evidence import (
     EvidenceObservation,
     ProvenanceUnestablished,
     collect_candidate_evidence,
 )
-from poe2value.items.contextual_proof import (
+from exilelens.items.contextual_proof import (
     ContextualRelationship,
     classify_relationship,
     collect_measurements,
 )
-from poe2value.items.evaluation_identity import candidate_fingerprint
+from exilelens.items.evaluation_identity import candidate_fingerprint
 
 pytestmark = pytest.mark.itemcheck
 
@@ -135,7 +135,7 @@ def test_one_candidate_two_observations_with_matching_provenance() -> None:
 
 
 def test_cross_bundle_provenance_mismatch_is_not_comparable() -> None:
-    from poe2value.items.contextual_proof import ContextualMeasurement
+    from exilelens.items.contextual_proof import ContextualMeasurement
 
     first = collect_candidate_evidence(
         FakeEngine(DOUBLE),
@@ -181,7 +181,7 @@ def test_cross_bundle_provenance_mismatch_is_not_comparable() -> None:
 
 
 def test_bundle_revision_mismatch_is_not_comparable() -> None:
-    from poe2value.items.contextual_proof import ContextualMeasurement
+    from exilelens.items.contextual_proof import ContextualMeasurement
 
     def _measured() -> dict:
         return {
@@ -369,7 +369,7 @@ def test_evidence_never_sums_and_carries_no_verdict() -> None:
 
 
 def _module_source(name: str) -> str:
-    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "poe2value"
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "exilelens"
     return (root / name).read_text(encoding="utf-8")
 
 

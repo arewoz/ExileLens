@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from poe2value.app import settings as settings_module
+from exilelens.app import settings as settings_module
 
 
 pytestmark = pytest.mark.itemcheck

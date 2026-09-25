@@ -58,9 +58,12 @@ PYTHON_VERSION_FILE = REPO_ROOT / ".python-version"
 # packaging/requirements-release.txt first (see steps above).
 RESOLVED: dict[str, str] = {
     "altgraph": "0.17.5",
+    "cffi": "2.1.1",
+    "cryptography": "44.0.2",
     "packaging": "26.3",
     "pefile": "2024.8.26",
     "pillow": "12.3.0",
+    "pycparser": "3.0",
     "pyinstaller": "6.22.2",
     "pyinstaller-hooks-contrib": "2026.7",
     "pyside6": "6.11.2",

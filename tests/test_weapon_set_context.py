@@ -6,16 +6,16 @@ import pathlib
 
 import pytest
 
-from poe2value.items import contextual_evaluation as contextual
-from poe2value.items.effect_components import (
+from exilelens.items import contextual_evaluation as contextual
+from exilelens.items.effect_components import (
     MAX_EFFECTS,
     CalculationContext,
     ComponentReference,
     ContextualComponentReference,
     normalize_context_catalog,
 )
-from poe2value.items.evaluation_identity import identity_from_state
-from poe2value.items.slots import (
+from exilelens.items.evaluation_identity import identity_from_state
+from exilelens.items.slots import (
     PHYSICAL_WEAPON_SLOTS,
     ProductSlot,
     opposite_physical_slot,
@@ -99,7 +99,7 @@ def test_physical_targets_reject_non_weapon_slots_and_bad_sets() -> None:
 
 
 def test_offhand_2_is_not_a_contextual_target() -> None:
-    from poe2value.items import slots as slot_module
+    from exilelens.items import slots as slot_module
 
     mapping = slot_module._PHYSICAL_WEAPON_TARGET
     assert not any(logical == ProductSlot.OFFHAND_2.value for logical, _ in mapping)
@@ -145,7 +145,7 @@ def test_context_catalog_is_bounded_with_truncation_metadata() -> None:
 
 
 def test_ordinary_evaluation_path_does_not_import_contextual_flow() -> None:
-    import poe2value.items.evaluation as evaluation_module
+    import exilelens.items.evaluation as evaluation_module
 
     source = pathlib.Path(evaluation_module.__file__).read_text(encoding="utf-8")
     assert "contextual_evaluation" not in source

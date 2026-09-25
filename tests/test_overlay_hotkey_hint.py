@@ -16,7 +16,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 
-from poe2value.ui.overlay_presentation import ItemOverlayPanel
+from exilelens.ui.overlay_presentation import ItemOverlayPanel
 
 pytestmark = pytest.mark.itemcheck
 
@@ -54,6 +54,6 @@ def test_hint_empty_text_falls_back_to_default() -> None:
 def test_hotkey_display_formats_default_chord() -> None:
     from types import SimpleNamespace
 
-    from poe2value.ui.health import hotkey_display
+    from exilelens.ui.health import hotkey_display
 
     assert hotkey_display(SimpleNamespace(price_check_hotkey="shift+c")) == "Shift + C"

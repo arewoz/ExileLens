@@ -7,10 +7,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from poe2value.app.diagnostics import build_global_diagnostics
-from poe2value.app.setup_status import SetupCheck
-from poe2value.config import detect_pob_identity
-from poe2value.ui.health import derive_health, header_status
+from exilelens.app.diagnostics import build_global_diagnostics
+from exilelens.app.setup_status import SetupCheck
+from exilelens.config import detect_pob_identity
+from exilelens.ui.health import derive_health, header_status
 
 
 _POE2_SOURCE = "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/"
@@ -81,7 +81,7 @@ def test_manifest_without_provenance_is_unverified(tmp_path: Path) -> None:
 def test_health_header_and_diagnostics_show_actual_version_without_paths(monkeypatch, tmp_path: Path) -> None:
     _manifest(tmp_path, "0.23.1")
     controller = _Controller(tmp_path)
-    monkeypatch.setattr("poe2value.app.setup_status.check_pob_folder", lambda _path: SetupCheck(True, "FOUND"))
+    monkeypatch.setattr("exilelens.app.setup_status.check_pob_folder", lambda _path: SetupCheck(True, "FOUND"))
     health = derive_health(controller, controller.settings)
     assert health.pob.value == "Connected · v0.23.1"
     assert header_status(health) == ("PoB connected · v0.23.1", "ok")
@@ -97,7 +97,7 @@ def test_untrusted_manifest_is_hidden_from_health_and_labeled_in_diagnostics(
 ) -> None:
     _manifest(tmp_path, "2.47.3", _POB1_SOURCE)
     controller = _Controller(tmp_path)
-    monkeypatch.setattr("poe2value.app.setup_status.check_pob_folder", lambda _path: SetupCheck(True, "FOUND"))
+    monkeypatch.setattr("exilelens.app.setup_status.check_pob_folder", lambda _path: SetupCheck(True, "FOUND"))
     health = derive_health(controller, controller.settings)
     assert health.pob.value == "Connected"
     assert header_status(health) == ("PoB connected", "ok")
@@ -111,7 +111,7 @@ def test_untrusted_manifest_is_hidden_from_health_and_labeled_in_diagnostics(
 
 def test_unknown_version_preserves_connected_wording(monkeypatch, tmp_path: Path) -> None:
     controller = _Controller(tmp_path)
-    monkeypatch.setattr("poe2value.app.setup_status.check_pob_folder", lambda _path: SetupCheck(True, "FOUND"))
+    monkeypatch.setattr("exilelens.app.setup_status.check_pob_folder", lambda _path: SetupCheck(True, "FOUND"))
     health = derive_health(controller, controller.settings)
     assert health.pob.value == "Connected"
     assert header_status(health) == ("PoB connected", "ok")
@@ -127,7 +127,7 @@ def test_manifest_cache_refreshes_when_metadata_changes(tmp_path: Path) -> None:
 
 def test_clean_pob1_folder_remains_rejected(tmp_path: Path) -> None:
     (tmp_path / "Launch.lua").write_text("", encoding="utf-8")
-    from poe2value.app.setup_status import check_pob_folder
+    from exilelens.app.setup_status import check_pob_folder
 
     check = check_pob_folder(str(tmp_path))
     assert not check.ok

@@ -23,18 +23,18 @@ from __future__ import annotations
 
 import pytest
 
-from poe2value.items.evaluation_outcome import (
+from exilelens.items.evaluation_outcome import (
     SCORED_RAW_FIELDS,
     EvaluationQuality,
     PublicVerdict,
     assess_quality,
 )
-from poe2value.items.native_metric_discovery import (
+from exilelens.items.native_metric_discovery import (
     _is_significant_offense_value,
     promote_unresolved_primary_with_component,
 )
-from poe2value.items.ranking import enrich_slot_comparison
-from poe2value.items.slots import pob_slot_to_product
+from exilelens.items.ranking import enrich_slot_comparison
+from exilelens.items.slots import pob_slot_to_product
 
 pytestmark = pytest.mark.itemcheck
 
