@@ -200,6 +200,7 @@ class TrayManager(QSystemTrayIcon):
 
         patreon_action = QAction("Support on Patreon ↗", self)
         patreon_action.triggered.connect(self._open_patreon)
+        apply_action_icon(patreon_action, "patreon", ui_scale=ui_scale)
         support_menu.addAction(patreon_action)
 
         report_issue_action = QAction("Report an Issue", self)

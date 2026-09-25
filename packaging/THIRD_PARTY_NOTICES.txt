@@ -77,6 +77,9 @@ UI brand icons (dashboard and tray)
   Discord and GitHub marks adapted from Simple Icons
     https://github.com/simple-icons/simple-icons
     License: CC0 1.0 Universal (public domain dedication)
+  Patreon mark adapted from Simple Icons
+    https://github.com/simple-icons/simple-icons
+    License: CC0 1.0 Universal (public domain dedication)
   Download arrow adapted from Heroicons
     https://heroicons.com
     License: MIT

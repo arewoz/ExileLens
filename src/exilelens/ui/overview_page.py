@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from exilelens.app.build_state import BuildState
 from exilelens.app.controller import EvaluationController
@@ -30,6 +30,7 @@ from exilelens.ui.components import (
 from exilelens.ui.health import hotkey_display
 from exilelens.ui.profile_catalog import PROFILE_CARDS
 from exilelens.ui.setup_dialog import pick_build_file
+from exilelens.ui.ui_icons import apply_button_icon, load_icon
 
 _PROFILE_BY_VALUE = {card.profile.value: card for card in PROFILE_CARDS}
 
@@ -136,18 +137,48 @@ class OverviewPage(QWidget):
         return section
 
     def _support_section(self) -> QWidget:
-        section = Section("Support ExileLens")
+        card = QFrame()
+        card.setObjectName("patreonSupportCard")
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(theme.SPACE_SM)
+
+        heading_row = QHBoxLayout()
+        heading_row.setContentsMargins(0, 0, 0, 0)
+        heading_row.setSpacing(theme.SPACE_SM)
+        icon = load_icon("patreon")
+        if icon is not None:
+            icon_label = QLabel()
+            icon_label.setObjectName("patreonCardIcon")
+            icon_label.setPixmap(icon.pixmap(QSize(28, 28)))
+            icon_label.setFixedSize(28, 28)
+            heading_row.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignTop)
+        heading = QLabel("SUPPORT EXILELENS")
+        heading.setObjectName("patreonCardTitle")
+        heading_row.addWidget(heading, 1, Qt.AlignmentFlag.AlignVCenter)
+        layout.addLayout(heading_row)
+
+        subheading = QLabel("Help make ExileLens even better.")
+        subheading.setObjectName("patreonCardSubheading")
+        layout.addWidget(subheading)
+
         body = QLabel(
-            "ExileLens is free and open source. If you enjoy using it, "
-            "consider supporting its continued development."
+            "ExileLens is free and open source. Your support helps me improve item "
+            "evaluation, expand build compatibility, and develop new features for "
+            "the PoE2 community."
         )
-        body.setObjectName("helperText")
+        body.setObjectName("patreonCardBody")
         body.setWordWrap(True)
-        button = make_button("Support on Patreon ↗", "tertiary")
+        layout.addWidget(body)
+
+        button = make_button("Support on Patreon", "primary")
+        apply_button_icon(button, "patreon", ui_scale=float(getattr(self.settings, "ui_scale", 1.0) or 1.0))
+        button.setToolTip("Open ExileLens on Patreon")
         button.clicked.connect(self._open_patreon)
-        section.add_widget(body)
-        section.add_layout(button_row([button]))
-        return section
+        layout.addLayout(button_row([button]))
+        return card
 
     # --- interactions -----------------------------------------------------------
 

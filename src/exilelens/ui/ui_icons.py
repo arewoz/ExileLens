@@ -16,6 +16,7 @@ _ICON_FILES = {
     "discord": "discord.svg",
     "github": "github.svg",
     "download": "download.svg",
+    "patreon": "patreon.svg",
 }
 
 

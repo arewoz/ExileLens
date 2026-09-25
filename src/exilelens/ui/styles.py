@@ -680,6 +680,29 @@ QPushButton#btnDestructive {{
 QPushButton#btnDestructive:hover:enabled {{ background: rgba(211,122,122,26); }}
 QPushButton#btnDestructive:focus {{ border: 1px solid {DASHBOARD_ERROR_FG}; }}
 
+/* --- Patreon support card ----------------------------------------------- */
+QFrame#patreonSupportCard {{
+    background: rgba(255,255,255,10);
+    border: 1px solid rgba(255,66,77,78);
+    border-left: 3px solid #ff424d;
+    border-radius: 8px;
+}}
+QLabel#patreonCardTitle {{
+    color: {DASHBOARD_TEXT_EMPHASIS};
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}}
+QLabel#patreonCardSubheading {{
+    color: #f0d6d3;
+    font-size: 14px;
+    font-weight: 600;
+}}
+QLabel#patreonCardBody {{
+    color: {DASHBOARD_MUTED_FG};
+    font-size: 12px;
+}}
+
 /* --- segmented control --------------------------------------------------- */
 QWidget#segmentGroup {{
     /* Stronger than the generic surface token on purpose: at 6/255 alpha the
@@ -835,6 +858,25 @@ QPushButton#navButtonSecondary:checked {
 QPushButton#navButtonSecondary:focus {
     background: rgba(255,255,255,10);
     color: #e3e1dc;
+}
+QPushButton#navButtonPatreon {
+    text-align: left;
+    padding: 7px 14px;
+    border: none;
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: #f0b0ad;
+    font-size: 12px;
+    font-weight: 700;
+}
+QPushButton#navButtonPatreon:hover {
+    background: rgba(255,66,77,18);
+    color: #ffd9d6;
+}
+QPushButton#navButtonPatreon:focus {
+    background: rgba(255,66,77,18);
+    color: #ffd9d6;
+    border-left: 3px solid #ff424d;
 }
 QLabel#pageTitle {
     font-size: 18px;
