@@ -70,7 +70,7 @@ def test_overview_and_tray_expose_same_patreon_action(monkeypatch: pytest.Monkey
         overview = dashboard._overview
         support_card = overview.findChild(QFrame, "patreonSupportCard")
         assert support_card is not None
-        assert "SUPPORT EXILELENS" in [label.text() for label in support_card.findChildren(QLabel)]
+        assert "Enjoying ExileLens?" in [label.text() for label in support_card.findChildren(QLabel)]
         dashboard_button = next(
             button
             for button in overview.findChildren(QPushButton)
@@ -111,9 +111,12 @@ def test_patreon_icon_uses_existing_asset_loader_and_sidebar_slot(monkeypatch: p
     controller = EvaluationController(settings)
     dashboard = DashboardWindow(settings, controller)
     try:
-        sidebar_button = dashboard.findChild(QPushButton, "navButtonPatreon")
-        assert sidebar_button is not None
+        sidebar_button = next(
+            button for button in dashboard.findChildren(QPushButton)
+            if button.text() == "Support ExileLens"
+        )
         assert sidebar_button.text() == "Support ExileLens"
+        assert sidebar_button.objectName() == "navButtonSecondary"
         assert not sidebar_button.icon().isNull()
 
         labels = [button.text() for button in dashboard.findChildren(QPushButton)]

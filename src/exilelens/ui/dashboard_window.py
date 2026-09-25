@@ -166,7 +166,7 @@ class DashboardWindow(ManagedToolWindow):
             if index == 1:
                 nav.addSpacing(theme.SPACE_SM)
             link = QPushButton(label)
-            link.setObjectName("navButtonPatreon" if icon_name == "patreon" else "navButtonSecondary")
+            link.setObjectName("navButtonSecondary")
             link.setMinimumHeight(theme.NAV_ITEM_HEIGHT)
             link.setCursor(Qt.CursorShape.PointingHandCursor)
             link.setToolTip(tooltip)
