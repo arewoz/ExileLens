@@ -80,6 +80,38 @@
         {
           "path": "tests/test_pob_import_load_reliability.py",
           "nodeid": "tests/test_pob_import_load_reliability.py::test_ensure_source_ready_skips_reload_until_save"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_changed_build_defers_reload_and_resumes_with_current_generation_and_identity"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_failed_reload_restores_last_good_but_rejects_triggering_item_check"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_stable_read_failure_keeps_active_baseline_and_cannot_submit_stale_evaluation"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_partial_xml_is_rejected_then_next_valid_save_recovers_consistently"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_missing_build_file_rejects_item_check_without_evaluating_stale_baseline"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_repeated_item_checks_while_build_missing_never_submit_evaluation"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_missing_build_file_restored_source_recovers_item_check"
+        },
+        {
+          "path": "tests/test_stale_build_reload_controller.py",
+          "nodeid": "tests/test_stale_build_reload_controller.py::test_failed_reload_real_capture_ready_baseline_rejects_triggering_request"
         }
       ],
       "status": "covered",

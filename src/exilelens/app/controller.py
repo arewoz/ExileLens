@@ -1805,7 +1805,14 @@ class EvaluationController(QObject):
                 return str(row.get("name") or row.get("typeLine") or row.get("base_name") or "")
         return ""
 
-    def _capture_ready_baseline(self, path: str, context: str, *, started: float) -> None:
+    def _capture_ready_baseline(
+        self,
+        path: str,
+        context: str,
+        *,
+        started: float,
+        resume_deferred: bool = True,
+    ) -> None:
         assert self._engine is not None
         self._refresh_loadout_catalog()
         self._apply_loadout_selection()
@@ -1889,7 +1896,8 @@ class EvaluationController(QObject):
         self._persist_build_settings(path, context)
         if self._baseline_wait_loop is not None:
             self._baseline_wait_loop.quit()
-        self._resume_deferred_evaluation()
+        if resume_deferred:
+            self._resume_deferred_evaluation()
 
     def _record_build_revision(self, path: str) -> None:
         source = getattr(self._engine, "loaded_source", None) if self._engine is not None else None
@@ -1906,8 +1914,14 @@ class EvaluationController(QObject):
             self._build_file_revision = revision
 
     def _disk_revision_changed(self, path: str) -> bool:
+        resolved = str(Path(path).resolve())
         current = read_build_revision(path)
         if current is None:
+            # Missing or inaccessible files must not look unchanged vs the last load.
+            if self.build_info.is_ready and self.build_info.path == resolved:
+                return True
+            if self._build_file_revision is not None and self._build_file_revision.path == resolved:
+                return True
             return False
         if self._build_file_revision is None:
             if self.build_info.is_ready:
@@ -1929,6 +1943,16 @@ class EvaluationController(QObject):
             context_identity=self._current_evaluation_identity().token,
         )
         self._submit_evaluation_request(request)
+
+    def _reject_deferred_evaluation(self, message: str) -> None:
+        """Finish a held Item Check without evaluating an older build revision."""
+        deferred = self._deferred_evaluation
+        if deferred is None:
+            return
+        self._deferred_evaluation = None
+        self._stop_item_check_watchdog(deferred.request_id)
+        self._item_check_lifecycle.mark_error(deferred.request_id, message, stage="baseline")
+        self.evaluation_error.emit(deferred.request_id, message)
 
     def reload_evaluation_build(self) -> None:
         """Manual reload of the selected evaluation build from disk."""
@@ -1988,7 +2012,7 @@ class EvaluationController(QObject):
             self._fail_baseline(message)
 
     def _keep_last_good_build(self, reason: str) -> None:
-        """A reload failed; keep evaluating against the last build that loaded, and say so."""
+        """Keep the last loaded build active, but reject the check that saw newer bytes."""
         loaded_at = (
             time.strftime("%H:%M:%S", time.localtime(self._build_loaded_at)) if self._build_loaded_at else "startup"
         )
@@ -2004,7 +2028,7 @@ class EvaluationController(QObject):
             reason,
         )
         self.state_message.emit(message)
-        self._resume_deferred_evaluation()
+        self._reject_deferred_evaluation(message)
 
     def _restore_last_good_build(self, path: str, context: str, reason: str, *, started: float) -> bool:
         """PoB rejected the new file after validation; reload the previous bytes."""
@@ -2014,7 +2038,9 @@ class EvaluationController(QObject):
         try:
             self._engine.load_build(path, context=context, source=source)
             self.build_info = BuildInfo(path=path, name=self.build_info.name, context=context, state=BuildState.RELOADING)
-            self._capture_ready_baseline(path, context, started=started)
+            # Restoring makes the previous baseline usable for later checks, but the
+            # Item Check that observed newer disk bytes must not resume against it.
+            self._capture_ready_baseline(path, context, started=started, resume_deferred=False)
         except Exception:  # noqa: BLE001 - fall through to a visible failure
             logger.exception("build_restore_failed path=%s sha=%s", path, source.short_sha)
             return False
