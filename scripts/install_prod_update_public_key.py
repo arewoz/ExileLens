@@ -33,9 +33,9 @@ def _load_public_key_b64(path: Path) -> str:
 
 def install_public_key(public_key_b64: str) -> None:
     source = TRUST_PATH.read_text(encoding="utf-8")
-    line = f'    {PROD_ID}: base64.b64decode("{public_key_b64}"),\n'
+    line = f'    PROD_SIGNING_KEY_ID: base64.b64decode("{public_key_b64}"),\n'
     pattern = re.compile(
-        rf'^[ \t]*{re.escape(PROD_ID)}:\s*base64\.b64decode\("[^"]+"\),?\s*\n',
+        r'^[ \t]*(?:PROD_SIGNING_KEY_ID|["\']exilelens-prod-1["\']):\s*base64\.b64decode\("[^"]+"\),?\s*\n',
         re.MULTILINE,
     )
     if pattern.search(source):

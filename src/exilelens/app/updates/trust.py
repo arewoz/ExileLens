@@ -10,6 +10,7 @@ PROD_SIGNING_KEY_ID = "exilelens-prod-1"
 # Production public key is added here during release provisioning (never the private key).
 EMBEDDED_VERIFY_KEYS: Mapping[str, bytes] = {
     TEST_SIGNING_KEY_ID: base64.b64decode("V6Pm+fZKJPgxpmxtwQJkGl+FWTj3BZmspsX8HwYPl0o="),
+    PROD_SIGNING_KEY_ID: base64.b64decode("H4siEurq2DU5UxQU/uoQWOeN82T3aKDQUUGUalwgwxU="),
 }
 
 

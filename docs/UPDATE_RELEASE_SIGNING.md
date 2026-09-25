@@ -44,6 +44,39 @@ Actions secrets or an offline HSM/vault.
 Until step 2 is complete, manifests signed with `exilelens-prod-1` are rejected
 at install time (`production_signing_unavailable`).
 
+### Backup and recovery (production private key)
+
+The production private key lives only under
+`%USERPROFILE%\.exilelens\signing\exilelens-prod-1\` (outside the repo). The PEM
+file is ACL-restricted to the current Windows user (read-only for that account).
+
+**Do not** store an unencrypted copy in cloud sync folders, email, chat, or the
+repository. If the private key is lost, you cannot sign updates for existing
+installs until a new key pair is generated and shipped in an app release that
+embeds the new public key (see key rotation below).
+
+**Recommended backup**
+
+1. Copy `exilelens-prod-1-private.pem` and `exilelens-prod-1-public.b64` to an
+   offline encrypted medium (password manager secure note, hardware-backed vault,
+   or encrypted removable drive).
+2. Store the GitHub Actions payload separately: the single-line contents of
+   `exilelens-prod-1-github-secret.b64.txt` as secret
+   `EXILELENS_UPDATE_SIGNING_KEY_B64` on the `production-release` environment
+   (re-upload from the backup file if GitHub secrets are reset).
+3. After rotation, retain the **previous** private key in the vault until no
+   supported release trusts the old public key.
+
+**Recovery**
+
+- **GitHub secret missing:** Re-set `EXILELENS_UPDATE_SIGNING_KEY_B64` from the
+  saved `exilelens-prod-1-github-secret.b64.txt` (never commit or log the value).
+- **Local PEM missing:** Restore from encrypted backup; verify with
+  `sign_update_manifest.py` + `verify_signed_update_manifest.py` using the
+  restored PEM and the embedded public key in `trust.py`.
+- **Compromise:** Generate `exilelens-prod-2`, embed both public keys in a
+  release, migrate CI secret, then retire `exilelens-prod-1`.
+
 ### Rotate keys
 
 1. Generate a new key ID (for example `exilelens-prod-2`).
