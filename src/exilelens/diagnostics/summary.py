@@ -57,8 +57,10 @@ def _worker_state(controller: Any) -> dict[str, Any]:
 
 def _update_state(settings: Any, update_service: Any | None) -> dict[str, Any]:
     last_check = float(getattr(settings, "update_last_check_at", 0.0) or 0.0)
+    legacy_channel = str(getattr(settings, "update_channel", "") or "").strip()
     return {
-        "channel": sanitize_text(str(getattr(settings, "update_channel", "beta") or "beta")),
+        "selection_policy": "newest_verified_official_release",
+        "legacy_update_channel_setting": sanitize_text(legacy_channel) if legacy_channel else None,
         "last_check_epoch": last_check if last_check > 0 else None,
         "last_check_age_seconds": int(time.time() - last_check) if last_check > 0 else None,
         "latest_known_version": sanitize_text(str(getattr(settings, "update_latest_version", "") or "")),
@@ -128,7 +130,7 @@ def build_extended_summary(
         "verbose_mode_active": verbose_mode_active(settings),
         "application": {
             "version": identity.version,
-            "release_channel": sanitize_text(str(getattr(settings, "update_channel", "beta") or "beta")),
+            "update_selection_policy": "newest_verified_official_release",
             "git_commit": identity.git_commit,
             "execution_mode": identity.execution_mode,
             "build_mode": identity.build_mode,

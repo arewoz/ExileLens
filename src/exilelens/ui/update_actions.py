@@ -55,4 +55,6 @@ def footer_update_summary(check_state: str, download_state: str, version: str, p
         return "Checking for updates…"
     if check_state == "failed":
         return "Update check failed"
+    if check_state == "verification_failed":
+        return "Latest release could not be verified"
     return ""

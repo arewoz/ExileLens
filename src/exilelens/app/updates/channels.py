@@ -21,3 +21,10 @@ def release_matches_channel(release: Release, channel: UpdateChannel) -> bool:
     if channel is UpdateChannel.BETA:
         return True
     return release.version.final and not release.prerelease
+
+
+def select_newest_official_release(releases: list[Release]) -> Release | None:
+    """Pick the highest ExileLens version, independent of GitHub list order."""
+    if not releases:
+        return None
+    return max(releases, key=lambda row: row.version)

@@ -74,11 +74,18 @@ class HotkeyCaptureDialog(QDialog):
 
 
 class SettingsPage(QWidget):
-    def __init__(self, settings: AppSettings, controller: EvaluationController, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        settings: AppSettings,
+        controller: EvaluationController,
+        update_service=None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("settingsPage")
         self.settings = settings
         self.controller = controller
+        self.update_service = update_service
 
         from exilelens.ui import theme
         from exilelens.ui.components import Section
@@ -101,6 +108,7 @@ class SettingsPage(QWidget):
             self._build_evaluation_section(),
             self._build_overlay_section(),
             self._build_hotkey_section(),
+            self._build_updates_section(),
             self._build_advanced_section(),
             self._build_reset_section(),
         ):
@@ -324,6 +332,21 @@ class SettingsPage(QWidget):
         section.add_widget(self._hotkey_elevation_status)
         return section
 
+    def _build_updates_section(self):
+        from exilelens.ui.components import Section
+
+        section = Section("Updates")
+        if self.update_service is None:
+            note = QLabel("Update checks are unavailable in this view.")
+            note.setObjectName("helperText")
+            section.add_widget(note)
+            return section
+        from exilelens.ui.updates_panel import UpdatesPanel
+
+        self._updates_panel = UpdatesPanel(self.settings, self.update_service)
+        section.add_widget(self._updates_panel)
+        return section
+
     def _build_advanced_section(self):
         from exilelens.ui.components import Disclosure, Section, SettingRow, button_row, make_button
 
@@ -358,14 +381,10 @@ class SettingsPage(QWidget):
         self._advanced.add_widget(SettingRow("Dedup window (seconds)", self._dedup))
         self._advanced.add_widget(SettingRow("Live market", self._live_market_label))
 
-        copy_btn = make_button("Copy diagnostic report", "secondary")
-        self._settings_copy_btn = copy_btn
-        copy_btn.clicked.connect(self._copy_diagnostics)
-        logs_btn = make_button("Open logs", "secondary")
-        logs_btn.clicked.connect(self._open_logs)
         reload_btn = make_button("Reload build", "secondary")
+        reload_btn.setToolTip("Reload the active build from disk without restarting ExileLens.")
         reload_btn.clicked.connect(self._reload_build)
-        self._advanced.add_layout(button_row([copy_btn, logs_btn, reload_btn]))
+        self._advanced.add_layout(button_row([reload_btn]))
 
         section.add_widget(self._advanced)
         return section
@@ -517,18 +536,6 @@ class SettingsPage(QWidget):
     def _reload_build(self) -> None:
         self.controller.reload_evaluation_build()
         self.refresh_setup_status()
-
-    def _copy_diagnostics(self) -> None:
-        from exilelens.ui.recovery_actions import copy_diagnostics
-
-        copy_diagnostics(self.controller)
-        self._settings_copy_btn.setText("Diagnostics copied")
-        QTimer.singleShot(2500, lambda: self._settings_copy_btn.setText("Copy diagnostic report"))
-
-    def _open_logs(self) -> None:
-        from exilelens.ui.recovery_actions import open_logs_folder
-
-        open_logs_folder()
 
     def _reset_configuration(self) -> None:
         answer = QMessageBox.question(
@@ -699,7 +706,7 @@ class SettingsPage(QWidget):
 
 
 class DiagnosticsPage(QWidget):
-    """Health summary plus the same safe report used by Copy diagnostics."""
+    """Player-facing health summary and support actions."""
 
     #: Health rows, in the order they are shown.
     HEALTH_KEYS = ("app", "pob", "build", "hotkey", "market")
@@ -713,11 +720,20 @@ class DiagnosticsPage(QWidget):
 
         from exilelens.ui import theme
         from exilelens.ui.components import Disclosure, HealthRow, Section, button_row, make_button
+        from exilelens.ui.ui_icons import apply_button_icon
+
+        ui_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
 
         title = QLabel("Diagnostics")
         title.setObjectName("pageTitle")
 
-        health = Section("Health")
+        health = Section("Application health")
+        health_intro = QLabel(
+            "A quick view of whether ExileLens is ready to use. Details appear when something needs attention."
+        )
+        health_intro.setObjectName("helperText")
+        health_intro.setWordWrap(True)
+        health.add_widget(health_intro)
         self._health_rows: dict[str, HealthRow] = {}
         for key, label in (
             ("app", "ExileLens"),
@@ -729,113 +745,74 @@ class DiagnosticsPage(QWidget):
             row = HealthRow(label)
             self._health_rows[key] = row
             health.add_widget(row)
-
-        # Copy diagnostic report is the primary action here: it is the support
-        # channel. Everything else is secondary.
-        self._copy_btn = make_button("Copy diagnostic report", "primary")
-        self._copy_btn.setToolTip("Copies safe technical diagnostics to paste into a GitHub issue.")
-        self._copy_btn.clicked.connect(self._copy)
-        self._logs_btn = make_button("Open logs", "secondary")
-        self._logs_btn.clicked.connect(self._open_logs)
-        self._reload_btn = make_button("Reload build", "secondary")
-        self._reload_btn.clicked.connect(self._reload_build)
-        self._report_issue_btn = make_button("Report an issue", "tertiary")
-        self._report_issue_btn.setToolTip("Opens the ExileLens issue tracker on GitHub in your browser.")
-        self._report_issue_btn.clicked.connect(self._open_github_issues)
-        from exilelens.ui.ui_icons import apply_button_icon
-
-        ui_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
-        apply_button_icon(self._report_issue_btn, "github", ui_scale=ui_scale)
-        health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn, self._report_issue_btn]))
-        copy_report_hint = QLabel(
-            "Copy diagnostic report, then Report an issue and paste it into the GitHub issue."
-        )
-        copy_report_hint.setObjectName("helperText")
-        copy_report_hint.setWordWrap(True)
-        health.add_widget(copy_report_hint)
         self._support_hint = QLabel("")
         self._support_hint.setObjectName("helperText")
         self._support_hint.setWordWrap(True)
         self._support_hint.setVisible(False)
         health.add_widget(self._support_hint)
 
-        support = Section("Support package")
-        self._support_status = QLabel("")
-        self._support_status.setObjectName("helperText")
-        self._support_status.setWordWrap(True)
-        self._copy_summary_btn = make_button("Copy diagnostic summary", "secondary")
-        self._copy_summary_btn.clicked.connect(self._copy_extended_summary)
-        self._export_bundle_btn = make_button("Export support bundle", "primary")
-        self._export_bundle_btn.clicked.connect(self._export_support_bundle)
-        self._clear_history_btn = make_button("Clear diagnostic history", "tertiary")
-        self._clear_history_btn.clicked.connect(self._clear_diagnostic_history)
-        self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary")
-        self._verbose_btn.clicked.connect(self._enable_verbose_diagnostics)
-        self._repro_notes = QTextEdit()
-        self._repro_notes.setPlaceholderText("Optional: describe what you were doing when the issue occurred.")
-        self._repro_notes.setMaximumHeight(72)
-        support.add_widget(self._support_status)
-        support.add_widget(self._repro_notes)
-        support.add_layout(
-            button_row(
-                [
-                    self._copy_summary_btn,
-                    self._export_bundle_btn,
-                    self._clear_history_btn,
-                    self._verbose_btn,
-                ]
-            )
+        report = Section("Report a problem")
+        report_intro = QLabel(
+            "Copy diagnostics or export a support package, then open a GitHub issue if you need help. "
+            "Nothing is sent automatically."
         )
-        self._event_history = Disclosure("Diagnostic event history")
+        report_intro.setObjectName("helperText")
+        report_intro.setWordWrap(True)
+        report.add_widget(report_intro)
+        self._repro_notes = QTextEdit()
+        self._repro_notes.setPlaceholderText("Optional: what were you doing when the problem happened?")
+        self._repro_notes.setMaximumHeight(72)
+        report.add_widget(self._repro_notes)
+        self._copy_btn = make_button("Copy diagnostics", "primary")
+        self._copy_btn.setToolTip("Copies a privacy-safe diagnostic summary for GitHub issues.")
+        self._copy_btn.clicked.connect(self._copy)
+        self._export_bundle_btn = make_button("Export support package", "secondary")
+        self._export_bundle_btn.setToolTip("Save a reviewed ZIP bundle for support (logs and diagnostics).")
+        self._export_bundle_btn.clicked.connect(self._export_support_bundle)
+        self._report_issue_btn = make_button("Report an issue", "tertiary")
+        self._report_issue_btn.setToolTip("Open the ExileLens issue tracker on GitHub.")
+        self._report_issue_btn.clicked.connect(self._open_github_issues)
+        apply_button_icon(self._report_issue_btn, "github", ui_scale=ui_scale)
+        report.add_layout(button_row([self._copy_btn, self._export_bundle_btn, self._report_issue_btn]))
+        self._report_status = QLabel("")
+        self._report_status.setObjectName("helperText")
+        self._report_status.setWordWrap(True)
+        report.add_widget(self._report_status)
+
+        self._advanced = Disclosure("Advanced diagnostics")
+        self._session_label = QLabel("")
+        self._session_label.setObjectName("helperText")
+        self._session_label.setWordWrap(True)
+        session_help = QLabel("Support session ID helps match your report to in-app events.")
+        session_help.setObjectName("helperText")
+        session_help.setWordWrap(True)
+        self._advanced.add_widget(session_help)
+        self._advanced.add_widget(self._session_label)
+
+        event_help = QLabel("Recent in-app diagnostic events (privacy filtered).")
+        event_help.setObjectName("helperText")
+        event_help.setWordWrap(True)
+        self._advanced.add_widget(event_help)
         self._event_history_text = QTextEdit()
         self._event_history_text.setReadOnly(True)
         self._event_history_text.setMinimumHeight(140)
-        self._event_history.add_widget(self._event_history_text)
+        self._advanced.add_widget(self._event_history_text)
 
-        updates = Section("Updates")
-        self._update_status = QLabel("")
-        self._update_status.setObjectName("helperText")
-        self._update_channel = QComboBox()
-        self._update_channel.addItem("Beta (pre-releases)", "beta")
-        self._update_channel.addItem("Stable", "stable")
-        channel = str(getattr(settings, "update_channel", "beta") or "beta")
-        idx = self._update_channel.findData(channel)
-        self._update_channel.setCurrentIndex(idx if idx >= 0 else 0)
-        self._update_channel.currentIndexChanged.connect(self._on_update_channel_changed)
-        self._check_updates_btn = make_button("Check for updates", "secondary")
-        self._check_updates_btn.clicked.connect(self.update_service.check_now)
-        self._download_btn = make_button("Download && Install", "primary")
-        self._download_btn.clicked.connect(self._start_download)
-        self._download_btn.setVisible(False)
-        apply_button_icon(self._download_btn, "download", ui_scale=ui_scale)
-        self._restart_update_btn = make_button("Restart && Update", "primary")
-        self._restart_update_btn.clicked.connect(self._restart_and_update)
-        self._restart_update_btn.setVisible(False)
-        self._cancel_download_btn = make_button("Cancel download", "secondary")
-        self._cancel_download_btn.clicked.connect(self.update_service.cancel_download)
-        self._cancel_download_btn.setVisible(False)
-        self._download_progress = QLabel("")
-        self._download_progress.setObjectName("helperText")
-        self._download_progress.setVisible(False)
-        self._open_releases_btn = make_button("Open GitHub Releases", "secondary")
-        self._open_releases_btn.clicked.connect(self._open_github_releases)
-        self._open_releases_btn.setVisible(False)
-        updates.add_widget(self._update_status)
-        updates.add_widget(self._update_channel)
-        updates.add_layout(
-            button_row(
-                [
-                    self._check_updates_btn,
-                    self._download_btn,
-                    self._restart_update_btn,
-                    self._cancel_download_btn,
-                    self._open_releases_btn,
-                ]
-            )
-        )
-        updates.add_widget(self._download_progress)
+        self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary")
+        self._verbose_btn.setToolTip("Records extra diagnostic detail locally for the next 15 minutes.")
+        self._verbose_btn.clicked.connect(self._enable_verbose_diagnostics)
+        self._clear_history_btn = make_button("Clear diagnostic history", "tertiary")
+        self._clear_history_btn.setToolTip("Removes stored diagnostic events from this installation.")
+        self._clear_history_btn.clicked.connect(self._clear_diagnostic_history)
+        self._logs_btn = make_button("Open logs", "secondary")
+        self._logs_btn.setToolTip("Opens the ExileLens log folder in your file manager.")
+        self._logs_btn.clicked.connect(self._open_logs)
+        self._advanced.add_layout(button_row([self._verbose_btn, self._clear_history_btn, self._logs_btn]))
 
-        self._details = Disclosure("Technical details")
+        raw_help = QLabel("Raw technical dump for deep troubleshooting (same data as Copy diagnostics, verbose).")
+        raw_help.setObjectName("helperText")
+        raw_help.setWordWrap(True)
+        self._advanced.add_widget(raw_help)
         self._build_info = QLabel()
         self._build_info.setWordWrap(True)
         self._build_info.setObjectName("diagnosticsBuildInfo")
@@ -844,16 +821,12 @@ class DiagnosticsPage(QWidget):
         self._text.setReadOnly(True)
         self._text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         self._text.setMinimumHeight(220)
-        # The dump has long lines and scrolls horizontally inside itself. Without
-        # Ignored width it would drive the outer scroll area wider than the window,
-        # and that area is ScrollBarAlwaysOff -- so the overflow would be clipped
-        # rather than reachable.
         self._text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         self._refresh_btn = make_button("Refresh", "tertiary")
         self._refresh_btn.clicked.connect(self.refresh)
-        self._details.add_widget(self._build_info)
-        self._details.add_widget(self._text)
-        self._details.add_layout(button_row([self._refresh_btn]))
+        self._advanced.add_widget(self._build_info)
+        self._advanced.add_widget(self._text)
+        self._advanced.add_layout(button_row([self._refresh_btn]))
 
         content = QWidget()
         content.setObjectName("diagnosticsScrollContent")
@@ -861,16 +834,11 @@ class DiagnosticsPage(QWidget):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(theme.SECTION_GAP)
         content_layout.addWidget(health)
-        content_layout.addWidget(support)
-        content_layout.addWidget(self._event_history)
-        content_layout.addWidget(updates)
-        content_layout.addWidget(self._details)
+        content_layout.addWidget(report)
+        content_layout.addWidget(self._advanced)
         content_layout.addStretch(1)
         self._content_layout = content_layout
 
-        # Expanding Technical details makes this page taller than the window. Without
-        # a scroll area the raw dump and its Refresh button simply ran off the bottom
-        # with no way to reach them.
         self._scroll_area = QScrollArea()
         self._scroll_area.setObjectName("diagnosticsScrollArea")
         self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
@@ -886,17 +854,11 @@ class DiagnosticsPage(QWidget):
         layout.addWidget(title)
         layout.addWidget(self._scroll_area, 1)
 
-        self._details.toggled.connect(self._on_details_toggled)
-        self.update_service.state_changed.connect(self._on_update_state)
-        self.update_service.download_progress.connect(self._on_download_progress)
-        self.update_service.download_state_changed.connect(self._on_download_state)
-        self.update_service.action_error.connect(self._on_update_action_error)
-        self._on_update_state("unchecked", "")
+        self._advanced.toggled.connect(self._on_advanced_toggled)
         self.refresh()
 
-    def _on_details_toggled(self, expanded: bool) -> None:
-        # The raw dump should claim vertical space only while it is open.
-        self._content_layout.setStretchFactor(self._details, 1 if expanded else 0)
+    def _on_advanced_toggled(self, expanded: bool) -> None:
+        self._content_layout.setStretchFactor(self._advanced, 1 if expanded else 0)
 
     def health_summary(self) -> dict[str, tuple[str, str]]:
         """Test/debug helper: ``key -> (value, status)`` as currently rendered."""
@@ -906,16 +868,9 @@ class DiagnosticsPage(QWidget):
         from exilelens.ui.recovery_actions import copy_diagnostics
 
         self.refresh()
-        copy_diagnostics(self.controller)
+        copy_diagnostics(self.controller, self.settings, update_service=self.update_service)
         self._copy_btn.setText("Diagnostics copied")
-        QTimer.singleShot(2500, lambda: self._copy_btn.setText("Copy diagnostic report"))
-
-    def _copy_extended_summary(self) -> None:
-        from exilelens.ui.recovery_actions import copy_extended_diagnostic_summary
-
-        copy_extended_diagnostic_summary(self.controller, self.settings, update_service=self.update_service)
-        self._copy_summary_btn.setText("Summary copied")
-        QTimer.singleShot(2500, lambda: self._copy_summary_btn.setText("Copy diagnostic summary"))
+        QTimer.singleShot(2500, lambda: self._copy_btn.setText("Copy diagnostics"))
 
     def _export_support_bundle(self) -> None:
         from pathlib import Path
@@ -948,16 +903,16 @@ class DiagnosticsPage(QWidget):
                 reproduction_notes=self._repro_notes.toPlainText(),
             )
         except SupportBundleError as exc:
-            self._support_status.setText(str(exc))
+            self._report_status.setText(str(exc))
             return
-        self._support_status.setText(f"Support bundle saved to {destination.name}")
+        self._report_status.setText(f"Support package saved to {destination.name}")
         self.refresh()
 
     def _clear_diagnostic_history(self) -> None:
         from exilelens.diagnostics import clear_event_history
 
         clear_event_history()
-        self._support_status.setText("Diagnostic event history cleared.")
+        self._report_status.setText("Diagnostic event history cleared.")
         self.refresh()
 
     def _enable_verbose_diagnostics(self) -> None:
@@ -966,13 +921,9 @@ class DiagnosticsPage(QWidget):
 
         enable_verbose_mode(self.settings)
         save_settings(self.settings)
-        self._support_status.setText(
+        self._report_status.setText(
             "Verbose diagnostics enabled for 15 minutes." if verbose_mode_active(self.settings) else ""
         )
-        self.refresh()
-
-    def _reload_build(self) -> None:
-        self.controller.reload_evaluation_build()
         self.refresh()
 
     def _open_logs(self) -> None:
@@ -980,77 +931,10 @@ class DiagnosticsPage(QWidget):
 
         open_logs_folder()
 
-    def _open_github_releases(self) -> None:
-        from exilelens.ui.recovery_actions import open_github_releases
-
-        open_github_releases()
-
     def _open_github_issues(self) -> None:
         from exilelens.ui.recovery_actions import open_github_issues
 
         open_github_issues()
-
-    def _on_update_state(self, state: str, version: str) -> None:
-        text = {
-            "unchecked": "Update status has not been checked yet.",
-            "checking": "Checking for updates…",
-            "current": "Up to date.",
-            "failed": "Could not check for updates.",
-            "unavailable": "Update checking is available only in packaged builds.",
-        }.get(state, "")
-        if state == "available":
-            text = f"Update available: {version}"
-        self._update_status.setText(text)
-        self._open_releases_btn.setVisible(state == "available")
-        self._download_btn.setVisible(state == "available")
-        self._check_updates_btn.setEnabled(state != "checking")
-
-    def _on_update_channel_changed(self) -> None:
-        from exilelens.app.updates.channels import UpdateChannel
-
-        raw = self._update_channel.currentData()
-        self.update_service.set_channel(UpdateChannel.parse(raw))
-
-    def _start_download(self) -> None:
-        if not self.update_service.start_download():
-            return
-        self._cancel_download_btn.setVisible(True)
-        self._download_progress.setVisible(True)
-
-    def _restart_and_update(self) -> None:
-        from exilelens.ui.update_actions import restart_and_update
-
-        restart_and_update(self.update_service)
-
-    def _on_download_progress(self, done: int, total: int) -> None:
-        if total:
-            percent = int((done / total) * 100)
-            self._download_progress.setText(f"Downloading update… {percent}%")
-        else:
-            self._download_progress.setText("Downloading update…")
-        self._download_progress.setVisible(True)
-
-    def _on_download_state(self, state: str) -> None:
-        if state == "downloading":
-            self._download_btn.setEnabled(False)
-            self._cancel_download_btn.setVisible(True)
-            self._restart_update_btn.setVisible(False)
-        elif state == "ready":
-            self._download_btn.setEnabled(True)
-            self._cancel_download_btn.setVisible(False)
-            self._download_progress.setText("Update downloaded and verified.")
-            self._restart_update_btn.setVisible(True)
-        elif state == "installing":
-            self._download_progress.setText("Installing update…")
-            self._restart_update_btn.setVisible(False)
-        elif state == "error":
-            self._download_btn.setEnabled(True)
-            self._cancel_download_btn.setVisible(False)
-            self._restart_update_btn.setVisible(False)
-
-    def _on_update_action_error(self, message: str) -> None:
-        self._download_progress.setText(message)
-        self._download_progress.setVisible(bool(message))
 
     def refresh(self) -> None:
         from exilelens.app.diagnostics import build_global_diagnostics
@@ -1084,10 +968,8 @@ class DiagnosticsPage(QWidget):
         extended = build_extended_summary(self.controller, self.settings, update_service=self.update_service)
         session = extended.get("support_session_id", "")
         verbose = "on" if verbose_mode_active(self.settings) else "off"
-        self._support_status.setText(
-            f"Session {session} · verbose diagnostics {verbose} · "
-            f"{len(event_buffer().snapshot(include_verbose=verbose_mode_active(self.settings)))} events recorded"
-        )
+        event_count = len(event_buffer().snapshot(include_verbose=verbose_mode_active(self.settings)))
+        self._session_label.setText(f"Session ID: {session} · verbose {verbose} · {event_count} events recorded")
         events = event_buffer().export_records(
             include_verbose=verbose_mode_active(self.settings),
             limit=80,
