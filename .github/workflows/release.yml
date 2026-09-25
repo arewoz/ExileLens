@@ -104,6 +104,18 @@ jobs:
           $ErrorActionPreference = 'Stop'
           & powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\materialize_update_signing_key.ps1
 
+      - name: Require production update signing key
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = $env:EXILELENS_UPDATE_SIGNING_KEY_PATH
+          if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw 'Production release requires EXILELENS_UPDATE_SIGNING_KEY_B64 on the production-release environment.'
+          }
+          if ($path -match 'test_signing_key') {
+            throw 'Production release must not use the test signing key.'
+          }
+
       - name: Package and verify release assets
         shell: pwsh
         env:
@@ -120,6 +132,14 @@ jobs:
           }
           if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
             throw "Expected packaged executable is missing: $exePath"
+          }
+          $updaterPath = Join-Path $distDir '_internal\ExileLensUpdater.exe'
+          if (-not (Test-Path -LiteralPath $updaterPath -PathType Leaf)) {
+            throw "Expected packaged updater is missing: $updaterPath"
+          }
+          $stampPath = Join-Path $distDir 'build_stamp.json'
+          if (-not (Test-Path -LiteralPath $stampPath -PathType Leaf)) {
+            throw "Expected build provenance stamp is missing: $stampPath"
           }
 
           $archiveName = "ExileLens-$env:RELEASE_VERSION-win64.zip"
@@ -172,11 +192,11 @@ jobs:
           }
           $unsigned | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
           $signingKeyPath = $env:EXILELENS_UPDATE_SIGNING_KEY_PATH
-          if ([string]::IsNullOrWhiteSpace($signingKeyPath) -or -not (Test-Path -LiteralPath $signingKeyPath)) {
-            $signingKeyPath = Join-Path $env:GITHUB_WORKSPACE 'fixtures/update_signing/test_signing_key.pem'
-            $unsigned.signing_key_id = 'exilelens-test-1'
-            $unsigned | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
-            Write-Warning 'Production update signing key unavailable; publishing test-signed update metadata.'
+          if ([string]::IsNullOrWhiteSpace($signingKeyPath) -or -not (Test-Path -LiteralPath $signingKeyPath -PathType Leaf)) {
+            throw 'Production update signing key path is missing; release cannot publish test-signed metadata.'
+          }
+          if ($signingKeyPath -match 'test_signing_key') {
+            throw 'Production release must not sign update metadata with the test key.'
           }
           & .\.release-venv\Scripts\python.exe .\scripts\sign_update_manifest.py `
             --manifest $manifestPath `

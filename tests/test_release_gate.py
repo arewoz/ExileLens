@@ -139,6 +139,33 @@ def test_valid_registry_with_real_references_passes_prebuild_and_requires_artifa
     assert _result(postbuild, "release_artifact").status is GateVerdict.BLOCKED
 
 
+def test_postbuild_gate_blocks_missing_updater_and_stamp(tmp_path: Path) -> None:
+    root = _valid_root(tmp_path)
+    dist = root / "dist" / "ExileLens"
+    dist.mkdir(parents=True)
+    (dist / "ExileLens.exe").write_bytes(b"exe")
+    report = evaluate_release_gate(root=root, require_artifact=True)
+    assert report.verdict is GateVerdict.BLOCKED
+    assert _result(report, "release_updater").status is GateVerdict.BLOCKED
+
+
+def test_postbuild_gate_blocks_stale_build_stamp_commit(tmp_path: Path) -> None:
+    root = _valid_root(tmp_path)
+    dist = root / "dist" / "ExileLens"
+    internal = dist / "_internal"
+    internal.mkdir(parents=True)
+    (dist / "ExileLens.exe").write_bytes(b"exe")
+    (internal / "ExileLensUpdater.exe").write_bytes(b"upd")
+    stale_commit = "0" * 40
+    (dist / "build_stamp.json").write_text(
+        f'{{"schema_version":1,"product":"ExileLens","version":"0.4.0b1","git_commit":"{stale_commit}"}}',
+        encoding="utf-8",
+    )
+    report = evaluate_release_gate(root=root, require_artifact=True)
+    assert report.verdict is GateVerdict.BLOCKED
+    assert _result(report, "artifact_provenance").status is GateVerdict.BLOCKED
+
+
 def test_committed_registry_has_complete_executable_mandatory_p0_evidence() -> None:
     entries = load_registry(ROOT / "ops" / "regression_registry.json", root=ROOT)
     mandatory = {entry.id: entry for entry in entries if entry.id in REQUIRED_P0_IDS}
@@ -199,10 +226,14 @@ def test_release_workflow_executes_mandatory_regressions_before_build_and_public
     regressions = workflow.index("Run mandatory release regressions")
     build = workflow.index("Build the official Windows onedir distribution")
     artifact_gate = workflow.index("Run packaged-artifact release gate")
+    materialize_key = workflow.index("Materialize production update signing key")
+    require_prod_key = workflow.index("Require production update signing key")
     package = workflow.index("Package and verify release assets")
     publish = workflow.index("Create published release")
     notes = workflow.index("Validate official release notes")
-    assert source_gate < dependencies < regressions < build < artifact_gate < package < notes < publish
+    assert source_gate < dependencies < regressions < build < artifact_gate < materialize_key < require_prod_key < package < notes < publish
+    assert "test_signing_key.pem" not in workflow
+    assert "publishing test-signed update metadata" not in workflow
     assert "python -m exilelens.ops.cli release-regressions" in workflow
     assert "python -m pip install --disable-pip-version-check pytest PySide6" in workflow
     assert "--notes-file" in workflow
