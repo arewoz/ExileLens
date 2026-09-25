@@ -19,7 +19,7 @@ def test_pyproject_dynamic_version_matches_canonical() -> None:
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "exilelens._version.__version__" in pyproject
-    assert __version__ == "0.4.0b1"
+    assert __version__ == "0.5.0b1"
 
 
 def test_generate_packaging_version_info_check_passes() -> None:
