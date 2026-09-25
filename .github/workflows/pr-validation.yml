@@ -69,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m pytest -o addopts= -q tests/test_application_startup_composition.py public_tests/test_m4_3_desktop_polish.py public_tests/test_unified_updates_diagnostics_ux.py public_tests/test_support_03_failure_support_flow.py public_tests/test_m4_4_diagnostics.py
+          python -m pytest -o addopts= -q tests/test_application_startup_composition.py public_tests/test_m4_3_desktop_polish.py public_tests/test_unified_updates_diagnostics_ux.py public_tests/test_support_03_failure_support_flow.py public_tests/test_m4_4_diagnostics.py public_tests/test_m4_5_structured_error_codes.py
           if ($LASTEXITCODE -ne 0) { throw 'Application startup composition regressions failed.' }
 
       - name: Run native overlay production-wiring regression

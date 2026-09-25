@@ -151,7 +151,7 @@ class ExileLensApp:
 
         assert self.controller is not None and self.dashboard is not None
         attach_controller_diagnostics(self.controller)
-        attach_update_diagnostics(self.dashboard.update_service)
+        attach_update_diagnostics(self.dashboard.update_service, self.controller.error_context)
         record_application_initialized()
         if is_enabled(FeatureModule.MARKET_ASSISTANT):
             self.market_assist_overlay = MarketAssistantOverlay(self.settings)
@@ -337,9 +337,28 @@ class ExileLensApp:
             self._open_recovery_ui("No PoB build is loaded. Choose your build file in Settings.")
 
     def _on_engine_failed(self, message: str) -> None:
+        from exilelens.error_catalog.integration import record_generic_failure
+
+        if self.controller is not None:
+            record_generic_failure(
+                self.controller.error_context,
+                message,
+                el_code="EL-POB-002",
+                subsystem="pob",
+                stage="engine_boot",
+            )
         if not self.settings.onboarding_version_completed:
             return
         self._open_recovery_ui(f"{message}\n\nCheck the Path of Building installation in Settings.")
+
+    def _on_evaluation_error(self, request_id: int, message: str) -> None:
+        from exilelens.error_catalog.formatting import overlay_error_hint
+
+        assert self.overlay is not None
+        hint = ""
+        if self.controller is not None:
+            hint = overlay_error_hint(self.controller.error_context.last_error)
+        self.overlay.show_error(request_id, message, structured_hint=hint)
 
     def _show_onboarding(self, manual: bool = False) -> None:
         """Show one reusable setup window without restarting application services."""
@@ -506,7 +525,7 @@ class ExileLensApp:
         self.controller.evaluation_warming.connect(self.overlay.show_warming)
         self.controller.evaluation_timeout.connect(self.overlay.show_timeout)
         self.controller.evaluation_finished.connect(self._on_eval_finished)
-        self.controller.evaluation_error.connect(self.overlay.show_error)
+        self.controller.evaluation_error.connect(self._on_evaluation_error)
         self.controller.evaluation_titled_error.connect(self.overlay.show_titled_error)
         self.controller.presentation_invalidated.connect(self._on_presentation_invalidated)
         self.controller.last_result_rescored.connect(self._on_result_rescored)

@@ -585,7 +585,7 @@ class ItemOverlayPanel(QWidget):
         self._name.setText("Warming Path of Building…")
         self._footer.hide()
 
-    def show_error(self, message: str, *, retry: bool = False, title: str = "") -> None:
+    def show_error(self, message: str, *, retry: bool = False, title: str = "", structured_hint: str = "") -> None:
         self.reset_detail_drawer()
         self._analyzing.hide()
         self._set_result_chrome_visible(False)
@@ -593,7 +593,10 @@ class ItemOverlayPanel(QWidget):
         self._clear_warnings()
         self._stale_banner.hide()
         self._name.setText(title or "Could not analyze")
-        self._error.setText(message)
+        body = message
+        if structured_hint:
+            body = f"{message}\n\n{structured_hint}"
+        self._error.setText(body)
         self._error.show()
         self._retry.setVisible(retry)
         self._footer.hide()
