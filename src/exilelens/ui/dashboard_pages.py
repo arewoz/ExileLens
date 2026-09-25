@@ -759,6 +759,39 @@ class DiagnosticsPage(QWidget):
         self._support_hint.setVisible(False)
         health.add_widget(self._support_hint)
 
+        support = Section("Support package")
+        self._support_status = QLabel("")
+        self._support_status.setObjectName("helperText")
+        self._support_status.setWordWrap(True)
+        self._copy_summary_btn = make_button("Copy diagnostic summary", "secondary")
+        self._copy_summary_btn.clicked.connect(self._copy_extended_summary)
+        self._export_bundle_btn = make_button("Export support bundle", "primary")
+        self._export_bundle_btn.clicked.connect(self._export_support_bundle)
+        self._clear_history_btn = make_button("Clear diagnostic history", "tertiary")
+        self._clear_history_btn.clicked.connect(self._clear_diagnostic_history)
+        self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary")
+        self._verbose_btn.clicked.connect(self._enable_verbose_diagnostics)
+        self._repro_notes = QTextEdit()
+        self._repro_notes.setPlaceholderText("Optional: describe what you were doing when the issue occurred.")
+        self._repro_notes.setMaximumHeight(72)
+        support.add_widget(self._support_status)
+        support.add_widget(self._repro_notes)
+        support.add_layout(
+            button_row(
+                [
+                    self._copy_summary_btn,
+                    self._export_bundle_btn,
+                    self._clear_history_btn,
+                    self._verbose_btn,
+                ]
+            )
+        )
+        self._event_history = Disclosure("Diagnostic event history")
+        self._event_history_text = QTextEdit()
+        self._event_history_text.setReadOnly(True)
+        self._event_history_text.setMinimumHeight(140)
+        self._event_history.add_widget(self._event_history_text)
+
         updates = Section("Updates")
         self._update_status = QLabel("")
         self._update_status.setObjectName("helperText")
@@ -828,6 +861,8 @@ class DiagnosticsPage(QWidget):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(theme.SECTION_GAP)
         content_layout.addWidget(health)
+        content_layout.addWidget(support)
+        content_layout.addWidget(self._event_history)
         content_layout.addWidget(updates)
         content_layout.addWidget(self._details)
         content_layout.addStretch(1)
@@ -874,6 +909,67 @@ class DiagnosticsPage(QWidget):
         copy_diagnostics(self.controller)
         self._copy_btn.setText("Diagnostics copied")
         QTimer.singleShot(2500, lambda: self._copy_btn.setText("Copy diagnostic report"))
+
+    def _copy_extended_summary(self) -> None:
+        from exilelens.ui.recovery_actions import copy_extended_diagnostic_summary
+
+        copy_extended_diagnostic_summary(self.controller, self.settings, update_service=self.update_service)
+        self._copy_summary_btn.setText("Summary copied")
+        QTimer.singleShot(2500, lambda: self._copy_summary_btn.setText("Copy diagnostic summary"))
+
+    def _export_support_bundle(self) -> None:
+        from pathlib import Path
+
+        from PySide6.QtWidgets import QFileDialog
+
+        from exilelens.diagnostics.bundle import SupportBundleError, write_support_bundle
+        from exilelens.ui.support_bundle_dialog import SupportBundleReviewDialog
+
+        dialog = SupportBundleReviewDialog(self)
+        if dialog.exec() != dialog.DialogCode.Accepted:
+            return
+        path, _filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Support Bundle",
+            "ExileLens-support-bundle.zip",
+            "ZIP archives (*.zip)",
+        )
+        if not path:
+            return
+        destination = Path(path)
+        if destination.suffix.lower() != ".zip":
+            destination = destination.with_suffix(".zip")
+        try:
+            write_support_bundle(
+                destination,
+                self.controller,
+                self.settings,
+                update_service=self.update_service,
+                reproduction_notes=self._repro_notes.toPlainText(),
+            )
+        except SupportBundleError as exc:
+            self._support_status.setText(str(exc))
+            return
+        self._support_status.setText(f"Support bundle saved to {destination.name}")
+        self.refresh()
+
+    def _clear_diagnostic_history(self) -> None:
+        from exilelens.diagnostics import clear_event_history
+
+        clear_event_history()
+        self._support_status.setText("Diagnostic event history cleared.")
+        self.refresh()
+
+    def _enable_verbose_diagnostics(self) -> None:
+        from exilelens.app.settings import save_settings
+        from exilelens.diagnostics import enable_verbose_mode, verbose_mode_active
+
+        enable_verbose_mode(self.settings)
+        save_settings(self.settings)
+        self._support_status.setText(
+            "Verbose diagnostics enabled for 15 minutes." if verbose_mode_active(self.settings) else ""
+        )
+        self.refresh()
 
     def _reload_build(self) -> None:
         self.controller.reload_evaluation_build()
@@ -977,8 +1073,23 @@ class DiagnosticsPage(QWidget):
         else:
             self._support_hint.setVisible(False)
 
+        from exilelens.diagnostics import build_extended_summary, event_buffer, verbose_mode_active
+        import json
+
         report = build_global_diagnostics(self.controller)
         build_info = f"ExileLens {report.version}  |  build {report.build}  |  {report.mode}"
         self._build_info.setText(build_info)
         self._build_info.setToolTip(build_info)
         self._text.setPlainText(report.render())
+        extended = build_extended_summary(self.controller, self.settings, update_service=self.update_service)
+        session = extended.get("support_session_id", "")
+        verbose = "on" if verbose_mode_active(self.settings) else "off"
+        self._support_status.setText(
+            f"Session {session} · verbose diagnostics {verbose} · "
+            f"{len(event_buffer().snapshot(include_verbose=verbose_mode_active(self.settings)))} events recorded"
+        )
+        events = event_buffer().export_records(
+            include_verbose=verbose_mode_active(self.settings),
+            limit=80,
+        )
+        self._event_history_text.setPlainText(json.dumps(events, indent=2))

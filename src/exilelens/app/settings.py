@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-CURRENT_SCHEMA_VERSION = 22
+CURRENT_SCHEMA_VERSION = 23
 ONBOARDING_VERSION = 1
 DEFAULT_PRICE_CHECK_HOTKEY = "shift+c"
 DEFAULT_REFINE_PRICE_HOTKEY = "ctrl+shift+r"
@@ -170,6 +170,7 @@ class AppSettings:
     update_notified_version: str = ""
     update_channel: str = "beta"
     update_last_error: str = ""
+    diagnostic_verbose_until: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -268,6 +269,7 @@ class AppSettings:
             update_notified_version=str(data.get("update_notified_version") or ""),
             update_channel=str(data.get("update_channel") or "beta"),
             update_last_error=str(data.get("update_last_error") or ""),
+            diagnostic_verbose_until=float(data.get("diagnostic_verbose_until") or 0.0),
         )
 
 

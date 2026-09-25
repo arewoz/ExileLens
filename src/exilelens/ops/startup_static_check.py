@@ -17,6 +17,9 @@ _STARTUP_PATHS = (
     "src/exilelens/ui/update_actions.py",
     "src/exilelens/ui/ui_icons.py",
     "src/exilelens/app/updates/service.py",
+    "src/exilelens/diagnostics/sanitize.py",
+    "src/exilelens/diagnostics/bundle.py",
+    "src/exilelens/diagnostics/summary.py",
 )
 
 

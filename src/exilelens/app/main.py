@@ -143,6 +143,16 @@ class ExileLensApp:
         if overlay_disabled():
             self.settings.overlay_enabled = False
         self._compose_primary_ui()
+        from exilelens.diagnostics.wiring import (
+            attach_controller_diagnostics,
+            attach_update_diagnostics,
+            record_application_initialized,
+        )
+
+        assert self.controller is not None and self.dashboard is not None
+        attach_controller_diagnostics(self.controller)
+        attach_update_diagnostics(self.dashboard.update_service)
+        record_application_initialized()
         if is_enabled(FeatureModule.MARKET_ASSISTANT):
             self.market_assist_overlay = MarketAssistantOverlay(self.settings)
         if is_enabled(FeatureModule.LIVE_TREE_OVERLAY):
@@ -1130,6 +1140,9 @@ class ExileLensApp:
                 self._instance_lock = None
             return
         logger.info("shutdown_begin")
+        from exilelens.diagnostics.wiring import record_application_shutdown
+
+        record_application_shutdown()
         self._persist_trade_penalties()
         # 1-4: stop taking input (hotkeys, capture, mouse dismiss hook, clipboard).
         if self.controller:

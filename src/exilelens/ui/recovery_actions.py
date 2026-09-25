@@ -40,6 +40,17 @@ def open_logs_folder() -> None:
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
 
+def copy_extended_diagnostic_summary(controller, settings, *, update_service=None) -> str:  # noqa: ANN001
+    from exilelens.diagnostics import render_extended_summary_text
+
+    report = render_extended_summary_text(controller, settings, update_service=update_service)
+    clipboard = QApplication.clipboard()
+    if clipboard is not None:
+        clipboard.setText(report)
+    logger.info("extended_diagnostics_copied chars=%s", len(report))
+    return report
+
+
 def copy_diagnostics(controller) -> str:  # noqa: ANN001
     """Put the allowlisted global diagnostic report on the clipboard."""
     # Keep every support surface on the explicit SUPPORT-02 representation.  In
