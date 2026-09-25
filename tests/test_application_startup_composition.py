@@ -6,6 +6,7 @@ event loop handles real PoB, network updates, or global keyboard hooks.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 
 import pytest
@@ -17,6 +18,11 @@ pytestmark = pytest.mark.itemcheck
 class _FakeLock:
     acquired: bool = True
     reason: str = "test"
+
+
+def _configure_qt_platform(monkeypatch: pytest.MonkeyPatch) -> None:
+    if sys.platform != "win32":
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
 
 
 def _app():
@@ -52,7 +58,7 @@ def _cleanup_runtime(runtime, request: pytest.FixtureRequest) -> None:
 
 def test_application_startup_composition_and_tray_rebuild(monkeypatch: pytest.MonkeyPatch, tmp_path, request) -> None:
     """Compose dashboard + tray like production startup; rebuild tray menu twice."""
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    _configure_qt_platform(monkeypatch)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     from PySide6.QtCore import QTimer
 
@@ -118,7 +124,7 @@ def test_application_startup_composition_and_tray_rebuild(monkeypatch: pytest.Mo
 
 def test_tray_menu_icon_path_executes_rebuild_menu_settings_scope(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """Fails if rebuild_menu references undefined `settings` when applying icons."""
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    _configure_qt_platform(monkeypatch)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     from exilelens.app.controller import EvaluationController
     from exilelens.app.settings import AppSettings
