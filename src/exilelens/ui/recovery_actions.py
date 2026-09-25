@@ -10,6 +10,20 @@ from PySide6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
+PATREON_URL = "https://www.patreon.com/c/ExileLens"
+
+
+def open_patreon() -> bool:
+    """Open ExileLens's voluntary Patreon support page in the system browser."""
+    try:
+        opened = bool(QDesktopServices.openUrl(QUrl(PATREON_URL)))
+    except Exception:  # pragma: no cover - defensive boundary around the OS browser
+        logger.exception("open_patreon failed")
+        return False
+    if not opened:
+        logger.warning("open_patreon was not handled by the system browser")
+    return opened
+
 
 def open_github_releases() -> None:
     """Open the fixed, official ExileLens releases destination on user action."""

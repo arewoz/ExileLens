@@ -59,6 +59,7 @@ class OverviewPage(QWidget):
         layout.addWidget(self._build_section())
         layout.addWidget(self._profile_section())
         layout.addWidget(self._action_section())
+        layout.addWidget(self._support_section())
         layout.addStretch(1)
 
         controller.active_build_status_changed.connect(lambda _s: self.refresh())
@@ -134,12 +135,31 @@ class OverviewPage(QWidget):
         self._action_kind = ""
         return section
 
+    def _support_section(self) -> QWidget:
+        section = Section("Support ExileLens")
+        body = QLabel(
+            "ExileLens is free and open source. If you enjoy using it, "
+            "consider supporting its continued development."
+        )
+        body.setObjectName("helperText")
+        body.setWordWrap(True)
+        button = make_button("Support on Patreon ↗", "tertiary")
+        button.clicked.connect(self._open_patreon)
+        section.add_widget(body)
+        section.add_layout(button_row([button]))
+        return section
+
     # --- interactions -----------------------------------------------------------
 
     def _choose_build(self) -> None:
         path = pick_build_file(self.settings.build_path)
         if path:
             self.controller.change_build(path)
+
+    def _open_patreon(self) -> None:
+        from exilelens.ui.recovery_actions import open_patreon
+
+        open_patreon()
 
     def _set_profile(self, profile: str) -> None:
         self.controller.select_value_profile(profile)
