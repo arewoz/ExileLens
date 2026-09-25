@@ -20,9 +20,13 @@ app_icon = app_assets / "exilelens.ico"
 shiboken_runtime = Path(shiboken6.__file__).resolve().parent / "shiboken6.abi3.dll"
 # Ship only what the running app resolves via exilelens.branding — the original
 # .webp the artwork arrived as stays in the repo as provenance, not in the bundle.
+ui_assets = repo_root / "assets" / "ui"
 bundled_icons = [
     (str(app_assets / "exilelens.ico"), "assets/app"),
     (str(app_assets / "exilelens.png"), "assets/app"),
+    (str(ui_assets / "discord.svg"), "assets/ui"),
+    (str(ui_assets / "github.svg"), "assets/ui"),
+    (str(ui_assets / "download.svg"), "assets/ui"),
 ]
 
 # Do not use collect_all("PySide6") — it drags in the full Qt distribution
@@ -68,6 +72,9 @@ hiddenimports = [
     "exilelens.updater.install",
     "cryptography.hazmat.primitives.asymmetric.ed25519",
     "exilelens.ui.profile_catalog",
+    "exilelens.ui.ui_icons",
+    "exilelens.ui.update_actions",
+    "PySide6.QtSvg",
 ]
 
 # Guardrails: heavyweight Qt stacks and dev-only Python packages that must never

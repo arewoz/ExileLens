@@ -12,6 +12,8 @@ from exilelens.app.modules.registry import FeatureModule, is_enabled
 from exilelens.app.settings import AppSettings, save_settings
 from exilelens.ui.dashboard_window import DashboardWindow
 from exilelens.ui.tray_icon import create_tray_icon
+from exilelens.ui.ui_icons import apply_action_icon
+from exilelens.ui.update_actions import restart_and_update, tray_update_action_label
 
 
 class TrayManager(QSystemTrayIcon):
@@ -50,10 +52,15 @@ class TrayManager(QSystemTrayIcon):
         self._build_action: QAction | None = None
         self._tree_action: QAction | None = None
         self._overlay_menu: QMenu | None = None
+        self._update_check_state = "unchecked"
+        self._update_remote_version = ""
+        self._update_download_state = ""
 
         self.rebuild_menu()
         dashboard.update_service.update_available.connect(self._show_update_available)
         dashboard.update_service.state_changed.connect(self._on_update_state)
+        dashboard.update_service.download_state_changed.connect(self._on_download_state)
+        dashboard.update_service.download_progress.connect(self._on_download_progress)
         controller.build_changed.connect(self._on_build_changed)
         controller.loadouts_changed.connect(self._on_loadouts_changed)
         controller.state_message.connect(self._show_message)
@@ -179,17 +186,20 @@ class TrayManager(QSystemTrayIcon):
         self._check_updates_action.triggered.connect(self.dashboard.update_service.check_now)
         menu.addAction(self._check_updates_action)
         self._update_action = QAction("Download Update", self)
-        self._update_action.triggered.connect(lambda: self.dashboard.navigate("diagnostics"))
+        self._update_action.triggered.connect(self._on_update_action)
         self._update_action.setVisible(False)
+        apply_action_icon(self._update_action, "download", ui_scale=float(getattr(settings, "ui_scale", 1.0) or 1.0))
         menu.addAction(self._update_action)
 
         support_menu = menu.addMenu("Help && Support")
         discord_action = QAction("Discord / Community", self)
         discord_action.triggered.connect(self._open_discord)
+        apply_action_icon(discord_action, "discord", ui_scale=float(getattr(settings, "ui_scale", 1.0) or 1.0))
         support_menu.addAction(discord_action)
 
         report_issue_action = QAction("Report an Issue", self)
         report_issue_action.triggered.connect(self._open_github_issues)
+        apply_action_icon(report_issue_action, "github", ui_scale=float(getattr(settings, "ui_scale", 1.0) or 1.0))
         support_menu.addAction(report_issue_action)
 
         logs_action = QAction("Open Logs Folder", self)
@@ -300,11 +310,10 @@ class TrayManager(QSystemTrayIcon):
         self.dashboard.show_dashboard()
 
     def _on_build_changed(self, info: BuildInfo) -> None:
-        if info.state == BuildState.READY:
-            name = info.name or Path(info.path).name
-            self.setToolTip(f"{APP_NAME}\nBuild: {name}\nProfile: {self.settings.value_profile}")
-        elif info.state in (BuildState.FAILED, BuildState.ERROR):
+        if info.state in (BuildState.FAILED, BuildState.ERROR):
             self.setToolTip(f"{APP_NAME}\nBuild error — open Settings")
+        else:
+            self._sync_update_presentation()
         self._update_build_action()
 
     def _on_loadouts_changed(self, _payload: dict) -> None:
@@ -429,10 +438,8 @@ class TrayManager(QSystemTrayIcon):
         self.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def _show_update_available(self, remote: str, installed: str) -> None:
-        if self._update_action is not None:
-            self._update_action.setText(f"Update Available: {remote}")
-            self._update_action.setVisible(True)
-        self.setToolTip(f"{APP_NAME} {installed} — update {remote} available")
+        self._update_remote_version = remote
+        self._sync_update_presentation()
         self.showMessage(
             APP_NAME,
             f"ExileLens {remote} is available\nYou're using {installed}",
@@ -441,16 +448,62 @@ class TrayManager(QSystemTrayIcon):
         )
 
     def _on_update_state(self, state: str, version: str) -> None:
-        installed = self.dashboard.update_service.installed_version_text
-        if state == "available":
-            if self._update_action is not None:
-                self._update_action.setText(f"Update Available: {version}")
-                self._update_action.setVisible(True)
-            self.setToolTip(f"{APP_NAME} {installed} — update {version} available")
-        elif state in ("current", "unchecked", "checking"):
-            if self._update_action is not None:
-                self._update_action.setVisible(False)
-            self.setToolTip(f"{APP_NAME} {installed}")
+        self._update_check_state = state
+        self._update_remote_version = version
+        if state in ("current", "unchecked", "unavailable"):
+            self._update_download_state = ""
+        self._sync_update_presentation()
+
+    def _on_download_state(self, state: str) -> None:
+        self._update_download_state = state
+        self._sync_update_presentation()
+
+    def _on_download_progress(self, _done: int, _total: int) -> None:
+        # Tray action label stays stable while downloading; dashboard shows percent.
+        self._sync_update_presentation()
+
+    def _on_update_action(self) -> None:
+        if self._update_download_state == "ready":
+            restart_and_update(self.dashboard.update_service)
+            return
+        if self._update_check_state == "available":
+            self.dashboard.update_service.start_download()
+            return
+        self.dashboard.navigate("diagnostics")
+        self.dashboard.show_dashboard()
+
+    def _installed_version_tooltip(self) -> str:
+        return self.dashboard.update_service.installed_version_text
+
+    def _sync_update_presentation(self) -> None:
+        if self.controller.build_info.state in (BuildState.FAILED, BuildState.ERROR):
+            self.setToolTip(f"{APP_NAME}\nBuild error — open Settings")
+            return
+        installed = self._installed_version_tooltip()
+        label, visible, enabled = tray_update_action_label(
+            self._update_check_state,
+            self._update_download_state,
+            self._update_remote_version,
+        )
+        if self._update_action is not None:
+            self._update_action.setText(label)
+            self._update_action.setVisible(visible)
+            self._update_action.setEnabled(enabled)
+        if self._update_download_state == "ready":
+            tooltip = f"{APP_NAME} {installed} — update ready to install"
+        elif self._update_download_state == "downloading":
+            tooltip = f"{APP_NAME} {installed} — downloading update"
+        elif self._update_check_state == "available" and self._update_remote_version:
+            tooltip = f"{APP_NAME} {installed} — update {self._update_remote_version} available"
+        elif self._update_check_state == "failed":
+            tooltip = f"{APP_NAME} {installed} — update check failed"
+        else:
+            tooltip = f"{APP_NAME} {installed}"
+        if self.controller.build_info.state == BuildState.READY:
+            name = self.controller.build_info.name or Path(self.controller.build_info.path).name
+            self.setToolTip(f"{tooltip}\nBuild: {name}\nProfile: {self.settings.value_profile}")
+        else:
+            self.setToolTip(tooltip)
         if self.contextMenu() is not None:
             for action in self.contextMenu().actions():
                 if not action.isSeparator() and action.text().startswith(APP_NAME):

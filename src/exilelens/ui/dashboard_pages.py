@@ -742,6 +742,10 @@ class DiagnosticsPage(QWidget):
         self._report_issue_btn = make_button("Report an issue", "tertiary")
         self._report_issue_btn.setToolTip("Opens the ExileLens issue tracker on GitHub in your browser.")
         self._report_issue_btn.clicked.connect(self._open_github_issues)
+        from exilelens.ui.ui_icons import apply_button_icon
+
+        ui_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
+        apply_button_icon(self._report_issue_btn, "github", ui_scale=ui_scale)
         health.add_layout(button_row([self._copy_btn, self._logs_btn, self._reload_btn, self._report_issue_btn]))
         copy_report_hint = QLabel(
             "Copy diagnostic report, then Report an issue and paste it into the GitHub issue."
@@ -770,6 +774,7 @@ class DiagnosticsPage(QWidget):
         self._download_btn = make_button("Download && Install", "primary")
         self._download_btn.clicked.connect(self._start_download)
         self._download_btn.setVisible(False)
+        apply_button_icon(self._download_btn, "download", ui_scale=ui_scale)
         self._restart_update_btn = make_button("Restart && Update", "primary")
         self._restart_update_btn.clicked.connect(self._restart_and_update)
         self._restart_update_btn.setVisible(False)
@@ -917,20 +922,9 @@ class DiagnosticsPage(QWidget):
         self._download_progress.setVisible(True)
 
     def _restart_and_update(self) -> None:
-        import os
+        from exilelens.ui.update_actions import restart_and_update
 
-        from PySide6.QtWidgets import QApplication
-
-        app = QApplication.instance()
-        pid = os.getpid()
-        if app is not None and hasattr(app, "property") and callable(getattr(app, "property", None)):
-            shell = app.property("exilelens_app_shell")
-            if shell is not None and hasattr(shell, "request_restart_for_update"):
-                shell.request_restart_for_update(parent_pid=pid)
-                return
-        if self.update_service.begin_restart_and_update(parent_pid=pid):
-            if app is not None:
-                app.quit()
+        restart_and_update(self.update_service)
 
     def _on_download_progress(self, done: int, total: int) -> None:
         if total:

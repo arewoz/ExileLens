@@ -574,6 +574,15 @@ QWidget#progressStrip {{
     background-color: {_V2_SURFACE};
     border-top: 1px solid {DASHBOARD_BORDER};
 }}
+QWidget#dashboardStatusFooter {{
+    background-color: {_V2_SURFACE};
+    border-top: 1px solid {DASHBOARD_BORDER};
+}}
+QLabel#updateStatusText {{
+    font-size: 12px;
+    font-weight: 600;
+    color: {DASHBOARD_WARNING_FG};
+}}
 
 /* --- typography ---------------------------------------------------------- */
 QLabel#sectionTitle {{
