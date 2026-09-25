@@ -18,6 +18,8 @@ from exilelens.app import update_check
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+pytestmark = pytest.mark.smoke
+
 
 def _release(version: str, *, prerelease: bool = False) -> Release:
     parsed = ExileLensVersion.parse(version)
@@ -168,6 +170,74 @@ def test_copy_diagnostics_uses_extended_summary(monkeypatch, tmp_path) -> None:
     assert payload["application"]["update_selection_policy"] == "newest_verified_official_release"
 
 
+def test_installed_latest_skips_manifest_verification(monkeypatch) -> None:
+    from exilelens._version import __version__
+
+    installed = ExileLensVersion.parse(__version__)
+    assert installed is not None
+    settings = AppSettings()
+    manifest_calls: list[str] = []
+
+    class _Client:
+        def best_newest_release(self):
+            return _release(str(installed))
+
+        def fetch_json(self, url: str):
+            manifest_calls.append(url)
+            raise RuntimeError("should not fetch")
+
+    def _immediate_thread(target=None, **_kwargs):
+        class _Runner:
+            def start(self_inner):
+                target()
+
+        return _Runner()
+
+    service = UpdateService(settings, client=_Client())
+    monkeypatch.setattr(update_service_module, "is_packaged", lambda: True)
+    monkeypatch.setattr(update_service_module, "save_settings", lambda _s: None)
+    monkeypatch.setattr(update_service_module.threading, "Thread", _immediate_thread)
+    states: list[tuple[str, str]] = []
+    service.state_changed.connect(lambda state, value: states.append((state, value)))
+    assert service.check_now()
+    assert manifest_calls == []
+    assert states[-1][0] == "current"
+
+
+def test_newer_release_without_manifest_is_rejected(monkeypatch) -> None:
+    from exilelens._version import __version__
+
+    installed = ExileLensVersion.parse(__version__)
+    assert installed is not None
+    newer = f"{installed.major}.{installed.minor}.{installed.patch}b{installed.beta + 1}"
+    settings = AppSettings()
+
+    class _Client:
+        def best_newest_release(self):
+            return _release(newer, prerelease=True)
+
+    def _immediate_thread(target=None, **_kwargs):
+        class _Runner:
+            def start(self_inner):
+                target()
+
+        return _Runner()
+
+    service = UpdateService(settings, client=_Client())
+    monkeypatch.setattr(update_service_module, "is_packaged", lambda: True)
+    monkeypatch.setattr(update_service_module, "save_settings", lambda _s: None)
+    monkeypatch.setattr(update_service_module.threading, "Thread", _immediate_thread)
+    states: list[tuple[str, str]] = []
+    downloads: list[str] = []
+    service.state_changed.connect(lambda state, value: states.append((state, value)))
+    service.download_state_changed.connect(downloads.append)
+    assert service.check_now()
+    assert states[-1] == ("verification_failed", newer)
+    assert service._availability is None
+    assert downloads == [""]
+    assert not service.start_download()
+
+
 def test_diagnostics_advanced_section_is_collapsed_by_default() -> None:
     from PySide6.QtWidgets import QApplication
 
@@ -178,3 +248,22 @@ def test_diagnostics_advanced_section_is_collapsed_by_default() -> None:
     page = DiagnosticsPage(SimpleNamespace(settings=settings), settings, UpdateService(settings))
     assert hasattr(page, "_advanced")
     assert not page._advanced.is_expanded()
+    assert not page._event_history.is_expanded()
+    assert not page._technical_report.is_expanded()
+
+
+def test_diagnostics_nested_sections_expand_independently() -> None:
+    from PySide6.QtWidgets import QApplication
+
+    from exilelens.ui.dashboard_pages import DiagnosticsPage
+
+    QApplication.instance() or QApplication([])
+    settings = AppSettings()
+    page = DiagnosticsPage(SimpleNamespace(settings=settings), settings, UpdateService(settings))
+    page._advanced.set_expanded(True)
+    page._event_history.set_expanded(True)
+    assert page._event_history.is_expanded()
+    assert not page._technical_report.is_expanded()
+    page._technical_report.set_expanded(True)
+    assert page._event_history.is_expanded()
+    assert page._technical_report.is_expanded()

@@ -175,17 +175,22 @@ class UpdateService(QObject):
                 release = self.client.best_newest_release()
                 if release is None:
                     result: object = None
-                elif not release.manifest_asset_url:
-                    result = NewestReleaseVerificationFailed(release, "missing_signed_manifest")
                 else:
-                    try:
-                        envelope = self.client.fetch_json(release.manifest_asset_url)
-                        manifest = verify_signed_envelope(envelope)
-                    except (ManifestError, RuntimeError) as exc:
-                        logger.warning("update_manifest_unavailable tag=%s error=%s", release.tag, exc)
-                        result = NewestReleaseVerificationFailed(release, "manifest_verification_failed")
+                    installed = installed_version()
+                    if installed is not None and release.version <= installed:
+                        # Already on the newest listed release — no manifest fetch required.
+                        result = release
+                    elif not release.manifest_asset_url:
+                        result = NewestReleaseVerificationFailed(release, "missing_signed_manifest")
                     else:
-                        result = (release, manifest)
+                        try:
+                            envelope = self.client.fetch_json(release.manifest_asset_url)
+                            manifest = verify_signed_envelope(envelope)
+                        except (ManifestError, RuntimeError) as exc:
+                            logger.warning("update_manifest_unavailable tag=%s error=%s", release.tag, exc)
+                            result = NewestReleaseVerificationFailed(release, "manifest_verification_failed")
+                        else:
+                            result = (release, manifest)
             except Exception:
                 result = RuntimeError("request_failed")
             self._check_finished.emit(result, manual)
@@ -203,6 +208,8 @@ class UpdateService(QObject):
             remote = str(result.release.version)
             self.settings.update_latest_version = remote
             self._availability = None
+            self.cancel_download()
+            self.download_state_changed.emit("")
             save_settings(self.settings)
             self.state_changed.emit("verification_failed", remote)
             if manual:

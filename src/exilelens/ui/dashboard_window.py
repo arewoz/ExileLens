@@ -368,7 +368,7 @@ class DashboardWindow(ManagedToolWindow):
     def _on_update_state_footer(self, state: str, version: str) -> None:
         self._update_check_state = state
         self._update_remote_version = version
-        if state in ("current", "unchecked", "unavailable"):
+        if state in ("current", "unchecked", "unavailable", "verification_failed", "failed"):
             self._update_download_state = ""
             self._update_progress_percent = None
         self._refresh_version_footer()

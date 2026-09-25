@@ -789,14 +789,17 @@ class DiagnosticsPage(QWidget):
         self._advanced.add_widget(session_help)
         self._advanced.add_widget(self._session_label)
 
+        self._event_history = Disclosure("Diagnostic event history")
         event_help = QLabel("Recent in-app diagnostic events (privacy filtered).")
         event_help.setObjectName("helperText")
         event_help.setWordWrap(True)
-        self._advanced.add_widget(event_help)
+        self._event_history.add_widget(event_help)
         self._event_history_text = QTextEdit()
         self._event_history_text.setReadOnly(True)
-        self._event_history_text.setMinimumHeight(140)
-        self._advanced.add_widget(self._event_history_text)
+        self._event_history_text.setMinimumHeight(120)
+        self._event_history_text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
+        self._event_history.add_widget(self._event_history_text)
+        self._advanced.add_widget(self._event_history)
 
         self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary")
         self._verbose_btn.setToolTip("Records extra diagnostic detail locally for the next 15 minutes.")
@@ -809,10 +812,11 @@ class DiagnosticsPage(QWidget):
         self._logs_btn.clicked.connect(self._open_logs)
         self._advanced.add_layout(button_row([self._verbose_btn, self._clear_history_btn, self._logs_btn]))
 
-        raw_help = QLabel("Raw technical dump for deep troubleshooting (same data as Copy diagnostics, verbose).")
+        self._technical_report = Disclosure("Technical report")
+        raw_help = QLabel("Raw technical dump for deep troubleshooting (allowlisted global report).")
         raw_help.setObjectName("helperText")
         raw_help.setWordWrap(True)
-        self._advanced.add_widget(raw_help)
+        self._technical_report.add_widget(raw_help)
         self._build_info = QLabel()
         self._build_info.setWordWrap(True)
         self._build_info.setObjectName("diagnosticsBuildInfo")
@@ -820,13 +824,14 @@ class DiagnosticsPage(QWidget):
         self._text = QTextEdit()
         self._text.setReadOnly(True)
         self._text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self._text.setMinimumHeight(220)
+        self._text.setMinimumHeight(180)
         self._text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         self._refresh_btn = make_button("Refresh", "tertiary")
         self._refresh_btn.clicked.connect(self.refresh)
-        self._advanced.add_widget(self._build_info)
-        self._advanced.add_widget(self._text)
-        self._advanced.add_layout(button_row([self._refresh_btn]))
+        self._technical_report.add_widget(self._build_info)
+        self._technical_report.add_widget(self._text)
+        self._technical_report.add_layout(button_row([self._refresh_btn]))
+        self._advanced.add_widget(self._technical_report)
 
         content = QWidget()
         content.setObjectName("diagnosticsScrollContent")
@@ -855,10 +860,18 @@ class DiagnosticsPage(QWidget):
         layout.addWidget(self._scroll_area, 1)
 
         self._advanced.toggled.connect(self._on_advanced_toggled)
+        self._technical_report.toggled.connect(self._on_technical_report_toggled)
         self.refresh()
 
     def _on_advanced_toggled(self, expanded: bool) -> None:
         self._content_layout.setStretchFactor(self._advanced, 1 if expanded else 0)
+
+    def _on_technical_report_toggled(self, expanded: bool) -> None:
+        # Only the technical dump should grow vertically inside Advanced diagnostics.
+        self._technical_report.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Expanding if expanded else QSizePolicy.Policy.Preferred,
+        )
 
     def health_summary(self) -> dict[str, tuple[str, str]]:
         """Test/debug helper: ``key -> (value, status)`` as currently rendered."""
