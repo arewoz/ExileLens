@@ -8,8 +8,8 @@
       "trigger": "Undefined names or exceptions while building dashboard, tray, or wiring startup signals",
       "tests": [
         {
-          "path": "public_tests/test_application_startup_composition.py",
-          "nodeid": "public_tests/test_application_startup_composition.py::test_application_startup_composition_and_tray_rebuild"
+          "path": "tests/test_application_startup_composition.py",
+          "nodeid": "tests/test_application_startup_composition.py::test_application_startup_composition_and_tray_rebuild"
         }
       ],
       "status": "covered",

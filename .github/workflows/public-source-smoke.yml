@@ -18,6 +18,6 @@ jobs:
       - run: python -m exilelens.ops.startup_static_check
         env:
           PYTHONPATH: ${{ github.workspace }}\src
-      - run: python -m pytest -q -o addopts= public_tests
+      - run: python -m pytest -q -o addopts= public_tests tests/test_application_startup_composition.py
         env:
           PYTHONPATH: ${{ github.workspace }}\src

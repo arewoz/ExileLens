@@ -7,14 +7,13 @@ event loop handles real PoB, network updates, or global keyboard hooks.
 from __future__ import annotations
 
 import os
-import sys
 from dataclasses import dataclass
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-pytestmark = pytest.mark.smoke
+pytestmark = pytest.mark.itemcheck
 
 
 @dataclass
@@ -88,7 +87,6 @@ def test_application_startup_composition_and_tray_rebuild(monkeypatch: pytest.Mo
     runtime._wire_signals()
     app.processEvents()
 
-    # Regression for tray.py rebuild_menu using bare `settings`.
     runtime.tray.rebuild_menu()
     runtime.tray.rebuild_menu()
     menu = runtime.tray.contextMenu()
@@ -116,7 +114,6 @@ def test_application_startup_composition_and_tray_rebuild(monkeypatch: pytest.Mo
     )
     assert visible_dl and not enabled_dl
 
-    # Deferred update check must not crash when packaged mode is off.
     QTimer.singleShot(0, runtime.dashboard.update_service.start_automatic)
     app.processEvents()
 
