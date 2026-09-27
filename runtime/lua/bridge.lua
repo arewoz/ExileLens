@@ -1815,6 +1815,31 @@ local function listed_full_dps_skills()
 	return names
 end
 
+-- Allocated passives that transform an equipped item's base type in game (e.g. Way
+-- of the Stonefist: "Gloves you equip have their Base Type transformed to Fists of
+-- Stone while equipped, ..."). `modeled` is PoB's own verdict on that stat line: an
+-- unparsed line means PoB compares the item untransformed.
+local function item_base_transforms()
+	local out = {}
+	for _, id in ipairs(sorted_keys(build.spec.allocNodes)) do
+		local node = build.spec.allocNodes[id]
+		for index, line in ipairs(node.sd or {}) do
+			local slot, base = line:match("^(%a+) you equip have their Base Type transformed to (.-) while equipped")
+			if slot then
+				local mod = node.mods and node.mods[index]
+				out[#out + 1] = {
+					node_id = id,
+					node = node.dn or node.name or "",
+					slot = slot,
+					transformed_base = base,
+					modeled = (mod and mod.list and not mod.extra) and true or false,
+				}
+			end
+		end
+	end
+	return out
+end
+
 local function build_info()
 	local spec = build.spec
 	local class_name = nil
@@ -1843,6 +1868,7 @@ local function build_info()
 		main_socket_group = build.mainSocketGroup,
 		full_dps_skills = listed_full_dps_skills(),
 		native_damage_group_indices = native_damage_groups,
+		item_base_transforms = item_base_transforms(),
 		effect_catalog = effect_catalog({ build.mainSocketGroup }, MAX_CALCULABLE_EFFECTS),
 		skill_group_count = #build.skillsTab.socketGroupList,
 		passive_nodes = select(1, build.spec:CountAllocNodes()),

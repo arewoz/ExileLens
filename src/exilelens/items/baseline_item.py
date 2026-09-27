@@ -196,3 +196,43 @@ def product_to_pob_or_self(product_slot: str) -> str:
         return product_slot_to_pob(ProductSlot(product_slot))
     except (ValueError, KeyError):
         return product_slot
+
+
+def unmodeled_item_transform(
+    transforms: Any,
+    pob_slot: str,
+    baseline_item: dict[str, Any],
+    candidate_item: dict[str, Any],
+) -> dict[str, str] | None:
+    """An allocated passive transforms items in this slot in game.
+
+    Way of the Stonefist turns equipped gloves into Fists of Stone with transformed
+    modifiers. The supported PoB does not model that transformation, so it compares
+    like with like only when both sides already carry the transformed base (e.g. a
+    PoB/poe.ninja export of the equipped gloves); any other glove comparison sets an
+    untransformed item against the in-game one. PoB's own `modeled` flag is reported
+    but not trusted: the one upstream implementation (PathOfBuilding-PoE2 PR #2350)
+    re-transforms already transformed gloves and uses averaged modifier values, so
+    lifting this guard requires validating a PoB revision (docs/CORPUS-02C.md).
+    """
+    for transform in transforms if isinstance(transforms, list) else []:
+        if not isinstance(transform, dict) or transform.get("slot") != pob_slot:
+            continue
+        target = str(transform.get("transformed_base") or "")
+        baseline_base = "" if baseline_item.get("empty") else str(baseline_item.get("base_type") or "")
+        candidate_base = str(
+            candidate_item.get("base_type") or (candidate_item.get("pob_parsed") or {}).get("base_name") or ""
+        )
+        sides = [base for base in (baseline_base, candidate_base) if base]
+        if target and sides and all(target in base for base in sides):
+            continue
+        return {
+            "code": "ITEM_TRANSFORM_UNMODELED",
+            "node": str(transform.get("node") or ""),
+            "slot": pob_slot,
+            "transformed_base": target,
+            "baseline_base": baseline_base,
+            "candidate_base": candidate_base,
+            "pob_modeled": bool(transform.get("modeled")),
+        }
+    return None

@@ -99,6 +99,15 @@
       "primary_skill": "Navira, the Last Mirage",
       "actor": "MINION",
       "purpose": "ascendancy-granted Djinn minions (three Djinns plus other minions): minion-owned verdicts and complete Djinn damage components"
+    },
+    {
+      "id": "CORPUS02C-STONEFIST",
+      "file": "fixtures/builds/public_corpus/corpus02c_stonefist_martial_artist.xml",
+      "class": "Monk",
+      "ascendancy": "Martial Artist",
+      "primary_skill": "Twister",
+      "actor": "PLAYER",
+      "purpose": "Way of the Stonefist: already-transformed Fists of Stone gloves in the baseline; untransformed glove candidates must not get confident verdicts"
     }
   ]
 }

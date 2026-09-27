@@ -212,6 +212,18 @@
       "total_variants": 1
     },
     {
+      "archetypes": [],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORPUS02C-STONEFIST-IDENTITY",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [
         "spell"
       ],
@@ -472,6 +484,42 @@
       "result": "PASS",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 2
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "ITEM-TRANSFORM-FLAGGED-IS-UNSUPPORTED",
+      "manifest_id": null,
+      "passed_variants": 2,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/test_item_transform_guard.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "ITEM-TRANSFORM-GUARD-SCOPE",
+      "manifest_id": null,
+      "passed_variants": 8,
+      "result": "PASS",
+      "test_file": "tests/test_item_transform_guard.py",
+      "total_variants": 8
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "ITEM-TRANSFORM-POB-CLAIM-NOT-TRUSTED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/test_item_transform_guard.py",
+      "total_variants": 1
     },
     {
       "archetypes": [],
@@ -912,6 +960,60 @@
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-DETECTED-AND-UNMODELED-BY-SUPPORTED-POB",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-NON-GLOVE-CANDIDATES-STAY-MEASURED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-ORDINARY-GLOVES-UNSUPPORTED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 2,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-TRANSFORMED-GLOVES-MEASURED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
@@ -1122,10 +1224,11 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 8,
-    "PASS": 73
+    "PASS": 78,
+    "UNSUPPORTED": 3
   },
-  "supported_count": 81,
-  "total_count": 81,
+  "supported_count": 89,
+  "total_count": 89,
   "uncovered_archetypes": [
     "es_scaling",
     "proxy_totem",

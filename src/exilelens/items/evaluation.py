@@ -18,7 +18,7 @@ from exilelens.errors import (
     UnsupportedGameLanguage,
 )
 from exilelens.baseline import display_item_set_name
-from exilelens.items.baseline_item import resolve_baseline_item, resolve_candidate_item
+from exilelens.items.baseline_item import resolve_baseline_item, resolve_candidate_item, unmodeled_item_transform
 from exilelens.items.cache import ItemPipelineCache
 from exilelens.items.comparison_trace import build_comparison_trace
 from exilelens.items.evaluation_outcome import failed_outcome
@@ -546,6 +546,12 @@ def _evaluate_item_impl(
             pob_slot=pob_slot,
             raw_text=raw.raw_text,
         ).to_dict()
+        comparison["unmodeled_item_transform"] = unmodeled_item_transform(
+            build_info.get("item_base_transforms"),
+            pob_slot,
+            comparison["baseline_item"],
+            comparison["candidate_item"],
+        )
         comparisons.append(comparison)
         debug_payload["slots"].append(
             {

@@ -488,6 +488,23 @@ def assess_quality(
     if failed:
         return EvaluationQuality.FAILED, failed
 
+    transform = comparison.get("unmodeled_item_transform")
+    if isinstance(transform, dict) and transform:
+        slot = str(transform.get("slot") or "item").lower()
+        pob_state = (
+            "Path of Building's modelling of this is not validated"
+            if transform.get("pob_modeled")
+            else "Path of Building does not model this"
+        )
+        return EvaluationQuality.UNSUPPORTED, [
+            _reason(
+                "ITEM_TRANSFORM_UNMODELED",
+                f"{transform.get('node') or 'An allocated passive'} transforms equipped {slot} into "
+                f"{transform.get('transformed_base') or 'another base'} with different modifiers; "
+                f"{pob_state}, so this {slot} comparison cannot be measured",
+            )
+        ]
+
     partial: list[dict[str, str]] = []
     offense = metric_profile.get("primary_offense") or {}
     claim = damage_claim or build_damage_claim(comparison, metric_profile)
@@ -630,7 +647,7 @@ def _unsupported_or_unmodeled(
     metric_profile: dict[str, Any],
     comparison: dict[str, Any],
 ) -> list[dict[str, str]]:
-    rows = [item for item in quality_reasons if item["code"].startswith(("OFFENSE_", "PRIMARY_"))]
+    rows = [item for item in quality_reasons if item["code"].startswith(("OFFENSE_", "PRIMARY_", "ITEM_TRANSFORM_"))]
     seen_codes = {item["code"] for item in rows}
     offense = metric_profile.get("primary_offense") or {}
     kind = str(offense.get("delta_kind") or "MEASURED")

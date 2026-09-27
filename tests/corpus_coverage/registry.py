@@ -183,6 +183,18 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.MINION,),
         manifest_id="CORPUS02B-VARASHTA-DJINN",
     ),
+    CoverageCase(
+        id="CORPUS02C-STONEFIST-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORPUS02C-STONEFIST]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Monk/Martial Artist, Twister, PLAYER actor, Way of the Stonefist allocated with "
+            "already-transformed Runeforged Fists of Stone gloves. Public ladder build."
+        ),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -890,6 +902,65 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# CORPUS-02C Way of the Stonefist (tests/integration/test_corpus02c_stonefist.py) — the supported PoB does not apply the
+# glove transformation, so only like-for-like Fists of Stone comparisons are
+# measured; ordinary glove candidates are explicitly UNSUPPORTED. Numeric
+# expectations are checked against cold PoB loads. See docs/CORPUS-02C.md.
+# ---------------------------------------------------------------------------
+CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="STONEFIST-DETECTED-AND-UNMODELED-BY-SUPPORTED-POB",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_stonefist_is_detected_and_the_supported_pob_does_not_model_it",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The bridge reports Way of the Stonefist (Gloves -> Fists of Stone) with PoB's own "
+            "modeled=False; a PoB revision that parses it trips this test and must be re-validated."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-TRANSFORMED-GLOVES-MEASURED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_transformed_glove_comparison_is_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Fists of Stone vs Fists of Stone (the equipped transformed gloves without their "
+            "transformed crit line): FULL / MEANINGFUL_DOWNGRADE matching a cold PoB load."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-ORDINARY-GLOVES-UNSUPPORTED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_ordinary_glove_candidate_is_unsupported_not_confident",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description=(
+            "Ordinary glove candidates, which the game would transform, were FULL / "
+            "MEANINGFUL_DOWNGRADE against the transformed baseline; now UNSUPPORTED "
+            "(ITEM_TRANSFORM_UNMODELED) with no damage claim."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-NON-GLOVE-CANDIDATES-STAY-MEASURED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_non_glove_candidates_on_a_stonefist_build_stay_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="The guard is scoped to gloves: an amulet candidate on the Stonefist build stays FULL and matches PoB.",
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+)
+
+# ---------------------------------------------------------------------------
 # CORE-04 adversarial policy suite (tests/test_core_04_adversarial_item_check.py)
 # — deterministic, worker-shaped unit tests of outcome policy. No real PoB, no
 # build fixture: these are the safety net around the verdict/quality contract
@@ -1036,6 +1107,32 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.UNCERTAIN,
         description="An explicit restore failure is graded FAILED quality, never silently treated as a successful comparison.",
     ),
+    CoverageCase(
+        id="ITEM-TRANSFORM-GUARD-SCOPE",
+        test_file="tests/test_item_transform_guard.py",
+        node_name="test_guard_flags_only_glove_comparisons_that_are_not_like_for_like",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="CORPUS-02C: only transformed-slot comparisons that are not Fists of Stone on both sides are flagged.",
+    ),
+    CoverageCase(
+        id="ITEM-TRANSFORM-POB-CLAIM-NOT-TRUSTED",
+        test_file="tests/test_item_transform_guard.py",
+        node_name="test_guard_does_not_trust_a_pob_modelling_claim",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: a PoB revision that parses Way of the Stonefist (e.g. PR #2350) does not lift the guard unvalidated.",
+    ),
+    CoverageCase(
+        id="ITEM-TRANSFORM-FLAGGED-IS-UNSUPPORTED",
+        test_file="tests/test_item_transform_guard.py",
+        node_name="test_flagged_comparison_is_unsupported_quality",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: a flagged comparison is EvaluationQuality.UNSUPPORTED with reason ITEM_TRANSFORM_UNMODELED.",
+    ),
 )
 
 ALL_CASES: tuple[CoverageCase, ...] = (
@@ -1044,5 +1141,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + SLICE_3_4D_REAL_POB_CASES
     + CORPUS_02A_REAL_POB_CASES
     + CORPUS_02B_REAL_POB_CASES
+    + CORPUS_02C_REAL_POB_CASES
     + POLICY_UNIT_CASES
 )

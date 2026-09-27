@@ -41,7 +41,9 @@ SUITES: tuple[tuple[str, str], ...] = (
     ("tests/integration/test_effect_level_enumeration.py", "real_pob"),
     ("tests/integration/test_corpus02_giants_blood_shield.py", "real_pob"),
     ("tests/integration/test_corpus02b_minion_djinn.py", "real_pob"),
+    ("tests/integration/test_corpus02c_stonefist.py", "real_pob"),
     ("tests/test_core_04_adversarial_item_check.py", "itemcheck"),
+    ("tests/test_item_transform_guard.py", "itemcheck"),
 )
 
 

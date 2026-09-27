@@ -555,6 +555,13 @@ def apply_primary_skill_guard(
     skill no longer exists in the candidate build (e.g. it was granted by the replaced
     item), the damage delta compares two different skills and is unmeasured.
     """
+    if comparison.get("unmodeled_item_transform"):
+        # PoB compares the item untransformed (e.g. Way of the Stonefist gloves), so
+        # its damage delta does not describe the in-game item.
+        offense = dict(metric_profile.get("primary_offense") or {})
+        offense["delta_kind"] = OffenseDeltaKind.UNSUPPORTED.value
+        offense["coverage_state"] = "ITEM_TRANSFORM_UNMODELED"
+        return {**metric_profile, "primary_offense": offense}
     baseline = comparison.get("baseline") or {}
     candidate = comparison.get("candidate") or {}
     baseline_skill = baseline.get("primary_skill") or {}
