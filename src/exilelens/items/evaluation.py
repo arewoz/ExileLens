@@ -584,6 +584,14 @@ def _evaluate_item_impl(
             raw_text=raw.raw_text,
         ).to_dict()
         comparison["item_transform"] = transform_report(pob_slot, candidate_transform, baseline_transform)
+        if pob_slot != "Gloves" and baseline_transform is not None and not baseline_transform.ok:
+            # Ordinary equipped gloves whose transformation is not exact stay untransformed
+            # in PoB's baseline; disclose it instead of silently comparing against it.
+            comparison["stonefist_baseline_note"] = (
+                "The equipped gloves are ordinary gloves in this Path of Building build, but Way of the "
+                "Stonefist transforms them in game and their transformed rolls are unknown; this comparison "
+                "uses the untransformed gloves. Import the character from the game for exact gloves."
+            )
         comparison["unmodeled_item_transform"] = unmodeled_item_transform(
             build_info.get("item_base_transforms"),
             pob_slot,
@@ -823,6 +831,18 @@ _MONOTONE_FIELDS = (
 )
 
 
+def _verdict_structure(row: dict[str, Any]) -> tuple[Any, ...]:
+    """Everything besides the score that decides the public verdict."""
+    outcome = row.get("evaluation_outcome") or {}
+    impact = outcome.get("item_impact") or {}
+    axes = tuple(sorted(
+        (name, str(axis.get("direction")), bool(axis.get("significant")))
+        for name, axis in (impact.get("axes") or {}).items()
+    ))
+    guardrails = tuple(sorted(str(g.get("code")) for g in outcome.get("guardrails_applied") or []))
+    return (str(outcome.get("verdict")), str(outcome.get("evaluation_quality")), str(impact.get("pattern")), axes, guardrails)
+
+
 def _roll_monotone_violations(rows: list[dict[str, Any]]) -> list[str]:
     """Fields whose value is not ordered worst <= middle <= best."""
     worst, middle, best = rows
@@ -924,6 +944,18 @@ def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dic
             return refuse(f"{cause}, and across the possibilities the verdict changes ({low} and {other})")
         for alternative in range(alternatives):
             trio = [row for run, row in rows if run["alternative"] == alternative]
+            # The verdict policy is not order-preserving on its own (e.g. a TRADEOFF
+            # pattern forces SIDEGRADE regardless of score), so matching verdicts at
+            # the ends prove nothing unless the verdict's whole structure -- pattern,
+            # per-axis direction/significance, applied guardrails, quality -- is also
+            # identical at every measured roll. With outputs monotone in the rolls,
+            # every intermediate roll then shares that structure and verdict.
+            if len({_verdict_structure(row) for row in trio}) > 1:
+                return refuse(
+                    "its transformed modifier rolls are only decided when equipped, and across their range "
+                    "the comparison changes character (impact pattern or guardrails), so no single verdict "
+                    "holds for every roll"
+                )
             if len(trio) == 3:
                 violations = _roll_monotone_violations(trio)
                 if violations:
@@ -991,16 +1023,17 @@ def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]]
         if ehp:
             parts.append(f"EHP {_pct_text(ehp['worst_pct'])} to {_pct_text(ehp['best_pct'])}")
         guarantee = (
-            "an upgrade in every case" if verdict in _UPGRADE_VERDICTS
-            else "a downgrade in every case" if verdict in _DOWNGRADE_VERDICTS
-            else f"{verdict.replace('_', ' ').lower()} in every case"
+            "an upgrade across the roll range" if verdict in _UPGRADE_VERDICTS
+            else "a downgrade across the roll range" if verdict in _DOWNGRADE_VERDICTS
+            else f"{verdict.replace('_', ' ').lower()} across the roll range"
         )
         cause = "rolls this glove's transformed modifiers when it is equipped"
         if alternatives > 1:
-            cause = f"transforms this glove into one of {alternatives} possible items (its lines fit several modifier combinations)"
+            cause = f"turns this glove into one of {alternatives} possible items (its lines fit several modifier combinations) and rolls their transformed modifiers when equipped"
         summary = (
-            f"Way of the Stonefist {cause}. Across every possibility Path of Building measures "
-            + ("; ".join(parts) or "the listed changes") + f": {guarantee}."
+            f"Way of the Stonefist {cause}. Path of Building measured the lowest, middle and highest possible rolls"
+            + (" of each" if alternatives > 1 else "") + ": " + ("; ".join(parts) or "the listed changes")
+            + f". Every transformed value only strengthens the item, so this is {guarantee}."
         )
         note = {"code": "STONEFIST_ROLL_DEPENDENT", "detail": summary}
         bounds = {

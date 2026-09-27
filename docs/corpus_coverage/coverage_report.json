@@ -1076,6 +1076,18 @@
       "total_variants": 1
     },
     {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-INEXACT-BASELINE-DISCLOSED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [
         "ascendancy"
       ],
@@ -1197,6 +1209,18 @@
       "expected": "UNSUPPORTED",
       "failure_messages": [],
       "id": "STONEFIST-VERDICT-SPANNING-REFUSED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-VERDICT-STRUCTURE-MUST-MATCH",
       "manifest_id": null,
       "passed_variants": 1,
       "result": "UNSUPPORTED",
@@ -1414,11 +1438,11 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 8,
-    "PASS": 90,
-    "UNSUPPORTED": 6
+    "PASS": 91,
+    "UNSUPPORTED": 7
   },
-  "supported_count": 104,
-  "total_count": 104,
+  "supported_count": 106,
+  "total_count": 106,
   "uncovered_archetypes": [
     "es_scaling",
     "proxy_totem",

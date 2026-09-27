@@ -114,7 +114,13 @@ def no_ranged_rule(pair: ModPair, source_values: list[float]) -> list[float] | N
 
 
 class StonefistTransformer:
-    def __init__(self, mods: list[dict[str, Any]], roll_rule: RollRule = no_ranged_rule) -> None:
+    def __init__(
+        self, mods: list[dict[str, Any]], roll_rule: RollRule = no_ranged_rule,
+        decompose_cache: dict[Any, Any] | None = None,
+    ) -> None:
+        #: Shared between the per-rule transformers of one engine: decomposition
+        #: does not depend on the roll rule.
+        self._decompose_cache: dict[Any, Any] = decompose_cache if decompose_cache is not None else {}
         self.pairs = [
             ModPair(
                 source_id=str(m["source_id"]), target_id=str(m["target_id"]),
@@ -139,7 +145,17 @@ class StonefistTransformer:
         modifier's own displayed values, or None when its line is a merged sum of
         several modifiers (the game shows same-stat modifiers as one line; PoB
         exports may list them separately, and then each line is one modifier).
+        The result does not depend on the roll rule and is cached per item.
         """
+        key = (tuple(str(row["line"]) for row in lines), max_affixes)
+        cached = self._decompose_cache.get(key)
+        if cached is not None:
+            return cached
+        result = self._decompose(lines, max_affixes=max_affixes)
+        self._decompose_cache[key] = result
+        return result
+
+    def _decompose(self, lines: list[dict[str, Any]], *, max_affixes: int) -> tuple[list[tuple[list[ModPair], Own]], list[str]]:
         observed: dict[str, list[list[float]]] = {}
         unknown: list[str] = []
         for row in lines:
@@ -156,32 +172,56 @@ class StonefistTransformer:
             {pair for template in observed for pair in self._by_template[template]}, key=lambda p: p.source_id,
         )
         candidates = [p for p in candidates if all(t in observed for t in p.templates)]
+        # Pre-parsed line data: pair -> [(template, ranges)].
+        info = {pair: [(_template(line), _ranges(line)) for line in pair.source_lines] for pair in candidates}
+        single = [t for t, rows in observed.items() if len(rows) == 1]
 
-        def contributions(chosen: list[ModPair], template: str) -> list[tuple[ModPair, list[tuple[float, float]]]]:
-            return [(pair, _ranges(line)) for pair in chosen for line in pair.source_lines if _template(line) == template]
+        # remaining_high[i][template][k]: the most that candidates i.. can still add to a
+        # merged line (one tier per modifier group, so the largest tier per group).
+        remaining_high: list[dict[str, list[float]]] = []
+        for start in range(len(candidates) + 1):
+            best: dict[tuple[str, str], list[float]] = {}
+            for pair in candidates[start:]:
+                for template, ranges in info[pair]:
+                    if template not in single:
+                        continue
+                    slot = (pair.source_group, template)
+                    highs = [high for _, high in ranges]
+                    current = best.get(slot)
+                    best[slot] = highs if current is None else [max(a, b) for a, b in zip(current, highs)]
+            totals: dict[str, list[float]] = {}
+            for (_group, template), highs in best.items():
+                total = totals.setdefault(template, [0.0] * len(highs))
+                for index, value in enumerate(highs):
+                    if index < len(total):
+                        total[index] += value
+            remaining_high.append(totals)
 
         def within(values: list[float], ranges: list[tuple[float, float]]) -> bool:
             return len(values) == len(ranges) and all(
                 low - 1e-9 <= value <= high + 1e-9 for value, (low, high) in zip(values, ranges)
             )
 
-        def assignments(chosen: list[ModPair], complete: bool) -> list[Own] | None:
+        def assignments(chosen: list[ModPair], complete: bool, start: int) -> list[Own] | None:
             per_template: list[list[Own]] = []
             for template, rows in observed.items():
-                contrib = contributions(chosen, template)
-                if not contrib:
-                    if complete:
-                        return None
-                    continue
+                contrib = [(pair, ranges) for pair in chosen for t, ranges in info[pair] if t == template]
                 if len(rows) == 1:
                     values = rows[0]
+                    room = remaining_high[start].get(template, [])
                     for index, value in enumerate(values):
                         low = sum(r[index][0] for _, r in contrib if index < len(r))
                         high = sum(r[index][1] for _, r in contrib if index < len(r))
-                        # Adding modifiers only raises a merged line's sum, so a partial
-                        # set is dead once its minimum already exceeds the displayed value.
-                        if value < low - 1e-9 or (complete and value > high + 1e-9):
+                        reachable = high + (room[index] if index < len(room) and not complete else 0.0)
+                        # A merged line's sum only grows as modifiers are added: dead once its
+                        # minimum exceeds the value, or once even every remaining modifier
+                        # group's largest tier cannot lift its maximum up to the value.
+                        if value < low - 1e-9 or value > reachable + 1e-9:
                             return None
+                    if not contrib:
+                        if complete:
+                            return None
+                        continue
                     if len(contrib) == 1:
                         per_template.append([{(contrib[0][0].source_id, template): values}])
                     else:
@@ -189,7 +229,7 @@ class StonefistTransformer:
                     continue
                 if len(contrib) > len(rows) or (complete and len(contrib) != len(rows)):
                     return None
-                if not complete:
+                if not complete or not contrib:
                     continue
                 options: list[Own] = []
                 for order in itertools.permutations(range(len(rows))):
@@ -210,12 +250,10 @@ class StonefistTransformer:
 
         solutions: list[tuple[list[ModPair], Own]] = []
 
-        def search(start: int, chosen: list[ModPair], groups: set[str]) -> None:
-            prefixes = sum(1 for p in chosen if p.source_type == "Prefix")
-            suffixes = sum(1 for p in chosen if p.source_type == "Suffix")
-            if prefixes > max_affixes or suffixes > max_affixes or assignments(chosen, False) is None:
+        def search(start: int, chosen: list[ModPair], groups: set[str], prefixes: int, suffixes: int) -> None:
+            if prefixes > max_affixes or suffixes > max_affixes or assignments(chosen, False, start) is None:
                 return
-            for own in assignments(chosen, True) or []:
+            for own in assignments(chosen, True, start) or []:
                 solutions.append((list(chosen), own))
             if len(solutions) > 256:
                 return
@@ -225,11 +263,12 @@ class StonefistTransformer:
                     continue
                 chosen.append(pair)
                 groups.add(pair.source_group)
-                search(index + 1, chosen, groups)
+                search(index + 1, chosen, groups,
+                       prefixes + (pair.source_type == "Prefix"), suffixes + (pair.source_type == "Suffix"))
                 chosen.pop()
                 groups.discard(pair.source_group)
 
-        search(0, [], set())
+        search(0, [], set(), 0, 0)
         if not solutions:
             return [], ["the displayed modifiers match no combination of glove modifiers"]
         return solutions, []
@@ -438,5 +477,9 @@ def transformer_for(engine: Any, roll_rule: RollRule = no_ranged_rule) -> Stonef
         setattr(engine, "_stonefist_transformers", cache)
     key = getattr(roll_rule, "__name__", repr(roll_rule))
     if key not in cache:
-        cache[key] = StonefistTransformer(mods, roll_rule)
+        shared = getattr(engine, "_stonefist_decompositions", None)
+        if shared is None:
+            shared = {}
+            setattr(engine, "_stonefist_decompositions", shared)
+        cache[key] = StonefistTransformer(mods, roll_rule, shared)
     return cache[key]

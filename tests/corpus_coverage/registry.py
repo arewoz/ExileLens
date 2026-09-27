@@ -1027,6 +1027,15 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         manifest_id="CORPUS02C-STONEFIST",
     ),
     CoverageCase(
+        id="STONEFIST-INEXACT-BASELINE-DISCLOSED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_inexact_equipped_gloves_are_disclosed_on_other_slots",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Hand-built PoB with ordinary ranged gloves: other slots are measured and disclose the untransformed baseline gloves.",
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
         id="STONEFIST-UNRESOLVABLE-GLOVES-UNSUPPORTED",
         test_file="tests/integration/test_corpus02c_stonefist.py",
         node_name="test_unresolvable_gloves_stay_unsupported_with_the_precise_reason",
@@ -1245,6 +1254,14 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C: when displayed lines fit several modifier combinations, all resulting items must share one verdict.",
+    ),
+    CoverageCase(
+        id="STONEFIST-VERDICT-STRUCTURE-MUST-MATCH",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_same_verdict_reached_through_different_patterns_is_refused",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C review: a verdict reached through different impact patterns across the roll range is refused.",
     ),
     CoverageCase(
         id="STONEFIST-GUARANTEED-RANGE-REPORTED",

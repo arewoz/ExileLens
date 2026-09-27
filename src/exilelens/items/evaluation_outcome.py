@@ -651,6 +651,8 @@ def _unsupported_or_unmodeled(
     comparison: dict[str, Any],
 ) -> list[dict[str, str]]:
     rows = [item for item in quality_reasons if item["code"].startswith(("OFFENSE_", "PRIMARY_", "ITEM_TRANSFORM_"))]
+    if comparison.get("stonefist_baseline_note"):
+        rows.append(_reason("STONEFIST_BASELINE_UNTRANSFORMED", str(comparison["stonefist_baseline_note"])))
     seen_codes = {item["code"] for item in rows}
     offense = metric_profile.get("primary_offense") or {}
     kind = str(offense.get("delta_kind") or "MEASURED")

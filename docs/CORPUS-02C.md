@@ -93,14 +93,17 @@ rolls independently.
      damage, EHP, Life/ES/Mana, Evasion/Armour/Ward, the four resistances, block and
      maximum-hit values), which shows the outcome is monotone in the rolls, so these
      configurations bound every other roll;
-  2. **every measured configuration gives the same public verdict.**
+  2. **every measured configuration gives the same public verdict with the same verdict
+     structure**: impact pattern, per-axis direction and significance, applied
+     guardrails and quality (see §7).
 - Otherwise the comparison is UNSUPPORTED with the reason: the verdict changes, the
   results are not ordered, or there are too many alternatives.
 - **Reported numbers are a verified range over all configurations:**
   - the `[range x% to y%]` label on impact rows;
   - a `STONEFIST_ROLL_DEPENDENT` disclosure;
   - a summary such as "…Twister −9.9% to −6.0%; EHP −37.3% to −26.5%: a downgrade in every
-    case", or "an upgrade in every case".
+    across the roll range", or "an upgrade across the roll range". The summary says that
+    PoB measured the lowest, middle and highest possible rolls.
 
   The detail rows show the lowest-damage configuration, labelled with the full range.
 - **Ordinary equipped gloves** (a hand-built PoB) are transformed exactly and passed as a
@@ -202,3 +205,77 @@ detection tripwire test and must be re-validated before its behaviour is trusted
   outputs, and a PoB interaction outside those fields would not be detected by it.
 - **Cost:** a roll-dependent candidate costs 3 PoB evaluations per alternative (at most 4
   alternatives, i.e. 12), on Stonefist builds only. More than 4 alternatives are refused.
+
+## 7. Correctness review (post-b98e90b)
+
+**Confirmed defects, both fixed:**
+
+1. **A verdict-agreement gap.** Matching verdicts at the sampled rolls did not prove
+   intermediate rolls. `decide_verdict` is not order-preserving: a TRADEOFF pattern with no
+   guardrail forces SIDEGRADE regardless of score. So SIDEGRADE at the worst roll (forced)
+   and SIDEGRADE at the best roll (score band) can surround an intermediate roll that
+   leaves the TRADEOFF pattern with a downgrade-band score. **Fix:** every measured
+   configuration of an alternative must now also share the verdict structure (pattern,
+   per-axis direction and significance, applied guardrail codes, quality). Stubbed
+   regression: `test_same_verdict_reached_through_different_patterns_is_refused`.
+2. **Hover latency of 19–50 s.** The earlier pruning fix had removed the solver's only
+   upper-bound prune, so the search enumerated about 235,000 modifier subsets (7–14 s per
+   PoB run), repeated for every configuration. **Fix:**
+   - a sound upper-bound prune (the remaining gain per merged line is at most the sum,
+     over modifier groups, of each group's largest remaining tier);
+   - precomputed line data;
+   - one decomposition per item shared by all roll configurations.
+
+   Result: 7.1 s becomes 0.011 s, with identical solutions for all nine corpus gloves.
+
+**Additional truthfulness fix:** on a hand-built PoB whose equipped ordinary gloves cannot
+be transformed exactly, comparisons in other slots now disclose
+`STONEFIST_BASELINE_UNTRANSFORMED` instead of silently using the untransformed gloves.
+This is a non-blocking note.
+
+**What is established, sampled, or needs evidence:**
+
+- **Mathematically established, given assumption (A) below:**
+  - For each alternative, the all-worst and all-best roll corners bound every roll
+    configuration of every scored output.
+  - With the verdict structure identical at the measured rolls, every intermediate roll
+    has the same structure and the same score band. The score, guardrail thresholds and
+    axis directions are monotone in those outputs; axis significance is sandwiched
+    because both ends share it.
+  - Displayed ranges are therefore true bounds.
+- **Assumption (A):** each scored PoB output is monotone in each transformed roll, in the
+  direction where a larger value is better for the character.
+  - **Supported by:** static orientation of all 94 ranged `HandWraps` line types (every
+    one strengthens the character when larger; the "Leech … slower" lines are inverted);
+    and the worst ≤ middle ≤ best ordering check on the scored outputs.
+  - **Not proven:** a PoB interaction that makes an output decrease in a beneficial stat,
+    or an output outside the checked fields, would not be caught.
+- **Empirically sampled:** the middle roll, as corroboration of (A) along the diagonal.
+  Alternatives are discrete and are all measured.
+- **Would need more evidence for full certainty:**
+  - per-roll one-at-a-time PoB measurements to verify each roll's direction (k extra runs
+    per alternative);
+  - exhaustive corners (2^k runs) where (A) is in doubt.
+
+  Both were not added because of their latency cost (below).
+
+**Transactions:**
+- Every configuration is a separate PoB transaction with verified restore. A deferred
+  first restore is finalized before further runs; `finalize_transaction` is idempotent.
+- Baseline overrides are applied per transaction and never persist.
+- Tests cover repeated evaluation across alternatives, and the fingerprint and equipment
+  after them.
+
+**Performance (measured):**
+
+| Case | Hover cost |
+| --- | --- |
+| Exact glove | ~0.9 s |
+| Roll-dependent glove (3 runs) | ~4 s |
+| Two alternatives (6 runs) | ~7 s |
+| Worst case: 4 alternatives × 3 runs | ~14 s, estimated |
+
+- Non-glove items and non-Stonefist builds are unaffected (one run).
+- **Residual risk:** roll-dependent gloves exceed the 4 s "still working" hint. It is
+  feedback, not cancellation. Batching configurations into one PoB transaction would be
+  the next optimisation.

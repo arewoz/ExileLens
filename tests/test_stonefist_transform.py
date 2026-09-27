@@ -185,14 +185,14 @@ def test_runic_bases_become_runeforged_fists_of_stone() -> None:
 # --------------------------------------------------------------------------- verdict-spanning wrapper
 
 
-def _fake_result(verdict: str, metrics: dict[str, float], bounded: bool = True, alternatives: int = 1) -> dict[str, Any]:
+def _fake_result(verdict: str, metrics: dict[str, float], bounded: bool = True, alternatives: int = 1, pattern: str = "SINGLE_AXIS") -> dict[str, Any]:
     row = {
         "pob_slot": "Gloves",
         "primary_metric_field": "CombinedDPS",
         "item_transform": {"candidate": {"ok": True, "bounded": bounded, "alternatives": alternatives}},
         "metric_profile": {"primary_offense": {"percent_delta": metrics["CombinedDPS"] - 100}},
         "candidate": {"metrics": metrics},
-        "evaluation_outcome": {"verdict": verdict, "all_deltas": [
+        "evaluation_outcome": {"verdict": verdict, "item_impact": {"pattern": pattern, "axes": {}}, "all_deltas": [
             {"key": "primary_offense", "label": "Damage", "percent_delta": metrics["CombinedDPS"] - 100, "candidate": metrics["CombinedDPS"]},
         ], "unsupported_or_unmodeled": []},
     }
@@ -252,7 +252,7 @@ def test_consistent_ordered_range_reports_a_guaranteed_verdict(monkeypatch: pyte
     })
     result = evaluation_module.evaluate_item("raw", object())
     bounds = result["slot_comparisons"][0]["stonefist_roll_bounds"]
-    assert bounds["guarantee"] == "an upgrade in every case"
+    assert bounds["guarantee"] == "an upgrade across the roll range"
     assert bounds["ranges"]["primary_offense"]["worst_pct"] == 10 and bounds["ranges"]["primary_offense"]["best_pct"] == 20
     assert result["presentation"]["roll_dependent"] is True
     assert "+10.0% to +20.0%" in result["presentation"]["verdict_explanation"]
@@ -290,3 +290,16 @@ def test_agreeing_alternatives_report_the_union_range(monkeypatch: pytest.Monkey
     # The shown numbers are the lowest-damage configuration, labelled with the full range.
     assert result["slot_comparisons"][0]["candidate"]["metrics"]["CombinedDPS"] == 92
     assert "one of 2 possible items" in bounds["summary"]
+
+
+def test_same_verdict_reached_through_different_patterns_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review counterexample: TRADEOFF forces SIDEGRADE at the worst roll while the score band
+    gives SIDEGRADE at the best roll; an intermediate roll can leave the TRADEOFF pattern with a
+    downgrade-band score. Matching verdicts are not enough -- the verdict structure must match."""
+    _stub(monkeypatch, {
+        "worst": _fake_result("SIDEGRADE", {"CombinedDPS": 95, "TotalEHP": 10}, pattern="TRADEOFF"),
+        "middle": _fake_result("SIDEGRADE", {"CombinedDPS": 99, "TotalEHP": 10}, pattern="TRADEOFF"),
+        "best": _fake_result("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}, pattern="SINGLE_AXIS"),
+    })
+    reason = evaluation_module.evaluate_item("raw", object())["unresolved"]
+    assert "changes character" in reason

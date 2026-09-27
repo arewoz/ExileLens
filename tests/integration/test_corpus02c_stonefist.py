@@ -253,7 +253,7 @@ def test_ranged_rolls_are_bounded_by_independent_reference_items(real_pob_engine
     assert outcome["evaluation_quality"] == "FULL" and outcome["verdict"] in DIRECTIONAL
     assert "STONEFIST_ROLL_DEPENDENT" in {r["code"] for r in outcome["unsupported_or_unmodeled"]}
     assert result["presentation"]["roll_dependent"] is True
-    assert "in every case" in result["presentation"]["verdict_explanation"]
+    assert "across the roll range" in result["presentation"]["verdict_explanation"]
     assert row["restore"]["pass"] is True
 
 
@@ -419,6 +419,22 @@ def test_guaranteed_upgrade_across_every_roll_is_communicated(real_pob_engine, t
     assert math.isclose(offense["worst_pct"], worst_pct, rel_tol=1e-6) and math.isclose(offense["best_pct"], best_pct, rel_tol=1e-6)
     assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert row["evaluation_outcome"]["verdict"] in {"MINOR_UPGRADE", "MEANINGFUL_UPGRADE", "MAJOR_UPGRADE"}
-    assert bounds["guarantee"] == "an upgrade in every case"
-    assert "an upgrade in every case" in result["presentation"]["verdict_explanation"]
+    assert bounds["guarantee"] == "an upgrade across the roll range"
+    assert "an upgrade across the roll range" in result["presentation"]["verdict_explanation"]
+    assert row["restore"]["pass"] is True
+
+
+def test_inexact_equipped_gloves_are_disclosed_on_other_slots(real_pob_engine, tmp_path: Path) -> None:
+    """A hand-built PoB with ordinary ranged gloves cannot get an exact baseline: disclosed, not hidden."""
+    ranged_gloves = _equipped_item(CORPUS / "corpus02_giants_blood_shield.xml", "Gloves")
+    hand_built = _variant(tmp_path, "hand_built_ranged", slots={"Gloves": ranged_gloves})
+    candidate = _equipped_item(BUILD, "Amulet") + "\n+30 to maximum Life\n"
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(hand_built))
+
+    row = _row(result, "Amulet")
+    assert row["item_transform"] is None
+    codes = {r["code"] for r in row["evaluation_outcome"]["unsupported_or_unmodeled"]}
+    assert "STONEFIST_BASELINE_UNTRANSFORMED" in codes
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert row["restore"]["pass"] is True
