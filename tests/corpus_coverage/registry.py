@@ -157,6 +157,19 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.DOT,),
         manifest_id="CORE04-SKILL-NATIVE-DOT",
     ),
+    CoverageCase(
+        id="CORPUS02-GIANTS-BLOOD-SHIELD-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORPUS02-GIANTS-BLOOD-SHIELD]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Mercenary/Gemling Legionnaire, Supercharged Slam with a two-hand mace plus a tower "
+            "shield (Giant's Blood), PLAYER actor. Supplied by a community tester (CORPUS-02A)."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -670,6 +683,98 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# CORPUS-02A real-build regression (tests/integration/test_corpus02_giants_blood_shield.py)
+# — the community `get_tree_snapshot` report plus Item Check behavior of a Giant's
+# Blood two-hand-mace-plus-shield build. Numeric expectations are checked against
+# independent cold PoB loads of edited copies of the build. See docs/CORPUS-02A.md.
+# ---------------------------------------------------------------------------
+CORPUS_02A_REAL_POB_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="TREE-SNAPSHOT-NON-UTF8-CODE-PAGE-REGRESSION",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_tree_snapshot_survives_non_utf8_worker_code_page",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Regression for the community 'get_tree_snapshot' failure: with the worker child "
+            "forced to cp1251, the real controller baseline reload returns the passive tree "
+            "with its non-ASCII node name intact and a following Item Check completes and "
+            "restores. Fails on pre-0.4.0b1 worker stdio exactly as reported."
+        ),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
+    CoverageCase(
+        id="GIANTS-BLOOD-BASELINE-ACTIVE-WEAPON-SET",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_giants_blood_baseline_identity_and_active_weapon_set",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Two-hand mace in Weapon 1 and Chernobog's Pillar in Weapon 2 both resolve as the "
+            "active set (inactive swap talisman ignored); primary is CombinedDPS = hit + ignite."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
+    CoverageCase(
+        id="GIANTS-BLOOD-TWO-HAND-CANDIDATE-KEEPS-SHIELD",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_giants_blood_two_hand_candidate_keeps_shield_and_matches_pob",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A two-hand mace candidate replaces Weapon 1 without clearing the shield "
+            "(paired_offhand_cleared false), FULL with a positive offense verdict matching a "
+            "cold PoB load; PoB's alternative off-hand placement stays PARTIAL/UNCERTAIN."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
+    CoverageCase(
+        id="CHERNOBOG-SHIELD-LOSS-SEMANTICS-CHANGE-UNCERTAIN",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_chernobog_shield_loss_is_measured_by_pob_but_stays_uncertain",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Replacing Chernobog's Pillar (fire damage per block chance) with a plain tower "
+            "shield: PoB shows a >20% loss and the ignite component disappears, so the "
+            "primary metric changes from hit+ailment to hit only. Reported PARTIAL/UNCERTAIN "
+            "with offense UNMEASURED, never a confident directional verdict."
+        ),
+        archetypes=(Archetype.MELEE, Archetype.UNIQUE_INTERACTION),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
+    CoverageCase(
+        id="GIANTS-BLOOD-INELIGIBLE-TWO-HANDER-CLEARS-SHIELD",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_ineligible_two_hander_clears_shield_and_is_not_viable",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A talisman (not covered by Giant's Blood) clears the shield in PoB's own "
+            "transaction; the removed shield is disclosed and the main mace skill becomes "
+            "unusable (PoB CombinedDPS 0), so the verdict is NOT_VIABLE."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
+    CoverageCase(
+        id="GIANTS-BLOOD-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_giants_blood_repeated_evaluation_is_deterministic_and_restores",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Weapon, shield and talisman candidates interleaved: the repeated weapon check is "
+            "identical and the build's fingerprint and equipment return to baseline."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+    ),
+)
+
+# ---------------------------------------------------------------------------
 # CORE-04 adversarial policy suite (tests/test_core_04_adversarial_item_check.py)
 # — deterministic, worker-shaped unit tests of outcome policy. No real PoB, no
 # build fixture: these are the safety net around the verdict/quality contract
@@ -818,4 +923,10 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
-ALL_CASES: tuple[CoverageCase, ...] = BUILD_CORPUS_IDENTITY_CASES + REAL_POB_VERDICT_CASES + SLICE_3_4D_REAL_POB_CASES + POLICY_UNIT_CASES
+ALL_CASES: tuple[CoverageCase, ...] = (
+    BUILD_CORPUS_IDENTITY_CASES
+    + REAL_POB_VERDICT_CASES
+    + SLICE_3_4D_REAL_POB_CASES
+    + CORPUS_02A_REAL_POB_CASES
+    + POLICY_UNIT_CASES
+)

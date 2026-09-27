@@ -27,10 +27,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_mixed_hit_ailment.xml` | Witch/Infernalist Comet (Cast on Elemental Ailment); mixed hit+ignite (~59%/41%) `CombinedDPS` offense selection. The candidate in this fixture's test is the build's own equipped Focus (Weapon 2) -- this is also this corpus's real-PoB evidence for Focus offhand support (M1.2), promoted from already-proven behavior rather than re-fixtured. |
 | `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity, baseline, and candidate-substitution correctness (M1.1, weapon half) and (M1.2) offhand-half candidate substitution: a Quiver candidate against the ACTIVE `Weapon 2 Swap` item, proving the same `active_weapon_slot` bridge translation covers the offhand case with no separate mapper. Originally surfaced a confirmed Item Check candidate-substitution defect for this configuration, since fixed — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
 | `fixtures/builds/public_corpus/core04_skill_native_dot.xml` | Monk/Acolyte of Chayula "Profane Ritual" (triggered by Cast on Minion Death); zero hit DPS, zero named-ailment DPS — skill-native-DoT (`DamageQuantity.SKILL_DOT`, PoB's own `TotalDot`) primary offense selection. |
+| `fixtures/builds/public_corpus/corpus02_giants_blood_shield.xml` | Mercenary/Gemling Legionnaire Supercharged Slam wielding a two-hand mace *and* a tower shield (Giant's Blood keystone); the shield is Chernobog's Pillar (fire damage per block chance, which also makes the build ignite). CORPUS-02A: regression for the community `get_tree_snapshot` worker failure (its tree contains the non-ASCII passive "The Mórrigan's Guidance"), two-hand candidates PoB keeps beside the shield, a two-hander PoB does not (shield cleared and disclosed), and a unique-shield replacement whose damage semantics change (truthfully UNCERTAIN). See `docs/CORPUS-02A.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(9 scenarios as of M1.1). It contains repository-relative paths and expected semantic
+(10 scenarios: 9 from M1.1 plus the CORPUS-02A Giant's Blood build). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -73,6 +74,16 @@ removing poe.ninja's cached `<PlayerStat>` display block (not part of the PoB bu
 definition; the engine recomputes all stats fresh on load regardless). No account
 name, character name, or profile identifier is present in the PoB import code itself
 or in any checked-in fixture.
+
+`corpus02_giants_blood_shield.xml` (CORPUS-02A) is a community-supplied export: a Reddit tester reported that
+ExileLens failed on their public poe.ninja PoE2 character, and the maintainer supplied a sanitized PoB2 XML
+export of it. The committed fixture is byte-identical to that supplied file (SHA-256
+`664f7d7db5c704906a4eab97ca17913e125d8685dc62ed458fd1eeef125ef1b9`, LF line endings). It was re-screened before
+commit: no `Unique ID:` lines, no `<PlayerStat>` block, no account/character name or profile link (only the
+standard passive-tree `<URL>` every corpus fixture keeps), and it passes the public safety regression. The
+character's live online state may have changed since the export and is intentionally not used; every figure
+in its tests is recomputed by a local PoB2 engine from this file. The account/character identifiers from the
+original report are not recorded in the repository.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

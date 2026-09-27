@@ -81,6 +81,15 @@
       "primary_skill": "Profane Ritual",
       "actor": "PLAYER",
       "purpose": "skill-native DoT (no hit DPS, no named ailment) primary offense selection"
+    },
+    {
+      "id": "CORPUS02-GIANTS-BLOOD-SHIELD",
+      "file": "fixtures/builds/public_corpus/corpus02_giants_blood_shield.xml",
+      "class": "Mercenary",
+      "ascendancy": "Gemling Legionnaire",
+      "primary_skill": "Supercharged Slam",
+      "actor": "PLAYER",
+      "purpose": "Giant's Blood two-hand mace plus shield layout, unique shield block-to-fire interaction, and non-ASCII passive-tree snapshot transport"
     }
   ]
 }
