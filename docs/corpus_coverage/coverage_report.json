@@ -1078,12 +1078,12 @@
     {
       "archetypes": [],
       "depth": "VERDICT",
-      "expected": "CONFIDENT",
+      "expected": "UNCERTAIN",
       "failure_messages": [],
       "id": "STONEFIST-INEXACT-BASELINE-DISCLOSED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
-      "result": "PASS",
+      "result": "EXPECTED_UNCERTAIN",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -1437,8 +1437,8 @@
     }
   ],
   "result_counts": {
-    "EXPECTED_UNCERTAIN": 8,
-    "PASS": 91,
+    "EXPECTED_UNCERTAIN": 9,
+    "PASS": 90,
     "UNSUPPORTED": 7
   },
   "supported_count": 106,

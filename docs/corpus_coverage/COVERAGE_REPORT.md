@@ -12,8 +12,8 @@ This measures *executed coverage cases*, not real-build population share — the
 
 | Result | Count |
 | --- | --- |
-| EXPECTED_UNCERTAIN | 8 |
-| PASS | 91 |
+| EXPECTED_UNCERTAIN | 9 |
+| PASS | 90 |
 | UNSUPPORTED | 7 |
 
 ## Archetype / mechanic coverage matrix
@@ -125,7 +125,7 @@ This measures *executed coverage cases*, not real-build population share — the
 | STONEFIST-ROLL-DEPENDENT-DETERMINISTIC-RESTORE | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 1/1 |
 | STONEFIST-HAND-BUILT-BASELINE-TRANSFORMED | VERDICT | ascendancy | CONFIDENT | PASS | 1/1 |
 | STONEFIST-CHARACTER-LEVEL | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 1/1 |
-| STONEFIST-INEXACT-BASELINE-DISCLOSED | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 1/1 |
+| STONEFIST-INEXACT-BASELINE-DISCLOSED | VERDICT | (none — cross-cutting) | UNCERTAIN | EXPECTED_UNCERTAIN | 1/1 |
 | STONEFIST-UNRESOLVABLE-GLOVES-UNSUPPORTED | VERDICT | (none — cross-cutting) | UNSUPPORTED | UNSUPPORTED | 2/2 |
 | STONEFIST-NON-GLOVE-CANDIDATES-STAY-MEASURED | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 1/1 |
 
