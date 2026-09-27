@@ -656,6 +656,47 @@ class Engine:
         result = self._guard_restore(lambda: self._call("evaluate_item_slots", params))
         return decorate_item_slot_evaluation(result)
 
+    def evaluate_item_variants(
+        self,
+        slots: list[str],
+        item_raws: list[str],
+        *,
+        context: str | None = None,
+        component_keys: list[str] | None = None,
+        baseline_overrides: dict[str, str] | None = None,
+        test_fault: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Measure several variants of one item for the same slots in ONE transaction.
+
+        One baseline read, one measurement frame per variant x slot and one verified
+        restore, instead of a full transaction per variant. The build is reverted and
+        structurally verified between measurements, as between the slots of
+        :meth:`evaluate_item_slots`. Never deferred. Returns one
+        ``evaluate_item_slots``-shaped result per raw text, in order, each carrying
+        the shared baseline and restore verification.
+        """
+        from exilelens.worker import decorate_item_variant_evaluation
+
+        session = self._session
+        if isinstance(session, WorkerSession) and not test_fault:
+            return self._guard_restore(lambda: session.evaluate_item_variants(
+                slots, item_raws, context=context, component_keys=component_keys,
+                baseline_overrides=baseline_overrides,
+            ))
+        params: dict[str, Any] = {"slots": list(slots), "item_raws": list(item_raws)}
+        if context:
+            params["context"] = context
+        if component_keys:
+            params["component_keys"] = component_keys
+        if test_fault:
+            params["test_fault"] = test_fault
+        if baseline_overrides:
+            params["baseline_overrides"] = dict(baseline_overrides)
+        if perf_enabled():
+            params["perf"] = True
+        result = self._guard_restore(lambda: self._call("evaluate_item_variants", params))
+        return decorate_item_variant_evaluation(result)
+
     def finalize_transaction(self) -> dict[str, Any]:
         """Complete a deferred restore. Idempotent: returns status IDLE when there is none.
 

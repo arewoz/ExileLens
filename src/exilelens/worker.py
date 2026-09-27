@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import threading
@@ -208,6 +209,33 @@ def decorate_item_slot_evaluation(result: dict[str, Any]) -> dict[str, Any]:
         candidate["fingerprint_hash"] = fingerprint_hash(candidate["fingerprint"])
         entry["delta"] = metric_delta(baseline_norm, candidate_norm)
     return result
+
+
+def decorate_item_variant_evaluation(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Split one multi-variant transaction into per-variant slot evaluations.
+
+    Every variant gets its own copy of the shared baseline and restore verification
+    (there is one transaction), shaped and decorated exactly like an
+    ``evaluate_item_slots`` result. The transaction's perf payload is attached to the
+    first variant only, so it is never counted once per variant.
+    """
+    variants = result.get("variants") or []
+    shaped: list[dict[str, Any]] = []
+    for index, variant in enumerate(variants):
+        single: dict[str, Any] = {
+            "context": result.get("context"),
+            "baseline": copy.deepcopy(result["baseline"]),
+            "true_baseline": copy.deepcopy(result.get("true_baseline")),
+            "restored": copy.deepcopy(result.get("restored")),
+            "restore": copy.deepcopy(result.get("restore")),
+            "slots": variant.get("slots") or [],
+            "item_raw": variant.get("item_raw"),
+            "shared_transaction": {"variants": len(variants), "index": index},
+        }
+        if index == 0 and result.get("perf") is not None:
+            single["perf"] = result["perf"]
+        shaped.append(decorate_item_slot_evaluation(single))
+    return shaped
 
 
 def decorate_slot_cleared(result: dict[str, Any]) -> dict[str, Any]:
@@ -453,6 +481,29 @@ class WorkerSession:
         if perf_enabled():
             params["perf"] = True
         return decorate_item_slot_evaluation(self.request("evaluate_item_slots", params))
+
+    def evaluate_item_variants(
+        self,
+        slots: list[str],
+        item_raws: list[str],
+        *,
+        context: str | None = None,
+        tolerance: float = 0.5,
+        component_keys: list[str] | None = None,
+        baseline_overrides: dict[str, str] | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "slots": list(slots), "item_raws": list(item_raws), "tolerance": tolerance,
+        }
+        if context:
+            params["context"] = context
+        if component_keys:
+            params["component_keys"] = component_keys
+        if baseline_overrides:
+            params["baseline_overrides"] = dict(baseline_overrides)
+        if perf_enabled():
+            params["perf"] = True
+        return decorate_item_variant_evaluation(self.request("evaluate_item_variants", params))
 
     def finalize_transaction(self) -> dict[str, Any]:
         return self.request("finalize_transaction")

@@ -279,7 +279,7 @@ the unknown transformed gloves, and that dependence need not be monotone. Import
 - Non-glove items and non-Stonefist builds are unaffected (one run).
 - **Residual risk:** roll-dependent gloves exceed the 4 s "still working" hint. It is
   feedback, not cancellation. Batching configurations into one PoB transaction would be
-  the next optimisation.
+  the next optimisation. *(Done: see §9.)*
 
 ## 8. Final pre-integration checks
 
@@ -289,3 +289,61 @@ the unknown transformed gloves, and that dependence need not be monotone. Import
   presented as a guarantee.
 - **Uncertain hand-built baseline:** non-glove recommendations against untransformed,
   inexactly transformable gloves are UNCERTAIN, as described above.
+
+## 9. Batched configuration measurement
+
+A PoB transaction costs three recalculation frames of ~250 ms each: baseline settle,
+candidate, and restore. Profiling showed that the per-item pipeline (recognition,
+metadata, parse, transform, offense coverage, components) was under 5% of a
+roll-dependent hover. The PoB transactions were the cost, so they are what was batched.
+
+**Design:**
+- **One transaction per candidate.** Bridge `evaluate_item_variants` measures N item
+  texts for the same slots in one transaction:
+  - one baseline read;
+  - one measurement frame per variant;
+  - between measurements, a revert plus the same structural check used between the
+    slots of `evaluate_item_slots`;
+  - one `tx_finish` restore, verified against the true baseline.
+
+  It is never deferred, and a `RESTORE_FAILED` always aborts the whole batch.
+- **Evaluation split at the measurement.** `_evaluate_item_steps` is the unchanged item
+  evaluation, split at its single measurement: it yields a `_MeasurementRequest` and
+  receives the `evaluate_item_slots`-shaped result. `_evaluate_item_impl` drives it with
+  one `evaluate_item_slots` call, so non-Stonefist, non-glove and exact glove items use
+  exactly the previous path, deferred restore included.
+- **Batched Stonefist configurations.** `_evaluate_with_stonefist_bounds` prepares every
+  configuration (alternatives × worst/middle/best) up to its measurement, then measures
+  them all in one batch.
+  - Configurations are batched only when they share slots, context, component keys and
+    baseline overrides; otherwise each is measured separately.
+  - Each configuration receives its own variant's result and is scored by the ordinary
+    evaluation code. Verdict-structure, ordering and agreement checks are unchanged.
+  - A refusal still runs one normal evaluation of the untransformed item.
+  - A failed batch goes to the first configuration's normal failure handling.
+    `RestoreFailed` invalidates the build and raises `EvaluationInvalidBuildState`.
+- **Restore check.** The post-restore fingerprint check (`get_metrics`) now runs whenever
+  the restore actually ran, including for a deferred-requested evaluation measured in a
+  batch.
+
+**Measured** (median of 3 hovers; the same machine and session order for both;
+`corpus02c_stonefist_martial_artist.xml`):
+
+| Candidate | Configurations | Before (s) | After (s) | PoB transactions |
+| --- | --- | --- | --- | --- |
+| Fixed glove (exact) | 1 | 0.88 | 0.93 | 1 → 1 |
+| Vaal Gloves | 3 | 2.73 | 1.45 | 3 → 1 |
+| Plate gauntlets (overlap) | 3 | 2.68 | 1.32 | 3 → 1 |
+| Runeforged mitts (2 alternatives) | 6 | 5.05 | 2.78 | 6 → 1 |
+| Sirenscale | 3 | 2.87 | 1.57 | 3 → 1 |
+| Giants mitts | 3 | 2.60 | 1.52 | 3 → 1 |
+
+- **Same results:** for every candidate, before and after agree on verdict, quality,
+  candidate metrics, disclosure notes, every measured range and the configuration count.
+- **Worst case:** 12 configurations drop from 36 frames (~14 s) to 14 (~3.5 s, estimated).
+- **Tests** (`tests/integration/test_corpus02c_stonefist.py`):
+  - A batch measures, per variant, exactly the metrics and candidate fingerprint of a
+    separate transaction.
+  - A roll-dependent candidate uses exactly one transaction.
+  - A corrupted batch restore raises `RestoreFailed` and forces a re-parse.
+
