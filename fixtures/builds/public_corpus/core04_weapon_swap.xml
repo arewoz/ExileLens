@@ -123,7 +123,6 @@
 			Rarity: UNIQUE
 Prism of Belief
 Diamond
-Unique ID: 2843fc67ca7b0e328df68d9c18537f5f32c5a2baff9b1851c11111521e13b86a
 Item Level: 84
 LevelReq: 0
 Limited to: 1
@@ -136,7 +135,6 @@ Corrupted
 			Rarity: RARE
 Entropy Vessel
 Sapphire
-Unique ID: 8b4ee653a027d724456c6bf578b25b033a1fa4c42339135d2f74560638559ea4
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -155,7 +153,6 @@ Implicits: 0
 			Rarity: RARE
 Spirit Heart
 Sapphire
-Unique ID: 68eda5391dc069c1030c093dab98bee0bc2d3c80a71f89646ccb4a9216dead1a
 Item Level: 81
 LevelReq: 0
 Implicits: 1
@@ -175,7 +172,6 @@ Corrupted
 			Rarity: RARE
 Glyph Wisdom
 Sapphire
-Unique ID: d3c488adb44fd766c8ca5190c58c90e7b91d606d44b7ad58fc80726382011662
 Item Level: 81
 LevelReq: 0
 Implicits: 1
@@ -195,7 +191,6 @@ Corrupted
 			Rarity: RARE
 Empyrean Splinter
 Sapphire
-Unique ID: 0d27da044e2c9a7c1cda82424ec22b0d713a811c24d16f58e416674b12260546
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -212,7 +207,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Andvarius
 Gold Ring
-Unique ID: aa5e082c17c8770dd7cd74f19a99a399b63e83e6321037958b20f9db2573b861
 Item Level: 80
 LevelReq: 40
 Implicits: 1
@@ -231,7 +225,6 @@ Corrupted
 Headhunter
 Heavy Belt
 Charm Slots: 3
-Unique ID: 14e80e8b5a2dce8ca534934374ad086ae48ae83f343e4df8625a5e421e8b6358
 Item Level: 80
 LevelReq: 50
 Implicits: 3
@@ -257,7 +250,6 @@ Grand Regalia
 Armour: 1198
 Evasion: 1102
 Energy Shield: 339
-Unique ID: 70ec8e437f14ac2fc4946c8d5641f6b98fae128eddc8de5cbb67572638831f38
 Item Level: 84
 Quality: 20
 Sockets: S S S S S
@@ -289,7 +281,6 @@ Corrupted
 		<Item id="9">
 			Rarity: MAGIC
 Potent Ultimate Mana Flask of the Doctor
-Unique ID: e86c0c0f1ca340ed12ff61de868d6e083848adaac725b8cac7f8c3d899ee36de
 Item Level: 80
 Quality: 20
 LevelReq: 60
@@ -304,7 +295,6 @@ Aurseize
 Layered Gauntlets
 Armour: 39
 Evasion: 33
-Unique ID: 2d8d8d21adb92e5bf455d2e0eed8bdd039d99e8ac58e927d4167aa32124ea8d2
 Item Level: 73
 Quality: 0
 Sockets: S
@@ -325,7 +315,6 @@ Corrupted
 			Rarity: RARE
 Horror Twirl
 Gold Ring
-Unique ID: 9e6568e30dbdfb162391202b38f9f6b1bdc66720c47a075453301ec1e0322c00
 Item Level: 80
 LevelReq: 59
 Implicits: 1
@@ -349,7 +338,6 @@ Adds 1 to 54 Lightning damage to Attacks
 Exceptional Glowering Crest Shield
 Armour: 107
 Energy Shield: 30
-Unique ID: 6ca9c3d369866a2e204f196145f76c2ffd676bdd5b74b56dffb9f2bf9b36ac67
 Item Level: 83
 Quality: 0
 Sockets: S S
@@ -364,7 +352,6 @@ Grants Skill: Raise Shield
 			Rarity: UNIQUE
 Cadiro&apos;s Gambit
 Primed Quiver
-Unique ID: 4c52a545c2042b18ef9b3f22a48baa6543550aed9586d629c711a6a43eb4b24a
 Item Level: 83
 LevelReq: 66
 Implicits: 2
@@ -379,7 +366,6 @@ Corrupted
 			Rarity: UNIQUE
 The Fall of the Axe
 Silver Charm
-Unique ID: 6b8015878a6ead3e8197d3a205c760a866352710bd72f8593de34b25d0850e1e
 Item Level: 82
 Quality: 8
 LevelReq: 10
@@ -391,7 +377,6 @@ Corrupted
 		<Item id="15">
 			Rarity: MAGIC
 Hunter&apos;s Grand Spear of the Mongoose
-Unique ID: 2a25c9d3bd9a42e1e766bf19834d2ef93edbd305c4cd4afedeb409a89d551f0f
 Item Level: 79
 Quality: 0
 LevelReq: 79
@@ -409,7 +394,6 @@ Grants Skill: Spear Throw
 			Rarity: UNIQUE
 Opportunity
 Ultimate Life Flask
-Unique ID: 430a37448a0f26397eda512df438d28f9701734c370caef475c3253594d0b30e
 Item Level: 84
 Quality: 0
 LevelReq: 60
@@ -431,7 +415,6 @@ Skills have 119% longer Perfect Timing window during effect
 			Rarity: UNIQUE
 Beira&apos;s Anguish
 Dousing Charm
-Unique ID: 87adaa5aab3634659dc4a072b5fb2b16e259cc5dacb4eb1ea48f941cd95b9def
 Item Level: 80
 Quality: 0
 LevelReq: 32
@@ -444,7 +427,6 @@ Creates Ignited Ground for 4 seconds when used, Igniting enemies as though deali
 			Rarity: RARE
 Brood Stinger
 Warmonger Bow
-Unique ID: 578e36880ebaf5188e6d3729c273fcbef563885b3ddbf192cd783de9f98425d2
 Item Level: 82
 Quality: 20
 Sockets: S S
@@ -477,7 +459,6 @@ Adds 80 to 111 Cold Damage
 Phoenix Peak
 Ancestral Tiara
 Energy Shield: 493
-Unique ID: 93aa18e8cdc22ffb1811e35f69d1653ae28e38be5c05c64d01aad4077941f4d2
 Item Level: 80
 Quality: 20
 Sockets: S S
@@ -507,7 +488,6 @@ Corrupted
 			Rarity: UNIQUE
 Kalandra&apos;s Touch
 Ring
-Unique ID: 8c8203e7a3ecc420b601382c481a1b16469b07e621455d347f684b99fa8881aa
 Item Level: 79
 LevelReq: 0
 Implicits: 0
@@ -520,7 +500,6 @@ Phoenix Spark
 Quickslip Shoes
 Evasion: 547
 Energy Shield: 163
-Unique ID: 75ac5b619cfb9a1992ddbc53133d004435feb07beb5b1387554fd49e56b8588f
 Item Level: 82
 Quality: 20
 Sockets: S
@@ -549,7 +528,6 @@ Implicits: 3
 			Rarity: RARE
 Armageddon Idol
 Gold Amulet
-Unique ID: aaefd4ae3aae3f3f77a2b90981f8faf5d7633342c16c4a9484e1f54c941a8f32
 Item Level: 80
 LevelReq: 60
 Implicits: 2
@@ -574,7 +552,6 @@ Implicits: 2
 			Rarity: UNIQUE
 Rite of Passage
 Golden Charm
-Unique ID: 34a293c489a9b667a6836649d0350a84a95e9e87b5a01767c31926c9b755baeb
 Item Level: 80
 Quality: 8
 LevelReq: 50

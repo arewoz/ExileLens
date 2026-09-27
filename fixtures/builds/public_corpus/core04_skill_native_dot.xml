@@ -123,7 +123,6 @@
 			Rarity: RARE
 Apocalypse Stone
 Sapphire
-Unique ID: d7af4e9192533022df7abc4fd179000977513f0fa5ddfcbb0a3f38a9032ca0e3
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -140,7 +139,6 @@ Implicits: 0
 			Rarity: UNIQUE
 From Nothing
 Diamond
-Unique ID: 62da0411be6f9131008d1bfa12abaa02ed997285655c96628197c686ca92e089
 Item Level: 82
 LevelReq: 0
 Radius: Small
@@ -155,7 +153,6 @@ Corrupted
 			Rarity: RARE
 Foe Joy
 Sapphire
-Unique ID: 35fc159b13604f4b1d80412310aac5390e0d5cb9b15d384df04e51e3118419e7
 Item Level: 79
 LevelReq: 0
 Implicits: 0
@@ -172,7 +169,6 @@ Recover 1% of maximum Mana on Kill
 			Rarity: RARE
 Spirit Glisten
 Sapphire
-Unique ID: b2159cc703bfbcc23abe131933fd9a96393f6541c297a5a7e083d9593247424c
 Item Level: 83
 LevelReq: 0
 Implicits: 0
@@ -190,7 +186,6 @@ Implicits: 0
 Cataclysm Suit
 Vile Robe
 Energy Shield: 964
-Unique ID: 3a76272d992ff79218f914f8c2f26d69d5f248f94765d2fa26cf985fabc885c3
 Item Level: 84
 Quality: 20
 Sockets: S S S
@@ -219,7 +214,6 @@ Corrupted
 Shavronne&apos;s Satchel
 Fine Belt
 Charm Slots: 1
-Unique ID: 83a9eca4d65229b908f99cba5133c62542994554e435f2f35f412335e15d37ef
 Item Level: 81
 LevelReq: 62
 Implicits: 2
@@ -239,7 +233,6 @@ Life Recovery from Flasks also applies to Energy Shield
 		<Item id="7">
 			Rarity: MAGIC
 Full-bodied Ultimate Life Flask of the Practitioner
-Unique ID: 0e6912b884aed57b696d996210620d1ebe5a110304d8bd81d9aef609165f53d9
 Item Level: 83
 Quality: 23
 LevelReq: 60
@@ -255,7 +248,6 @@ Corrupted
 Rift Knell
 Omen Sceptre
 Spirit: 100
-Unique ID: be94e811ada4a675c257ba318f70f5489c63933ef58ac23d6a7d2223e5a11526
 Item Level: 70
 Quality: 0
 Sockets: S
@@ -278,7 +270,6 @@ Corrupted
 		<Item id="9">
 			Rarity: NORMAL
 Lesser Mana Flask
-Unique ID: 11c35cf852e67d1c650dc930cbd0fee80243052752f6da9996db5af9b7f0ec8c
 Item Level: 1
 Quality: 0
 LevelReq: 0
@@ -287,7 +278,6 @@ Implicits: 0
 		<Item id="10">
 			Rarity: MAGIC
 Analyst&apos;s Thawing Charm of the Plentiful
-Unique ID: 6acbf64f46cd419e0c458ccd8ddfd134d32e3280ea11e503c16826434780ce74
 Item Level: 36
 Quality: 0
 LevelReq: 25
@@ -302,7 +292,6 @@ Used when you become Frozen
 			Rarity: MAGIC
 Shining Cultist Focus of Rage
 Energy Shield: 65
-Unique ID: 9126afdb3ead4229d8c2c1c513555f51922ec3776a50ec953a743e31eb5d7740
 Item Level: 65
 Quality: 0
 LevelReq: 59
@@ -317,7 +306,6 @@ Implicits: 0
 Alpha&apos;s Howl
 Armoured Cap
 Evasion: 601
-Unique ID: ac04a830bd0a0f00d2310d0d72c32e36b30476c3b53ef719ce3c54bbc88ec92a
 Item Level: 81
 Quality: 0
 Sockets: S S
@@ -344,7 +332,6 @@ Corrupted
 			Rarity: RARE
 Armageddon Whorl
 Sapphire Ring
-Unique ID: 7d72dc20f1a75116afb6517fc3e457241fd13778faf4e22c9ccff6cb65a45c03
 Item Level: 81
 LevelReq: 56
 Implicits: 1
@@ -368,7 +355,6 @@ Implicits: 1
 Demon Knell
 Shrine Sceptre
 Spirit: 100
-Unique ID: 1c4cf5e01b8150d158d14ff89bda945737172946545ecc6e2a271cc78199aca3
 Item Level: 79
 Quality: 0
 Sockets: S S
@@ -397,7 +383,6 @@ Allies in your Presence Regenerate 24 Life per second
 			Rarity: UNIQUE
 Serpent&apos;s Egg
 Gold Amulet
-Unique ID: 618b8157915373061db1b1a6deaef5b199758f1786244f216b8eccb81bdfe143
 Item Level: 80
 LevelReq: 35
 Implicits: 3
@@ -422,7 +407,6 @@ Redblade Banner
 Runemastered Heraldric Tower Shield
 Armour: 200
 Ward: 50
-Unique ID: 6ebe0d32ebf8a604fe4c36ec2e77e2a681687d992a83bc55f99c369e8f798dac
 Item Level: 75
 Quality: 20
 Sockets: S
@@ -449,7 +433,6 @@ Hateforge
 Runemastered Moulded Mitts
 Armour: 368
 Ward: 73
-Unique ID: b7069cf6cb6714e4fd6d8f9e88e3e9551204d9362b21f8ef23566c735e48f03c
 Item Level: 82
 Quality: 20
 Sockets: S
@@ -473,7 +456,6 @@ Corrupted
 			Rarity: RARE
 Dread Coil
 Gold Ring
-Unique ID: 2e6b92c2f5eb673190fa2b8ee0470c9fbc7f03d053a5826d34cd046529257925
 Item Level: 82
 LevelReq: 65
 Implicits: 1
@@ -497,7 +479,6 @@ Implicits: 1
 Fate Hoof
 Sekhema Sandals
 Energy Shield: 370
-Unique ID: fef72fec84bb924a27c8ddc899461c146e961f0b7cae25f7341b9006147fd534
 Item Level: 80
 Quality: 20
 Sockets: S S
@@ -526,7 +507,6 @@ Corrupted
 			Rarity: UNIQUE
 The Fall of the Axe
 Silver Charm
-Unique ID: 16ce6b896a3523afb959e15345debad878c2279bdbb0ed3e4b4e19f19c0b229d
 Item Level: 80
 Quality: 0
 LevelReq: 10

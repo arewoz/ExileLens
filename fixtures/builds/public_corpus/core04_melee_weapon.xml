@@ -121,7 +121,6 @@
 			Rarity: RARE
 Spirit Shard
 Ruby
-Unique ID: 600bff520c728fdd5873e39bcd868eb80bcd77dc1b3344c52b48f99167a34704
 Item Level: 55
 LevelReq: 0
 Implicits: 1
@@ -141,7 +140,6 @@ Twice Corrupted
 			Rarity: UNIQUE
 Megalomaniac
 Diamond
-Unique ID: bf25f92c2d3bbce697203ac316bc84d4cb83fe89686261336cf53b77c357da7c
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -156,7 +154,6 @@ Corrupted
 			Rarity: RARE
 Pandemonium Hope
 Ruby
-Unique ID: 1e588dc200a6a15e4c14de99bc3e34f486f6cbbd9d3db72d96537b7e5665f220
 Item Level: 62
 LevelReq: 0
 Implicits: 1
@@ -176,7 +173,6 @@ Corrupted
 			Rarity: UNIQUE
 Undying Hate
 Timeless Jewel
-Unique ID: 20533b53d4b6d3c084fdb4dcc67b4f486a1fad91d48f940581347b2b84e47850
 Item Level: 83
 LevelReq: 0
 Radius: Very Large
@@ -195,7 +191,6 @@ Historic
 			Rarity: UNIQUE
 Heart of the Well
 Diamond
-Unique ID: 7fa3e5f50f8cdc09c0e80d04c9c4660af9d57b70c5e1f1ba224687b1aab68b1a
 Item Level: 83
 LevelReq: 0
 Limited to: 1
@@ -214,7 +209,6 @@ Implicits: 0
 Vengeance Peak
 Imperial Greathelm
 Armour: 625
-Unique ID: 4b13205f5398a6cdd1af57b24325b48adaa7540d8a61bd49824549e2daa4938d
 Item Level: 82
 Quality: 21
 Sockets: S S
@@ -245,7 +239,6 @@ Implicits: 4
 Nemesis Pace
 Tasalian Greaves
 Armour: 460
-Unique ID: cbf7b242ced17fc62ef94fa9b8f0b5693d673f1e0449e670c8b9719ac2764361
 Item Level: 82
 Quality: 20
 Sockets: S S
@@ -278,7 +271,6 @@ Runeforged Plate Gauntlets
 Armour: 104
 Evasion: 94
 Ward: 32
-Unique ID: 9de3183b3f786c9e44bdc3be80cf7633cff5a0ef485df477aa33edfc1c37479d
 Item Level: 71
 Quality: 20
 Sockets: S
@@ -307,7 +299,6 @@ Adds 7 to 17 Physical Damage to Attacks
 The Brass Dome
 Champion Cuirass
 Armour: 3756
-Unique ID: 2f8ac5c8dcca606e6b3b3ab3ae2cfb26e9ce2b3e6d03186de8e4711fd1b86256
 Item Level: 80
 Quality: 21
 Sockets: S S S
@@ -338,7 +329,6 @@ Corrupted
 			Rarity: RARE
 Rune Circle
 Prismatic Ring
-Unique ID: d3fa844b3d7b92e4ea486cac832ab148f664ec04d82ea9fbbfec86df411c6d7f
 Item Level: 82
 LevelReq: 60
 Implicits: 1
@@ -360,7 +350,6 @@ Implicits: 1
 		<Item id="11">
 			Rarity: NORMAL
 Calm Leg
-Unique ID: f94cb9bc1f3c5dc1587c09532bed932c74917f57c7d17a9cb691a9a4f132279b
 Item Level: 99
 LevelReq: 0
 Implicits: 1
@@ -370,7 +359,6 @@ Implicits: 1
 		<Item id="12">
 			Rarity: NORMAL
 Guarding Arm
-Unique ID: a9cff6aa4f50f07e43102fd7a94199a53798fd00db0abecbb56c86a8140745e2
 Item Level: 99
 LevelReq: 0
 Implicits: 1
@@ -380,7 +368,6 @@ Implicits: 1
 		<Item id="13">
 			Rarity: NORMAL
 Combat Arm
-Unique ID: f2175e9ddd5c0df0c6e1cbd375918c32453e7c68159f3999145a5cf0cf3835a9
 Item Level: 99
 LevelReq: 0
 Implicits: 1
@@ -392,7 +379,6 @@ Implicits: 1
 Headhunter
 Heavy Belt
 Charm Slots: 2
-Unique ID: 1c25f953f028c5ea539516fad927ef5afa2e32219069302d0f98005165180ccd
 Item Level: 82
 LevelReq: 50
 Implicits: 2
@@ -411,7 +397,6 @@ When you kill a Rare monster, you gain its Modifiers for 60 seconds
 		<Item id="15">
 			Rarity: NORMAL
 Sprinters Leg
-Unique ID: 071c91b708642dea1dcc778e021ee29ed9cd25e8546d6cd6c509376b9bd70bbb
 Item Level: 99
 LevelReq: 0
 Implicits: 1
@@ -422,7 +407,6 @@ Implicits: 1
 			Rarity: UNIQUE
 Sanguis Heroum
 Staunching Charm
-Unique ID: 421ac5b06ea3bc93bdcb40821820075607d86c7300ce50e5313150678f7f5763
 Item Level: 81
 Quality: 0
 LevelReq: 18
@@ -436,7 +420,6 @@ Creates Consecrated Ground on use
 		<Item id="17">
 			Rarity: MAGIC
 Potent Ultimate Life Flask of the Abundant
-Unique ID: b3bc61efd661e842b415b450eb5233c60d5c50a6ce73a0d4a1a64c2f7cbbc180
 Item Level: 81
 Quality: 20
 LevelReq: 60
@@ -449,7 +432,6 @@ Implicits: 0
 		<Item id="18">
 			Rarity: MAGIC
 Caustic Ultimate Mana Flask of the Sylvan
-Unique ID: 298baa8e12697d6f1a03a25fd3ea79e70339d526a30fa541d844f7d5489324af
 Item Level: 83
 Quality: 20
 LevelReq: 64
@@ -465,7 +447,6 @@ Removes 15% of Mana Recovered from Life when used
 			Rarity: RARE
 Gale Ram
 Anvil Maul
-Unique ID: 60b261e7cf8fe3a38469c9ec71b1c56b92224b23ced96d0d63492b4ee9f0d41d
 Item Level: 82
 Quality: 21
 Sockets: S S
@@ -496,7 +477,6 @@ Leeches 9.27% of Physical Damage as Life
 			Rarity: RARE
 Mind Rosary
 Stellar Amulet
-Unique ID: 17822d978cc66faf6434a59fcde435b2417974982d24151f81088c749c97dee5
 Item Level: 82
 LevelReq: 60
 Implicits: 2
@@ -521,7 +501,6 @@ Implicits: 2
 			Rarity: RARE
 Sol Nail
 Vitalic Ring
-Unique ID: ffaec964c1513af01a0ed4a9dc009400eadccbc4f7e94593aa4922cb2d2c6cce
 Item Level: 79
 LevelReq: 60
 Implicits: 1
@@ -544,7 +523,6 @@ Leech 9.63% of Physical Attack Damage as Mana
 			Rarity: RELIC
 Rite of Passage
 Golden Charm
-Unique ID: ee2c18c90a3b467297e1ce1e940b3b846a2c97133c9370298c94b0858205034d
 Item Level: 65
 Quality: 0
 LevelReq: 50
@@ -556,7 +534,6 @@ Possessed by Spirit Of The Ox for 20 seconds on use
 			Rarity: UNIQUE
 The Fall of the Axe
 Silver Charm
-Unique ID: 3d20071e6a9ebcd3f31e671f568708366441cde6b463ef0d1e32e2a80597ab64
 Item Level: 81
 Quality: 0
 LevelReq: 10
@@ -569,7 +546,6 @@ Grants Onslaught during effect
 Dire Bulwark
 Tawhoan Tower Shield
 Armour: 1932
-Unique ID: 6df7b296cc091c1763cbb36d6493a5cfa9ca45cf052957c14960878e767c1894
 Item Level: 82
 Quality: 24
 Sockets: S S
@@ -599,7 +575,6 @@ Grants Skill: Raise Shield
 			Rarity: RARE
 Hypnotic Thresher
 Akoyan Club
-Unique ID: 4c99bb6a9c863f761b79abf4c1b880ace13f2b6d8c870ebce652ded12bc0e245
 Item Level: 81
 Quality: 20
 Sockets: S

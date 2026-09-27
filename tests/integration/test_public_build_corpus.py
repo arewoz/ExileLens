@@ -73,8 +73,11 @@ def test_selected_fixture_contains_no_private_path_or_identity_markers(fixture: 
         r"(?i)accountname|charactername|lastcharacterhash",
         r"(?i)(?:authorization|bearer|oauth|session(?:id)?|cookie|api[_-]?key|secret|token)",
         r"(?i)[\w.+-]+@[\w.-]+\.[a-z]{2,}",
+        # GGG per-item identifiers tied to a real player's drops; never needed by a test.
+        r"(?im)^\s*Unique ID:",
     )
-    assert all(re.search(pattern, text) is None for pattern in forbidden)
+    matched = [pattern for pattern in forbidden if re.search(pattern, text)]
+    assert not matched, f"{fixture.name} contains forbidden markers: {matched}"
 
 
 @pytest.mark.integration

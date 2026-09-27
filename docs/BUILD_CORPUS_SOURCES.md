@@ -67,13 +67,25 @@ Mage was scanned and rejected — its cached stats stay hit-focused, `TotalDot` 
 0) until a character with `TotalDPS == 0`, `TotalDot > 0`, and no named-ailment field
 was found (Monk/Acolyte of Chayula, "Profane Ritual"), then re-verified fresh against
 the real local engine before use — never selected from the skill's name or community
-reputation. All six fixtures were sanitized identically before publication:
-removing every per-item `Unique ID: <hash>` line (GGG-generated identifiers tied to
-the real player's specific item drops, not needed for any test assertion) and
-removing poe.ninja's cached `<PlayerStat>` display block (not part of the PoB build
-definition; the engine recomputes all stats fresh on load regardless). No account
-name, character name, or profile identifier is present in the PoB import code itself
-or in any checked-in fixture.
+reputation. These six fixtures had poe.ninja's cached `<PlayerStat>` display block
+removed before publication (not part of the PoB build definition; the engine
+recomputes all stats fresh on load regardless). No account name, character name, or
+profile identifier is present in the PoB import code itself or in any checked-in
+fixture.
+
+**Correction (CORPUS-02A cleanup).** This section previously also stated that every
+per-item `Unique ID: <hash>` line (GGG-generated identifiers tied to a real player's
+specific item drops) had been removed. That was not true: all nine `core04_*.xml`
+files in `fixtures/builds/public_corpus/` still carried them (220 lines in total,
+20-28 per fixture). They were removed in the CORPUS-02A cleanup commit by deleting
+only those lines, with no other byte changed. A real-engine before/after comparison
+of all nine fixtures showed identical PoB metrics, main-skill identity,
+class/ascendancy, allocated passives, jewels, and equipped items (item text minus
+the removed line). Only the equipment-derived fingerprint hash changes, because it
+covers raw item text. No code reads `Unique ID`. The public safety regression now
+rejects any fixture containing a `Unique ID:` line
+(`test_selected_fixture_contains_no_private_path_or_identity_markers`).
+`core04_player_ring.xml` never had them.
 
 `corpus02_giants_blood_shield.xml` (CORPUS-02A) is a community-supplied export: a Reddit tester reported that
 ExileLens failed on their public poe.ninja PoE2 character, and the maintainer supplied a sanitized PoB2 XML
@@ -92,9 +104,13 @@ poe.ninja's per-character API response contains two independent things: the
 materialize a fixture) and a `<PlayerStat>` block inside that same export, which is
 poe.ninja's own **cached display snapshot** of that character's stats, last computed
 by poe.ninja's own server-side PoB instance at some point before the fetch. This
-snapshot is stripped from every checked-in fixture during sanitization (see above) —
-it is display-only, PoB does not read it back on load, and ExileLens never reads it
-at all.
+snapshot is stripped from every poe.ninja-sourced fixture during sanitization (see
+above). It is display-only: PoB writes `<PlayerStat>` when saving a build but does
+not read it back on load, and ExileLens never reads it at all. The four fixtures
+inherited from the earlier local validation corpus (`core04_player_ring.xml`,
+`core04_bow_quiver.xml`, `core04_minion_actor.xml`, `core04_stage_context.xml`)
+still contain the `<PlayerStat>` cache that local PoB wrote when they were saved. It
+holds computed numbers only, no identifiers, and was deliberately left in place.
 
 **Every DPS/offense figure that appears in this repository's docs, test docstrings,
 and registry descriptions is a fresh, live recalculation** performed by loading the
@@ -120,7 +136,7 @@ future engine run against this exact file should reproduce.
 
 All fixtures were screened before publication for filenames and text containing local
 paths, home-directory references, account or character metadata, emails, credentials,
-session/cookie/authentication fields, and private links.
+session/cookie/authentication fields, private links, and per-item `Unique ID:` lines.
 
 The selected XML files have no retained account or character attributes. Empty
 `itemPbURL` attributes are retained because they are part of the PoB fixture format;

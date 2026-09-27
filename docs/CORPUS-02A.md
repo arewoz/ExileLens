@@ -101,7 +101,7 @@ defect.
   case it still reads `STRONG_DOWNGRADE` ("Severe damage loss…"), while the authoritative
   `evaluation_outcome.verdict` and `presentation.verdict` are UNCERTAIN. Consumers
   (`history.py`, presentation) prefer the outcome, as enforced by #25. The tests assert the
-  public verdict.
+  public verdict. Tracked separately as follow-up FU-1 (section 10).
 - **Misleading worker stderr label.** `run_worker_entrypoint` labels any exception escaping
   the request loop "ExileLens PoB worker could not start", even mid-session. This is a
   diagnostics wording issue only and was not changed.
@@ -152,3 +152,62 @@ The full test suite was not run. Only tests and docs changed.
   `core04_player_ring.xml` follows PoB's slot validity. With Giant's Blood, PoB accepts the
   layout and Item Check measures it (this fixture). New cases should rely on PoB's decision
   instead of assuming either behavior.
+
+## 9. Fixture sanitization cleanup (separate commit)
+
+While screening the new fixture, I found that the older public corpus contradicted
+`docs/BUILD_CORPUS_SOURCES.md`. The doc said per-item `Unique ID: <hash>` lines had been
+removed, but all nine `fixtures/builds/public_corpus/core04_*.xml` files still contained
+them. That is 220 lines in total: bow_quiver 25, melee_weapon 25, minion_actor 23,
+mixed_hit_ailment 28, onehand_weapon 24, poison_ailment 25, skill_native_dot 20,
+stage_context 27, weapon_swap 23. These are GGG-generated identifiers of a real player's
+item drops. `core04_player_ring.xml` and the CORPUS-02A fixture had none.
+
+- **Change.** Only lines matching `^Unique ID: [0-9a-f]+$` were deleted, working on raw
+  bytes. The diff is exactly 220 removed lines and nothing else. The CORPUS-02A fixture
+  is untouched and still byte-identical to the supplied export.
+- **Behavior check (real PoB, original vs. sanitized).** For all nine fixtures these are
+  identical: every raw PoB metric (59–69 fields each), main-skill identity, class and
+  ascendancy, allocated passives, jewels, and equipped items, whose raw text is equal
+  once the removed line is excluded. The only difference is ExileLens's fingerprint hash,
+  which covers raw item text; no test pins one. No code reads `Unique ID`. The synthetic
+  all-zero `Unique ID` lines inside candidate clipboard text in the socket-normalization
+  tests are deliberate: they model real clipboard items, are not fixtures, and were left
+  alone.
+- **Guard.** `test_selected_fixture_contains_no_private_path_or_identity_markers` now also
+  rejects `(?im)^\s*Unique ID:` and names the offending markers. Run against the
+  pre-cleanup fixtures, it rejects all 9.
+- **Docs.** `BUILD_CORPUS_SOURCES.md` now records the correction, and states accurately
+  that `<PlayerStat>` was stripped only from poe.ninja-sourced fixtures. The four fixtures
+  inherited from the earlier local corpus (player_ring, bow_quiver, minion_actor,
+  stage_context) keep PoB's own save-time `<PlayerStat>` cache. PoB writes it but never
+  reads it back, and it contains no identifiers, so it was deliberately not rewritten.
+- **Validation.**
+  - Privacy / manifest / well-formedness tests: 26 passed.
+  - Socket-normalization and jewel real-PoB suites plus the socket unit test: 26 passed,
+    1 pre-existing designed skip. The skipped test is `test_jewel_real_pob.py:234`, which
+    needs an allocated-but-empty jewel socket that no corpus fixture has.
+  - Coverage generator, all 8 suites: 36 / 26 / 8 / 3 / 2 / 5 / 6 / 51 passed. The
+    regenerated report is byte-identical, still 73/73.
+
+## 10. Follow-ups (not done here; no verdict or scoring policy changed)
+
+- **FU-1: legacy row verdict contradicts the public verdict.** In the Chernobog's Pillar
+  replacement case, `slot_comparisons[i]["verdict"]` and therefore
+  `recommendation["verdict"]` read `STRONG_DOWNGRADE`, with the explanation "Severe damage
+  loss. Defenses improve substantially. Fire resistance cap lost." Meanwhile
+  `evaluation_outcome.verdict` and `presentation.verdict` are `UNCERTAIN` (quality
+  PARTIAL, offense `UNMEASURED` / `SEMANTIC_METRIC_CHANGED`).
+  - Source: `src/exilelens/items/ranking.py` sets `comparison["verdict"]` and
+    `verdict_explanation` from the legacy classifier (around line 306).
+  - Its "Severe damage loss." branch (around line 133) is evaluated from the raw percent
+    *before* the `UNMEASURED` check.
+  - `sync_value_with_outcome` re-syncs only the `value` block.
+  - Current user-facing surfaces use the outcome (#25), so this is a latent consistency
+    risk for any consumer reading the legacy fields, not a known visible defect.
+  - Suggested direction for a separate task: make the legacy row verdict and explanation
+    mirror, or defer to, the authoritative outcome whenever offense is not measured. Add
+    a regression using `test_chernobog_shield_loss_is_measured_by_pob_but_stays_uncertain`.
+  - This is a verdict-surface decision, so it was intentionally not changed in CORPUS-02A.
+- **FU-2: worker crash stderr label.** `run_worker_entrypoint` reports "could not start"
+  for mid-session crashes (section 6). This is a diagnostics wording issue only.

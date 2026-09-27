@@ -238,7 +238,6 @@
 			Rarity: UNIQUE
 From Nothing
 Diamond
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000001
 Item Level: 81
 LevelReq: 0
 Radius: Small
@@ -253,7 +252,6 @@ Corrupted
 			Rarity: UNIQUE
 Grand Spectrum
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000002
 Item Level: 80
 LevelReq: 0
 Limited to: 3
@@ -265,7 +263,6 @@ Implicits: 0
 			Rarity: RARE
 Rapture Drop
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000003
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -284,7 +281,6 @@ Minions have 4% increased Attack and Cast Speed
 			Rarity: UNIQUE
 Prism of Belief
 Diamond
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000004
 Item Level: 84
 LevelReq: 0
 Limited to: 1
@@ -297,7 +293,6 @@ Corrupted
 			Rarity: UNIQUE
 Grand Spectrum
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000005
 Item Level: 80
 LevelReq: 0
 Limited to: 3
@@ -309,7 +304,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Grand Spectrum
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000006
 Item Level: 80
 LevelReq: 0
 Limited to: 3
@@ -321,7 +315,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Lavianga&apos;s Spirits
 Gargantuan Mana Flask
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000007
 Item Level: 79
 Quality: 20
 LevelReq: 49
@@ -335,7 +328,6 @@ This Flask cannot be Used but applies its Effect constantly
 Viper Crusher
 Rattling Sceptre
 Spirit: 190
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000008
 Item Level: 83
 Quality: 20
 Sockets: S
@@ -365,7 +357,6 @@ Allies in your Presence deal 88% increased Damage
 			Rarity: RARE
 Kraken Scar
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000009
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -385,7 +376,6 @@ Minions have 4% increased Attack and Cast Speed
 Corpse Nails
 Vaal Gloves
 Energy Shield: 206
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000a
 Item Level: 82
 Quality: 20
 Sockets: S
@@ -411,7 +401,6 @@ Implicits: 1
 			Rarity: UNIQUE
 Rite of Passage
 Golden Charm
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000b
 Item Level: 80
 Quality: 0
 LevelReq: 50
@@ -423,7 +412,6 @@ Possessed by Spirit Of The Bear for 20 seconds on use
 			Rarity: RARE
 Gloom Gorget
 Pearlescent Amulet
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000c
 Item Level: 80
 LevelReq: 64
 Implicits: 2
@@ -449,7 +437,6 @@ Implicits: 2
 Morbid Roar
 Rattling Sceptre
 Spirit: 181
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000d
 Item Level: 82
 Quality: 20
 Sockets: S
@@ -478,7 +465,6 @@ Minions have 42% increased maximum Life
 		<Item id="14">
 			Rarity: MAGIC
 Bubbling Ultimate Life Flask of the Copious
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000e
 Item Level: 62
 Quality: 20
 LevelReq: 60
@@ -492,7 +478,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Nascent Hope
 Thawing Charm
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000f
 Item Level: 80
 Quality: 0
 LevelReq: 12
@@ -506,7 +491,6 @@ Energy Shield Recharge starts on use
 Bones of Ullr
 Lattice Sandals
 Energy Shield: 41
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000010
 Item Level: 79
 Quality: 0
 Sockets: S
@@ -532,7 +516,6 @@ Corrupted
 Soul Cowl
 Sorcerous Tiara
 Energy Shield: 275
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000011
 Item Level: 82
 Quality: 20
 Sockets: S S
@@ -562,7 +545,6 @@ Implicits: 4
 			Rarity: UNIQUE
 The Fall of the Axe
 Silver Charm
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000012
 Item Level: 79
 Quality: 16
 LevelReq: 10
@@ -574,7 +556,6 @@ Grants Onslaught during effect
 			Rarity: RARE
 Golem Grip
 Amethyst Ring
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000013
 Item Level: 80
 LevelReq: 64
 Implicits: 1
@@ -597,7 +578,6 @@ Minions have 40% increased Critical Hit Chance
 			Rarity: RARE
 Beast Knuckle
 Gold Ring
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000014
 Item Level: 80
 LevelReq: 64
 Implicits: 1
@@ -621,7 +601,6 @@ Minions have 10% increased Attack and Cast Speed
 Ghoul Keep
 Vile Robe
 Energy Shield: 663
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000015
 Item Level: 82
 Quality: 20
 Sockets: S S
@@ -652,7 +631,6 @@ Implicits: 5
 Damnation Refuge
 Tasalian Focus
 Energy Shield: 516
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000016
 Item Level: 82
 Quality: 24
 Sockets: S S
@@ -684,7 +662,6 @@ Corrupted
 Glyph Clasp
 Utility Belt
 Charm Slots: 2
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000017
 Item Level: 65
 LevelReq: 55
 Implicits: 2
