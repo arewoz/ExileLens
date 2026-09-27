@@ -1,188 +1,204 @@
-# CORPUS-02C — Way of the Stonefist coverage
+# CORPUS-02C — Way of the Stonefist Item Check support
 
 Branch `test/corpus-02c-stonefist`, based on `origin/main` at `be634ca` (CORPUS-02B, PR #43).
 
-**Answer: partly.** ExileLens can truthfully evaluate a Stonefist build except for one case,
-glove *candidates* that the game would transform. Before this change those candidates got
-confident but wrong verdicts. They are now explicitly UNSUPPORTED.
+**Result.** Ordinary glove candidates on a Way of the Stonefist build are evaluated as
+the Fists of Stone item the character would equip. ExileLens builds that transformed
+item in memory from PoB's own game data; PoB calculates every statistic.
 
-## 1. Existing support in ExileLens
+- **Exact evaluation** applies when every modifier transforms to a fixed value and the
+  displayed lines fit exactly one modifier combination.
+- **Verified range evaluation** applies when the transformed item is not unique:
+  - the game rolls a transformed value on equip (§1), or
+  - the displayed lines fit several modifier combinations.
 
-- There was no Stonefist handling anywhere in the repository (code, fixtures, docs).
-- The only record is an unanswered support question in the Reddit feedback thread
-  (`1wniams`), which came with no build.
-- Item Check hands every item to PoB. So Stonefist support depends entirely on what the
-  supported PoB revision does.
+  PoB measures every combination at its worst, middle and best rolls. A verdict is
+  reported only when it holds in every case, together with the verified impact range.
+- **Tested gloves:** 8 of the 10 real ordinary corpus gloves receive usable verdicts. The
+  two remaining (a unique, and one item whose lines fit no modifier combination) stay
+  explicitly UNSUPPORTED with the reason.
 
-## 2. The mechanic: confirmed rules vs claims
+## 1. The mechanic and the evidence for each rule
 
-| Statement | Status | Evidence |
-| --- | --- | --- |
-| "Gloves you equip have their Base Type transformed to Fists of Stone while equipped, and their Explicit Modifiers are transformed into more powerful related Modifiers. Ignore Attribute Requirements to equip Gloves." | **Confirmed** (game data) | Martial Artist notable "Way of the Stonefist", node 39595, `TreeData/0_5/tree.lua` of the supported PoB |
-| The equipped gloves appear **already transformed** in a character export | **Confirmed** (real export) | The public Stonefist character's poe.ninja export carries "Runeforged Fists of Stone" with per-level and transformed lines ("Has +2 to Evasion Rating per player level", "+2.34% to Critical Hit Chance", "20% more Global Evasion Rating and Energy Shield", …) |
-| Rune-socket lines are not transformed | **Supported by the export** | The exported gloves keep ordinary rune lines ("+22% to Cold Resistance", Bonded lines) |
-| Fists of Stone base: +3 Evasion Rating and +1 maximum Energy Shield per player level; transformed "HandWraps" modifiers are largely per-player-level values | **Datamined** (poe2db) | Consistent with the exported item and PoB's `Fists of Stone` base data |
-| Specific conversions (e.g. Critical Damage Bonus → base critical hit chance) and how a rolled value maps to the transformed value | **Community / unverified** | The Mobalytics guide was not readable from this environment (HTTP 403). Other guides and converter tools agree only qualitatively. The roll mapping is unknown (see PR #2350 below). |
+Martial Artist notable "Way of the Stonefist" (node 39595): *"Gloves you equip have their
+Base Type transformed to Fists of Stone while equipped, and their Explicit Modifiers are
+transformed into more powerful related Modifiers. Ignore Attribute Requirements to equip
+Gloves."*
 
-## 3. Upstream PoB PR #2350 (PathOfBuilding-PoE2)
+Evidence sources:
+- the supported PoB's data;
+- raw GGG item data for **176 distinct real transformed gloves** from **45** public
+  poe.ninja Runes of Aldur Stonefist characters, which include each modifier's game mod ID
+  and raw stat values. Only item-level data was kept, never account or character names.
 
-"Add logic for way of the stonefist ascendency" by BligenN.
-
-**Status:** **OPEN**, not merged. Created and last updated 2026-07-05. No reviews, no
-checks, `mergeable_state: dirty` (conflicts with `dev`). The branch reports PoB **0.22.0**,
-older than ExileLens's supported 0.23.1 (`97cb973`).
-
-**Implementation:**
-- `ModParser`: the passive line becomes a `WayOfTheStonefist` flag.
-- `CalcSetup`: every equipped Gloves item is replaced by `item:CreateStonefistVariant()`.
-- Transformation data: a generated mod map, `DataStonefistMap.lua` (original → goal), and
-  `ModFistsOfStone.lua`.
-
-The PR was not integrated. It was compared in isolation: both revisions were extracted as
-source tarballs into a scratch directory and driven by this branch's ExileLens. Nothing was
-installed and the supported-revision pin was not changed.
-
-| On the Stonefist build | Supported PoB (0.23.1 source) | PR #2350 head `114b092` |
-| --- | --- | --- |
-| Passive parsed (bridge `modeled`) | False | True |
-| Baseline Evasion / Energy Shield / EHP | 22,440 / 9,717 / 123,176 | **24,196 / 10,456 / 138,224** |
-| Own transformed gloves → same gloves | FULL SIDEGRADE | FULL SIDEGRADE |
-| Own gloves without "+2.34% crit" | FULL MEANINGFUL_DOWNGRADE, 358,269 → 308,109 | FULL MEANINGFUL_DOWNGRADE |
-| Ordinary Vaal Gloves candidate | UNSUPPORTED (this branch) | FULL MEANINGFUL_DOWNGRADE, EHP 142,902 |
-| Ordinary Plate Gauntlets candidate | UNSUPPORTED (this branch) | FULL MEANINGFUL_DOWNGRADE, DPS 262,607 |
-
-Supported-engine baseline defences match the `<PlayerStat>` cache poe.ninja computed for this
-character (Evasion 22,440, ES 9,717).
-
-**Defects found in the PR (upstream dependencies, not fixed here):**
-
-1. **Double transformation.** `CreateStonefistVariant` runs on every equipped Gloves item
-   with armour data, including gloves that already arrive transformed ("Runeforged Fists of
-   Stone"), which is how game exports provide them. It prepends the Fists of Stone per-level
-   base implicits again. That is why the PR raises this character's baseline evasion by 7.8%,
-   ES by 7.6% and EHP by 12%.
-2. **Averaged values.** Transformed modifier values come from `stonefistAverageRanges` (the
-   mid-point of the transformed modifier's range), not from the item's actual roll. Results
-   for candidates are estimates.
-3. **Not integrable as-is.** It is based on 0.22.0, has conflicts, and has no review or CI.
-
-## 4. Classification of item comparisons on a Stonefist build (supported PoB)
-
-**Correctly calculated (FULL, matches a cold PoB load):**
-- Non-glove candidates, e.g. an amulet (the baseline gloves are the exported, transformed
-  item, which PoB parses; only two unrelated rune lines are unparsed).
-- Glove comparisons where both sides are Fists of Stone items. The main practical case is the
-  player's own equipped gloves or variants of them.
-
-**Incorrectly calculated before this change, now guarded:** ordinary glove candidates (any
-non-Fists-of-Stone base, including unique gloves). The supported PoB compares the candidate
-**untransformed** against the transformed baseline. On the real build this gave confident
-FULL / MEANINGFUL_DOWNGRADE verdicts:
-
-| Candidate | DPS | EHP |
-| --- | --- | --- |
-| Vaal Gloves | −33.8% | −29.9% |
-| Plate Gauntlets | −25.4% | −41.4% |
-| Massive Mitts | −27.1% | −37.4% |
-
-In game, all three would be transformed on equip.
-
-**Legitimately UNCERTAIN:** none specific to Stonefist. The missing transformation is an
-explicit PoB gap, so the correct label is UNSUPPORTED rather than UNCERTAIN.
-
-**Unsupported:**
-- Every glove comparison that is not Fists-of-Stone on both sides.
-- A hand-built PoB where the equipped gloves are *not* transformed: its whole baseline
-  understates the gloves. The guard only covers the glove slot; other slots are computed on
-  that baseline (a limitation).
-
-## 5. The truthfulness guard (smallest justified change)
-
-**`runtime/lua/bridge.lua`: `build_info.item_base_transforms`.**
-- Lists allocated passives whose stat reads "<Slot> you equip have their Base Type
-  transformed to <Base> while equipped".
-- For each one it reports PoB's own parse state (`modeled`), taken from the parse result
-  (`node.mods`). No node id is hard-coded.
-
-**`items/baseline_item.py`: `unmodeled_item_transform`.**
-- Flags a comparison in that slot unless both the equipped item and the candidate already
-  carry the transformed base (an empty equipped slot counts only the candidate).
-- PoB's `modeled` claim is reported (`pob_modeled`) but **not trusted**. The only known
-  implementation (PR #2350) is demonstrably wrong for exported gloves, so lifting the guard
-  requires deliberately validating a PoB revision.
-
-**`items/evaluation.py`:** attaches the flag to each slot comparison.
-
-**`items/offense_coverage.py` (`apply_primary_skill_guard`):** a flagged comparison's damage
-delta becomes `UNSUPPORTED`, the existing convention, so no damage number is rendered and the
-offense axis is UNKNOWN.
-
-**`items/evaluation_outcome.py` (`assess_quality`):**
-- A flagged comparison is `EvaluationQuality.UNSUPPORTED` with reason
-  `ITEM_TRANSFORM_UNMODELED`, and so `PublicVerdict.UNSUPPORTED`.
-- The reason text names the passive and appears in More Info under "CONDITIONAL / UNMODELED".
-
-No scoring weights or verdict policy changed. The guard never raises confidence.
-
-## 6. Tests and evidence
-
-- **Fixture:** `fixtures/builds/public_corpus/corpus02c_stonefist_martial_artist.xml`,
-  manifest id `CORPUS02C-STONEFIST`.
-  - Source: a real public level-100 Monk / Martial Artist from the poe.ninja Runes of Aldur
-    ladder, taken from the predecessor Build Corpus V1 (C01, acquired 2026-09-12).
-  - Chosen by scanning every available real fixture for node 39595.
-  - Re-sanitized: 21 `Unique ID` lines and the 108-line `<PlayerStat>` cache removed.
-
-**`tests/integration/test_corpus02c_stonefist.py`** (5 real-PoB tests; numbers checked
-against cold PoB loads):
-
-| Test | Result |
+| Rule | Evidence |
 | --- | --- |
-| `test_stonefist_is_detected_and_the_supported_pob_does_not_model_it` | Bridge reports Stonefist, `modeled: False`. A **re-pin tripwire**: a PoB that parses the passive fails this test and forces re-validation. |
-| `test_transformed_glove_comparison_is_measured` | Fists of Stone vs Fists of Stone: FULL / MEANINGFUL_DOWNGRADE matching PoB. |
-| `test_ordinary_glove_candidate_is_unsupported_not_confident` [vaal_gloves, plate_gauntlets] | UNSUPPORTED, `ITEM_TRANSFORM_UNMODELED`, offense delta UNSUPPORTED, restore verified. With the guard removed it fails with `'MEANINGFUL_DOWNGRADE' == 'UNSUPPORTED'`. |
-| `test_non_glove_candidates_on_a_stonefist_build_stay_measured` | Amulet candidate: FULL, matching PoB. The guard is scoped to gloves. |
+| Explicit mod `<Id>` becomes `HandWraps<Id>`, tier for tier, same affix name | Every real transformed mod uses a `HandWraps…` ID. PoB's data pairs 410 of 411 `HandWraps` mods with a same-ID source, and every pair has the same affix name. Sources are split across PoB's `Item`, `Desecrated` (Abyss) and `Exclusive` tables. |
+| Transformed values and ranges | All **589** real transformed stat values (80 distinct mod IDs) lie inside PoB's `HandWraps` ranges or equal its fixed values. |
+| Base becomes Fists of Stone (+3 Evasion, +1 ES per level) or Runeforged Fists of Stone (+2 Evasion, +1 ES, +1 Runic Ward per level) | Every real item matches (89 plain, 87 Runeforged). A runic original (Runeforged/Runemastered) becomes Runeforged Fists of Stone. PoB flags runic items, and only the Runeforged variant carries Runic Ward. |
+| Per-level values use the character's level | The game's level binding `local_hand_wraps_player_level_to_use` equals the character level on all 176 items. PoB scales by the build level. |
+| Rune/enchant lines, quality, sockets and corruption are kept | Real exports keep their rune lines unchanged. |
+| **A ranged transformed value is rolled independently of the original roll** | Fixed source "+2 to Level of all Melee Skills" → "(10-12)% to Quality of all Skills" observed at 10, 11 and 12. `CriticalMultiplier4` shows 23 distinct transformed values from a 5-value source. In total 5 tiers show more transformed values than their source can display. |
 
-**`tests/test_item_transform_guard.py`** (11 unit tests): scope matrix, the untrusted PoB
-modelling claim, and the UNSUPPORTED quality with its reason text.
+**Decomposition ambiguity is real.** For example, "42% increased Armour" plus "+191 to
+maximum Life" fits both of these, which transform into different items:
+- an Armour% prefix plus a Life T12 prefix;
+- a hybrid Armour/Life prefix plus a Life T9 prefix.
 
-**Registry:**
-- 1 identity case.
-- `CORPUS_02C_REAL_POB_CASES` (4): three tagged `ascendancy`, because the measured mechanic
-  is an ascendancy passive. The non-glove scope check carries no archetype.
-- 3 policy-unit cases.
+**Consequence.** The actual transformed roll exists only once the gloves are equipped;
+nothing in a copied ordinary item determines it. No exact pairs (the same item seen
+before and after transformation) were found in any poe.ninja snapshot. They are not
+needed for the value rule, because the rolls are independent anyway.
 
-**Coverage report: 89/89** supported (78 PASS, 8 EXPECTED_UNCERTAIN, 3 UNSUPPORTED), up from
-81/81.
+**Not used as evidence:**
+- **Mobalytics' guide:** not readable from this environment (HTTP 403).
+- **Community converters:** "datamined, verify in-game".
 
-## 7. Validation (executed locally)
+## 2. Implementation
 
-Environment: Windows 11, Python 3.14.3, PoB2 0.23.1 (auto-detected).
+Everything happens in memory; the user's PoB build is never modified.
 
-| Command | Result |
-| --- | --- |
-| `pytest tests/test_item_transform_guard.py` | 11 passed |
-| `pytest tests/integration/test_corpus02c_stonefist.py -m real_pob` | 5 passed |
-| Ordinary-glove test with the four Python guard files reverted to `origin/main` | 2 failed (`MEANINGFUL_DOWNGRADE`); guard restored |
-| `pytest tests/test_corpus_coverage_report.py` | 20 passed |
-| `python scripts/generate_corpus_coverage_report.py` (real-PoB corpus gate): build_corpus 42, test_public_real_pob 26, weapon-set 8, placement 3, diagnostic 2, effect enumeration 5, CORPUS-02A 6, CORPUS-02B 7, CORPUS-02C 5, adversarial 51, transform guard 11 | all passed; 89/89 |
+**Bridge (`runtime/lua/bridge.lua`):**
+- `get_item_transform_mods`: PoB's source → `HandWraps` mapping.
+- `describe_item`: PoB's parse of an item by modifier category.
+- `rebuild_item`: PoB re-emits the item with a new base and implicit/explicit lines.
+- `get_base_implicits`.
+- `item_base_transforms` in `build_info`.
 
-The gate ran twice with identical results. The first run exposed a registry case that matched
-no test (NOT_RUN): a bare `test_` prefix, which the matcher does not support. It was split
-into one case per test, and the report was regenerated from a fresh run rather than
-hand-edited. The full test suite was not run. The experimental independent engine was not
-touched.
+**`items/stonefist.py`:**
+- Decomposes the displayed explicit lines into their source modifiers, respecting one
+  modifier per group and at most 3 prefixes and 3 suffixes.
+- Handles lines the game merges (e.g. %ES plus a hybrid %ES/Life prefix shown as one
+  line) and lines PoB lists separately (one modifier each).
+- Fixed transformed values are exact.
+- **Decompositions:**
+  - those yielding the same transformed lines with different values (e.g. overlapping
+    Adds Physical tiers 6 and 7) merge into wider bounds;
+  - those yielding different lines become numbered **alternatives**, and each one is
+    evaluated.
+- An already-transformed item (`Fists of Stone` base) passes through untouched, so gloves
+  are never transformed twice.
 
-## 8. Upstream dependencies and remaining gaps
+**`items/stonefist_rolls.py`:** bound rules put every ranged transformed value at its
+worst end, at a displayable middle roll, or at its best end. Lines that are worse when
+larger ("…% slower") are inverted. The rules never use the source roll, since the game
+rolls independently.
 
-- **Glove upgrades on Stonefist builds** need a PoB revision that transforms *untransformed*
-  candidate gloves correctly and leaves already-transformed exports alone. It must also map
-  real rolls, or at least document its estimates.
-- **PR #2350 as it stands would regress baselines.** Report the double transformation
-  upstream before relying on it.
-- **When re-pinning PoB,** the tripwire test fails if the new revision parses the passive.
-  Validate against this fixture before lifting the guard.
-- **Untested:** unique gloves (covered by the guard because their base is not Fists of
-  Stone), "Ignore Attribute Requirements" effects, and hand-built PoB baselines with
-  untransformed gloves (only the glove slot is guarded).
-- **No transformation modelling was reimplemented in ExileLens,** by design.
+**`items/evaluation.py`:**
+- **Exact candidates:** the transformed item is measured once.
+- **Roll-dependent or ambiguous candidates:** PoB measures every alternative (at most 4)
+  at its worst, middle and best configurations. The result is reported only if both
+  conditions hold:
+  1. **each alternative's scored PoB outputs are ordered worst ≤ middle ≤ best** (primary
+     damage, EHP, Life/ES/Mana, Evasion/Armour/Ward, the four resistances, block and
+     maximum-hit values), which shows the outcome is monotone in the rolls, so these
+     configurations bound every other roll;
+  2. **every measured configuration gives the same public verdict.**
+- Otherwise the comparison is UNSUPPORTED with the reason: the verdict changes, the
+  results are not ordered, or there are too many alternatives.
+- **Reported numbers are a verified range over all configurations:**
+  - the `[range x% to y%]` label on impact rows;
+  - a `STONEFIST_ROLL_DEPENDENT` disclosure;
+  - a summary such as "…Twister −9.9% to −6.0%; EHP −37.3% to −26.5%: a downgrade in every
+    case", or "an upgrade in every case".
+
+  The detail rows show the lowest-damage configuration, labelled with the full range.
+- **Ordinary equipped gloves** (a hand-built PoB) are transformed exactly and passed as a
+  `baseline_overrides` item, so every slot's check uses the in-game baseline. The
+  transaction restores the true build.
+
+**The UNSUPPORTED guard** (`ITEM_TRANSFORM_UNMODELED`) remains only for genuinely
+unresolved cases, and names the reason.
+
+No scoring weights or verdict policy changed.
+
+## 3. Verified results (supported PoB 0.23.1, real Stonefist fixture)
+
+| Candidate | Evaluation | Result |
+| --- | --- | --- |
+| Ordinary glove, fixed-value modifiers (ES, Life, life on kill) | exact | FULL, matches the hand-transformed reference (level 100 and level 70) |
+| Exported Fists of Stone gloves, as candidate and baseline | exact, not re-transformed | SIDEGRADE, zero delta, metrics equal the export |
+| Fists of Stone vs Fists of Stone (export minus a line) | exact | FULL / MEANINGFUL_DOWNGRADE |
+| Hand-built baseline with ordinary gloves, amulet candidate | exact baseline transform | Baseline and candidate equal reference loads; the user's build is unchanged |
+| Better ordinary glove on that hand-built baseline | roll-dependent | MEANINGFUL_UPGRADE, "an upgrade in every case": Twister +14.6% to +17.3%, endpoints equal hand-transformed reference loads |
+| Massive Mitts (Giant's Blood fixture) | roll-dependent | Worst/best runs equal hand-written worst/best reference items; verdict holds at every roll |
+| Vaal Gloves; Secured Wraps; corrupted Secured Wraps; Massive Mitts; Sirenscale Gloves (separate same-stat lines); Plate Gauntlets (overlapping tiers) | roll-dependent, 3 configurations each | All FULL / MEANINGFUL_DOWNGRADE in every case, restore exact |
+| Runeforged Massive Mitts | 2 decomposition alternatives × 3 rolls | FULL / MEANINGFUL_DOWNGRADE in all 6 configurations; DPS −9.9% to −6.0%, EHP −37.3% to −26.5% |
+| Unique gloves (Layered Gauntlets) | unsupported | Game `HandWrapsUnique*` mods are missing from PoB's data |
+| Djinn build's Vaal Gloves | unsupported | Lines fit no legal glove-modifier combination (e.g. "+65% to Cold Resistance" exceeds every tier with no second source) |
+
+**Totals:**
+- **Real ordinary corpus gloves:** 8 of 10 receive usable verdicts. All 8 are
+  roll-dependent (one also has two decomposition alternatives).
+- **Exact evaluations:** the exported gloves, the Fists of Stone variant, the fixed-value
+  glove (at levels 100 and 70) and the hand-built baseline.
+- **Guaranteed upgrade:** one real-PoB case.
+- **Refusal path not needed:** every roll-dependent real case on this build gave an
+  ordered range with one verdict. The verdict-spanning, disagreeing-middle,
+  disagreeing-alternative and non-monotone refusals are covered by stubbed unit tests;
+  no legal real candidate crossing a verdict boundary was found among those tried.
+
+## 4. Upstream PoB PR #2350 (unchanged findings)
+
+The PR is OPEN, unmerged, conflicting, unreviewed and based on PoB 0.22.0.
+- It transforms already-transformed exported gloves again, which raised this character's
+  baseline EHP by 12% in an isolated comparison.
+- It uses averaged modifier values.
+
+ExileLens does not depend on it. A PoB revision that starts parsing the passive trips the
+detection tripwire test and must be re-validated before its behaviour is trusted.
+
+## 5. Tests
+
+- **`tests/integration/test_corpus02c_stonefist.py`:** 19 real-PoB tests.
+  - Detection tripwire.
+  - Transformed-vs-transformed comparison.
+  - Exact fixed-value glove.
+  - Double-transformation prevention.
+  - Independent worst/best reference items.
+  - Seven real ordinary gloves (one of them with two alternatives).
+  - Deterministic repeat and restore.
+  - Hand-built baseline.
+  - Character level.
+  - A guaranteed upgrade checked against references.
+  - Two unresolvable gloves.
+  - Non-glove scope.
+- **`tests/test_stonefist_transform.py`:** 18 unit tests.
+  - Fixed versus ranged targets.
+  - Independent ranged modifiers and the "slower" inversion.
+  - Merged and separate same-stat lines.
+  - A merged line blocking only a source-dependent rule.
+  - Overlapping tiers.
+  - Impossible items.
+  - Pass-through of transformed items.
+  - Unique and runic bases.
+  - Stubbed refusals: verdict spanning, middle disagreement, non-monotone results and
+    disagreeing alternatives.
+  - Guaranteed-range and union-range reporting.
+  - Single evaluation of exact candidates.
+- **`tests/test_item_transform_guard.py`:** 11 unit tests (guard scope and quality).
+- **Solver bug found and fixed by these tests:** the partial-search pruning was inverted,
+  which wrongly refused genuinely merged lines as "no combination".
+  - **Consequence of the fix:** the solver then exposed the Runeforged Massive Mitts'
+    second valid decomposition. That motivated alternatives: the earlier single-item FULL
+    verdict for that glove had been unjustified.
+
+## 6. Remaining limitations and missing data
+
+- **Unique gloves.** The game has `HandWrapsUnique…` mods (observed:
+  `HandWrapsUniqueIncreasedSkillSpeed1`, `…IncreasedLife9`,
+  `…LocalIncreasedPhysicalDamageReductionRating3`, `…MaximumManaIncrease3`,
+  `…ShareChargesWithAllies1`), but PoB's data lacks them. Needed: those mod definitions in
+  PoB data, plus a unique → transformed mapping.
+- **`HandWrapsEnergyShieldRechargeRate5`** has no same-ID source in PoB's data.
+- **Unmatched lines.** Gloves whose displayed lines fit no legal modifier combination are
+  refused. That can include essence or other special modifiers without a mapped family.
+- **Hand-built baselines with ranged or ambiguous transformed gloves.** The baseline must
+  be exact, so it is not overridden; the glove slot is then guarded and other slots use
+  PoB's untransformed baseline. Importing from the game (transformed export) avoids this.
+- **"Ignore Attribute Requirements to equip Gloves"** is not modelled; it does not affect
+  PoB's calculated statistics.
+- **Monotonicity is checked, not assumed:** the ordering check runs over the scored
+  outputs, and a PoB interaction outside those fields would not be detected by it.
+- **Cost:** a roll-dependent candidate costs 3 PoB evaluations per alternative (at most 4
+  alternatives, i.e. 12), on Stonefist builds only. More than 4 alternatives are refused.

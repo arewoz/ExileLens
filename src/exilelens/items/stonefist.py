@@ -89,12 +89,16 @@ class TransformResult:
     #: True when a ranged transformed modifier was set to one end of its range.
     bounded: bool = False
     bound: str = ""
+    #: Several different transformed items fit the displayed lines; this is one of them.
+    alternatives: int = 1
+    alternative: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok, "base_name": self.base_name, "mapped": self.mapped,
             "unresolved": self.unresolved, "already_transformed": self.already_transformed,
             "bounded": self.bounded, "bound": self.bound,
+            "alternatives": self.alternatives, "alternative": self.alternative,
         }
 
 
@@ -174,7 +178,9 @@ class StonefistTransformer:
                     for index, value in enumerate(values):
                         low = sum(r[index][0] for _, r in contrib if index < len(r))
                         high = sum(r[index][1] for _, r in contrib if index < len(r))
-                        if value > high + 1e-9 or (complete and value < low - 1e-9):
+                        # Adding modifiers only raises a merged line's sum, so a partial
+                        # set is dead once its minimum already exceeds the displayed value.
+                        if value < low - 1e-9 or (complete and value > high + 1e-9):
                             return None
                     if len(contrib) == 1:
                         per_template.append([{(contrib[0][0].source_id, template): values}])
@@ -230,12 +236,25 @@ class StonefistTransformer:
 
     # ------------------------------------------------------------------ transformation
     def transform_lines(self, lines: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+        """The transformed explicit lines, or problems when several different items are possible."""
+        explicit, mapped, problems, _count = self.transform_lines_alternative(lines, None)
+        return explicit, mapped, problems
+
+    def transform_lines_alternative(
+        self, lines: list[dict[str, Any]], alternative: int | None,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str], int]:
+        """Like ``transform_lines``; ``alternative`` picks one of several possible items.
+
+        Decompositions that yield the same transformed lines with different values are
+        merged into bounds; decompositions that yield different lines are separate
+        alternatives (ordered deterministically), each of which the caller must evaluate.
+        """
         flags: dict[str, dict[str, Any]] = {}
         for row in lines:
             flags.setdefault(_template(str(row["line"])), row)
         solutions, problems = self.decompose(lines)
         if problems:
-            return [], [], problems
+            return [], [], problems, 0
         outputs: list[tuple[tuple[str, ...], list[dict[str, Any]], list[dict[str, Any]]]] = []
         reasons: list[str] = []
         for solution, own in solutions:
@@ -251,11 +270,13 @@ class StonefistTransformer:
                         break
                     own_values.extend(values)
                 if pair.target_ranged:
-                    if own_values is None:
+                    # A bound rule does not use the source roll (the game rolls the
+                    # transformed value independently), so a merged line is no obstacle.
+                    if own_values is None and not getattr(self.roll_rule, "source_independent", False):
                         reasons.append(f"{pair.source_id}: its roll is merged into a shared line, so the transformed roll is unknown")
                         failed = True
                         break
-                    target_values = self.roll_rule(pair, own_values)
+                    target_values = self.roll_rule(pair, own_values or [])
                     if target_values is None:
                         reasons.append(f"{pair.source_id} -> {pair.target_id}: no validated roll rule for a ranged transformed modifier")
                         failed = True
@@ -279,14 +300,25 @@ class StonefistTransformer:
                 key = tuple(sorted(row["line"] for row in explicit))
                 outputs.append((key, explicit, mapped))
         if not outputs:
-            return [], [], sorted(set(reasons)) or ["no exact transformation"]
-        if len({key for key, _, _ in outputs}) > 1:
-            merged = self._merge_bound_outputs(outputs)
+            return [], [], sorted(set(reasons)) or ["no exact transformation"], 0
+        groups: dict[tuple[str, ...], list[tuple[tuple[str, ...], list[dict[str, Any]], list[dict[str, Any]]]]] = {}
+        for output in outputs:
+            shape = tuple(sorted(_template(row["line"]) for row in output[1]))
+            groups.setdefault(shape, []).append(output)
+        ordered = [groups[shape] for shape in sorted(groups)]
+        count = len(ordered)
+        if count > 1 and alternative is None:
+            return [], [], ["the displayed modifiers allow several different transformed items"], count
+        group = ordered[alternative or 0] if (alternative or 0) < count else None
+        if group is None:
+            return [], [], ["unknown transformation alternative"], count
+        if len({key for key, _, _ in group}) > 1:
+            merged = self._merge_bound_outputs(group)
             if merged is None:
-                return [], [], ["the displayed modifiers allow several different transformed items"]
-            return merged[0], merged[1], []
-        _, explicit, mapped = outputs[0]
-        return explicit, mapped, []
+                return [], [], ["the displayed modifiers allow several different transformed items"], count
+            return merged[0], merged[1], [], count
+        _, explicit, mapped = group[0]
+        return explicit, mapped, [], count
 
     def _merge_bound_outputs(
         self, outputs: list[tuple[tuple[str, ...], list[dict[str, Any]], list[dict[str, Any]]]],
@@ -297,9 +329,10 @@ class StonefistTransformer:
         all possible decompositions, which widens the unknown range exactly.
         """
         name = getattr(self.roll_rule, "__name__", "")
-        if name not in {"stonefist_worst_rolls", "stonefist_best_rolls"}:
+        if name not in {"stonefist_worst_rolls", "stonefist_middle_rolls", "stonefist_best_rolls"}:
             return None
         best = name == "stonefist_best_rolls"
+        middle = name == "stonefist_middle_rolls"
         shapes = [sorted(_template(row["line"]) for row in explicit) for _, explicit, _ in outputs]
         if any(shape != shapes[0] for shape in shapes):
             return None
@@ -309,9 +342,16 @@ class StonefistTransformer:
             template = _template(rows[0]["line"])
             larger_is_worse = "slower" in template.lower()
             columns = list(zip(*[_values(row["line"]) for row in rows]))
-            pick = max if best != larger_is_worse else min
-            chosen = [pick(column) for column in columns]
             decimals = max(_decimals(row["line"]) for row in rows)
+            if middle:
+                quantum = Decimal(1).scaleb(-decimals) if decimals else Decimal(1)
+                chosen = [
+                    float(((Decimal(str(min(c))) + Decimal(str(max(c)))) / 2).quantize(quantum, rounding=ROUND_HALF_UP))
+                    for c in columns
+                ]
+            else:
+                pick = max if best != larger_is_worse else min
+                chosen = [pick(column) for column in columns]
             iterator = iter(chosen)
             line = re.sub("#", lambda _m: _format(next(iterator), decimals), template)
             merged.append({**rows[0], "line": line})
@@ -323,7 +363,7 @@ class StonefistTransformer:
         }]
         return merged, mapped
 
-    def transform(self, engine: Any, item_raw: str) -> TransformResult:
+    def transform(self, engine: Any, item_raw: str, alternative: int | None = None) -> TransformResult:
         described = engine._call("describe_item", {"item_raw": item_raw})
         if described.get("type") != "Gloves":
             return TransformResult(ok=False, unresolved=["not a glove item"])
@@ -334,9 +374,11 @@ class StonefistTransformer:
             return TransformResult(ok=True, item_raw=item_raw, base_name=base, already_transformed=True)
         if str(described.get("rarity") or "").upper() == "UNIQUE":
             return TransformResult(ok=False, unresolved=["unique gloves have item-specific transformations that are not mapped"])
-        explicit, mapped, problems = self.transform_lines(list(described.get("explicit") or []))
+        explicit, mapped, problems, count = self.transform_lines_alternative(
+            list(described.get("explicit") or []), alternative,
+        )
         if problems:
-            return TransformResult(ok=False, unresolved=problems)
+            return TransformResult(ok=False, unresolved=problems, alternatives=max(count, 1))
         target_base = RUNEFORGED_FISTS if described.get("runic") else FISTS
         implicit = [{"line": line} for line in engine_base_implicits(engine, target_base)]
         rebuilt = engine._call("rebuild_item", {
@@ -347,6 +389,7 @@ class StonefistTransformer:
             implicit=implicit, explicit=explicit, mapped=mapped,
             bounded=any(row.get("ranged") for row in mapped),
             bound=getattr(self.roll_rule, "__name__", ""),
+            alternatives=count, alternative=alternative or 0,
         )
 
 

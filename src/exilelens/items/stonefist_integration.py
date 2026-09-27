@@ -28,9 +28,9 @@ def stonefist_applies(build_info: dict[str, Any]) -> bool:
     )
 
 
-def safe_transform(engine: Any, item_raw: str, bound: str = "none") -> TransformResult:
+def safe_transform(engine: Any, item_raw: str, bound: str = "none", alternative: int | None = None) -> TransformResult:
     try:
-        return transformer_for(engine, BOUND_RULES[bound]).transform(engine, item_raw)
+        return transformer_for(engine, BOUND_RULES[bound]).transform(engine, item_raw, alternative)
     except Exception as exc:  # noqa: BLE001 - an item PoB cannot parse is handled by the normal path
         logger.info("stonefist transform unavailable: %s", exc)
         return TransformResult(ok=False, unresolved=[f"the item could not be read for transformation ({exc})"])

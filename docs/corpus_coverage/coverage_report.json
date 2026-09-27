@@ -960,6 +960,42 @@
       "total_variants": 1
     },
     {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-ALTERNATIVES-MUST-AGREE",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-CHARACTER-LEVEL",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-DECOMPOSITION-POLICY",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [
         "ascendancy"
       ],
@@ -967,6 +1003,86 @@
       "expected": "CONFIDENT",
       "failure_messages": [],
       "id": "STONEFIST-DETECTED-AND-UNMODELED-BY-SUPPORTED-POB",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-FIXED-VALUE-GLOVE-EXACT",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-GUARANTEED-RANGE-REPORTED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-GUARANTEED-UPGRADE-COMMUNICATED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-HAND-BUILT-BASELINE-TRANSFORMED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-INDEPENDENT-RANGED-MODIFIERS",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-NO-DOUBLE-TRANSFORMATION",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
@@ -986,18 +1102,68 @@
       "total_variants": 1
     },
     {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-NON-MONOTONE-REFUSED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [
         "ascendancy"
       ],
       "depth": "VERDICT",
-      "expected": "UNSUPPORTED",
+      "expected": "CONFIDENT",
       "failure_messages": [],
-      "id": "STONEFIST-ORDINARY-GLOVES-UNSUPPORTED",
+      "id": "STONEFIST-ORDINARY-REAL-GLOVES-VERIFIED",
       "manifest_id": "CORPUS02C-STONEFIST",
-      "passed_variants": 2,
-      "result": "UNSUPPORTED",
+      "passed_variants": 7,
+      "result": "PASS",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
-      "total_variants": 2
+      "total_variants": 7
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-OVERLAPPING-TIERS-POLICY",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/test_stonefist_transform.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-ROLL-BOUNDS-MATCH-REFERENCES",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-ROLL-DEPENDENT-DETERMINISTIC-RESTORE",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
     },
     {
       "archetypes": [
@@ -1011,6 +1177,30 @@
       "passed_variants": 1,
       "result": "PASS",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-UNRESOLVABLE-GLOVES-UNSUPPORTED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 2,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [],
+      "depth": "POLICY_UNIT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-VERDICT-SPANNING-REFUSED",
+      "manifest_id": null,
+      "passed_variants": 1,
+      "result": "UNSUPPORTED",
+      "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
     {
@@ -1224,11 +1414,11 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 8,
-    "PASS": 78,
-    "UNSUPPORTED": 3
+    "PASS": 90,
+    "UNSUPPORTED": 6
   },
-  "supported_count": 89,
-  "total_count": 89,
+  "supported_count": 104,
+  "total_count": 104,
   "uncovered_archetypes": [
     "es_scaling",
     "proxy_totem",
