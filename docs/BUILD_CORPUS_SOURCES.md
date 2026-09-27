@@ -29,10 +29,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_skill_native_dot.xml` | Monk/Acolyte of Chayula "Profane Ritual" (triggered by Cast on Minion Death); zero hit DPS, zero named-ailment DPS — skill-native-DoT (`DamageQuantity.SKILL_DOT`, PoB's own `TotalDot`) primary offense selection. |
 | `fixtures/builds/public_corpus/corpus02_giants_blood_shield.xml` | Mercenary/Gemling Legionnaire Supercharged Slam wielding a two-hand mace *and* a tower shield (Giant's Blood keystone); the shield is Chernobog's Pillar (fire damage per block chance, which also makes the build ignite). CORPUS-02A: regression for the community `get_tree_snapshot` worker failure (its tree contains the non-ASCII passive "The Mórrigan's Guidance"), two-hand candidates PoB keeps beside the shield, a two-hander PoB does not (shield cleared and disclosed), and a unique-shield replacement whose damage semantics change (truthfully UNCERTAIN). See `docs/CORPUS-02A.md`. |
 | `fixtures/builds/public_corpus/corpus02b_varashta_djinn.xml` | Sorceress/Disciple of Varashta, level 100, with all three ascendancy-granted Djinns (Navira, the Last Mirage as main skill; Ruzhan and Kelari as additional socket groups) plus skeletal minions, a spectre and wolves. CORPUS-02B: minion-owned verdicts on an ascendancy-granted actor, complete Djinn damage components in the advanced view, and the Command-as-main-skill UNCERTAIN variant. A public ladder build, **not** the community Djinn report's build. See `docs/CORPUS-02B.md`. |
+| `fixtures/builds/public_corpus/corpus02c_stonefist_martial_artist.xml` | Monk/Martial Artist (level 100) Twister with **Way of the Stonefist** allocated; its export already carries the equipped gloves transformed ("Runeforged Fists of Stone" with transformed modifiers). CORPUS-02C: ordinary glove candidates are transformed in memory into the Fists of Stone item the character equips and measured by PoB (exact or across the independently rolled transformed range), the exported gloves are never transformed twice, and other slots stay measured. See `docs/CORPUS-02C.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(11 scenarios: 9 from M1.1, the CORPUS-02A Giant's Blood build, and the CORPUS-02B Varashta Djinn build). It contains repository-relative paths and expected semantic
+(12 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn and CORPUS-02C Stonefist builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -107,6 +108,14 @@ earlier acquisition despite its documentation. Nothing else changed, and the bui
 the public safety regression and contains no account/character name, notes, or links other than the standard
 passive-tree `<URL>`. It is **not** the build from the community report of Djinn builds being UNCERTAIN (that export
 was never obtained). It is used only as real evidence of how Item Check handles the same mechanic.
+
+`corpus02c_stonefist_martial_artist.xml` (CORPUS-02C) comes from the same predecessor Build Corpus V1 (case C01,
+acquired 2026-09-12): a representative level-100 public character from the poe.ninja Runes of Aldur ladder (PoE2 0.5.5
+Forbidden Rites), captured through poe.ninja's "Copy PoB code" surface, with no character permalink retained. It was
+re-sanitized with this corpus's rules before commit. 21 `Unique ID:` lines and poe.ninja's 108-line `<PlayerStat>`
+cache were removed, and nothing else changed. It passes the public safety regression. It was selected because it
+allocates Way of the Stonefist (passive node 39595), found by scanning every available real fixture for that node,
+not by build name.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

@@ -18,7 +18,7 @@ from exilelens.errors import (
     UnsupportedGameLanguage,
 )
 from exilelens.baseline import display_item_set_name
-from exilelens.items.baseline_item import resolve_baseline_item, resolve_candidate_item
+from exilelens.items.baseline_item import resolve_baseline_item, resolve_candidate_item, unmodeled_item_transform
 from exilelens.items.cache import ItemPipelineCache
 from exilelens.items.comparison_trace import build_comparison_trace
 from exilelens.items.evaluation_outcome import failed_outcome
@@ -38,6 +38,15 @@ from exilelens.items.raw_input import ItemInputSource, RawItemInput
 from exilelens.items.recognition import ItemClassification
 from exilelens.items.slots import ProductSlot, WEAPON_TYPES, pob_slot_to_product
 from exilelens.items.socket_normalize import strip_socketed_modifiers
+from exilelens.items.stonefist_integration import (
+    TransformResult,
+    effective_item,
+    equipped_gloves_transform,
+    safe_transform,
+    stonefist_applies,
+    transform_report,
+    unresolved_reasons,
+)
 from exilelens.items.value_layer import parse_profile
 
 logger = logging.getLogger(__name__)
@@ -149,6 +158,9 @@ def _evaluate_item_impl(
     item_check_pro: dict[str, Any] | None = None,
     offense_coverage: dict[str, Any] | None = None,
     defer_restore: bool = False,
+    stonefist_bound: str = "none",
+    stonefist_unresolved: str = "",
+    stonefist_alternative: int | None = None,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     timings = EvaluationTimings()
@@ -231,6 +243,20 @@ def _evaluate_item_impl(
     else:
         coverage_payload = infer_offense_coverage(primary_metric, loaded.get("metrics")).to_dict()
         coverage_payload["audit_skipped"] = True
+
+    # CORPUS-02C: Way of the Stonefist transforms equipped gloves in game. PoB
+    # measures the transformed item the character would actually equip; the
+    # displayed candidate (``raw``) stays the item the player copied.
+    stonefist_active = stonefist_applies(build_info)
+    candidate_transform: TransformResult | None = None
+    if stonefist_active:
+        candidate_transform = safe_transform(engine, engine_raw.raw_text, stonefist_bound, stonefist_alternative)
+        if stonefist_unresolved and candidate_transform.ok and (candidate_transform.bounded or candidate_transform.alternatives > 1):
+            candidate_transform = TransformResult(ok=False, unresolved=[stonefist_unresolved])
+        if candidate_transform.ok and not candidate_transform.already_transformed:
+            engine_raw = RawItemInput.from_text(
+                candidate_transform.item_raw, source=raw.source, detected_format=raw.detected_format,
+            )
 
     t0 = time.perf_counter()
     pob_engine_result = cache.get_pob_parse(
@@ -381,6 +407,17 @@ def _evaluate_item_impl(
                 baseline_overrides[slot] = normalized.text
                 baseline_normalization_diagnostics[slot] = len(normalized.removed_lines)
 
+    # CORPUS-02C: a build whose equipped gloves are still ordinary (e.g. built by
+    # hand in PoB) is measured with its gloves transformed as in game, for every
+    # slot, in memory only -- the transaction restores the true build afterwards.
+    transform_overrides: dict[str, str] = {}
+    baseline_transform: TransformResult | None = None
+    if stonefist_active:
+        baseline_transform = equipped_gloves_transform(engine, baseline_overrides.get("Gloves"))
+        if baseline_transform is not None and baseline_transform.ok and not baseline_transform.already_transformed:
+            transform_overrides["Gloves"] = baseline_transform.item_raw
+    engine_overrides = {**baseline_overrides, **transform_overrides}
+
     # PERF-02: every compatible slot for this item is measured inside one PoB
     # transaction -- one baseline, N candidate frames, one restore -- instead of N
     # transactions costing 2N frames. The restore and its verification are shared by
@@ -395,7 +432,7 @@ def _evaluate_item_impl(
             context=context,
             component_keys=batch_keys or None,
             defer_restore=defer_restore,
-            baseline_overrides=baseline_overrides or None,
+            baseline_overrides=engine_overrides or None,
         )
     except SlotInvalid as exc:
         raise BaselineItemUnresolved(
@@ -546,6 +583,22 @@ def _evaluate_item_impl(
             pob_slot=pob_slot,
             raw_text=raw.raw_text,
         ).to_dict()
+        comparison["item_transform"] = transform_report(pob_slot, candidate_transform, baseline_transform)
+        if pob_slot != "Gloves" and baseline_transform is not None and not baseline_transform.ok:
+            # Ordinary equipped gloves whose transformation is not exact stay untransformed
+            # in PoB's baseline; disclose it instead of silently comparing against it.
+            comparison["stonefist_baseline_note"] = (
+                "The equipped gloves are ordinary gloves in this Path of Building build, but Way of the "
+                "Stonefist transforms them in game and their transformed rolls are unknown, so this comparison "
+                "cannot be trusted as measured; import the character from the game for exact gloves"
+            )
+        comparison["unmodeled_item_transform"] = unmodeled_item_transform(
+            build_info.get("item_base_transforms"),
+            pob_slot,
+            effective_item(comparison["baseline_item"], baseline_transform if pob_slot == "Gloves" else None),
+            effective_item(comparison["candidate_item"], candidate_transform if pob_slot == "Gloves" else None),
+            unresolved=unresolved_reasons(candidate_transform, baseline_transform),
+        )
         comparisons.append(comparison)
         debug_payload["slots"].append(
             {
@@ -762,9 +815,254 @@ def evaluate_item(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:
     non-English.
     """
     try:
-        return _evaluate_item_impl(raw_text, engine, **kwargs)
+        return _evaluate_with_stonefist_bounds(raw_text, engine, **kwargs)
     except EngineError as exc:
         raise _classify_localization_failure(raw_text, exc) from exc
+
+
+#: PoB outputs Item Check scores from, all "higher is better" for the character.
+#: A roll-dependent candidate is only reported when each of them is ordered
+#: worst <= middle <= best across the three measured roll configurations.
+_MONOTONE_FIELDS = (
+    "TotalEHP", "Life", "EnergyShield", "Mana", "Evasion", "Armour", "Ward",
+    "FireResist", "ColdResist", "LightningResist", "ChaosResist", "BlockChance", "SpellBlockChance",
+    "PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken",
+    "LightningMaximumHitTaken", "ChaosMaximumHitTaken",
+)
+
+
+def _verdict_structure(row: dict[str, Any]) -> tuple[Any, ...]:
+    """Everything besides the score that decides the public verdict."""
+    outcome = row.get("evaluation_outcome") or {}
+    impact = outcome.get("item_impact") or {}
+    axes = tuple(sorted(
+        (name, str(axis.get("direction")), bool(axis.get("significant")))
+        for name, axis in (impact.get("axes") or {}).items()
+    ))
+    guardrails = tuple(sorted(str(g.get("code")) for g in outcome.get("guardrails_applied") or []))
+    return (str(outcome.get("verdict")), str(outcome.get("evaluation_quality")), str(impact.get("pattern")), axes, guardrails)
+
+
+def _roll_monotone_violations(rows: list[dict[str, Any]]) -> list[str]:
+    """Fields whose value is not ordered worst <= middle <= best."""
+    worst, middle, best = rows
+    fields = list(_MONOTONE_FIELDS)
+    primary = str(worst.get("primary_metric_field") or "")
+    if primary:
+        fields.insert(0, primary)
+    violations: list[str] = []
+    for field_name in fields:
+        values = []
+        for row in (worst, middle, best):
+            value = ((row.get("candidate") or {}).get("metrics") or {}).get(field_name)
+            try:
+                values.append(float(value))
+            except (TypeError, ValueError):
+                values = []
+                break
+        if len(values) != 3:
+            continue
+        tolerance = max(1e-6, abs(values[2]) * 1e-9)
+        if values[0] > values[1] + tolerance or values[1] > values[2] + tolerance:
+            violations.append(field_name)
+    return violations
+
+
+#: At most this many different transformed items are evaluated for one candidate.
+_MAX_TRANSFORM_ALTERNATIVES = 4
+
+
+def _candidate_transform(result: dict[str, Any]) -> dict[str, Any]:
+    for row in result.get("slot_comparisons") or []:
+        candidate = ((row.get("item_transform") or {}).get("candidate") or {})
+        if candidate:
+            return candidate
+    return {}
+
+
+def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:
+    """CORPUS-02C: a Stonefist glove candidate whose transformed item is not unique.
+
+    Two things can leave several possible transformed items: the game rolls ranged
+    transformed modifiers independently when the gloves are equipped, and the
+    displayed lines may fit more than one modifier combination. PoB measures every
+    possible combination ("alternative") and, for each, the worst, middle and best
+    rolls. A verdict is reported only when
+
+    * every scored PoB output of each alternative is ordered worst <= middle <= best
+      (the outcome is monotone in the rolls, so these bound every other roll), and
+    * every measured configuration gives the same public verdict.
+
+    Otherwise the comparison stays UNSUPPORTED with the reason. The reported numbers
+    are a verified range over all configurations, never one assumed roll.
+    """
+    first = _evaluate_item_impl(raw_text, engine, stonefist_bound="worst", stonefist_alternative=0, **kwargs)
+    transform = _candidate_transform(first)
+    alternatives = int(transform.get("alternatives") or 1) if transform.get("ok") else 1
+    if not transform.get("ok") or (not transform.get("bounded") and alternatives <= 1):
+        return first
+    if kwargs.get("defer_restore") and hasattr(engine, "finalize_transaction"):
+        engine.finalize_transaction()
+    plain = {**kwargs, "defer_restore": False}
+
+    def refuse(reason: str) -> dict[str, Any]:
+        return _evaluate_item_impl(
+            raw_text, engine, stonefist_bound="worst", stonefist_alternative=0, stonefist_unresolved=reason, **plain,
+        )
+
+    if alternatives > _MAX_TRANSFORM_ALTERNATIVES:
+        return refuse(f"its displayed modifiers fit {alternatives} different glove modifier combinations")
+    runs: list[dict[str, Any]] = []  # each: {"alternative", "bound", "result"}
+    for alternative in range(alternatives):
+        worst = first if alternative == 0 else _evaluate_item_impl(
+            raw_text, engine, stonefist_bound="worst", stonefist_alternative=alternative, **plain,
+        )
+        runs.append({"alternative": alternative, "bound": "worst", "result": worst})
+        if _candidate_transform(worst).get("bounded"):
+            for bound in ("middle", "best"):
+                runs.append({"alternative": alternative, "bound": bound, "result": _evaluate_item_impl(
+                    raw_text, engine, stonefist_bound=bound, stonefist_alternative=alternative, **plain,
+                )})
+
+    slots = [row.get("pob_slot") for row in first.get("slot_comparisons") or [] if (row.get("item_transform") or {}).get("candidate")]
+    for slot in slots:
+        rows = []
+        for run in runs:
+            row = next((r for r in run["result"].get("slot_comparisons") or [] if r.get("pob_slot") == slot), None)
+            if row is None or not ((row.get("item_transform") or {}).get("candidate") or {}).get("ok"):
+                return refuse("its possible transformed items could not all be measured")
+            rows.append((run, row))
+        verdicts = {str((row.get("evaluation_outcome") or {}).get("verdict") or "") for _, row in rows}
+        if len(verdicts) > 1:
+            low = str((rows[0][1].get("evaluation_outcome") or {}).get("verdict") or "")
+            other = next(v for v in verdicts if v != low)
+            cause = (
+                "its transformed modifier rolls are only decided when equipped"
+                if alternatives <= 1 else
+                "its displayed modifiers fit several glove modifier combinations and its transformed rolls are only decided when equipped"
+            )
+            return refuse(f"{cause}, and across the possibilities the verdict changes ({low} and {other})")
+        for alternative in range(alternatives):
+            trio = [row for run, row in rows if run["alternative"] == alternative]
+            # The verdict policy is not order-preserving on its own (e.g. a TRADEOFF
+            # pattern forces SIDEGRADE regardless of score), so matching verdicts at
+            # the ends prove nothing unless the verdict's whole structure -- pattern,
+            # per-axis direction/significance, applied guardrails, quality -- is also
+            # identical at every measured roll. With outputs monotone in the rolls,
+            # every intermediate roll then shares that structure and verdict.
+            if len({_verdict_structure(row) for row in trio}) > 1:
+                return refuse(
+                    "its transformed modifier rolls are only decided when equipped, and across their range "
+                    "the comparison changes character (impact pattern or guardrails), so no single verdict "
+                    "holds for every roll"
+                )
+            if len(trio) == 3:
+                violations = _roll_monotone_violations(trio)
+                if violations:
+                    return refuse(
+                        "its transformed modifier rolls are only decided when equipped, and Path of Building's "
+                        "results are not ordered across the roll range (" + ", ".join(violations[:3]) + "), so no "
+                        "verdict can be guaranteed for every roll"
+                    )
+    # Report on the lowest-damage configuration, with the verified range over all of them.
+    def primary_pct(result: dict[str, Any]) -> float:
+        row = next((r for r in result.get("slot_comparisons") or [] if r.get("pob_slot") in slots), {})
+        value = ((row.get("metric_profile") or {}).get("primary_offense") or {}).get("percent_delta")
+        return float(value) if value is not None else 0.0
+
+    base = min((run["result"] for run in runs), key=primary_pct)
+    _attach_stonefist_bounds(base, [run["result"] for run in runs], alternatives)
+    return base
+
+
+_UPGRADE_VERDICTS = frozenset({"MINOR_UPGRADE", "MEANINGFUL_UPGRADE", "MAJOR_UPGRADE"})
+_DOWNGRADE_VERDICTS = frozenset({"MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE", "MAJOR_DOWNGRADE", "STRONG_DOWNGRADE"})
+
+
+def _pct_text(value: Any) -> str:
+    try:
+        return f"{float(value):+.1f}%"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]], alternatives: int = 1) -> None:
+    """Report a verified impact range over every measured configuration."""
+    bounds_by_slot: dict[str, Any] = {}
+    presentation = base.get("presentation") or {}
+    for row in base.get("slot_comparisons") or []:
+        if not ((row.get("item_transform") or {}).get("candidate") or {}).get("ok"):
+            continue
+        slot = row.get("pob_slot")
+        others = [
+            r for result in results for r in result.get("slot_comparisons") or [] if r.get("pob_slot") == slot
+        ]
+        outcome = row.get("evaluation_outcome") or {}
+        verdict = str(outcome.get("verdict") or "")
+        ranges: dict[str, dict[str, Any]] = {}
+        for delta in outcome.get("all_deltas") or []:
+            key = str(delta.get("key") or "")
+            points = []
+            for other in others:
+                match = next((d for d in ((other.get("evaluation_outcome") or {}).get("all_deltas") or []) if str(d.get("key")) == key), None)
+                if match is not None and match.get("percent_delta") is not None:
+                    points.append((float(match["percent_delta"]), match.get("candidate")))
+            if not points:
+                continue
+            low, high = min(points), max(points)
+            ranges[key] = {"label": delta.get("label") or key, "worst_pct": low[0], "best_pct": high[0],
+                           "worst": low[1], "best": high[1]}
+            if abs(high[0] - low[0]) > 1e-9:
+                delta["percent_delta_range"] = [low[0], high[0]]
+                delta["label"] = f"{delta.get('label') or key} [measured {_pct_text(low[0])} to {_pct_text(high[0])}]"
+        offense = ranges.get("primary_offense") or {}
+        ehp = ranges.get("ehp") or {}
+        parts = []
+        if offense:
+            parts.append(f"{offense['label']} {_pct_text(offense['worst_pct'])} to {_pct_text(offense['best_pct'])}")
+        if ehp:
+            parts.append(f"EHP {_pct_text(ehp['worst_pct'])} to {_pct_text(ehp['best_pct'])}")
+        guarantee = (
+            "an upgrade at each measured roll" if verdict in _UPGRADE_VERDICTS
+            else "a downgrade at each measured roll" if verdict in _DOWNGRADE_VERDICTS
+            else f"{verdict.replace('_', ' ').lower()} at each measured roll"
+        )
+        cause = "rolls this glove's transformed modifiers when it is equipped"
+        if alternatives > 1:
+            cause = f"turns this glove into one of {alternatives} possible items (its lines fit several modifier combinations) and rolls their transformed modifiers when equipped"
+        summary = (
+            f"Way of the Stonefist {cause}. Path of Building measured the lowest, middle and highest possible rolls"
+            + (" of each" if alternatives > 1 else "") + ": " + ("; ".join(parts) or "the listed changes")
+            + f". The verdict was {guarantee}; rolls in between were not measured individually."
+        )
+        note = {"code": "STONEFIST_ROLL_DEPENDENT", "detail": summary}
+        bounds = {
+            "verdict": verdict,
+            "guarantee": guarantee,
+            "summary": summary,
+            "ranges": ranges,
+            "alternatives": alternatives,
+            "verified_configurations": len(others),
+        }
+        row["stonefist_roll_bounds"] = bounds
+        bounds_by_slot[str(slot)] = bounds
+        for target in (outcome, presentation.get("evaluation_outcome")):
+            if isinstance(target, dict):
+                notes = [r for r in (target.get("unsupported_or_unmodeled") or []) if r.get("code") != note["code"]]
+                target["unsupported_or_unmodeled"] = notes + [dict(note)]
+        if isinstance(presentation.get("evaluation_outcome"), dict):
+            presentation["evaluation_outcome"]["all_deltas"] = outcome.get("all_deltas")
+    if bounds_by_slot:
+        base["stonefist_roll_bounds"] = bounds_by_slot
+        slot_bounds = bounds_by_slot.get(str((base.get("recommendation") or {}).get("pob_slot"))) or next(iter(bounds_by_slot.values()))
+        presentation["roll_dependent"] = True
+        presentation["stonefist_roll_bounds"] = slot_bounds
+        explanation = str(presentation.get("verdict_explanation") or "")
+        presentation["verdict_explanation"] = f"{slot_bounds['summary']} {explanation}".strip()
+        for impact in presentation.get("impact_rows") or []:
+            match = slot_bounds["ranges"].get(str(impact.get("key") or ""))
+            if match and abs(float(match["worst_pct"]) - float(match["best_pct"])) > 1e-9:
+                impact["delta_text"] = f"{_pct_text(match['worst_pct'])} to {_pct_text(match['best_pct'])}"
 
 
 # Public name for the classifier: the controller applies it at the recognition

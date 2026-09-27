@@ -183,6 +183,18 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.MINION,),
         manifest_id="CORPUS02B-VARASHTA-DJINN",
     ),
+    CoverageCase(
+        id="CORPUS02C-STONEFIST-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORPUS02C-STONEFIST]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Monk/Martial Artist, Twister, PLAYER actor, Way of the Stonefist allocated with "
+            "already-transformed Runeforged Fists of Stone gloves. Public ladder build."
+        ),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -890,6 +902,168 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# CORPUS-02C Way of the Stonefist (tests/integration/test_corpus02c_stonefist.py) — ordinary
+# gloves are transformed in memory into the Fists of Stone item the character
+# equips and PoB measures it; ranged transformed rolls are verified across their
+# range. Numeric expectations are checked against hand-transformed reference
+# items in cold PoB loads. See docs/CORPUS-02C.md.
+# ---------------------------------------------------------------------------
+CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="STONEFIST-DETECTED-AND-UNMODELED-BY-SUPPORTED-POB",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_stonefist_is_detected_and_the_supported_pob_does_not_model_it",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The bridge reports Way of the Stonefist (Gloves -> Fists of Stone) with PoB's own "
+            "modeled=False; a PoB revision that parses it trips this test and must be re-validated."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-TRANSFORMED-GLOVES-MEASURED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_transformed_glove_comparison_is_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Fists of Stone vs Fists of Stone (exported gloves minus their crit line): FULL, matching a cold PoB load.",
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-FIXED-VALUE-GLOVE-EXACT",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_fixed_value_ordinary_glove_is_transformed_exactly",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "An ordinary glove whose modifiers all transform to fixed values is evaluated as the exact "
+            "Fists of Stone item (HandWraps ids asserted), matching a hand-transformed reference in PoB."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-NO-DOUBLE-TRANSFORMATION",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_already_transformed_gloves_are_never_transformed_twice",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Exported (already transformed) gloves are never transformed again, as candidate or baseline; metrics equal the export.",
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-ROLL-BOUNDS-MATCH-REFERENCES",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_ranged_rolls_are_bounded_by_independent_reference_items",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Real Massive Mitts with ranged transformed modifiers: worst/best PoB runs equal hand-transformed "
+            "worst/best reference items; worst/middle/best verdicts agree and a verified range is reported."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-ORDINARY-REAL-GLOVES-VERIFIED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_ordinary_real_gloves_receive_verified_verdicts",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Seven real ordinary gloves (runeforged, corrupted, separate same-stat lines, overlapping tiers) "
+            "receive FULL verdicts on the transformed item, verified across their roll range, with exact restore."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-GUARANTEED-UPGRADE-COMMUNICATED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_guaranteed_upgrade_across_every_roll_is_communicated",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Hand-built baseline with weak ordinary gloves: a better ordinary glove is an upgrade at every "
+            "transformed roll; the reported range matches hand-transformed worst/best references."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-ROLL-DEPENDENT-DETERMINISTIC-RESTORE",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_roll_dependent_evaluation_is_deterministic_and_restores",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Repeated roll-dependent evaluations are identical and fingerprint/equipment return to baseline.",
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-HAND-BUILT-BASELINE-TRANSFORMED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_ordinary_equipped_gloves_are_transformed_for_the_baseline",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A hand-built PoB with ordinary equipped gloves: an amulet check is measured on the in-memory "
+            "transformed baseline (matching a reference load) and the user's build is restored untouched."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-CHARACTER-LEVEL",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_transformed_defences_follow_the_character_level",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="At character level 70 the transformed per-level defences match a level-70 reference load.",
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-INEXACT-BASELINE-DISCLOSED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_inexact_equipped_gloves_are_disclosed_on_other_slots",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Hand-built PoB with ordinary ranged gloves: other slots are measured but PARTIAL/UNCERTAIN "
+            "(STONEFIST_BASELINE_UNTRANSFORMED), never a confident recommendation on an untransformed baseline."
+        ),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-UNRESOLVABLE-GLOVES-UNSUPPORTED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_unresolvable_gloves_stay_unsupported_with_the_precise_reason",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description=(
+            "Remaining gaps, not coverage: unique gloves (game HandWrapsUnique* mods are absent from PoB's "
+            "data) and gloves whose lines match no glove-modifier combination stay UNSUPPORTED with the reason."
+        ),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-NON-GLOVE-CANDIDATES-STAY-MEASURED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_non_glove_candidates_on_a_stonefist_build_stay_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="The transformation is scoped to gloves: an amulet candidate stays FULL and matches PoB.",
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
 # CORE-04 adversarial policy suite (tests/test_core_04_adversarial_item_check.py)
 # — deterministic, worker-shaped unit tests of outcome policy. No real PoB, no
 # build fixture: these are the safety net around the verdict/quality contract
@@ -1036,6 +1210,96 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.UNCERTAIN,
         description="An explicit restore failure is graded FAILED quality, never silently treated as a successful comparison.",
     ),
+    CoverageCase(
+        id="STONEFIST-DECOMPOSITION-POLICY",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_merged_same_stat_line_is_decomposed_into_both_modifiers",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="CORPUS-02C: a merged same-stat line decomposes into its unique source modifiers.",
+    ),
+    CoverageCase(
+        id="STONEFIST-OVERLAPPING-TIERS-POLICY",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_overlapping_tiers_widen_the_bounds_only",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="CORPUS-02C: overlapping source tiers widen worst/middle/best bounds and stay unresolved without bounds.",
+    ),
+    CoverageCase(
+        id="STONEFIST-INDEPENDENT-RANGED-MODIFIERS",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_independent_ranged_modifiers_take_their_own_bounds",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="CORPUS-02C: each ranged modifier takes its own worst/middle/best value; 'slower' lines invert.",
+    ),
+    CoverageCase(
+        id="STONEFIST-VERDICT-SPANNING-REFUSED",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_verdict_changing_across_the_roll_range_is_refused",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: a verdict that changes across the roll range is refused (stubbed PoB results).",
+    ),
+    CoverageCase(
+        id="STONEFIST-NON-MONOTONE-REFUSED",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_non_monotone_pob_results_are_refused_even_when_verdicts_match",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: matching verdicts are not proof when PoB outputs are not ordered across the rolls.",
+    ),
+    CoverageCase(
+        id="STONEFIST-ALTERNATIVES-MUST-AGREE",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_every_decomposition_alternative_must_agree",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: when displayed lines fit several modifier combinations, all resulting items must share one verdict.",
+    ),
+    CoverageCase(
+        id="STONEFIST-VERDICT-STRUCTURE-MUST-MATCH",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_same_verdict_reached_through_different_patterns_is_refused",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C review: a verdict reached through different impact patterns across the roll range is refused.",
+    ),
+    CoverageCase(
+        id="STONEFIST-GUARANTEED-RANGE-REPORTED",
+        test_file="tests/test_stonefist_transform.py",
+        node_name="test_consistent_ordered_range_reports_a_guaranteed_verdict",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="CORPUS-02C: an ordered, agreeing range is reported as a verified range with an explicit guarantee.",
+    ),
+    CoverageCase(
+        id="ITEM-TRANSFORM-GUARD-SCOPE",
+        test_file="tests/test_item_transform_guard.py",
+        node_name="test_guard_flags_only_glove_comparisons_that_are_not_like_for_like",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="CORPUS-02C: only transformed-slot comparisons that are not Fists of Stone on both sides are flagged.",
+    ),
+    CoverageCase(
+        id="ITEM-TRANSFORM-POB-CLAIM-NOT-TRUSTED",
+        test_file="tests/test_item_transform_guard.py",
+        node_name="test_guard_does_not_trust_a_pob_modelling_claim",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: a PoB revision that parses Way of the Stonefist (e.g. PR #2350) does not lift the guard unvalidated.",
+    ),
+    CoverageCase(
+        id="ITEM-TRANSFORM-FLAGGED-IS-UNSUPPORTED",
+        test_file="tests/test_item_transform_guard.py",
+        node_name="test_flagged_comparison_is_unsupported_quality",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description="CORPUS-02C: a flagged comparison is EvaluationQuality.UNSUPPORTED with reason ITEM_TRANSFORM_UNMODELED.",
+    ),
 )
 
 ALL_CASES: tuple[CoverageCase, ...] = (
@@ -1044,5 +1308,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + SLICE_3_4D_REAL_POB_CASES
     + CORPUS_02A_REAL_POB_CASES
     + CORPUS_02B_REAL_POB_CASES
+    + CORPUS_02C_REAL_POB_CASES
     + POLICY_UNIT_CASES
 )

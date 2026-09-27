@@ -1,0 +1,442 @@
+"""CORPUS-02C: Way of the Stonefist (Monk / Martial Artist) Item Check.
+
+Fixture ``corpus02c_stonefist_martial_artist.xml`` is a real public ladder character
+with Way of the Stonefist allocated; its export already carries the equipped gloves
+transformed ("Runeforged Fists of Stone"). Ordinary glove candidates are transformed
+in memory into the Fists of Stone item the character would equip (``items/stonefist``)
+and PoB calculates everything. See docs/CORPUS-02C.md.
+
+Every numeric expectation is checked against an independent cold PoB load of a
+*hand-written* reference item (transformed by hand from the game's HandWraps data),
+never against ExileLens's own transformation or scoring output.
+"""
+
+from __future__ import annotations
+
+import math
+import re
+from pathlib import Path
+from xml.etree import ElementTree
+from xml.sax.saxutils import escape
+
+import pytest
+
+from exilelens.items.evaluation import evaluate_item
+from exilelens.items.stonefist import transformer_for
+from exilelens.items.stonefist_rolls import BEST_ROLLS, WORST_ROLLS
+
+
+ROOT = Path(__file__).resolve().parents[2]
+CORPUS = ROOT / "fixtures" / "builds" / "public_corpus"
+BUILD = CORPUS / "corpus02c_stonefist_martial_artist.xml"
+STONEFIST = "Way of the Stonefist"
+FISTS = "Fists of Stone"
+DIRECTIONAL = {
+    "MINOR_UPGRADE", "MEANINGFUL_UPGRADE", "MAJOR_UPGRADE",
+    "MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE", "MAJOR_DOWNGRADE", "STRONG_DOWNGRADE", "SIDEGRADE",
+}
+pytestmark = [pytest.mark.integration, pytest.mark.real_pob, pytest.mark.itemcheck]
+
+# An ordinary glove whose modifiers all transform into FIXED values (exact).
+FIXED_GLOVE = (
+    "Rarity: Rare\nTest Grip\nVaal Gloves\nItem Level: 82\n--------\n"
+    "+37 to maximum Energy Shield\n+82 to maximum Life\nGain 5 Life per enemy killed"
+)
+# Hand-transformed from game data: LocalIncreasedEnergyShield5 -> +3 Evasion / +1 ES
+# per level; IncreasedLife6 -> 10% less damage taken on Low Life;
+# LifeGainedFromEnemyDeath1 -> Recover 1% of maximum Life on Kill; Fists of Stone base.
+FIXED_GLOVE_TRANSFORMED = """Rarity: RARE
+Test Grip
+Fists of Stone
+Item Level: 82
+Quality: 0
+Implicits: 2
+Has +3 to Evasion Rating per player level
+Has +1 to maximum Energy Shield per player level
+Has +3 to Evasion Rating per player level
+Has +1 to maximum Energy Shield per player level
+10% less damage taken while on Low Life
+Recover 1% of maximum Life on Kill"""
+
+# The real Massive Mitts from the Giant's Blood fixture, hand-transformed at the worst
+# and best end of every ranged HandWraps modifier (AddedColdDamage6/AddedLightningDamage6
+# (15-16)%, Dexterity6 (36-40)%, GlobalMeleeSkillGemLevel2 +1 level (10-12)% quality,
+# IncreasedLife9 13% fixed, Strength6 (23-25)%).
+_MITTS_HEADER = """Rarity: RARE
+Eagle Clutches
+Fists of Stone
+Item Level: 81
+Quality: 20
+Sockets: S
+Rune: Greater Desert Rune
+LevelReq: 80
+Implicits: 5
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}+18% to Fire Resistance
+Has +3 to Evasion Rating per player level
+Has +1 to maximum Energy Shield per player level
+"""
+MITTS_WORST = _MITTS_HEADER + """Attacks Gain 15% of Damage as Extra Cold Damage
+Attacks Gain 15% of Damage as Extra Lightning Damage
++36% Surpassing chance to fire an additional Projectile
++1 to Level of all Melee Skills
++10% to Quality of all Skills
+13% less damage taken while on Low Life
+23% increased Area of Effect for Attacks"""
+MITTS_BEST = _MITTS_HEADER + """Attacks Gain 16% of Damage as Extra Cold Damage
+Attacks Gain 16% of Damage as Extra Lightning Damage
++40% Surpassing chance to fire an additional Projectile
++1 to Level of all Melee Skills
++12% to Quality of all Skills
+13% less damage taken while on Low Life
+25% increased Area of Effect for Attacks"""
+
+
+def _equipped_item(build: Path, slot: str) -> str:
+    root = ElementTree.parse(build).getroot()
+    items = root.find("Items")
+    assert items is not None
+    raw = {item.get("id"): (item.text or "").strip() for item in items.findall("Item")}
+    active = items.get("activeItemSet")
+    item_set = next(entry for entry in items.findall("ItemSet") if entry.get("id") == active)
+    item_id = next(entry.get("itemId") for entry in item_set.findall("Slot") if entry.get("name") == slot)
+    assert item_id and item_id != "0"
+    return raw[item_id]
+
+
+def _variant(tmp_path: Path, name: str, *, slots: dict[str, str] | None = None, level: int | None = None,
+             build: Path = BUILD) -> Path:
+    text = build.read_text(encoding="utf-8")
+    items = []
+    for index, (slot, raw) in enumerate((slots or {}).items()):
+        item_id = str(900 + index)
+        items.append(f'\t\t<Item id="{item_id}">\n{escape(raw)}\n\t\t</Item>\n')
+        text, count = re.subn(
+            rf'(<Slot itemId=")\d+(" itemPbURL="" name="{re.escape(slot)}"/>)', rf"\g<1>{item_id}\g<2>", text,
+        )
+        assert count == 1, slot
+    if items:
+        anchor = re.search(r"\t\t<ItemSet ", text)
+        assert anchor is not None
+        text = text[:anchor.start()] + "".join(items) + text[anchor.start():]
+    if level is not None:
+        text, count = re.subn(r'(<Build [^>]*\blevel=")\d+(")', rf"\g<1>{level}\g<2>", text, count=1)
+        assert count == 1
+    path = tmp_path / f"{name}.xml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def _fresh(engine, path: Path) -> dict:
+    engine.load_build(path)
+    return engine.get_metrics()["raw"]
+
+
+def _row(result: dict, slot: str = "Gloves") -> dict:
+    return next(row for row in result["slot_comparisons"] if row["pob_slot"] == slot)
+
+
+def _close(actual, expected) -> bool:
+    return math.isclose(float(actual), float(expected), rel_tol=1e-6, abs_tol=1e-6)
+
+
+def _assert_same_metrics(measured: dict, reference: dict, fields=("CombinedDPS", "TotalEHP", "Evasion", "EnergyShield", "Life")) -> None:
+    for field_name in fields:
+        if field_name in reference:
+            assert _close(measured[field_name], reference[field_name]), (field_name, measured[field_name], reference[field_name])
+
+
+# --------------------------------------------------------------------------- detection
+
+
+def test_stonefist_is_detected_and_the_supported_pob_does_not_model_it(real_pob_engine) -> None:
+    """Re-pin tripwire: a PoB revision that parses the passive must be re-validated."""
+    build = real_pob_engine.load_build(BUILD)["build"]
+    assert (build["class"], build["ascendancy"]) == ("Monk", "Martial Artist")
+    assert build["item_base_transforms"] == [{
+        "modeled": False, "node": STONEFIST, "node_id": 39595, "slot": "Gloves", "transformed_base": FISTS,
+    }]
+    equipment = {e["slot"]: e for e in real_pob_engine.get_equipment()["equipment"] if isinstance(e, dict)}
+    assert FISTS in equipment["Gloves"]["base_name"]
+
+
+# --------------------------------------------------------------------------- exact transformations
+
+
+def test_transformed_glove_comparison_is_measured(real_pob_engine, tmp_path: Path) -> None:
+    """Both sides are Fists of Stone: a like-for-like comparison PoB measures."""
+    own = _equipped_item(BUILD, "Gloves")
+    candidate = "\n".join(line for line in own.splitlines() if "to Critical Hit Chance" not in line)
+    assert candidate != own
+    baseline = _fresh(real_pob_engine, _variant(tmp_path, "own", slots={"Gloves": own}))
+    expected = _fresh(real_pob_engine, _variant(tmp_path, "no_crit", slots={"Gloves": candidate}))
+    assert expected["CombinedDPS"] < baseline["CombinedDPS"]
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result)
+    assert row["unmodeled_item_transform"] is None
+    assert row["item_transform"]["candidate"]["already_transformed"] is True
+    _assert_same_metrics(row["candidate"]["metrics"], expected)
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert row["evaluation_outcome"]["verdict"] == "MEANINGFUL_DOWNGRADE"
+    assert "stonefist_roll_bounds" not in row
+    assert row["restore"]["pass"] is True
+
+
+def test_fixed_value_ordinary_glove_is_transformed_exactly(real_pob_engine, tmp_path: Path) -> None:
+    """Every modifier maps to a fixed transformed value: one exact PoB comparison."""
+    reference = _fresh(real_pob_engine, _variant(tmp_path, "fixed_ref", slots={"Gloves": FIXED_GLOVE_TRANSFORMED}))
+    untransformed = _fresh(real_pob_engine, _variant(tmp_path, "fixed_raw", slots={"Gloves": FIXED_GLOVE}))
+    assert reference["Evasion"] != untransformed["Evasion"]
+
+    result = evaluate_item(FIXED_GLOVE, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result)
+    transform = row["item_transform"]["candidate"]
+    assert transform["ok"] is True and transform["bounded"] is False and transform["base_name"] == FISTS
+    assert {m["target_id"] for m in transform["mapped"]} == {
+        "HandWrapsLocalIncreasedEnergyShield5", "HandWrapsIncreasedLife6", "HandWrapsLifeGainedFromEnemyDeath1",
+    }
+    _assert_same_metrics(row["candidate"]["metrics"], reference)
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL" and outcome["verdict"] in DIRECTIONAL
+    assert row["unmodeled_item_transform"] is None and "stonefist_roll_bounds" not in row
+    assert row["restore"]["pass"] is True
+
+
+def test_already_transformed_gloves_are_never_transformed_twice(real_pob_engine, tmp_path: Path) -> None:
+    """Double-transformation regression (the defect in upstream PR #2350)."""
+    own = _equipped_item(BUILD, "Gloves")
+    exported = _fresh(real_pob_engine, BUILD)
+    real_pob_engine.load_build(BUILD)
+    for rule in (WORST_ROLLS, BEST_ROLLS):
+        transform = transformer_for(real_pob_engine, rule).transform(real_pob_engine, own)
+        assert transform.already_transformed is True and transform.item_raw == own
+
+    result = evaluate_item(own, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result)
+    report = row["item_transform"]
+    assert report["candidate"]["already_transformed"] is True
+    assert report["baseline"]["already_transformed"] is True
+    _assert_same_metrics(row["baseline"]["metrics"], exported)
+    _assert_same_metrics(row["candidate"]["metrics"], exported)
+    assert row["evaluation_outcome"]["verdict"] == "SIDEGRADE"
+
+
+# --------------------------------------------------------------------------- roll-dependent transformations
+
+
+def test_ranged_rolls_are_bounded_by_independent_reference_items(real_pob_engine, tmp_path: Path) -> None:
+    """Worst/best PoB runs equal hand-transformed worst/best items; a verified range is shown."""
+    candidate = _equipped_item(CORPUS / "corpus02_giants_blood_shield.xml", "Gloves")
+    worst_ref = _fresh(real_pob_engine, _variant(tmp_path, "worst_ref", slots={"Gloves": MITTS_WORST}))
+    best_ref = _fresh(real_pob_engine, _variant(tmp_path, "best_ref", slots={"Gloves": MITTS_BEST}))
+    assert worst_ref["CombinedDPS"] < best_ref["CombinedDPS"]
+    real_pob_engine.load_build(BUILD)
+    for rule, reference in ((WORST_ROLLS, worst_ref), (BEST_ROLLS, best_ref)):
+        transform = transformer_for(real_pob_engine, rule).transform(real_pob_engine, candidate)
+        assert transform.ok and transform.bounded
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result)
+    bounds = row["stonefist_roll_bounds"]
+    assert bounds["alternatives"] == 1 and bounds["verified_configurations"] == 3
+    _assert_same_metrics(row["candidate"]["metrics"], worst_ref)
+    offense = bounds["ranges"]["primary_offense"]
+    assert _close(offense["worst"], worst_ref["CombinedDPS"])
+    assert _close(offense["best"], best_ref["CombinedDPS"])
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL" and outcome["verdict"] in DIRECTIONAL
+    assert "STONEFIST_ROLL_DEPENDENT" in {r["code"] for r in outcome["unsupported_or_unmodeled"]}
+    assert result["presentation"]["roll_dependent"] is True
+    assert "at each measured roll" in result["presentation"]["verdict_explanation"]
+    assert row["restore"]["pass"] is True
+
+
+@pytest.mark.parametrize(
+    ("source", "note"),
+    [
+        (CORPUS / "core04_minion_actor.xml", "Vaal Gloves"),
+        (CORPUS / "core04_onehand_weapon.xml", "Runeforged Massive Mitts, two decompositions"),
+        (CORPUS / "core04_bow_quiver.xml", "Secured Wraps"),
+        (CORPUS / "core04_stage_context.xml", "corrupted Secured Wraps"),
+        (CORPUS / "core04_mixed_hit_ailment.xml", "Massive Mitts"),
+        (CORPUS / "core04_poison_ailment.xml", "Sirenscale Gloves, separate same-stat lines"),
+        (CORPUS / "core04_melee_weapon.xml", "Plate Gauntlets, overlapping Added Physical tiers"),
+    ],
+    ids=["vaal_gloves", "runeforged_mitts", "secured_wraps", "corrupted_wraps", "massive_mitts",
+         "sirenscale_separate_lines", "plate_gauntlets_overlap"],
+)
+def test_ordinary_real_gloves_receive_verified_verdicts(real_pob_engine, source: Path, note: str) -> None:
+    """Before CORPUS-02C these were FULL on the untransformed item (wrong), then UNSUPPORTED."""
+    candidate = _equipped_item(source, "Gloves")
+    assert FISTS not in candidate
+    real_pob_engine.load_build(BUILD)
+    original_hash = real_pob_engine.get_metrics()["fingerprint_hash"]
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result)
+    transform = row["item_transform"]["candidate"]
+    assert transform["ok"] is True and transform["base_name"] in {FISTS, "Runeforged " + FISTS}, note
+    if "Runeforged" in note:
+        assert transform["base_name"] == "Runeforged " + FISTS
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL", note
+    assert outcome["verdict"] in DIRECTIONAL
+    assert row["unmodeled_item_transform"] is None
+    bounds = row.get("stonefist_roll_bounds")
+    if transform["bounded"] or transform["alternatives"] > 1:
+        assert bounds and bounds["verdict"] == outcome["verdict"]
+        assert bounds["alternatives"] == transform["alternatives"]
+        assert bounds["verified_configurations"] >= (3 if transform["bounded"] else transform["alternatives"])
+    if "two decompositions" in note:
+        assert transform["alternatives"] == 2
+    assert row["restore"]["pass"] is True
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == original_hash
+
+
+def test_roll_dependent_evaluation_is_deterministic_and_restores(real_pob_engine) -> None:
+    candidate = _equipped_item(CORPUS / "core04_onehand_weapon.xml", "Gloves")
+    real_pob_engine.load_build(BUILD)
+    original_hash = real_pob_engine.get_metrics()["fingerprint_hash"]
+    original_equipment = real_pob_engine.get_equipment()
+
+    first = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+    evaluate_item(FIXED_GLOVE, real_pob_engine, build_path=str(BUILD))
+    second = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+
+    a, b = _row(first), _row(second)
+    assert a["evaluation_outcome"]["verdict"] == b["evaluation_outcome"]["verdict"]
+    assert a["evaluation_outcome"]["final_score"] == b["evaluation_outcome"]["final_score"]
+    assert a["stonefist_roll_bounds"]["ranges"] == b["stonefist_roll_bounds"]["ranges"]
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == original_hash
+    assert real_pob_engine.get_equipment() == original_equipment
+
+
+# --------------------------------------------------------------------------- baselines and levels
+
+
+def test_ordinary_equipped_gloves_are_transformed_for_the_baseline(real_pob_engine, tmp_path: Path) -> None:
+    """A hand-built PoB with ordinary gloves is measured as the character wears them."""
+    hand_built = _variant(tmp_path, "hand_built", slots={"Gloves": FIXED_GLOVE})
+    amulet = _equipped_item(BUILD, "Amulet")
+    candidate = amulet + "\n+30 to maximum Life\n"
+    reference = _fresh(real_pob_engine, _variant(tmp_path, "ref", slots={"Gloves": FIXED_GLOVE_TRANSFORMED}))
+    reference_with_candidate = _fresh(
+        real_pob_engine, _variant(tmp_path, "ref_amulet", slots={"Gloves": FIXED_GLOVE_TRANSFORMED, "Amulet": candidate}),
+    )
+    real_pob_engine.load_build(hand_built)
+    untouched_hash = real_pob_engine.get_metrics()["fingerprint_hash"]
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(hand_built))
+
+    row = _row(result, "Amulet")
+    _assert_same_metrics(row["baseline"]["metrics"], reference)
+    _assert_same_metrics(row["candidate"]["metrics"], reference_with_candidate)
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert row["restore"]["pass"] is True
+    # The user's build (ordinary gloves) is restored exactly, never rewritten.
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == untouched_hash
+    assert hand_built.read_text(encoding="utf-8").count("Vaal Gloves") == 1
+
+
+def test_transformed_defences_follow_the_character_level(real_pob_engine, tmp_path: Path) -> None:
+    low_level = _variant(tmp_path, "level70", level=70)
+    reference = _fresh(real_pob_engine, _variant(tmp_path, "level70_ref", level=70, slots={"Gloves": FIXED_GLOVE_TRANSFORMED}))
+    reference_100 = _fresh(real_pob_engine, _variant(tmp_path, "level100_ref", slots={"Gloves": FIXED_GLOVE_TRANSFORMED}))
+    assert reference["Evasion"] < reference_100["Evasion"]
+
+    result = evaluate_item(FIXED_GLOVE, real_pob_engine, build_path=str(low_level))
+
+    row = _row(result)
+    _assert_same_metrics(row["candidate"]["metrics"], reference)
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert row["restore"]["pass"] is True
+
+
+# --------------------------------------------------------------------------- still unsupported (not coverage)
+
+
+@pytest.mark.parametrize(
+    ("source", "reason"),
+    [
+        (CORPUS / "core04_weapon_swap.xml", "unique gloves"),
+        (CORPUS / "corpus02b_varashta_djinn.xml", "match no combination"),
+    ],
+    ids=["unique_gloves", "unmatched_modifiers"],
+)
+def test_unresolvable_gloves_stay_unsupported_with_the_precise_reason(real_pob_engine, source: Path, reason: str) -> None:
+    candidate = _equipped_item(source, "Gloves")
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result)
+    outcome = row["evaluation_outcome"]
+    assert outcome["verdict"] == "UNSUPPORTED" and outcome["evaluation_quality"] == "UNSUPPORTED"
+    assert [r["code"] for r in outcome["evaluation_quality_reasons"]] == ["ITEM_TRANSFORM_UNMODELED"]
+    assert reason in outcome["evaluation_quality_reasons"][0]["detail"]
+    assert row["metric_profile"]["primary_offense"]["delta_kind"] == "UNSUPPORTED"
+    assert row["restore"]["pass"] is True
+
+
+def test_non_glove_candidates_on_a_stonefist_build_stay_measured(real_pob_engine, tmp_path: Path) -> None:
+    candidate = _equipped_item(BUILD, "Amulet") + "\n+30 to maximum Life\n"
+    expected = _fresh(real_pob_engine, _variant(tmp_path, "amulet_life", slots={"Amulet": candidate}))
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+
+    row = _row(result, "Amulet")
+    assert row["unmodeled_item_transform"] is None and row.get("item_transform") is None
+    assert _close(row["candidate"]["metrics"]["Life"], expected["Life"])
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert row["restore"]["pass"] is True
+
+
+def test_guaranteed_upgrade_across_every_roll_is_communicated(real_pob_engine, tmp_path: Path) -> None:
+    """Hand-built baseline with weak ordinary gloves; a better ordinary glove is an upgrade at every roll."""
+    hand_built = _variant(tmp_path, "hand_built", slots={"Gloves": FIXED_GLOVE})
+    candidate = FIXED_GLOVE + "\n27% increased Critical Damage Bonus\n15% increased Attack Speed"
+    # CriticalMultiplier4 -> +(2.1-2.5)% Critical Hit Chance; IncreasedAttackSpeed4 -> (26-30)% Onslaught.
+    base_ref = _fresh(real_pob_engine, _variant(tmp_path, "base", slots={"Gloves": FIXED_GLOVE_TRANSFORMED}))
+    worst_ref = _fresh(real_pob_engine, _variant(tmp_path, "worst", slots={"Gloves": FIXED_GLOVE_TRANSFORMED
+        + "\n+2.1% to Critical Hit Chance\n26% chance to gain Onslaught for 4 seconds on Hit"}))
+    best_ref = _fresh(real_pob_engine, _variant(tmp_path, "best", slots={"Gloves": FIXED_GLOVE_TRANSFORMED
+        + "\n+2.5% to Critical Hit Chance\n30% chance to gain Onslaught for 4 seconds on Hit"}))
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(hand_built))
+
+    row = _row(result)
+    _assert_same_metrics(row["baseline"]["metrics"], base_ref)
+    bounds = row["stonefist_roll_bounds"]
+    offense = bounds["ranges"]["primary_offense"]
+    assert _close(offense["worst"], worst_ref["CombinedDPS"]) and _close(offense["best"], best_ref["CombinedDPS"])
+    worst_pct = (worst_ref["CombinedDPS"] / base_ref["CombinedDPS"] - 1) * 100
+    best_pct = (best_ref["CombinedDPS"] / base_ref["CombinedDPS"] - 1) * 100
+    assert math.isclose(offense["worst_pct"], worst_pct, rel_tol=1e-6) and math.isclose(offense["best_pct"], best_pct, rel_tol=1e-6)
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert row["evaluation_outcome"]["verdict"] in {"MINOR_UPGRADE", "MEANINGFUL_UPGRADE", "MAJOR_UPGRADE"}
+    assert bounds["guarantee"] == "an upgrade at each measured roll"
+    assert "an upgrade at each measured roll" in result["presentation"]["verdict_explanation"]
+    assert row["restore"]["pass"] is True
+
+
+def test_inexact_equipped_gloves_are_disclosed_on_other_slots(real_pob_engine, tmp_path: Path) -> None:
+    """A hand-built PoB with ordinary ranged gloves cannot get an exact baseline: disclosed, not hidden."""
+    ranged_gloves = _equipped_item(CORPUS / "corpus02_giants_blood_shield.xml", "Gloves")
+    hand_built = _variant(tmp_path, "hand_built_ranged", slots={"Gloves": ranged_gloves})
+    candidate = _equipped_item(BUILD, "Amulet") + "\n+30 to maximum Life\n"
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(hand_built))
+
+    row = _row(result, "Amulet")
+    assert row["item_transform"] is None
+    codes = {r["code"] for r in row["evaluation_outcome"]["unsupported_or_unmodeled"]}
+    assert "STONEFIST_BASELINE_UNTRANSFORMED" in codes
+    # An item's effect can depend on the unknown gloves: never a confident recommendation.
+    assert row["evaluation_outcome"]["evaluation_quality"] == "PARTIAL"
+    assert row["evaluation_outcome"]["verdict"] == "UNCERTAIN"
+    assert row["restore"]["pass"] is True
