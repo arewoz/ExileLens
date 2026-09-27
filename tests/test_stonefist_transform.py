@@ -169,10 +169,12 @@ def test_already_transformed_items_pass_through_untouched() -> None:
     assert "rebuild_item" not in engine.calls
 
 
-def test_unique_gloves_are_not_guessed() -> None:
-    engine = _FakeEngine({"type": "Gloves", "base_name": "Vaal Gloves", "rarity": "UNIQUE", "explicit": _lines("+82 to maximum Life")})
+def test_unique_gloves_without_evidence_are_not_guessed() -> None:
+    engine = _FakeEngine({"type": "Gloves", "base_name": "Vaal Gloves", "rarity": "UNIQUE", "name": "Not A Real Unique",
+                          "explicit": _lines("+82 to maximum Life")})
     result = StonefistTransformer(MODS, WORST_ROLLS).transform(engine, "raw")
-    assert not result.ok and "unique gloves" in result.unresolved[0]
+    assert not result.ok
+    assert result.unresolved == ["the unique gloves Not A Real Unique have no verified Way of the Stonefist transformation"]
 
 
 def test_runic_bases_become_runeforged_fists_of_stone() -> None:
@@ -408,3 +410,85 @@ def test_a_failed_batch_fails_the_evaluation(monkeypatch: pytest.MonkeyPatch) ->
 
     with pytest.raises(RuntimeError, match="restore failed"):
         evaluation_module.evaluate_item("raw", FailingEngine())
+
+
+# --------------------------------------------------------------------------- one-at-a-time roll probes
+
+_TWO_ROLLS = ["Attacks Gain #% of Damage as Extra Cold Damage", "+#% to Cold Resistance"]
+
+
+def _rolled(verdict: str, metrics: dict[str, float], ranged: list[str] | None = None, alternatives: int = 1) -> dict[str, Any]:
+    result = _fake_result(verdict, metrics, alternatives=alternatives)
+    result["slot_comparisons"][0]["item_transform"]["candidate"]["ranged_lines"] = list(ranged or _TWO_ROLLS)
+    return result
+
+
+def test_each_ranged_line_is_probed_alone_in_the_same_transaction(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub(monkeypatch, {
+        "worst": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 110, "TotalEHP": 10}),
+        "middle": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 115, "TotalEHP": 11}),
+        "best": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 120, "TotalEHP": 12}),
+        f"flip:{_TWO_ROLLS[0]}": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 118, "TotalEHP": 10}),
+        f"flip:{_TWO_ROLLS[1]}": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 110, "TotalEHP": 12}),
+    })
+    engine = _BatchEngine()
+    result = evaluation_module.evaluate_item("raw", engine)
+    assert engine.batches == [["worst:0", "middle:0", "best:0", f"flip:{_TWO_ROLLS[0]}:0", f"flip:{_TWO_ROLLS[1]}:0"]]
+    bounds = result["slot_comparisons"][0]["stonefist_roll_bounds"]
+    assert bounds["verified_configurations"] == 5 and bounds["single_roll_probes"] == 2
+    assert "each ranged modifier alone at its highest roll" in bounds["summary"]
+
+
+def test_a_roll_that_lowers_an_output_on_its_own_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The diagonal worst <= middle <= best holds, but one roll alone costs EHP: a trade-off
+    between rolls that the diagonal cannot see, so no verdict is guaranteed."""
+    _stub(monkeypatch, {
+        "worst": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 110, "TotalEHP": 10}),
+        "middle": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 115, "TotalEHP": 11}),
+        "best": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 120, "TotalEHP": 12}),
+        f"flip:{_TWO_ROLLS[0]}": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 118, "TotalEHP": 9}),
+        f"flip:{_TWO_ROLLS[1]}": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 112, "TotalEHP": 12}),
+    })
+    reason = evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
+    assert f'not ordered when only "{_TWO_ROLLS[0]}" changes (TotalEHP)' in reason
+
+
+def test_a_probe_with_a_different_verdict_structure_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    probe = _fake_result("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}, pattern="TRADEOFF")
+    _stub(monkeypatch, {
+        "worst": _rolled("SIDEGRADE", {"CombinedDPS": 99, "TotalEHP": 10}),
+        "middle": _rolled("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}),
+        "best": _rolled("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}),
+        f"flip:{_TWO_ROLLS[0]}": _rolled("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}),
+        f"flip:{_TWO_ROLLS[1]}": probe,
+    })
+    assert "changes character" in evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
+
+
+@pytest.mark.parametrize(("ranged", "probes"), [
+    (_TWO_ROLLS[:1], 0), (_TWO_ROLLS, 2), ([f"{c} #" for c in "abcde"], 5), ([f"{c} #" for c in "abcdef"], 0),
+])
+def test_probes_are_measured_only_within_the_configuration_budget(monkeypatch: pytest.MonkeyPatch, ranged, probes) -> None:
+    common = {bound: _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 110 + i, "TotalEHP": 10}, ranged)
+              for i, bound in enumerate(("worst", "middle", "best"))}
+    flips = {f"flip:{t}": _rolled("MEANINGFUL_UPGRADE", {"CombinedDPS": 111, "TotalEHP": 10}, ranged) for t in ranged}
+    _stub(monkeypatch, {**common, **flips})
+    engine = _BatchEngine()
+    evaluation_module.evaluate_item("raw", engine)
+    assert len(engine.batches[0]) == 3 + probes
+
+
+def test_probes_are_skipped_when_they_would_exceed_the_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    ranged = ["a #", "b #", "c #", "d #"]
+    table = {}
+    for alternative in range(4):
+        for i, bound in enumerate(("worst", "middle", "best")):
+            table[f"{bound}:{alternative}"] = _rolled("MINOR_DOWNGRADE", {"CombinedDPS": 90 + i, "TotalEHP": 10}, ranged, alternatives=4)
+        for t in ranged:
+            table[f"flip:{t}:{alternative}"] = _rolled("MINOR_DOWNGRADE", {"CombinedDPS": 91, "TotalEHP": 10}, ranged, alternatives=4)
+    _stub(monkeypatch, table)
+    engine = _BatchEngine()
+    result = evaluation_module.evaluate_item("raw", engine)
+    # 12 bound configurations already exceed the budget of 8: no probes.
+    assert len(engine.batches[0]) == 12
+    assert result["slot_comparisons"][0]["stonefist_roll_bounds"]["single_roll_probes"] == 0

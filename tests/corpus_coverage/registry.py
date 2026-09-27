@@ -1046,8 +1046,45 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.VERDICT,
         expected=ExpectedResult.UNSUPPORTED,
         description=(
-            "Remaining gaps, not coverage: unique gloves (game HandWrapsUnique* mods are absent from PoB's "
-            "data) and gloves whose lines match no glove-modifier combination stay UNSUPPORTED with the reason."
+            "Remaining gaps, not coverage: unique gloves without real-item evidence of their modifiers, and "
+            "gloves whose lines match no glove-modifier combination, stay UNSUPPORTED with the reason."
+        ),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-UNIQUE-GLOVES-VERIFIED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_corpus_unique_gloves_receive_a_verified_verdict",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Real unique gloves (Aurseize from the CORE-04 weapon-swap build) transform exactly like the game's "
+            "transformed Aurseize (poe.ninja); FULL verdict across the roll range and single-roll probes, exact restore."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-UNIQUE-UNORDERED-RESULTS-UNSUPPORTED",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_a_unique_whose_pob_results_are_not_ordered_stays_unsupported",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNSUPPORTED,
+        description=(
+            "Candlemaker: PoB's DPS falls as one transformed roll grows, so no verdict holds for every roll; "
+            "UNSUPPORTED with the reason."
+        ),
+        manifest_id="CORPUS02C-STONEFIST",
+    ),
+    CoverageCase(
+        id="STONEFIST-SINGLE-ROLL-PROBES",
+        test_file="tests/integration/test_corpus02c_stonefist.py",
+        node_name="test_each_ranged_line_is_probed_alone_for_a_real_glove",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Assumption (A) check: each ranged transformed line is also measured alone at its best roll, in the "
+            "same PoB transaction; every probe is ordered between worst and best and agrees on the verdict."
         ),
         manifest_id="CORPUS02C-STONEFIST",
     ),

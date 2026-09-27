@@ -986,6 +986,29 @@ def _measure_configurations(engine, pending: list[tuple[Any, _MeasurementRequest
     return results  # type: ignore[return-value]
 
 
+#: One-at-a-time roll probes: each ranged transformed line alone at its best roll, the
+#: others at their worst. Each probe is one more PoB recalculation in the candidate's
+#: transaction (~0.3 s), so they are measured only for alternatives with 2..8 ranged
+#: lines (with one, the probe is the best configuration) and only while the whole
+#: candidate stays within 8 configurations -- e.g. one alternative with up to 5 ranged
+#: lines. Otherwise none are measured and the worst <= middle <= best check stands alone.
+_MAX_FLIPPED_LINES = 8
+_MAX_CONFIGURATIONS = 8
+
+
+def _flip_plan(configurations: list[tuple[int, str, Any, _MeasurementRequest]]) -> list[tuple[int, str]]:
+    plan: list[tuple[int, str]] = []
+    for alternative, bound, _steps, request in configurations:
+        if bound != "worst":
+            continue
+        ranged = list((request.stonefist or {}).get("ranged_lines") or [])
+        if 2 <= len(ranged) <= _MAX_FLIPPED_LINES:
+            plan.extend((alternative, f"flip:{template}") for template in ranged)
+    if len(configurations) + len(plan) > _MAX_CONFIGURATIONS:
+        return []
+    return plan
+
+
 def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:
     """CORPUS-02C: a Stonefist glove candidate whose transformed item is not unique.
 
@@ -1038,6 +1061,11 @@ def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dic
                         raw_text, engine, stonefist_bound=bound, stonefist_alternative=alternative, **plain,
                     )
                     configurations.append((alternative, bound, steps, next(steps)))
+        for alternative, bound in _flip_plan(configurations):
+            steps = _evaluate_item_steps(
+                raw_text, engine, stonefist_bound=bound, stonefist_alternative=alternative, **plain,
+            )
+            configurations.append((alternative, bound, steps, next(steps)))
         results = _measure_configurations(engine, [(steps, request) for _, _, steps, request in configurations])
     finally:
         first.close()
@@ -1067,14 +1095,16 @@ def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dic
             )
             return refuse(f"{cause}, and across the possibilities the verdict changes ({low} and {other})")
         for alternative in range(alternatives):
-            trio = [row for run, row in rows if run["alternative"] == alternative]
+            measured = [(run["bound"], row) for run, row in rows if run["alternative"] == alternative]
+            by_bound = dict(measured)
+            trio = [by_bound[bound] for bound in ("worst", "middle", "best") if bound in by_bound]
             # The verdict policy is not order-preserving on its own (e.g. a TRADEOFF
             # pattern forces SIDEGRADE regardless of score), so matching verdicts at
             # the ends prove nothing unless the verdict's whole structure -- pattern,
             # per-axis direction/significance, applied guardrails, quality -- is also
             # identical at every measured roll. With outputs monotone in the rolls,
             # every intermediate roll then shares that structure and verdict.
-            if len({_verdict_structure(row) for row in trio}) > 1:
+            if len({_verdict_structure(row) for _, row in measured}) > 1:
                 return refuse(
                     "its transformed modifier rolls are only decided when equipped, and across their range "
                     "the comparison changes character (impact pattern or guardrails), so no single verdict "
@@ -1088,6 +1118,16 @@ def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dic
                         "results are not ordered across the roll range (" + ", ".join(violations[:3]) + "), so no "
                         "verdict can be guaranteed for every roll"
                     )
+                for bound, row in measured:
+                    if not bound.startswith("flip:"):
+                        continue
+                    violations = _roll_monotone_violations([trio[0], row, trio[2]])
+                    if violations:
+                        return refuse(
+                            "its transformed modifier rolls are only decided when equipped, and Path of Building's "
+                            "results are not ordered when only \"" + bound[len("flip:"):] + "\" changes ("
+                            + ", ".join(violations[:3]) + "), so no verdict can be guaranteed for every roll"
+                        )
     # Report on the lowest-damage configuration, with the verified range over all of them.
     def primary_pct(result: dict[str, Any]) -> float:
         row = next((r for r in result.get("slot_comparisons") or [] if r.get("pob_slot") in slots), {})
@@ -1095,7 +1135,8 @@ def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dic
         return float(value) if value is not None else 0.0
 
     base = min((run["result"] for run in runs), key=primary_pct)
-    _attach_stonefist_bounds(base, [run["result"] for run in runs], alternatives)
+    flips = sum(1 for run in runs if run["bound"].startswith("flip:"))
+    _attach_stonefist_bounds(base, [run["result"] for run in runs], alternatives, flips)
     return base
 
 
@@ -1110,7 +1151,9 @@ def _pct_text(value: Any) -> str:
         return "n/a"
 
 
-def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]], alternatives: int = 1) -> None:
+def _attach_stonefist_bounds(
+    base: dict[str, Any], results: list[dict[str, Any]], alternatives: int = 1, flips: int = 0,
+) -> None:
     """Report a verified impact range over every measured configuration."""
     bounds_by_slot: dict[str, Any] = {}
     presentation = base.get("presentation") or {}
@@ -1156,7 +1199,9 @@ def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]]
             cause = f"turns this glove into one of {alternatives} possible items (its lines fit several modifier combinations) and rolls their transformed modifiers when equipped"
         summary = (
             f"Way of the Stonefist {cause}. Path of Building measured the lowest, middle and highest possible rolls"
-            + (" of each" if alternatives > 1 else "") + ": " + ("; ".join(parts) or "the listed changes")
+            + (" of each" if alternatives > 1 else "")
+            + (", and each ranged modifier alone at its highest roll" if flips else "")
+            + ": " + ("; ".join(parts) or "the listed changes")
             + f". The verdict was {guarantee}; rolls in between were not measured individually."
         )
         note = {"code": "STONEFIST_ROLL_DEPENDENT", "detail": summary}
@@ -1167,6 +1212,7 @@ def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]]
             "ranges": ranges,
             "alternatives": alternatives,
             "verified_configurations": len(others),
+            "single_roll_probes": flips,
         }
         row["stonefist_roll_bounds"] = bounds
         bounds_by_slot[str(slot)] = bounds

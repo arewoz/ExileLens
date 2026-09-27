@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from exilelens.items.stonefist import FISTS, TransformResult, transformer_for
-from exilelens.items.stonefist_rolls import BOUND_RULES
+from exilelens.items.stonefist_rolls import rule_for
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def stonefist_applies(build_info: dict[str, Any]) -> bool:
 
 def safe_transform(engine: Any, item_raw: str, bound: str = "none", alternative: int | None = None) -> TransformResult:
     try:
-        return transformer_for(engine, BOUND_RULES[bound]).transform(engine, item_raw, alternative)
+        return transformer_for(engine, rule_for(bound)).transform(engine, item_raw, alternative)
     except Exception as exc:  # noqa: BLE001 - an item PoB cannot parse is handled by the normal path
         logger.info("stonefist transform unavailable: %s", exc)
         return TransformResult(ok=False, unresolved=[f"the item could not be read for transformation ({exc})"])

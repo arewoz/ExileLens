@@ -29,6 +29,9 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
 FISTS = "Fists of Stone"
+#: Roll-rule name prefix of a one-at-a-time flip: the named line at its best roll,
+#: every other ranged line at its worst (see ``stonefist_rolls.flip_rule``).
+FLIP_RULE_PREFIX = "stonefist_flip_rolls:"
 RUNEFORGED_FISTS = "Runeforged Fists of Stone"
 
 _NUM = re.compile(r"\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)|(-?\d+(?:\.\d+)?)")
@@ -92,6 +95,11 @@ class TransformResult:
     #: Several different transformed items fit the displayed lines; this is one of them.
     alternatives: int = 1
     alternative: int = 0
+    #: Templates of the transformed lines whose roll is ranged (one per independent roll).
+    ranged_lines: list[str] = field(default_factory=list)
+    #: Unique gloves: candidate lines identified by text although their value lies
+    #: outside PoB's (older) data for that modifier; the value itself is not used.
+    source_values_outside_pob_data: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -99,6 +107,8 @@ class TransformResult:
             "unresolved": self.unresolved, "already_transformed": self.already_transformed,
             "bounded": self.bounded, "bound": self.bound,
             "alternatives": self.alternatives, "alternative": self.alternative,
+            "ranged_lines": self.ranged_lines,
+            "source_values_outside_pob_data": self.source_values_outside_pob_data,
         }
 
 
@@ -130,7 +140,22 @@ class StonefistTransformer:
             )
             for m in mods
             if m.get("source_id") and m.get("source_lines") and m.get("target_lines")
+            # Unique modifiers (sources in PoB's Exclusive table, including the Vaal
+            # mutations whose transformed modifier sits in the Item table) are resolved
+            # per unique item, never by decomposing a rare's lines.
+            and m.get("target_table", "Item") == "Item" and m.get("source_table") != "Exclusive"
         ]
+        #: Source id -> transformed modifier, for unique modifiers (sources in PoB's
+        #: Exclusive table); resolved per unique item, see ``stonefist_uniques``.
+        self.unique_pairs: dict[str, ModPair] = {
+            str(m["source_id"]): ModPair(
+                source_id=str(m["source_id"]), target_id=str(m["target_id"]),
+                source_lines=tuple(m.get("source_lines") or ()), target_lines=tuple(m.get("target_lines") or ()),
+                source_type=str(m.get("source_type") or ""), source_group=str(m.get("source_group") or m["source_id"]),
+            )
+            for m in mods
+            if m.get("source_id") and m.get("source_table") == "Exclusive" and m.get("target_lines")
+        }
         self.roll_rule = roll_rule
         self._by_template: dict[str, list[ModPair]] = {}
         for pair in self.pairs:
@@ -334,6 +359,10 @@ class StonefistTransformer:
                 mapped.append({
                     "source_id": pair.source_id, "target_id": pair.target_id, "lines": rendered,
                     "ranged": pair.target_ranged,
+                    "ranged_lines": [
+                        _template(line) for line in pair.target_lines
+                        if any(low != high for low, high in _ranges(line))
+                    ],
                 })
             if not failed:
                 key = tuple(sorted(row["line"] for row in explicit))
@@ -368,9 +397,9 @@ class StonefistTransformer:
         all possible decompositions, which widens the unknown range exactly.
         """
         name = getattr(self.roll_rule, "__name__", "")
-        if name not in {"stonefist_worst_rolls", "stonefist_middle_rolls", "stonefist_best_rolls"}:
+        flipped = name[len(FLIP_RULE_PREFIX):] if name.startswith(FLIP_RULE_PREFIX) else None
+        if flipped is None and name not in {"stonefist_worst_rolls", "stonefist_middle_rolls", "stonefist_best_rolls"}:
             return None
-        best = name == "stonefist_best_rolls"
         middle = name == "stonefist_middle_rolls"
         shapes = [sorted(_template(row["line"]) for row in explicit) for _, explicit, _ in outputs]
         if any(shape != shapes[0] for shape in shapes):
@@ -379,7 +408,8 @@ class StonefistTransformer:
         merged: list[dict[str, Any]] = []
         for rows in zip(*per_output):
             template = _template(rows[0]["line"])
-            larger_is_worse = "slower" in template.lower()
+            larger_is_worse = worse_when_larger(template)
+            best = template == flipped if flipped is not None else name == "stonefist_best_rolls"
             columns = list(zip(*[_values(row["line"]) for row in rows]))
             decimals = max(_decimals(row["line"]) for row in rows)
             if middle:
@@ -399,6 +429,11 @@ class StonefistTransformer:
             "source_id": "|".join(sorted({sid for alt in alternatives for sid in alt})),
             "target_id": "overlapping tiers", "lines": [row["line"] for row in merged],
             "ranged": True, "alternatives": alternatives,
+            # Rolled lines: ranged in some decomposition, or differing between them.
+            "ranged_lines": sorted(
+                {t for _, _, m in outputs for row in m for t in row.get("ranged_lines") or []}
+                | {_template(rows[0]["line"]) for rows in zip(*per_output) if len({r["line"] for r in rows}) > 1}
+            ),
         }]
         return merged, mapped
 
@@ -412,7 +447,9 @@ class StonefistTransformer:
             # never transform twice.
             return TransformResult(ok=True, item_raw=item_raw, base_name=base, already_transformed=True)
         if str(described.get("rarity") or "").upper() == "UNIQUE":
-            return TransformResult(ok=False, unresolved=["unique gloves have item-specific transformations that are not mapped"])
+            from exilelens.items.stonefist_uniques import transform_unique
+
+            return transform_unique(self, engine, described, item_raw)
         explicit, mapped, problems, count = self.transform_lines_alternative(
             list(described.get("explicit") or []), alternative,
         )
@@ -429,6 +466,7 @@ class StonefistTransformer:
             bounded=any(row.get("ranged") for row in mapped),
             bound=getattr(self.roll_rule, "__name__", ""),
             alternatives=count, alternative=alternative or 0,
+            ranged_lines=list(dict.fromkeys(t for row in mapped for t in row.get("ranged_lines") or [])),
         )
 
 
@@ -440,6 +478,12 @@ def engine_base_implicits(engine: Any, base_name: str) -> list[str]:
     if base_name not in cache:
         cache[base_name] = list(engine._call("get_base_implicits", {"base_name": base_name}).get("lines") or [])
     return cache[base_name]
+
+
+def worse_when_larger(line: str) -> bool:
+    from exilelens.items.stonefist_rolls import _WORSE_WHEN_LARGER
+
+    return bool(_WORSE_WHEN_LARGER.search(line))
 
 
 def _format(value: float, decimals: int) -> str:

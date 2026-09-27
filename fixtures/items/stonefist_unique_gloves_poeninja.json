@@ -1,0 +1,615 @@
+{
+ "_source": "poe.ninja PoE2 character data, Runes of Aldur league, snapshot 2026-09-27. Item fields only (base, modifier lines, game modifier ids); no account or character identifiers. 'untransformed' is a unique glove worn by any character; 'transformed' are the same unique on Way of the Stonefist characters, as the game transformed them. See docs/CORPUS-02C.md section 10.",
+ "uniques": {
+  "Facebreaker": {
+   "untransformed": {
+    "base": "Stocky Mitts",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "Has 9 to 14 Physical damage, +4 to +5 per Boss's Face Broken",
+     "41% increased Stun Buildup",
+     "1% more Unarmed Damage per 4 Strength",
+     "+0.3 metres to Melee Strike Range while Unarmed",
+     "+1 to Armour per Strength",
+     "Can Attack as though using a One Handed Mace while both of your hand slots are empty\nUnarmed Attacks that would use an Equipped One Hand Mace's damage use this Item's damage"
+    ],
+    "ids": [
+     "UniqueBaseDamageOverrideForMaceAttacks1",
+     "UniqueStunDamageIncrease1",
+     "UniqueUnarmedAttackDamagePerXStrength1",
+     "UnarmedStrikeRangeUnique1",
+     "UniqueGainArmourEqualToStrength1",
+     "UniqueOneHandMaceSkillsUsableUnarmed1"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueBaseDamageOverrideForMaceAttacks1",
+      "HandWrapsUniqueStunDamageIncrease1",
+      "HandWrapsUniqueUnarmedAttackDamagePerXStrength1",
+      "UnarmedStrikeRangeUnique1",
+      "HandWrapsUniqueGainArmourEqualToStrength1",
+      "UniqueOneHandMaceSkillsUsableUnarmed1"
+     ],
+     "explicit": [
+      "Has 9 to 14 Fire damage, +3 to +5 per Boss's Face Broken",
+      "+0.3 metres to Melee Strike Range while Unarmed",
+      "Gain 1% of Unarmed Damage as extra Fire damage per 5 Intelligence",
+      "1% increased Area of Effect for Unarmed Attacks per 10 Intelligence",
+      "Can Attack as though using a One Handed Mace while both of your hand slots are empty\nUnarmed Attacks that would use an Equipped One Hand Mace's damage use this Item's damage"
+     ]
+    }
+   ]
+  },
+  "Northpaw": {
+   "untransformed": {
+    "base": "Suede Bracers",
+    "corrupted": false,
+    "implicit": [],
+    "explicit": [
+     "+16 to Evasion Rating",
+     "Adds 5 to 8 Physical Damage to Attacks",
+     "15% increased Critical Damage Bonus",
+     "Base Critical Hit Chance for Attacks with Weapons is 7%"
+    ],
+    "ids": [
+     "UniqueCriticalMultiplier1",
+     "UniqueAddedPhysicalDamage2",
+     "UniqueOverrideWeaponBaseCritical1",
+     "UniqueLocalIncreasedEvasionRating4"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueCriticalMultiplier1",
+      "HandWrapsUniqueAddedPhysicalDamage2",
+      "HandWrapsUniqueOverrideWeaponBaseCritical1",
+      "HandWrapsUniqueLocalIncreasedEvasionRating4"
+     ],
+     "explicit": [
+      "Has +2 to Evasion Rating per player level",
+      "Has +1 to maximum Energy Shield per player level",
+      "Attacks Gain 15% of Damage as Extra Physical Damage",
+      "18% increased Critical Damage Bonus",
+      "+5.29% to Unarmed Melee Attack Critical Hit Chance"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueCriticalMultiplier1",
+      "HandWrapsUniqueAddedPhysicalDamage2",
+      "HandWrapsUniqueOverrideWeaponBaseCritical1",
+      "HandWrapsUniqueLocalIncreasedEvasionRating4"
+     ],
+     "explicit": [
+      "Has +2 to Evasion Rating per player level",
+      "Has +1 to maximum Energy Shield per player level",
+      "Attacks Gain 14% of Damage as Extra Physical Damage",
+      "19% increased Critical Damage Bonus",
+      "+3.77% to Unarmed Melee Attack Critical Hit Chance"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueCriticalMultiplier1",
+      "HandWrapsUniqueAddedPhysicalDamage2",
+      "HandWrapsUniqueOverrideWeaponBaseCritical1",
+      "HandWrapsUniqueLocalIncreasedEvasionRating4"
+     ],
+     "explicit": [
+      "Has +2 to Evasion Rating per player level",
+      "Has +1 to maximum Energy Shield per player level",
+      "Attacks Gain 13% of Damage as Extra Physical Damage",
+      "15% increased Critical Damage Bonus",
+      "+4.61% to Unarmed Melee Attack Critical Hit Chance"
+     ]
+    }
+   ]
+  },
+  "Painter's Servant": {
+   "untransformed": {
+    "base": "Torn Gloves",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "Gain 10% of Elemental Damage as Extra Cold Damage",
+     "Gain 10% of Elemental Damage as Extra Fire Damage",
+     "Gain 10% of Elemental Damage as Extra Lightning Damage",
+     "33% of Elemental Damage Converted to Cold Damage",
+     "33% of Elemental Damage Converted to Fire Damage",
+     "33% of Elemental Damage Converted to Lightning Damage"
+    ],
+    "ids": [
+     "UniqueElementalDamageConvertToFire1",
+     "UniqueElementalDamageConvertToCold1",
+     "UniqueElementalDamageConvertToLightning1",
+     "UniqueElementalDamageGainedAsFire1",
+     "UniqueElementalDamageGainedAsCold1",
+     "UniqueElementalDamageGainedAsLightning1"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueElementalDamageConvertToFire1",
+      "HandWrapsUniqueElementalDamageConvertToCold1",
+      "HandWrapsUniqueElementalDamageConvertToLightning1",
+      "HandWrapsUniqueElementalDamageGainedAsFire1",
+      "HandWrapsUniqueElementalDamageGainedAsCold1",
+      "HandWrapsUniqueElementalDamageGainedAsLightning1"
+     ],
+     "explicit": [
+      "Gain 15% of Lightning damage as Extra Physical damage",
+      "Gain 8% of Cold damage as Extra Physical damage",
+      "Gain 9% of Fire damage as Extra Physical damage",
+      "Physical damage from Hits Contributes to Flammability and\nIgnite Magnitudes, Freeze Buildup, and Shock Chance"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueElementalDamageConvertToFire1",
+      "HandWrapsUniqueElementalDamageConvertToCold1",
+      "HandWrapsUniqueElementalDamageConvertToLightning1",
+      "HandWrapsUniqueElementalDamageGainedAsFire1",
+      "HandWrapsUniqueElementalDamageGainedAsCold1",
+      "HandWrapsUniqueElementalDamageGainedAsLightning1"
+     ],
+     "explicit": [
+      "Gain 7% of Lightning damage as Extra Physical damage",
+      "Gain 13% of Cold damage as Extra Physical damage",
+      "Gain 7% of Fire damage as Extra Physical damage",
+      "Physical damage from Hits Contributes to Flammability and\nIgnite Magnitudes, Freeze Buildup, and Shock Chance"
+     ]
+    }
+   ]
+  },
+  "Hand of Wisdom and Action": {
+   "untransformed": {
+    "base": "Runemastered Spiral Wraps",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "+18 to Dexterity",
+     "+23 to Intelligence",
+     "1% increased Attack Speed per 20 Dexterity",
+     "Adds 1 to 10 Lightning Damage to Attacks per 20 Intelligence"
+    ],
+    "ids": [
+     "UniqueDexterity31",
+     "UniqueIntelligence31",
+     "UniqueLightningDamageToAttacksPerIntelligence1",
+     "UniqueIncreasedAttackSpeedPerDexterity1"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueDexterity31",
+      "HandWrapsUniqueIntelligence31",
+      "HandWrapsUniqueLightningDamageToAttacksPerIntelligence1",
+      "HandWrapsUniqueIncreasedAttackSpeedPerDexterity1"
+     ],
+     "explicit": [
+      "12% increased Dexterity",
+      "5% increased Intelligence",
+      "1% increased Area of Effect per 20 Intelligence",
+      "Adds 6 to 8 Cold Damage to Attacks per 20 Dexterity"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueDexterity31",
+      "HandWrapsUniqueIntelligence31",
+      "HandWrapsUniqueLightningDamageToAttacksPerIntelligence1",
+      "HandWrapsUniqueIncreasedAttackSpeedPerDexterity1"
+     ],
+     "explicit": [
+      "12% increased Dexterity",
+      "9% increased Intelligence",
+      "1% increased Area of Effect per 20 Intelligence",
+      "Adds 6 to 8 Cold Damage to Attacks per 20 Dexterity"
+     ]
+    }
+   ]
+  },
+  "Deathblow": {
+   "untransformed": {
+    "base": "Doubled Gauntlets",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "110% increased Armour and Evasion",
+     "8% increased Attack Speed",
+     "Gain 29 Life per enemy killed",
+     "Gain 27 Mana per enemy killed",
+     "Culling Strike"
+    ],
+    "ids": [
+     "UniqueLocalIncreasedArmourAndEvasion7",
+     "UniqueLifeGainedFromEnemyDeath4",
+     "UniqueManaGainedFromEnemyDeath5",
+     "UniqueCullingStrike1",
+     "UniqueIncreasedAttackSpeed8"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedArmourAndEvasion7",
+      "HandWrapsUniqueLifeGainedFromEnemyDeath4",
+      "HandWrapsUniqueManaGainedFromEnemyDeath5",
+      "HandWrapsUniqueCullingStrike1",
+      "HandWrapsUniqueIncreasedAttackSpeed8"
+     ],
+     "explicit": [
+      "19% more Global Evasion Rating and Energy Shield",
+      "Recover 3% of maximum Life on Kill",
+      "Recover 3% of maximum Mana on Kill",
+      "Culling Strike",
+      "39% increased Culling Strike Threshold if you've dealt a Culling Strike Recently"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedArmourAndEvasion7",
+      "HandWrapsUniqueLifeGainedFromEnemyDeath4",
+      "HandWrapsUniqueManaGainedFromEnemyDeath5",
+      "HandWrapsUniqueCullingStrike1",
+      "HandWrapsUniqueIncreasedAttackSpeed8"
+     ],
+     "explicit": [
+      "17% more Global Evasion Rating and Energy Shield",
+      "Recover 3% of maximum Life on Kill",
+      "Recover 3% of maximum Mana on Kill",
+      "Culling Strike",
+      "31% increased Culling Strike Threshold if you've dealt a Culling Strike Recently"
+     ]
+    }
+   ]
+  },
+  "Maligaro's Virtuosity": {
+   "untransformed": {
+    "base": "Fine Bracers",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "63% increased Evasion Rating",
+     "25% increased Critical Hit Chance",
+     "5% increased Attack Speed",
+     "+18 to Dexterity",
+     "Your Critical Hit Chance cannot be Rerolled",
+     "Your Critical Damage Bonus is 250%"
+    ],
+    "ids": [
+     "UniqueLocalIncreasedEvasionRatingPercent12",
+     "UniqueCriticalStrikeChance5",
+     "UniqueIncreasedAttackSpeed3",
+     "UniqueDexterity19",
+     "UniqueCriticalStrikesCannotBeRerolled1",
+     "UniqueCriticalStrikeMultiplierOverride1"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedEvasionRatingPercent12",
+      "HandWrapsUniqueCriticalStrikeChance5",
+      "HandWrapsUniqueIncreasedAttackSpeed3",
+      "HandWrapsUniqueDexterity19",
+      "HandWrapsUniqueCriticalStrikesCannotBeRerolled1",
+      "HandWrapsUniqueCriticalStrikeMultiplierOverride1"
+     ],
+     "explicit": [
+      "13% more Global Evasion Rating and Energy Shield",
+      "29% increased Critical Damage Bonus",
+      "10% chance to gain Onslaught for 4 seconds on Hit",
+      "Critical Hit chance for Attacks is 40%",
+      "+59% Surpassing chance to fire an additional Projectile"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedEvasionRatingPercent12",
+      "HandWrapsUniqueCriticalStrikeChance5",
+      "HandWrapsUniqueIncreasedAttackSpeed3",
+      "HandWrapsUniqueDexterity19",
+      "HandWrapsUniqueCriticalStrikesCannotBeRerolled1",
+      "HandWrapsUniqueCriticalStrikeMultiplierOverride1"
+     ],
+     "explicit": [
+      "14% more Global Evasion Rating and Energy Shield",
+      "23% increased Critical Damage Bonus",
+      "10% chance to gain Onslaught for 4 seconds on Hit",
+      "Critical Hit chance for Attacks is 40%",
+      "+53% Surpassing chance to fire an additional Projectile"
+     ]
+    }
+   ]
+  },
+  "Grip of Winter": {
+   "untransformed": {
+    "base": "Firm Bracers",
+    "corrupted": false,
+    "implicit": [],
+    "explicit": [
+     "42% increased Evasion Rating",
+     "Adds 5 to 8 Cold damage to Attacks",
+     "+27% to Cold Resistance",
+     "46% increased Freeze Buildup",
+     "21% increased Magnitude of Chill you inflict"
+    ],
+    "ids": [
+     "UniqueLocalIncreasedEvasionRatingPercent6",
+     "UniqueAddedColdDamage1",
+     "UniqueFreezeDamageIncrease2",
+     "UniqueChillEffect1",
+     "UniqueColdResist24"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedEvasionRatingPercent6",
+      "HandWrapsUniqueAddedColdDamage1",
+      "HandWrapsUniqueFreezeDamageIncrease2",
+      "HandWrapsUniqueChillEffect1",
+      "HandWrapsUniqueColdResist24"
+     ],
+     "explicit": [
+      "15% more Global Evasion Rating and Energy Shield",
+      "Attacks Gain 15% of Damage as Extra Cold Damage",
+      "+3% to Maximum Cold Resistance",
+      "+15% to Cold Resistance",
+      "All Damage from Hits Contributes to Chill Magnitude",
+      "All Damage from Hits Contributes to Freeze Buildup"
+     ]
+    }
+   ]
+  },
+  "Candlemaker": {
+   "untransformed": {
+    "base": "Sombre Gloves",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "76% increased Energy Shield",
+     "23% increased Fire Damage",
+     "17% reduced Cold Damage",
+     "+33% to Fire Resistance",
+     "-15% to Cold Resistance",
+     "Flammability Magnitude is doubled"
+    ],
+    "ids": [
+     "UniqueLocalIncreasedEnergyShieldPercent2",
+     "UniqueFireResist2",
+     "UniqueColdResist1",
+     "UniqueDoubleIgniteChance1",
+     "UniqueFireDamagePercent2",
+     "UniqueColdDamagePercent2"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedEnergyShieldPercent2",
+      "HandWrapsUniqueFireResist2",
+      "HandWrapsUniqueColdResist1",
+      "HandWrapsUniqueDoubleIgniteChance1",
+      "HandWrapsUniqueFireDamagePercent2",
+      "HandWrapsUniqueColdDamagePercent2"
+     ],
+     "explicit": [
+      "13% more Global Evasion Rating and Energy Shield",
+      "Attacks Gain 4% of Damage as Extra Fire Damage",
+      "Attacks Gain 5% of Damage as Extra Cold Damage",
+      "+2% to Maximum Fire Resistance",
+      "+25% to Fire Resistance",
+      "36% increased Chill Duration on you",
+      "Enemies Ignited or Chilled by you have -23% to Elemental Resistances"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedEnergyShieldPercent2",
+      "HandWrapsUniqueFireResist2",
+      "HandWrapsUniqueColdResist1",
+      "HandWrapsUniqueDoubleIgniteChance1",
+      "HandWrapsUniqueFireDamagePercent2",
+      "HandWrapsUniqueColdDamagePercent2"
+     ],
+     "explicit": [
+      "13% more Global Evasion Rating and Energy Shield",
+      "Attacks Gain 7% of Damage as Extra Fire Damage",
+      "Attacks Gain 4% of Damage as Extra Cold Damage",
+      "+3% to Maximum Fire Resistance",
+      "+21% to Fire Resistance",
+      "39% increased Chill Duration on you",
+      "Enemies Ignited or Chilled by you have -22% to Elemental Resistances"
+     ]
+    }
+   ]
+  },
+  "Horror's Flight": {
+   "untransformed": {
+    "base": "Engraved Bracers",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "220% increased Evasion Rating",
+     "8% increased Attack Speed",
+     "+14 to Dexterity",
+     "Adds 20 to 31 Chaos Damage to Attacks",
+     "Gain 1 Fear Incarnate when you Cull a target",
+     "Raven-Touched"
+    ],
+    "ids": [
+     "UniqueCrushingFearSkill1",
+     "UniqueLocalIncreasedEvasionRatingPercent36",
+     "UniqueIncreasedAttackSpeed16",
+     "UniqueDexterity45",
+     "UniqueAddedChaosDamage5",
+     "UniqueGainFearIncarnateOnCulling1",
+     "UniqueCanBeInstilled"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "UniqueCrushingFearSkill1",
+      "HandWrapsUniqueLocalIncreasedEvasionRatingPercent36",
+      "HandWrapsUniqueIncreasedAttackSpeed16",
+      "HandWrapsUniqueDexterity45",
+      "HandWrapsUniqueAddedChaosDamage5",
+      "HandWrapsUniqueGainFearIncarnateOnCulling1",
+      "UniqueCanBeInstilled"
+     ],
+     "explicit": [
+      "22% more Global Evasion Rating and Energy Shield",
+      "19% chance to gain Onslaught for 4 seconds on Hit",
+      "+30% Surpassing chance to fire an additional Projectile",
+      "Gain 1 Fear Overwhelming when you Cull a target",
+      "Attacks Gain 23% of Damage as extra Chaos Damage",
+      "Raven-Touched"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "UniqueCrushingFearSkill1",
+      "HandWrapsUniqueLocalIncreasedEvasionRatingPercent36",
+      "HandWrapsUniqueIncreasedAttackSpeed16",
+      "HandWrapsUniqueDexterity45",
+      "HandWrapsUniqueAddedChaosDamage5",
+      "HandWrapsUniqueGainFearIncarnateOnCulling1",
+      "UniqueCanBeInstilled"
+     ],
+     "explicit": [
+      "23% more Global Evasion Rating and Energy Shield",
+      "19% chance to gain Onslaught for 4 seconds on Hit",
+      "+30% Surpassing chance to fire an additional Projectile",
+      "Gain 1 Fear Overwhelming when you Cull a target",
+      "Attacks Gain 18% of Damage as extra Chaos Damage",
+      "Raven-Touched"
+     ]
+    }
+   ]
+  },
+  "Doedre's Tenure": {
+   "untransformed": {
+    "base": "Stitched Gloves",
+    "corrupted": true,
+    "implicit": [],
+    "explicit": [
+     "+27 to maximum Energy Shield",
+     "100% increased Spell Damage",
+     "16% reduced Cast Speed",
+     "+13 to Intelligence"
+    ],
+    "ids": [
+     "UniqueIncreasedCastSpeed6",
+     "UniqueSpellDamage1",
+     "UniqueIntelligence18",
+     "UniqueLocalIncreasedEnergyShield10"
+    ]
+   },
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueIncreasedCastSpeed6",
+      "HandWrapsUniqueSpellDamage1",
+      "HandWrapsUniqueIntelligence18",
+      "HandWrapsUniqueLocalIncreasedEnergyShield10"
+     ],
+     "explicit": [
+      "Has +2 to Evasion Rating per player level",
+      "Has +1 to maximum Energy Shield per player level",
+      "24% reduced Attack Speed",
+      "100% increased Attack Damage",
+      "15% increased Cooldown Recovery Rate"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueIncreasedCastSpeed6",
+      "HandWrapsUniqueSpellDamage1",
+      "HandWrapsUniqueIntelligence18",
+      "HandWrapsUniqueLocalIncreasedEnergyShield10"
+     ],
+     "explicit": [
+      "Has +2 to Evasion Rating per player level",
+      "Has +1 to maximum Energy Shield per player level",
+      "19% reduced Attack Speed",
+      "100% increased Attack Damage",
+      "15% increased Cooldown Recovery Rate"
+     ]
+    }
+   ]
+  },
+  "Aurseize": {
+   "untransformed": null,
+   "transformed": [
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedArmourAndEvasion1",
+      "HandWrapsUniqueItemFoundRarityIncrease1",
+      "HandWrapsUniqueMaximumLifeOnKillPercent1"
+     ],
+     "explicit": [
+      "20% more Global Evasion Rating and Energy Shield",
+      "Lose 2% of maximum Life on Kill",
+      "76% increased Quantity of Gold Dropped by Slain Enemies"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedArmourAndEvasion1",
+      "HandWrapsUniqueItemFoundRarityIncrease1",
+      "HandWrapsUniqueMaximumLifeOnKillPercent1"
+     ],
+     "explicit": [
+      "20% more Global Evasion Rating and Energy Shield",
+      "Lose 2% of maximum Life on Kill",
+      "58% increased Quantity of Gold Dropped by Slain Enemies"
+     ]
+    },
+    {
+     "base": "Fists of Stone",
+     "ids": [
+      "HandWrapsUniqueLocalIncreasedArmourAndEvasion1",
+      "HandWrapsUniqueItemFoundRarityIncrease1",
+      "HandWrapsUniqueMaximumLifeOnKillPercent1"
+     ],
+     "explicit": [
+      "16% more Global Evasion Rating and Energy Shield",
+      "Lose 2% of maximum Life on Kill",
+      "71% increased Quantity of Gold Dropped by Slain Enemies"
+     ]
+    }
+   ],
+   "_note": "Untransformed: the Aurseize in fixtures/builds/public_corpus/core04_weapon_swap.xml."
+  }
+ }
+}

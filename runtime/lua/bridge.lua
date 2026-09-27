@@ -4449,24 +4449,45 @@ function M.dispatch(req)
 			end
 			return lines
 		end
+		-- Game data ids sometimes carry trailing underscores that the transformed id does
+		-- not (e.g. EnergyShieldRechargeRate5______ -> HandWrapsEnergyShieldRechargeRate5):
+		-- a source is the same id, or the same id with the fewest trailing underscores.
+		local by_stripped = {}
+		for _, table_name in ipairs(tables) do
+			for id in pairs(data.itemMods[table_name] or {}) do
+				local stripped = id:gsub("_+$", "")
+				if stripped ~= id then
+					local entry = by_stripped[stripped]
+					if not entry or #id < #entry.id then
+						by_stripped[stripped] = { id = id, table_name = table_name }
+					end
+				end
+			end
+		end
 		local out = {}
-		for target_id, target in pairs(data.itemMods.Item or {}) do
+		-- Targets of ordinary modifiers live in the Item table; those of unique
+		-- modifiers (HandWrapsUnique...) in the Exclusive table.
+		for _, target_table in ipairs({ "Item", "Exclusive" }) do
+		for target_id, target in pairs(data.itemMods[target_table] or {}) do
 			if target_id:sub(1, #prefix) == prefix then
 				local source_id = target_id:sub(#prefix + 1)
 				local found, found_table
 				for _, table_name in ipairs(tables) do
 					local mods = data.itemMods[table_name] or {}
 					found = mods[source_id]
-					if not found then
-						for underscores = 1, 3 do
-							found = mods[source_id .. string.rep("_", underscores)]
-							if found then break end
-						end
-					end
 					if found then found_table = table_name break end
+				end
+				if not found and source_id:gsub("_+$", "") == source_id then
+					local entry = by_stripped[source_id]
+					if entry then
+						source_id = entry.id
+						found_table = entry.table_name
+						found = data.itemMods[found_table][source_id]
+					end
 				end
 				out[#out + 1] = {
 					target_id = target_id,
+					target_table = target_table,
 					target_lines = mod_lines(target),
 					target_type = target.type or "",
 					source_id = found and source_id or nil,
@@ -4477,8 +4498,10 @@ function M.dispatch(req)
 					source_level = found and found.level or nil,
 					target_group = target.group,
 					affix = target.affix or "",
+					source_affix = found and (found.affix or "") or nil,
 				}
 			end
+		end
 		end
 		table.sort(out, function(a, b) return a.target_id < b.target_id end)
 		return { prefix = prefix, mods = out }
@@ -4494,6 +4517,25 @@ function M.dispatch(req)
 			if line ~= "" then lines[#lines + 1] = line end
 		end
 		return { base_name = params.base_name, lines = lines }
+	end
+
+	-- PoB's own lines of item modifiers, by id (``ids``) or id prefix (``prefix``),
+	-- from the Exclusive (unique) and Item tables.
+	if method == "get_mod_lines" then
+		local wanted = {}
+		for _, id in ipairs(params.ids or {}) do wanted[tostring(id)] = true end
+		local prefix = params.prefix and tostring(params.prefix) or nil
+		local out = {}
+		for _, table_name in ipairs({ "Exclusive", "Item" }) do
+			for id, mod in pairs(data.itemMods[table_name] or {}) do
+				if not out[id] and (wanted[id] or (prefix and id:sub(1, #prefix) == prefix)) then
+					local lines = {}
+					for i, line in ipairs(mod) do lines[i] = line end
+					out[id] = { lines = lines, table = table_name, group = mod.group or "" }
+				end
+			end
+		end
+		return { mods = out }
 	end
 
 	-- PoB's own parse of an item, by modifier category, for the transform adapter.
@@ -4514,6 +4556,7 @@ function M.dispatch(req)
 			return rows
 		end
 		return {
+			name = item.title,
 			base_name = item.baseName,
 			type = item.type,
 			rarity = item.rarity,

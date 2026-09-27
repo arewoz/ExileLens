@@ -18,10 +18,17 @@ from __future__ import annotations
 import re
 from decimal import ROUND_HALF_UP, Decimal
 
-from exilelens.items.stonefist import ModPair, RollRule, no_ranged_rule
+from exilelens.items.stonefist import FLIP_RULE_PREFIX, ModPair, RollRule, _template, no_ranged_rule
 
-# Lines where a larger value is worse for the character.
-_WORSE_WHEN_LARGER = re.compile(r"\bslower\b", re.IGNORECASE)
+# Lines where a larger value is worse for the character: slower leech, reductions of
+# the character's own speed, longer durations of effects on the character. Only the
+# naming of the measured ends depends on this; a wrong orientation makes the ordering
+# check refuse the candidate, never report it.
+_WORSE_WHEN_LARGER = re.compile(
+    r"\bslower\b|\breduced (?:Attack and Cast|Attack|Cast|Movement|Skill) Speed\b"
+    r"|\bincreased [A-Za-z ]*Duration on you\b",
+    re.IGNORECASE,
+)
 _RANGE = re.compile(r"\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)")
 
 
@@ -34,27 +41,43 @@ def _middle(low: float, high: float, decimals: int) -> float:
     return float(((Decimal(str(low)) + Decimal(str(high))) / 2).quantize(quantum, rounding=ROUND_HALF_UP))
 
 
-def _bound_rule(position: str) -> RollRule:
-    """``worst`` / ``best`` end of every range, or a displayable ``middle`` roll."""
+def _bound_rule(position: str, flipped: str | None = None) -> RollRule:
+    """``worst`` / ``best`` end of every range, or a displayable ``middle`` roll.
+
+    With ``flipped`` (a transformed line template), that line takes its best roll and
+    every other ranged line its worst: a one-at-a-time probe of one roll's direction.
+    """
 
     def rule(pair: ModPair, source_values: list[float]) -> list[float]:
         values: list[float] = []
         for line in pair.target_lines:
             larger_is_worse = bool(_WORSE_WHEN_LARGER.search(line))
             decimals = _decimals(line)
+            line_position = position if flipped is None else ("best" if _template(line) == flipped else "worst")
             for match in _RANGE.finditer(line):
                 low, high = sorted((float(match.group(1)), float(match.group(2))))
                 if low == high:
                     values.append(low)
-                elif position == "middle":
+                elif line_position == "middle":
                     values.append(_middle(low, high, decimals))
                 else:
-                    values.append(high if (position == "best") != larger_is_worse else low)
+                    values.append(high if (line_position == "best") != larger_is_worse else low)
         return values
 
-    rule.__name__ = f"stonefist_{position}_rolls"
+    rule.__name__ = f"stonefist_{position}_rolls" if flipped is None else FLIP_RULE_PREFIX + flipped
     rule.source_independent = True  # type: ignore[attr-defined]
     return rule
+
+
+def flip_rule(template: str) -> RollRule:
+    return _bound_rule("flip", template)
+
+
+def rule_for(bound: str) -> RollRule:
+    """The roll rule for a bound name: worst/middle/best/none, or ``flip:<line template>``."""
+    if bound.startswith("flip:"):
+        return flip_rule(bound[len("flip:"):])
+    return BOUND_RULES[bound]
 
 
 WORST_ROLLS: RollRule = _bound_rule("worst")
@@ -67,4 +90,4 @@ BOUND_RULES: dict[str, RollRule] = {
 #: Default rule for callers that do not evaluate bounds: ranged rolls unresolved.
 STONEFIST_ROLL_RULE = no_ranged_rule
 
-__all__ = ["BEST_ROLLS", "BOUND_RULES", "MIDDLE_ROLLS", "STONEFIST_ROLL_RULE", "WORST_ROLLS"]
+__all__ = ["BEST_ROLLS", "BOUND_RULES", "MIDDLE_ROLLS", "STONEFIST_ROLL_RULE", "WORST_ROLLS", "flip_rule", "rule_for"]
