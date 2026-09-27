@@ -29,6 +29,42 @@ def _app():
     return QApplication.instance() or QApplication([])
 
 
+_NATIVE_CHILD_ENV = "EXILELENS_P0_NATIVE_CHILD"
+
+
+def _process_can_host_native_qt() -> bool:
+    """Whether a native Windows QApplication can exist in this test process."""
+    if os.environ.get(_NATIVE_CHILD_ENV) == "1":
+        return True  # the isolated child must run (and fail) natively, never recurse
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is not None:
+        return app.platformName().lower() == "windows"
+    return os.environ.get("QT_QPA_PLATFORM", "").lower() in {"", "windows"}
+
+
+def _run_native_contract_in_clean_process(nodeid: str) -> None:
+    import subprocess
+
+    env = dict(os.environ)
+    env.pop("QT_QPA_PLATFORM", None)
+    env[_NATIVE_CHILD_ENV] = "1"
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", "-p", "no:cacheprovider", nodeid],
+        cwd=Path(__file__).resolve().parents[1],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=300,
+    )
+    output = (result.stdout + result.stderr)[-4000:]
+    assert result.returncode == 0, f"native P0 contract failed in a clean process:\n{output}"
+    assert " passed" in result.stdout, f"native P0 contract did not run in a clean process:\n{output}"
+
+
 def _market_ring() -> str:
     return """Item Class: Rings
 Rarity: Rare
@@ -168,6 +204,12 @@ def test_overlay_unrecoverable_native_production_wiring(
 ) -> None:
     """A native Windows Qt session proves all production lifecycle wiring."""
     assert sys.platform == "win32", "overlay-unrecoverable is a native Windows release contract"
+    if not _process_can_host_native_qt():
+        # Other test modules select QT_QPA_PLATFORM=offscreen at import time, and
+        # Qt fixes its platform once per process. Enforce the same contract the
+        # way CI does: this exact test, alone, in a fresh process.
+        _run_native_contract_in_clean_process(request.node.nodeid)
+        return
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     app = _app()
     assert app.platformName().lower() == "windows"
