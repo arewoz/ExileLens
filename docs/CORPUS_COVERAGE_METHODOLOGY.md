@@ -69,6 +69,12 @@ mana_scaling, es_scaling, life_scaling, weapon_swap, unique_interaction,
 unusual_skill_part`. A category with zero registry entries is reported as **NO
 COVERAGE** — it is never silently omitted or backfilled with an invented case.
 
+Archetype tags must be justified by the case's actual mechanics, not by the fixture's class or
+ascendancy name alone. In particular `ascendancy` is assigned only when an ascendancy-granted
+skill or mechanic is what the case measures (for example the CORPUS-02B Djinn cases, whose
+primary damage is the Disciple of Varashta's granted Water Djinn). A fixture that merely *has*
+an ascendancy, such as the Gemling Legionnaire builds, does not earn the tag.
+
 **EvaluationDepth** distinguishes *how much* a coverage case actually proves:
 - `IDENTITY_ONLY` — PoB loads the build and attributes class/ascendancy/skill/actor
   correctly. No `EvaluationOutcome`/verdict is asserted.
