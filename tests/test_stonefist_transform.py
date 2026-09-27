@@ -200,17 +200,42 @@ def _fake_result(verdict: str, metrics: dict[str, float], bounded: bool = True, 
             "recommendation": {"pob_slot": "Gloves"}}
 
 
+class _BatchEngine:
+    """Records how the wrapper asked PoB to measure its configurations."""
+
+    def __init__(self) -> None:
+        self.singles: list[str] = []
+        self.batches: list[list[str]] = []
+
+    def evaluate_item_slots(self, slots, item_raw, **kwargs):
+        self.singles.append(item_raw)
+        return {"measured": item_raw}
+
+    def evaluate_item_variants(self, slots, item_raws, **kwargs):
+        self.batches.append(list(item_raws))
+        return [{"measured": raw} for raw in item_raws]
+
+
 def _stub(monkeypatch: pytest.MonkeyPatch, by_bound: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Stand-in for the item evaluation: suspends at its measurement like the real one."""
     calls: list[dict[str, Any]] = []
 
-    def impl(raw_text, engine, **kwargs):
+    def steps(raw_text, engine, **kwargs):
         calls.append(kwargs)
-        if kwargs.get("stonefist_unresolved"):
-            return {"unresolved": kwargs["stonefist_unresolved"]}
         key = f'{kwargs["stonefist_bound"]}:{kwargs.get("stonefist_alternative") or 0}'
-        return by_bound.get(key) or by_bound[kwargs["stonefist_bound"]]
+        if kwargs.get("stonefist_unresolved"):
+            result, transform, key = {"unresolved": kwargs["stonefist_unresolved"]}, None, "unresolved"
+        else:
+            result = by_bound.get(key) or by_bound[kwargs["stonefist_bound"]]
+            transform = result["slot_comparisons"][0]["item_transform"]["candidate"]
+        measured = yield evaluation_module._MeasurementRequest(
+            slots=("Gloves",), item_raw=key, context="MAP", component_keys=None, baseline_overrides=None,
+            defer_restore=bool(kwargs.get("defer_restore")), stonefist=transform,
+        )
+        assert measured == {"measured": key}, "each configuration must receive its own measurement"
+        return result
 
-    monkeypatch.setattr(evaluation_module, "_evaluate_item_impl", impl)
+    monkeypatch.setattr(evaluation_module, "_evaluate_item_steps", steps)
     return calls
 
 
@@ -220,7 +245,7 @@ def test_verdict_changing_across_the_roll_range_is_refused(monkeypatch: pytest.M
         "middle": _fake_result("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}),
         "best": _fake_result("MINOR_UPGRADE", {"CombinedDPS": 104, "TotalEHP": 10}),
     })
-    result = evaluation_module.evaluate_item("raw", object())
+    result = evaluation_module.evaluate_item("raw", _BatchEngine())
     assert "the verdict changes (SIDEGRADE and MINOR_UPGRADE)" in result["unresolved"]
     assert [c.get("stonefist_bound") for c in calls] == ["worst", "middle", "best", "worst"]
 
@@ -231,7 +256,7 @@ def test_matching_ends_with_a_different_middle_verdict_are_refused(monkeypatch: 
         "middle": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 100, "TotalEHP": 10}),
         "best": _fake_result("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}),
     })
-    assert "verdict changes" in evaluation_module.evaluate_item("raw", object())["unresolved"]
+    assert "verdict changes" in evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
 
 
 def test_non_monotone_pob_results_are_refused_even_when_verdicts_match(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -240,7 +265,7 @@ def test_non_monotone_pob_results_are_refused_even_when_verdicts_match(monkeypat
         "middle": _fake_result("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}),
         "best": _fake_result("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 11}),
     })
-    reason = evaluation_module.evaluate_item("raw", object())["unresolved"]
+    reason = evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
     assert "not ordered across the roll range (TotalEHP)" in reason
 
 
@@ -250,7 +275,7 @@ def test_consistent_ordered_range_reports_a_guaranteed_verdict(monkeypatch: pyte
         "middle": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 115, "TotalEHP": 10}),
         "best": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 120, "TotalEHP": 10}),
     })
-    result = evaluation_module.evaluate_item("raw", object())
+    result = evaluation_module.evaluate_item("raw", _BatchEngine())
     bounds = result["slot_comparisons"][0]["stonefist_roll_bounds"]
     assert bounds["guarantee"] == "an upgrade at each measured roll"
     assert bounds["ranges"]["primary_offense"]["worst_pct"] == 10 and bounds["ranges"]["primary_offense"]["best_pct"] == 20
@@ -261,7 +286,7 @@ def test_consistent_ordered_range_reports_a_guaranteed_verdict(monkeypatch: pyte
 
 def test_exact_candidates_are_evaluated_once(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = _stub(monkeypatch, {"worst": _fake_result("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}, bounded=False)})
-    evaluation_module.evaluate_item("raw", object())
+    evaluation_module.evaluate_item("raw", _BatchEngine())
     assert len(calls) == 1
 
 
@@ -271,7 +296,7 @@ def test_every_decomposition_alternative_must_agree(monkeypatch: pytest.MonkeyPa
         "worst:1": _fake_result("SIDEGRADE", {"CombinedDPS": 97, "TotalEHP": 10}, bounded=False, alternatives=2),
     }
     calls = _stub(monkeypatch, dict(common))
-    reason = evaluation_module.evaluate_item("raw", object())["unresolved"]
+    reason = evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
     assert "fit several glove modifier combinations" in reason and "MINOR_DOWNGRADE and SIDEGRADE" in reason
     assert [(c.get("stonefist_bound"), c.get("stonefist_alternative")) for c in calls] == [
         ("worst", 0), ("worst", 1), ("worst", 0),
@@ -283,7 +308,7 @@ def test_agreeing_alternatives_report_the_union_range(monkeypatch: pytest.Monkey
         "worst:0": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 95, "TotalEHP": 10}, bounded=False, alternatives=2),
         "worst:1": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 92, "TotalEHP": 10}, bounded=False, alternatives=2),
     })
-    result = evaluation_module.evaluate_item("raw", object())
+    result = evaluation_module.evaluate_item("raw", _BatchEngine())
     bounds = result["slot_comparisons"][0]["stonefist_roll_bounds"]
     assert bounds["alternatives"] == 2 and bounds["verified_configurations"] == 2
     assert bounds["ranges"]["primary_offense"]["worst_pct"] == -8 and bounds["ranges"]["primary_offense"]["best_pct"] == -5
@@ -301,5 +326,85 @@ def test_same_verdict_reached_through_different_patterns_is_refused(monkeypatch:
         "middle": _fake_result("SIDEGRADE", {"CombinedDPS": 99, "TotalEHP": 10}, pattern="TRADEOFF"),
         "best": _fake_result("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}, pattern="SINGLE_AXIS"),
     })
-    reason = evaluation_module.evaluate_item("raw", object())["unresolved"]
+    reason = evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
     assert "changes character" in reason
+
+
+# --------------------------------------------------------------------------- batched configuration measurement
+
+
+def test_roll_configurations_are_measured_in_one_transaction(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub(monkeypatch, {
+        "worst": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 110, "TotalEHP": 10}),
+        "middle": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 115, "TotalEHP": 10}),
+        "best": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 120, "TotalEHP": 10}),
+    })
+    engine = _BatchEngine()
+    evaluation_module.evaluate_item("raw", engine, defer_restore=True)
+    assert engine.batches == [["worst:0", "middle:0", "best:0"]] and engine.singles == []
+
+
+def test_every_alternative_and_roll_shares_the_transaction(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub(monkeypatch, {
+        "worst:0": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 95, "TotalEHP": 10}, alternatives=2),
+        "middle:0": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 96, "TotalEHP": 10}, alternatives=2),
+        "best:0": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 97, "TotalEHP": 10}, alternatives=2),
+        "worst:1": _fake_result("MINOR_DOWNGRADE", {"CombinedDPS": 92, "TotalEHP": 10}, bounded=False, alternatives=2),
+    })
+    engine = _BatchEngine()
+    result = evaluation_module.evaluate_item("raw", engine)
+    assert engine.batches == [["worst:0", "middle:0", "best:0", "worst:1"]] and engine.singles == []
+    assert result["slot_comparisons"][0]["stonefist_roll_bounds"]["verified_configurations"] == 4
+
+
+def test_exact_candidates_keep_their_single_deferred_transaction(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _stub(monkeypatch, {"worst": _fake_result("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}, bounded=False)})
+    engine = _BatchEngine()
+    evaluation_module.evaluate_item("raw", engine, defer_restore=True)
+    assert engine.singles == ["worst:0"] and engine.batches == []
+    assert calls[0]["defer_restore"] is True
+
+
+def test_a_refusal_after_the_batch_is_measured_on_its_own(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub(monkeypatch, {
+        "worst": _fake_result("SIDEGRADE", {"CombinedDPS": 99, "TotalEHP": 10}),
+        "middle": _fake_result("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}),
+        "best": _fake_result("MINOR_UPGRADE", {"CombinedDPS": 104, "TotalEHP": 10}),
+    })
+    engine = _BatchEngine()
+    assert "verdict changes" in evaluation_module.evaluate_item("raw", engine)["unresolved"]
+    assert engine.batches == [["worst:0", "middle:0", "best:0"]] and engine.singles == ["unresolved"]
+
+
+def test_engines_without_variant_batches_measure_each_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub(monkeypatch, {
+        "worst": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 110, "TotalEHP": 10}),
+        "middle": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 115, "TotalEHP": 10}),
+        "best": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 120, "TotalEHP": 10}),
+    })
+    requests: list[Any] = []
+
+    class SingleEngine:
+        def evaluate_item_slots(self, slots, item_raw, **kwargs):
+            requests.append((item_raw, kwargs["defer_restore"]))
+            return {"measured": item_raw}
+
+    result = evaluation_module.evaluate_item("raw", SingleEngine(), defer_restore=True)
+    assert "stonefist_roll_bounds" in result
+    # Measured one after another, so none of them may leave its restore deferred.
+    assert requests == [("worst:0", False), ("middle:0", False), ("best:0", False)]
+
+
+def test_a_failed_batch_fails_the_evaluation(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub(monkeypatch, {
+        "worst": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 110, "TotalEHP": 10}),
+        "middle": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 115, "TotalEHP": 10}),
+        "best": _fake_result("MEANINGFUL_UPGRADE", {"CombinedDPS": 120, "TotalEHP": 10}),
+    })
+
+    class FailingEngine(_BatchEngine):
+        def evaluate_item_variants(self, slots, item_raws, **kwargs):
+            raise RuntimeError("restore failed")
+
+    with pytest.raises(RuntimeError, match="restore failed"):
+        evaluation_module.evaluate_item("raw", FailingEngine())

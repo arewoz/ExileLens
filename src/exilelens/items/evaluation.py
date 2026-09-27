@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import copy
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from exilelens.errors import (
@@ -142,7 +143,59 @@ def _fingerprint_mismatch(
     }
 
 
-def _evaluate_item_impl(
+@dataclass(frozen=True)
+class _MeasurementRequest:
+    """The one PoB transaction an item evaluation needs, handed to its driver.
+
+    ``stonefist`` is the candidate's Way of the Stonefist transform report (None when
+    the build has no item-base transform), so a driver can see whether this candidate
+    is exact before anything is measured.
+    """
+
+    slots: tuple[str, ...]
+    item_raw: str
+    context: str
+    component_keys: tuple[str, ...] | None
+    baseline_overrides: tuple[tuple[str, str], ...] | None
+    defer_restore: bool
+    stonefist: dict[str, Any] | None
+
+    def batch_key(self) -> tuple[Any, ...]:
+        """Requests with equal keys can be measured as variants of one transaction."""
+        return (self.slots, self.context, self.component_keys, self.baseline_overrides)
+
+    def measure(self, engine) -> dict[str, Any]:
+        return engine.evaluate_item_slots(
+            list(self.slots),
+            self.item_raw,
+            context=self.context,
+            component_keys=list(self.component_keys) if self.component_keys else None,
+            defer_restore=self.defer_restore,
+            baseline_overrides=dict(self.baseline_overrides) if self.baseline_overrides else None,
+        )
+
+
+def _resume_evaluation(steps, measure) -> dict[str, Any]:
+    """Hand an evaluation suspended at its measurement its PoB result (or failure)."""
+    try:
+        batch = measure()
+    except Exception as exc:  # the evaluation's own handlers classify it
+        steps.throw(exc)
+        raise RuntimeError("item evaluation ignored a measurement failure") from exc
+    try:
+        steps.send(batch)
+    except StopIteration as stop:
+        return stop.value
+    raise RuntimeError("item evaluation requested a second measurement")
+
+
+def _evaluate_item_impl(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:
+    steps = _evaluate_item_steps(raw_text, engine, **kwargs)
+    request = next(steps)
+    return _resume_evaluation(steps, lambda: request.measure(engine))
+
+
+def _evaluate_item_steps(
     raw_text: str,
     engine,
     *,
@@ -161,7 +214,14 @@ def _evaluate_item_impl(
     stonefist_bound: str = "none",
     stonefist_unresolved: str = "",
     stonefist_alternative: int | None = None,
-) -> dict[str, Any]:
+):
+    """Evaluate one item; suspends once, yielding the PoB measurement it needs.
+
+    The driver sends back the ``evaluate_item_slots``-shaped result for that request
+    (or throws its failure in). Splitting at the measurement lets several roll
+    configurations of one Stonefist candidate be measured in a single transaction
+    while each is still scored by exactly this code.
+    """
     started = time.perf_counter()
     timings = EvaluationTimings()
     cache = cache or ItemPipelineCache()
@@ -425,15 +485,18 @@ def _evaluate_item_impl(
     # have run yet.
     t_batch = time.perf_counter()
     batch_keys = candidate_keys(components) if components else None
+    request = _MeasurementRequest(
+        slots=tuple(compatible_slots),
+        item_raw=engine_raw.raw_text,
+        context=context,
+        component_keys=tuple(batch_keys) if batch_keys else None,
+        baseline_overrides=tuple(sorted(engine_overrides.items())) if engine_overrides else None,
+        defer_restore=defer_restore,
+        stonefist=(transform_report("Gloves", candidate_transform, None) or {}).get("candidate")
+        if stonefist_active and "Gloves" in compatible_slots else None,
+    )
     try:
-        batch = engine.evaluate_item_slots(
-            list(compatible_slots),
-            engine_raw.raw_text,
-            context=context,
-            component_keys=batch_keys or None,
-            defer_restore=defer_restore,
-            baseline_overrides=engine_overrides or None,
-        )
+        batch = yield request
     except SlotInvalid as exc:
         raise BaselineItemUnresolved(
             "PoB baseline item could not be resolved for this item",
@@ -627,8 +690,10 @@ def _evaluate_item_impl(
     # performed. When the restore was deferred it has not run yet, and asking the worker
     # for metrics here would drain it back onto the path this change exists to clear --
     # so the check is skipped and the verification is the deferred restore itself.
+    # A driver may measure a deferred-requested evaluation in a transaction that
+    # restored immediately (Stonefist configuration batches); the check then runs.
     final_metrics: dict[str, Any] = {}
-    if not defer_restore:
+    if not defer_restore or batch_restore.get("status") == "OK":
         final_metrics = engine.get_metrics(context=context)
         if baseline_fingerprint and final_metrics.get("fingerprint_hash") != baseline_fingerprint:
             raise EvaluationInvalidBuildState(
@@ -872,12 +937,53 @@ def _roll_monotone_violations(rows: list[dict[str, Any]]) -> list[str]:
 _MAX_TRANSFORM_ALTERNATIVES = 4
 
 
-def _candidate_transform(result: dict[str, Any]) -> dict[str, Any]:
-    for row in result.get("slot_comparisons") or []:
-        candidate = ((row.get("item_transform") or {}).get("candidate") or {})
-        if candidate:
-            return candidate
-    return {}
+def _measure_configurations(engine, pending: list[tuple[Any, _MeasurementRequest]]) -> list[dict[str, Any]]:
+    """Measure evaluations suspended at their PoB measurement; return their results in order.
+
+    Requests that measure the same slots against the same baseline are variants of
+    one item: PoB measures them in one transaction (one baseline read, one frame per
+    variant, one verified restore) and every evaluation receives its own variant's
+    result. Anything else -- or an engine without variant batches -- is measured on
+    its own, never deferred. A failed batch is handed to the first evaluation that
+    needs it, whose normal failure handling applies (invalidating the build when the
+    restore failed); the remaining evaluations are then abandoned by the caller.
+    """
+    results: list[dict[str, Any] | None] = [None] * len(pending)
+    groups: dict[tuple[Any, ...], list[int]] = {}
+    for index, (_, request) in enumerate(pending):
+        groups.setdefault(request.batch_key(), []).append(index)
+    batched = hasattr(engine, "evaluate_item_variants")
+    for indices in groups.values():
+        if len(indices) == 1 or not batched:
+            for index in indices:
+                steps, request = pending[index]
+                single = replace(request, defer_restore=False)
+                results[index] = _resume_evaluation(steps, lambda single=single: single.measure(engine))
+            continue
+        head = pending[indices[0]][1]
+        raws = list(dict.fromkeys(pending[index][1].item_raw for index in indices))
+        by_raw: dict[str, dict[str, Any]] = {}
+
+        def variant(request: _MeasurementRequest, head=head, raws=raws, by_raw=by_raw) -> dict[str, Any]:
+            if not by_raw:
+                measured = engine.evaluate_item_variants(
+                    list(head.slots),
+                    raws,
+                    context=head.context,
+                    component_keys=list(head.component_keys) if head.component_keys else None,
+                    baseline_overrides=dict(head.baseline_overrides) if head.baseline_overrides else None,
+                )
+                if len(measured) != len(raws):
+                    raise EngineError(
+                        "EVALUATION_FAILED", "PoB returned a different number of item variants than requested",
+                    )
+                by_raw.update(zip(raws, measured))
+            return copy.deepcopy(by_raw[request.item_raw])
+
+        for index in indices:
+            steps, request = pending[index]
+            results[index] = _resume_evaluation(steps, lambda request=request: variant(request))
+    return results  # type: ignore[return-value]
 
 
 def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:
@@ -896,35 +1002,53 @@ def _evaluate_with_stonefist_bounds(raw_text: str, engine, **kwargs: Any) -> dic
     Otherwise the comparison stays UNSUPPORTED with the reason. The reported numbers
     are a verified range over all configurations, never one assumed roll.
     """
-    first = _evaluate_item_impl(raw_text, engine, stonefist_bound="worst", stonefist_alternative=0, **kwargs)
-    transform = _candidate_transform(first)
+    first = _evaluate_item_steps(raw_text, engine, stonefist_bound="worst", stonefist_alternative=0, **kwargs)
+    first_request = next(first)
+    transform = first_request.stonefist or {}
     alternatives = int(transform.get("alternatives") or 1) if transform.get("ok") else 1
     if not transform.get("ok") or (not transform.get("bounded") and alternatives <= 1):
-        return first
-    if kwargs.get("defer_restore") and hasattr(engine, "finalize_transaction"):
-        engine.finalize_transaction()
-    plain = {**kwargs, "defer_restore": False}
+        return _resume_evaluation(first, lambda: first_request.measure(engine))
 
     def refuse(reason: str) -> dict[str, Any]:
         return _evaluate_item_impl(
-            raw_text, engine, stonefist_bound="worst", stonefist_alternative=0, stonefist_unresolved=reason, **plain,
+            raw_text, engine, stonefist_bound="worst", stonefist_alternative=0, stonefist_unresolved=reason, **kwargs,
         )
 
     if alternatives > _MAX_TRANSFORM_ALTERNATIVES:
+        first.close()
         return refuse(f"its displayed modifiers fit {alternatives} different glove modifier combinations")
-    runs: list[dict[str, Any]] = []  # each: {"alternative", "bound", "result"}
-    for alternative in range(alternatives):
-        worst = first if alternative == 0 else _evaluate_item_impl(
-            raw_text, engine, stonefist_bound="worst", stonefist_alternative=alternative, **plain,
-        )
-        runs.append({"alternative": alternative, "bound": "worst", "result": worst})
-        if _candidate_transform(worst).get("bounded"):
-            for bound in ("middle", "best"):
-                runs.append({"alternative": alternative, "bound": bound, "result": _evaluate_item_impl(
-                    raw_text, engine, stonefist_bound=bound, stonefist_alternative=alternative, **plain,
-                )})
+    # Every configuration is prepared up to its PoB measurement, all of them are
+    # measured together (one transaction for those that share slots and baseline),
+    # and each is then scored by the ordinary item evaluation.
+    plain = {**kwargs, "defer_restore": False}
+    configurations: list[tuple[int, str, Any, _MeasurementRequest]] = []
+    try:
+        for alternative in range(alternatives):
+            if alternative == 0:
+                steps, request = first, first_request
+            else:
+                steps = _evaluate_item_steps(
+                    raw_text, engine, stonefist_bound="worst", stonefist_alternative=alternative, **plain,
+                )
+                request = next(steps)
+            configurations.append((alternative, "worst", steps, request))
+            if (request.stonefist or {}).get("bounded"):
+                for bound in ("middle", "best"):
+                    steps = _evaluate_item_steps(
+                        raw_text, engine, stonefist_bound=bound, stonefist_alternative=alternative, **plain,
+                    )
+                    configurations.append((alternative, bound, steps, next(steps)))
+        results = _measure_configurations(engine, [(steps, request) for _, _, steps, request in configurations])
+    finally:
+        first.close()
+        for _, _, steps, _ in configurations:
+            steps.close()
+    runs: list[dict[str, Any]] = [  # each: {"alternative", "bound", "result"}
+        {"alternative": alternative, "bound": bound, "result": result}
+        for (alternative, bound, _, _), result in zip(configurations, results)
+    ]
 
-    slots = [row.get("pob_slot") for row in first.get("slot_comparisons") or [] if (row.get("item_transform") or {}).get("candidate")]
+    slots = [row.get("pob_slot") for row in runs[0]["result"].get("slot_comparisons") or [] if (row.get("item_transform") or {}).get("candidate")]
     for slot in slots:
         rows = []
         for run in runs:

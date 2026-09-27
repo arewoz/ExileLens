@@ -3715,6 +3715,92 @@ local function run_item_slot_evaluation(slots, item_raw, params)
 	}
 end
 
+-- Several variants of one item (e.g. Way of the Stonefist roll configurations) for the
+-- same slots, measured inside ONE transaction: one baseline read, one measurement frame
+-- per variant x slot, one verified restore -- instead of three frames per variant.
+-- Between measurements the build is reverted and structurally verified exactly as
+-- between the slots of `run_item_slot_evaluation`; the final restore is verified by
+-- `tx_finish` against the true baseline. Never deferred.
+local function run_item_variant_evaluation(slots, item_raws, params)
+	params = params or {}
+	PERF.on = params.perf and true or false
+	if PERF.on then perf_begin() end
+	local t_perf = perf_now()
+	local it = build.itemsTab
+	if type(slots) ~= "table" or #slots == 0 then
+		error({ code = "SLOT_INVALID", message = "at least one slot is required" })
+	end
+	if type(item_raws) ~= "table" or #item_raws == 0 then
+		error({ code = "ITEM_PARSE_FAILED", message = "at least one item_raw is required" })
+	end
+	for _, slot in ipairs(slots) do
+		if it.slots[slot] == nil then
+			error({ code = "SLOT_INVALID", message = "slot not present in build", details = { slot = slot } })
+		end
+		if is_jewel_socket_slot_name(slot) then
+			error({ code = "SLOT_INVALID", message = "variant batches do not support jewel sockets", details = { slot = slot } })
+		end
+	end
+	local slot_items = {}
+	for _, slot in ipairs(slots) do
+		slot_items[slot] = slot_item_summary(slot)
+	end
+
+	local ctx = tx_begin(params)
+	perf_add("baseline_read_ms", t_perf)
+
+	local variants = {}
+	local first = true
+	for variant_index, item_raw in ipairs(item_raws) do
+		local measured = {}
+		for _, slot in ipairs(slots) do
+			if not first then
+				local reverted, revert_err = pcall(tx_revert, ctx)
+				if not reverted then
+					STATE.healthy = false
+					error({
+						code = "RESTORE_FAILED",
+						message = tostring(revert_err),
+						details = { reason = "REVERT_EXCEPTION", next_slot = slot, variant = variant_index },
+					})
+				end
+				tx_assert_reverted_structural(ctx, slot)
+			end
+			first = false
+			local ok, result = pcall(tx_measure, ctx, { { slot = slot, raw = item_raw } }, params, true)
+			if ok then
+				local candidate = result
+				candidate.equipment = candidate.fingerprint.equipment
+				candidate.item_present = normalize_raw(candidate.equipment[slot]) == normalize_raw(item_raw)
+				measured[#measured + 1] = { slot = slot, candidate = candidate, slot_item = slot_items[slot] }
+			else
+				if type(result) == "table" and result.code == "RESTORE_FAILED" then
+					error(result)
+				end
+				local code = (type(result) == "table" and result.code) or "SLOT_EVALUATION_FAILED"
+				local message = (type(result) == "table" and result.message) or tostring(result)
+				measured[#measured + 1] = {
+					slot = slot,
+					slot_item = slot_items[slot],
+					error = { code = code, message = message, details = (type(result) == "table" and result.details) or nil },
+				}
+			end
+		end
+		variants[#variants + 1] = { item_raw = item_raw, slots = measured }
+	end
+
+	local restored = tx_finish(ctx)
+	return {
+		perf = perf_payload_now(t_perf),
+		context = STATE.context,
+		baseline = tx_baseline_block(ctx),
+		true_baseline = { fingerprint = ctx.true_baseline_fp, metrics = ctx.true_baseline_metrics },
+		variants = variants,
+		restored = restored,
+		restore = { status = "OK" },
+	}
+end
+
 local function evaluate_tree_path(params)
 	local spec = build.spec
 	local target_id = tonumber(params.target_id or (params.node_ids and params.node_ids[#params.node_ids]))
@@ -4267,6 +4353,14 @@ function M.dispatch(req)
 		end
 		if not params.item_raw then error({ code = "ITEM_PARSE_FAILED", message = "item_raw is required" }) end
 		return run_item_slot_evaluation(params.slots, params.item_raw, params)
+	end
+
+	if method == "evaluate_item_variants" then
+		if params.context and params.context ~= STATE.context then
+			STATE.context = params.context
+			apply_context(params.context)
+		end
+		return run_item_variant_evaluation(params.slots, params.item_raws, params)
 	end
 
 	if method == "evaluate_candidate" then

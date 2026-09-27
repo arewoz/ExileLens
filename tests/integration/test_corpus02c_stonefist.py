@@ -440,3 +440,72 @@ def test_inexact_equipped_gloves_are_disclosed_on_other_slots(real_pob_engine, t
     assert row["evaluation_outcome"]["evaluation_quality"] == "PARTIAL"
     assert row["evaluation_outcome"]["verdict"] == "UNCERTAIN"
     assert row["restore"]["pass"] is True
+
+
+# --------------------------------------------------------------------------- batched configuration measurement
+
+
+def _roll_configurations(engine, candidate: str) -> list[str]:
+    from exilelens.items.stonefist_integration import safe_transform
+
+    raws = [safe_transform(engine, candidate, bound, 0).item_raw for bound in ("worst", "middle", "best")]
+    assert len(set(raws)) == 3
+    return raws
+
+
+def test_batched_configurations_measure_what_separate_transactions_measure(real_pob_engine) -> None:
+    """One transaction for every roll configuration: each variant's PoB result is the one
+    its own transaction gives, and the build is verifiably restored."""
+    real_pob_engine.load_build(BUILD)
+    original_hash = real_pob_engine.get_metrics()["fingerprint_hash"]
+    raws = _roll_configurations(real_pob_engine, _equipped_item(CORPUS / "core04_minion_actor.xml", "Gloves"))
+
+    batched = real_pob_engine.evaluate_item_variants(["Gloves"], raws)
+    assert len(batched) == 3
+    for raw, variant in zip(raws, batched):
+        assert variant["restore"]["pass"] is True
+        single = real_pob_engine.evaluate_item_slots(["Gloves"], raw)
+        assert single["restore"]["pass"] is True
+        [measured], [reference] = variant["slots"], single["slots"]
+        assert measured["candidate"]["item_present"] is True
+        assert measured["candidate"]["normalized"] == reference["candidate"]["normalized"]
+        assert measured["candidate"]["fingerprint_hash"] == reference["candidate"]["fingerprint_hash"]
+        assert variant["baseline"]["fingerprint_hash"] == single["baseline"]["fingerprint_hash"]
+    worst, best = (variant["slots"][0]["candidate"]["metrics"] for variant in (batched[0], batched[2]))
+    assert float(worst["TotalEHP"]) < float(best["TotalEHP"])
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == original_hash
+
+
+def test_roll_dependent_candidate_is_measured_in_one_transaction(real_pob_engine, monkeypatch) -> None:
+    candidate = _equipped_item(CORPUS / "core04_onehand_weapon.xml", "Gloves")
+    real_pob_engine.load_build(BUILD)
+    original_hash = real_pob_engine.get_metrics()["fingerprint_hash"]
+    calls: list[tuple[str, int]] = []
+    singles, variants = real_pob_engine.evaluate_item_slots, real_pob_engine.evaluate_item_variants
+    monkeypatch.setattr(real_pob_engine, "evaluate_item_slots",
+                        lambda slots, raw, **kw: calls.append(("slots", 1)) or singles(slots, raw, **kw))
+    monkeypatch.setattr(real_pob_engine, "evaluate_item_variants",
+                        lambda slots, raws, **kw: calls.append(("variants", len(raws))) or variants(slots, raws, **kw))
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+    # Two decomposition alternatives x worst/middle/best rolls, one transaction.
+    assert calls == [("variants", 6)]
+    assert _row(result)["stonefist_roll_bounds"]["verified_configurations"] == 6
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == original_hash
+
+
+def test_a_failed_batch_restore_invalidates_the_build(real_pob_engine) -> None:
+    from exilelens.errors import RestoreFailed
+
+    candidate = _equipped_item(CORPUS / "core04_minion_actor.xml", "Gloves")
+    real_pob_engine.load_build(BUILD)
+    raws = _roll_configurations(real_pob_engine, candidate)
+    with pytest.raises(RestoreFailed):
+        real_pob_engine.evaluate_item_variants(["Gloves"], raws, test_fault="corrupt_restore")
+    reloads = real_pob_engine.reload_count
+    recovered = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+    # The corrupted build is re-parsed once before any configuration is measured
+    # (`last_load_reloaded` only reflects the last of the configurations' readiness checks).
+    assert real_pob_engine.reload_count == reloads + 1
+    assert _row(recovered)["restore"]["pass"] is True
+    assert "stonefist_roll_bounds" in _row(recovered)
