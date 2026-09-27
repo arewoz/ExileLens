@@ -13,6 +13,7 @@ never against ExileLens's own transformation or scoring output.
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from pathlib import Path
@@ -244,7 +245,8 @@ def test_ranged_rolls_are_bounded_by_independent_reference_items(real_pob_engine
 
     row = _row(result)
     bounds = row["stonefist_roll_bounds"]
-    assert bounds["alternatives"] == 1 and bounds["verified_configurations"] == 3
+    # worst, middle and best, plus each of the 5 ranged lines alone at its best roll
+    assert bounds["alternatives"] == 1 and bounds["single_roll_probes"] == 5 and bounds["verified_configurations"] == 8
     _assert_same_metrics(row["candidate"]["metrics"], worst_ref)
     offense = bounds["ranges"]["primary_offense"]
     assert _close(offense["worst"], worst_ref["CombinedDPS"])
@@ -362,16 +364,24 @@ def test_transformed_defences_follow_the_character_level(real_pob_engine, tmp_pa
 # --------------------------------------------------------------------------- still unsupported (not coverage)
 
 
+# A unique glove with no real-item evidence (text from PoB's own definition, current variant).
+UNVERIFIED_UNIQUE = (
+    "Rarity: Unique\nTreefingers\nRiveted Mitts\n--------\n45% increased Armour\n"
+    "Adds 8 to 14 Physical Damage to Attacks\n5% reduced Attack Speed\n+18 to Strength\n"
+    "25% increased Stun Buildup\nGiant's Blood"
+)
+
+
 @pytest.mark.parametrize(
     ("source", "reason"),
     [
-        (CORPUS / "core04_weapon_swap.xml", "unique gloves"),
+        (UNVERIFIED_UNIQUE, "the unique gloves Treefingers have no verified Way of the Stonefist transformation"),
         (CORPUS / "corpus02b_varashta_djinn.xml", "match no combination"),
     ],
-    ids=["unique_gloves", "unmatched_modifiers"],
+    ids=["unverified_unique_gloves", "unmatched_modifiers"],
 )
-def test_unresolvable_gloves_stay_unsupported_with_the_precise_reason(real_pob_engine, source: Path, reason: str) -> None:
-    candidate = _equipped_item(source, "Gloves")
+def test_unresolvable_gloves_stay_unsupported_with_the_precise_reason(real_pob_engine, source, reason: str) -> None:
+    candidate = source if isinstance(source, str) else _equipped_item(source, "Gloves")
     result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
 
     row = _row(result)
@@ -509,3 +519,128 @@ def test_a_failed_batch_restore_invalidates_the_build(real_pob_engine) -> None:
     assert real_pob_engine.reload_count == reloads + 1
     assert _row(recovered)["restore"]["pass"] is True
     assert "stonefist_roll_bounds" in _row(recovered)
+
+
+# --------------------------------------------------------------------------- unique gloves (real items)
+
+UNIQUE_EVIDENCE = json.loads((ROOT / "fixtures" / "items" / "stonefist_unique_gloves_poeninja.json").read_text(encoding="utf-8"))["uniques"]
+# Modifiers whose line is not part of an item's text (granted skills, markers).
+_NOT_IN_ITEM_TEXT = {"UniqueCrushingFearSkill1", "UniqueAtziriHeraldSkill1", "UniqueNothingHappened"}
+
+
+def _unique_raw(name: str, item: dict) -> str:
+    lines = [line for text in item["explicit"] for line in text.split("\n")]
+    return "\n".join(["Rarity: Unique", name, item["base"], "--------", *lines])
+
+
+def _numbers(line: str) -> list[float]:
+    return [float(value) for value in re.findall(r"-?\d+(?:\.\d+)?", line)]
+
+
+def _shape(line: str) -> str:
+    return re.sub(r"[+-]?\d+(?:\.\d+)?", "#", line)
+
+
+def _assert_real_transformed_items_are_bracketed(name: str, worst, best, real_items: list[dict]) -> None:
+    """The game's own transformed items: the same transformed modifiers, and every real
+    line lies between the transformation's worst and best measured line."""
+    ours = {m["target_id"] for m in worst.mapped if m["target_id"]}
+    measured = {row["line"] for row in worst.explicit} | {row["line"] for row in best.explicit}
+    by_shape: dict[str, list[list[float]]] = {}
+    for line in measured:
+        by_shape.setdefault(_shape(line), []).append(_numbers(line))
+    for real in real_items:
+        assert ours == set(real["ids"]) - _NOT_IN_ITEM_TEXT, name
+        for text in real["explicit"]:
+            for line in text.split("\n"):
+                ends = by_shape.get(_shape(line))
+                assert ends, (name, line)
+                values = _numbers(line)
+                for index, value in enumerate(values):
+                    column = [end[index] for end in ends]
+                    assert min(column) - 1e-9 <= value <= max(column) + 1e-9, (name, line, ends)
+
+
+@pytest.mark.parametrize("name", [n for n, e in UNIQUE_EVIDENCE.items() if e.get("untransformed")])
+def test_unique_gloves_transform_exactly_like_the_games_transformed_items(real_pob_engine, name: str) -> None:
+    """A real untransformed unique, transformed here, must equal the real transformed ones
+    (same HandWraps modifiers, each real value within the measured roll range)."""
+    from exilelens.items.stonefist_integration import safe_transform
+
+    real_pob_engine.load_build(BUILD)
+    raw = _unique_raw(name, UNIQUE_EVIDENCE[name]["untransformed"])
+    worst, best = safe_transform(real_pob_engine, raw, "worst", 0), safe_transform(real_pob_engine, raw, "best", 0)
+    assert worst.ok and best.ok, (worst.unresolved, best.unresolved)
+    # Observed: runic ("RunicUnique") gloves become Runeforged Fists of Stone, others Fists of Stone.
+    runic = UNIQUE_EVIDENCE[name]["untransformed"]["base"].startswith("Runemastered")
+    assert worst.base_name == ("Runeforged " + FISTS if runic else FISTS)
+    _assert_real_transformed_items_are_bracketed(name, worst, best, UNIQUE_EVIDENCE[name]["transformed"])
+
+
+def test_corpus_unique_gloves_receive_a_verified_verdict(real_pob_engine) -> None:
+    """The real Aurseize from the CORE-04 weapon-swap build (previously refused as a unique)."""
+    from exilelens.items.stonefist_integration import safe_transform
+
+    candidate = _equipped_item(CORPUS / "core04_weapon_swap.xml", "Gloves")
+    real_pob_engine.load_build(BUILD)
+    original_hash = real_pob_engine.get_metrics()["fingerprint_hash"]
+    worst = safe_transform(real_pob_engine, candidate, "worst", 0)
+    best = safe_transform(real_pob_engine, candidate, "best", 0)
+    _assert_real_transformed_items_are_bracketed("Aurseize", worst, best, UNIQUE_EVIDENCE["Aurseize"]["transformed"])
+    # PoB 0.23.1 still has the older "(20-30)% increased Rarity" range; the line is
+    # identified by its text and reported, its value is not used.
+    assert worst.source_values_outside_pob_data == ["56% increased Rarity of Items found"]
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+    row = _row(result)
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL" and outcome["verdict"] in DIRECTIONAL
+    assert row["item_transform"]["candidate"]["ok"] is True
+    bounds = row["stonefist_roll_bounds"]
+    assert bounds["verified_configurations"] == 3 + bounds["single_roll_probes"] and bounds["single_roll_probes"] == 2
+    assert row["restore"]["pass"] is True
+    assert real_pob_engine.get_metrics()["fingerprint_hash"] == original_hash
+
+
+def test_a_unique_whose_pob_results_are_not_ordered_stays_unsupported(real_pob_engine) -> None:
+    """Candlemaker: PoB's DPS falls as "Enemies Ignited or Chilled by you have -#% to
+    Elemental Resistances" grows, so no verdict holds for every roll."""
+    raw = _unique_raw("Candlemaker", UNIQUE_EVIDENCE["Candlemaker"]["untransformed"])
+    result = evaluate_item(raw, real_pob_engine, build_path=str(BUILD))
+    row = _row(result)
+    assert row["evaluation_outcome"]["verdict"] == "UNSUPPORTED"
+    assert "not ordered across the roll range (CombinedDPS)" in row["evaluation_outcome"]["evaluation_quality_reasons"][0]["detail"]
+    assert row["restore"]["pass"] is True
+
+
+# --------------------------------------------------------------------------- data and roll probes
+
+
+def test_every_supported_transformed_modifier_has_its_same_named_source(real_pob_engine) -> None:
+    """E.g. HandWrapsEnergyShieldRechargeRate5 <- EnergyShieldRechargeRate5______ (the game
+    id's trailing underscores), same affix "of Ardour"."""
+    real_pob_engine.load_build(BUILD)
+    mods = real_pob_engine._call("get_item_transform_mods", {"prefix": "HandWraps"})["mods"]
+    ordinary = [m for m in mods if m["target_table"] == "Item"]
+    assert all(m.get("source_id") for m in ordinary)
+    assert all(m["affix"] == m["source_affix"] for m in ordinary if m.get("source_table") != "Exclusive")
+    recharge = next(m for m in mods if m["target_id"] == "HandWrapsEnergyShieldRechargeRate5")
+    assert recharge["source_id"] == "EnergyShieldRechargeRate5______" and recharge["affix"] == "of Ardour"
+    unique = [m for m in mods if m["target_table"] == "Exclusive" and m.get("source_id")]
+    assert len(unique) >= 170
+
+
+def test_each_ranged_line_is_probed_alone_for_a_real_glove(real_pob_engine, monkeypatch) -> None:
+    """Vaal Gloves with four ranged transformed lines: 3 roll configurations plus one
+    probe per line, all in one transaction, all ordered and agreeing."""
+    candidate = _equipped_item(CORPUS / "core04_minion_actor.xml", "Gloves")
+    calls: list[int] = []
+    variants = real_pob_engine.evaluate_item_variants
+    monkeypatch.setattr(real_pob_engine, "evaluate_item_variants",
+                        lambda slots, raws, **kw: calls.append(len(raws)) or variants(slots, raws, **kw))
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
+    bounds = _row(result)["stonefist_roll_bounds"]
+    assert calls == [7]
+    assert bounds["single_roll_probes"] == 4 and bounds["verified_configurations"] == 7
+    assert "each ranged modifier alone at its highest roll" in bounds["summary"]
+

@@ -188,14 +188,15 @@ detection tripwire test and must be re-validated before its behaviour is trusted
 
 ## 6. Remaining limitations and missing data
 
-- **Unique gloves.** The game has `HandWrapsUnique…` mods (observed:
-  `HandWrapsUniqueIncreasedSkillSpeed1`, `…IncreasedLife9`,
-  `…LocalIncreasedPhysicalDamageReductionRating3`, `…MaximumManaIncrease3`,
-  `…ShareChargesWithAllies1`), but PoB's data lacks them. Needed: those mod definitions in
-  PoB data, plus a unique → transformed mapping.
-- **`HandWrapsEnergyShieldRechargeRate5`** has no same-ID source in PoB's data.
+- **Unique gloves.** *(Superseded by §10. The earlier claim that PoB's data lacks the
+  `HandWrapsUnique…` modifiers was wrong: PoB 0.23.1 has 171 of them, in
+  `ModItemExclusive.lua`. The bridge only looked in `ModItem.lua`.)* Unique gloves are now
+  supported where real items evidence their modifiers; others stay refused (§10).
+- **`HandWrapsEnergyShieldRechargeRate5`** *(fixed, §11)*: its source is
+  `EnergyShieldRechargeRate5______`, with six trailing underscores in the game id.
 - **Unmatched lines.** Gloves whose displayed lines fit no legal modifier combination are
-  refused. That can include essence or other special modifiers without a mapped family.
+  refused. The game data has no missing ordinary families (§11). The Djinn gloves'
+  "+65% to Cold Resistance" is not reachable by any legal glove modifier.
 - **Hand-built baselines with ranged or ambiguous transformed gloves.** The baseline must
   be exact, so it is not overridden; the glove slot is then guarded and other slots use
   PoB's untransformed baseline. Importing from the game (transformed export) avoids this.
@@ -203,6 +204,7 @@ detection tripwire test and must be re-validated before its behaviour is trusted
   PoB's calculated statistics.
 - **Monotonicity is checked, not assumed:** the ordering check runs over the scored
   outputs, and a PoB interaction outside those fields would not be detected by it.
+  Single-roll probes (§12) add a per-roll check when affordable.
 - **Cost:** a roll-dependent candidate costs 3 PoB evaluations per alternative (at most 4
   alternatives, i.e. 12), on Stonefist builds only. More than 4 alternatives are refused.
 
@@ -346,4 +348,139 @@ roll-dependent hover. The PoB transactions were the cost, so they are what was b
     separate transaction.
   - A roll-dependent candidate uses exactly one transaction.
   - A corrupted batch restore raises `RestoreFailed` and forces a re-parse.
+
+## 10. Unique gloves
+
+**Evidence.** Real items from poe.ninja character data (Runes of Aldur, snapshot
+2026-09-27). Only item fields were kept; no account or character identifiers were
+stored. The set covers 32 unique gloves:
+
+- 87 transformed instances, worn by Way of the Stonefist characters.
+- 87 untransformed instances, worn by any character.
+
+Each item carries the game's modifier ids.
+
+**The rule, verified on all 231 untransformed/transformed pairs:**
+- A unique glove is transformed like any other glove: base Fists of Stone (Runeforged for
+  runic uniques, e.g. `RunicUnique` Dreadfist).
+- Each modifier `X` becomes `HandWrapsX` when the game has that modifier. Otherwise it
+  stays unchanged: e.g. `UnarmedStrikeRangeUnique1` and Atziri's `UniqueAtziriHeraldSkill1`.
+- Six `HandWraps…` targets have no displayed stat, so the source line disappears. Example:
+  Facebreaker loses "increased Stun Buildup".
+- Ranged transformed values re-roll, e.g. Facebreaker's "+4 to +5" becomes "+3 to +5".
+  They are bounded worst/middle/best exactly as for ordinary gloves.
+
+**What PoB's data answers, and what it cannot:**
+- PoB 0.23.1 has 199 of the game's 208 `HandWrapsUnique…` targets, with lines and ranges
+  (171 in `ModItemExclusive.lua`, 28 Vaal-mutation targets in `ModItem.lua`).
+  These were checked against the GGPK export: repoe-fork `mods.json`, 2026-09-11.
+- PoB cannot say which modifiers a unique carries. Its unique definitions are text, and 77
+  of the 217 glove lines are printed identically by several modifiers that transform
+  differently. For example, Lochtonial Caress's "+(40-60) to maximum Life" matches 13
+  modifiers.
+- PoB's own export source (`src/Export/Uniques/gloves.lua`) names a different modifier
+  than the game for 21 of the 32 uniques.
+- The game-data export has no unique → modifier table either.
+
+**Implementation:**
+- `items/stonefist_unique_evidence.py` records the modifiers observed on real items per
+  unique (32 uniques), plus the game-only targets:
+  - removed: 6 ids with no displayed stat;
+  - unavailable: 3 ids PoB lacks.
+
+  Every line and value still comes from PoB (`get_mod_lines`, `get_item_transform_mods`).
+- `items/stonefist_uniques.py` requires the candidate's own lines to match those modifiers
+  one to one: same text, and each value within PoB's range for that modifier.
+  - A value outside PoB's older range is accepted only when the line's text belongs to
+    exactly one of the unique's modifiers and one candidate line. It is reported in
+    `source_values_outside_pob_data`. Example: Facebreaker "per 4 Strength" on current
+    items, "per 5" in PoB 0.23.1. The value is never used: transformed rolls are
+    independent, and kept lines are copied.
+  - A Vaal-mutated line is accepted only when exactly one of PoB's mutated modifiers
+    prints it.
+  - Everything else refuses with the line or modifier named.
+- Rare gloves never decompose into unique or mutated modifiers. Only pairs whose source is
+  an ordinary, essence or desecrated modifier are used for rares.
+
+**Verified against the game** (`test_unique_gloves_transform_exactly_like_the_games_transformed_items`,
+real-PoB): for ten uniques (Facebreaker, Northpaw, Painter's Servant, Hand of Wisdom and
+Action, Deathblow, Maligaro's Virtuosity, Grip of Winter, Candlemaker, Horror's Flight,
+Doedre's Tenure), and for the corpus Aurseize:
+- the transformed modifiers equal the real transformed items';
+- every real transformed value lies within the measured worst..best lines.
+
+Fixture: `fixtures/items/stonefist_unique_gloves_poeninja.json`.
+
+**Results on the real Stonefist fixture:**
+- **Verified verdicts:** 9 of the 10 fixture uniques, plus the corpus Aurseize, get
+  verified FULL verdicts.
+- **Candlemaker is refused.** PoB's CombinedDPS falls, from 228,016 to 212,084, when
+  "Enemies Ignited or Chilled by you have -#% to Elemental Resistances" alone goes from
+  -15% to -25%. So no verdict holds for every roll. A single-roll probe identified the line.
+- **Roll orientation:** `stonefist_rolls._WORSE_WHEN_LARGER` now also treats the
+  character's own "reduced … Speed" and "increased … Duration on you" as worse when larger.
+  Doedre's Tenure was refused before this change. A wrong orientation can only cause a
+  refusal, never a verdict.
+
+**Not supported:** uniques without real-item evidence (Treefingers, Death Articulated,
+Killjoy, The Prisoner's Manacles, Blessed Bonds), and modifiers PoB lacks
+(`HandWrapsUniqueIntelligence51`, `…IncreasedLife62`,
+`…LocalIncreasedArmourAndEnergyShield30`). To extend support, add observed items to the
+evidence table; newer PoB data may add the missing targets.
+
+## 11. Missing transformation data (ordinary gloves)
+
+- **Only one gap.** The GGPK export has 598 `HandWraps…` modifiers. For ordinary gloves,
+  every target except `HandWrapsEnergyShieldRechargeRate5` already had its same-id source
+  in PoB's data.
+- **The one gap is an id quirk, not missing data.** The game and PoB both name the source
+  `EnergyShieldRechargeRate5______`. The bridge tried at most three trailing underscores;
+  it now takes the same id with any number of them, preferring the fewest.
+- **Affixes cross-check the mapping.** All ordinary pairs share their affix name, e.g.
+  "of Ardour".
+- **PoB's ranges match current game data.** PoB's source and target ranges equal the GGPK
+  export's for every mapped pair. The only differences are wording numbers such as
+  "3 metres".
+- **Djinn gloves** (`corpus02b_varashta_djinn.xml`), "+65% to Cold Resistance":
+  - The largest glove cold-resistance modifier is `ColdResist8`, (41-45)%.
+  - No glove hybrid, essence or desecrated modifier grants cold resistance.
+  - Corruption cold resistance spawns on boots and belts only.
+
+  No legal combination reaches 65%. The item has a jewel socket (Cadigan's Epiphany), and
+  the source of the extra resistance cannot be read from the export. It stays refused.
+
+## 12. Assumption (A): single-roll probes
+
+**What the old check could miss.** The worst ≤ middle ≤ best check only moves every roll
+together. A roll that lowers an output on its own, offset by another roll, would pass it.
+
+**The probe.** Each ranged transformed line is set alone to its best roll, with every
+other line at its worst. It is measured in the same batched PoB transaction; each probe is
+one more recalculation.
+
+**What must hold for every probe:**
+- each scored output lies between the worst and best configurations;
+- the verdict structure and the verdict are identical.
+
+The verdict policy and scoring are unchanged.
+
+**Budget.** Probes run for alternatives with 2–8 ranged lines (with one line, a probe is
+the best configuration). They run only while the candidate stays within 8 configurations,
+e.g. one alternative with up to 5 ranged lines. Otherwise the diagonal check stands alone,
+as before.
+
+**Measured cost** (median of 3; `corpus02c_stonefist_martial_artist.xml`; batching already
+in place):
+
+| Glove | Probes | Without | With |
+| --- | --- | --- | --- |
+| Vaal Gloves | 4 | 1.45 s | 2.88 s |
+| Sirenscale | 5 | 1.57 s | 3.26 s |
+| Giants mitts | 5 | 1.52 s | 3.52 s |
+| Plate gauntlets (6 lines, over budget) | 0 | 1.32 s | 1.49 s |
+| Runeforged mitts (2 alternatives) | 0 | 2.78 s | 2.95 s |
+
+- A probe costs about 0.35–0.4 s: one recalculation, per the bridge's perf payload.
+- All six gloves keep identical verdicts and ranges.
+- Candlemaker (§10) shows the kind of line a probe isolates.
 

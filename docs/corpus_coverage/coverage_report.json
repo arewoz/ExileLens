@@ -1178,6 +1178,18 @@
       "total_variants": 1
     },
     {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-SINGLE-ROLL-PROBES",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [
         "ascendancy"
       ],
@@ -1188,6 +1200,32 @@
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "STONEFIST-UNIQUE-GLOVES-VERIFIED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02c_stonefist.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "depth": "VERDICT",
+      "expected": "UNSUPPORTED",
+      "failure_messages": [],
+      "id": "STONEFIST-UNIQUE-UNORDERED-RESULTS-UNSUPPORTED",
+      "manifest_id": "CORPUS02C-STONEFIST",
+      "passed_variants": 1,
+      "result": "UNSUPPORTED",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -1438,11 +1476,11 @@
   ],
   "result_counts": {
     "EXPECTED_UNCERTAIN": 9,
-    "PASS": 90,
-    "UNSUPPORTED": 7
+    "PASS": 92,
+    "UNSUPPORTED": 8
   },
-  "supported_count": 106,
-  "total_count": 106,
+  "supported_count": 109,
+  "total_count": 109,
   "uncovered_archetypes": [
     "es_scaling",
     "proxy_totem",
