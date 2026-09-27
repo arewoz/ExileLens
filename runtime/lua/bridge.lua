@@ -4342,6 +4342,128 @@ function M.dispatch(req)
 		return collect_tree_snapshot()
 	end
 
+	-- PoB's own data for an item-base transform (Way of the Stonefist: the game's
+	-- `HandWraps<SourceModId>` mods). Read-only; the transformation itself happens
+	-- on the Python side and the transformed item is then calculated by PoB.
+	if method == "get_item_transform_mods" then
+		local prefix = tostring(params.prefix or "HandWraps")
+		local tables = { "Item", "Desecrated", "Exclusive" }
+		local function mod_lines(mod)
+			local lines = {}
+			for index, line in ipairs(mod) do
+				lines[index] = line
+			end
+			return lines
+		end
+		local out = {}
+		for target_id, target in pairs(data.itemMods.Item or {}) do
+			if target_id:sub(1, #prefix) == prefix then
+				local source_id = target_id:sub(#prefix + 1)
+				local found, found_table
+				for _, table_name in ipairs(tables) do
+					local mods = data.itemMods[table_name] or {}
+					found = mods[source_id]
+					if not found then
+						for underscores = 1, 3 do
+							found = mods[source_id .. string.rep("_", underscores)]
+							if found then break end
+						end
+					end
+					if found then found_table = table_name break end
+				end
+				out[#out + 1] = {
+					target_id = target_id,
+					target_lines = mod_lines(target),
+					target_type = target.type or "",
+					source_id = found and source_id or nil,
+					source_table = found_table,
+					source_lines = found and mod_lines(found) or nil,
+					source_type = found and (found.type or "") or nil,
+					source_group = found and found.group or nil,
+					source_level = found and found.level or nil,
+					target_group = target.group,
+					affix = target.affix or "",
+				}
+			end
+		end
+		table.sort(out, function(a, b) return a.target_id < b.target_id end)
+		return { prefix = prefix, mods = out }
+	end
+
+	if method == "get_base_implicits" then
+		local base = data.itemBases[tostring(params.base_name or "")]
+		if not base then
+			error({ code = "ITEM_UNSUPPORTED", message = "unknown base type", details = { base_name = params.base_name } })
+		end
+		local lines = {}
+		for line in ((base.implicit or "") .. "\n"):gmatch("(.-)\n") do
+			if line ~= "" then lines[#lines + 1] = line end
+		end
+		return { base_name = params.base_name, lines = lines }
+	end
+
+	-- PoB's own parse of an item, by modifier category, for the transform adapter.
+	if method == "describe_item" then
+		local item = parse_item_object(params.item_raw)
+		local function lines(list)
+			local rows = {}
+			for index, modLine in ipairs(list or {}) do
+				rows[index] = {
+					line = modLine.line,
+					fractured = modLine.fractured and true or false,
+					desecrated = modLine.desecrated and true or false,
+					crafted = modLine.crafted and true or false,
+					mutated = modLine.mutated and true or false,
+					custom = modLine.custom and true or false,
+				}
+			end
+			return rows
+		end
+		return {
+			base_name = item.baseName,
+			type = item.type,
+			rarity = item.rarity,
+			runic = item.runicItem and true or false,
+			corrupted = item.corrupted and true or false,
+			rune = lines(item.runeModLines),
+			enchant = lines(item.enchantModLines),
+			implicit = lines(item.implicitModLines),
+			explicit = lines(item.explicitModLines),
+		}
+	end
+
+	-- Re-emit an item in PoB's raw format with a replaced base type, implicit and
+	-- explicit lines (rune/enchant lines, name, quality, sockets, corruption kept).
+	-- The caller decides every line; PoB then parses and calculates the result.
+	if method == "rebuild_item" then
+		local item = parse_item_object(params.item_raw)
+		local base_name = tostring(params.base_name or "")
+		local base = data.itemBases[base_name]
+		if not base then
+			error({ code = "ITEM_UNSUPPORTED", message = "unknown base type", details = { base_name = base_name } })
+		end
+		local function lines(rows)
+			local out = {}
+			for index, row in ipairs(rows or {}) do
+				out[index] = {
+					line = tostring(row.line),
+					fractured = row.fractured or nil,
+					desecrated = row.desecrated or nil,
+					crafted = row.crafted or nil,
+				}
+			end
+			return out
+		end
+		item.baseName = base_name
+		item.base = base
+		item.armourData = nil
+		item.implicitModLines = lines(params.implicit)
+		item.explicitModLines = lines(params.explicit)
+		local raw = item:BuildRaw()
+		local check = parse_item_object(raw)
+		return { item_raw = raw, base_name = check.baseName, type = check.type }
+	end
+
 	if method == "evaluate_tree_path" then
 		return evaluate_tree_path(params)
 	end

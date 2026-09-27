@@ -491,8 +491,11 @@ def assess_quality(
     transform = comparison.get("unmodeled_item_transform")
     if isinstance(transform, dict) and transform:
         slot = str(transform.get("slot") or "item").lower()
+        unresolved = [str(r) for r in (transform.get("unresolved") or []) if r]
         pob_state = (
-            "Path of Building's modelling of this is not validated"
+            "this item's transformation could not be determined exactly (" + unresolved[0] + ")"
+            if unresolved
+            else "Path of Building's modelling of this is not validated"
             if transform.get("pob_modeled")
             else "Path of Building does not model this"
         )

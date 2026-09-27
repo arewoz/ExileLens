@@ -203,7 +203,9 @@ def unmodeled_item_transform(
     pob_slot: str,
     baseline_item: dict[str, Any],
     candidate_item: dict[str, Any],
-) -> dict[str, str] | None:
+    *,
+    unresolved: list[str] | None = None,
+) -> dict[str, Any] | None:
     """An allocated passive transforms items in this slot in game.
 
     Way of the Stonefist turns equipped gloves into Fists of Stone with transformed
@@ -234,5 +236,6 @@ def unmodeled_item_transform(
             "baseline_base": baseline_base,
             "candidate_base": candidate_base,
             "pob_modeled": bool(transform.get("modeled")),
+            "unresolved": list(unresolved or []),
         }
     return None
