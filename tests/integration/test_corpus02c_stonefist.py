@@ -253,7 +253,7 @@ def test_ranged_rolls_are_bounded_by_independent_reference_items(real_pob_engine
     assert outcome["evaluation_quality"] == "FULL" and outcome["verdict"] in DIRECTIONAL
     assert "STONEFIST_ROLL_DEPENDENT" in {r["code"] for r in outcome["unsupported_or_unmodeled"]}
     assert result["presentation"]["roll_dependent"] is True
-    assert "across the roll range" in result["presentation"]["verdict_explanation"]
+    assert "at each measured roll" in result["presentation"]["verdict_explanation"]
     assert row["restore"]["pass"] is True
 
 
@@ -419,8 +419,8 @@ def test_guaranteed_upgrade_across_every_roll_is_communicated(real_pob_engine, t
     assert math.isclose(offense["worst_pct"], worst_pct, rel_tol=1e-6) and math.isclose(offense["best_pct"], best_pct, rel_tol=1e-6)
     assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert row["evaluation_outcome"]["verdict"] in {"MINOR_UPGRADE", "MEANINGFUL_UPGRADE", "MAJOR_UPGRADE"}
-    assert bounds["guarantee"] == "an upgrade across the roll range"
-    assert "an upgrade across the roll range" in result["presentation"]["verdict_explanation"]
+    assert bounds["guarantee"] == "an upgrade at each measured roll"
+    assert "an upgrade at each measured roll" in result["presentation"]["verdict_explanation"]
     assert row["restore"]["pass"] is True
 
 
@@ -436,5 +436,7 @@ def test_inexact_equipped_gloves_are_disclosed_on_other_slots(real_pob_engine, t
     assert row["item_transform"] is None
     codes = {r["code"] for r in row["evaluation_outcome"]["unsupported_or_unmodeled"]}
     assert "STONEFIST_BASELINE_UNTRANSFORMED" in codes
-    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    # An item's effect can depend on the unknown gloves: never a confident recommendation.
+    assert row["evaluation_outcome"]["evaluation_quality"] == "PARTIAL"
+    assert row["evaluation_outcome"]["verdict"] == "UNCERTAIN"
     assert row["restore"]["pass"] is True

@@ -102,8 +102,8 @@ rolls independently.
   - the `[range x% to y%]` label on impact rows;
   - a `STONEFIST_ROLL_DEPENDENT` disclosure;
   - a summary such as "…Twister −9.9% to −6.0%; EHP −37.3% to −26.5%: a downgrade in every
-    across the roll range", or "an upgrade across the roll range". The summary says that
-    PoB measured the lowest, middle and highest possible rolls.
+    at each measured roll; rolls in between were not measured individually". The summary
+    states only what PoB measured.
 
   The detail rows show the lowest-damage configuration, labelled with the full range.
 - **Ordinary equipped gloves** (a hand-built PoB) are transformed exactly and passed as a
@@ -229,9 +229,10 @@ detection tripwire test and must be re-validated before its behaviour is trusted
    Result: 7.1 s becomes 0.011 s, with identical solutions for all nine corpus gloves.
 
 **Additional truthfulness fix:** on a hand-built PoB whose equipped ordinary gloves cannot
-be transformed exactly, comparisons in other slots now disclose
-`STONEFIST_BASELINE_UNTRANSFORMED` instead of silently using the untransformed gloves.
-This is a non-blocking note.
+be transformed exactly, comparisons in other slots are PARTIAL / UNCERTAIN
+(`STONEFIST_BASELINE_UNTRANSFORMED`) rather than confident. An item's effect can depend on
+the unknown transformed gloves, and that dependence need not be monotone. Imported builds
+(already transformed gloves) and exactly transformable gloves are unaffected.
 
 **What is established, sampled, or needs evidence:**
 
@@ -279,3 +280,12 @@ This is a non-blocking note.
 - **Residual risk:** roll-dependent gloves exceed the 4 s "still working" hint. It is
   feedback, not cancellation. Batching configurations into one PoB transaction would be
   the next optimisation.
+
+## 8. Final pre-integration checks
+
+- **UI wording:** summaries and labels state only what was measured: "[measured x% to y%]"
+  and "the verdict was … at each measured roll; rolls in between were not measured
+  individually". The range claim over unmeasured rolls rests on assumption (A) and is not
+  presented as a guarantee.
+- **Uncertain hand-built baseline:** non-glove recommendations against untransformed,
+  inexactly transformable gloves are UNCERTAIN, as described above.

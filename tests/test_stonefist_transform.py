@@ -252,11 +252,11 @@ def test_consistent_ordered_range_reports_a_guaranteed_verdict(monkeypatch: pyte
     })
     result = evaluation_module.evaluate_item("raw", object())
     bounds = result["slot_comparisons"][0]["stonefist_roll_bounds"]
-    assert bounds["guarantee"] == "an upgrade across the roll range"
+    assert bounds["guarantee"] == "an upgrade at each measured roll"
     assert bounds["ranges"]["primary_offense"]["worst_pct"] == 10 and bounds["ranges"]["primary_offense"]["best_pct"] == 20
     assert result["presentation"]["roll_dependent"] is True
     assert "+10.0% to +20.0%" in result["presentation"]["verdict_explanation"]
-    assert "[range +10.0% to +20.0%]" in result["slot_comparisons"][0]["evaluation_outcome"]["all_deltas"][0]["label"]
+    assert "[measured +10.0% to +20.0%]" in result["slot_comparisons"][0]["evaluation_outcome"]["all_deltas"][0]["label"]
 
 
 def test_exact_candidates_are_evaluated_once(monkeypatch: pytest.MonkeyPatch) -> None:

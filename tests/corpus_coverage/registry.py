@@ -1031,8 +1031,11 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         test_file="tests/integration/test_corpus02c_stonefist.py",
         node_name="test_inexact_equipped_gloves_are_disclosed_on_other_slots",
         depth=EvaluationDepth.VERDICT,
-        expected=ExpectedResult.CONFIDENT,
-        description="Hand-built PoB with ordinary ranged gloves: other slots are measured and disclose the untransformed baseline gloves.",
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Hand-built PoB with ordinary ranged gloves: other slots are measured but PARTIAL/UNCERTAIN "
+            "(STONEFIST_BASELINE_UNTRANSFORMED), never a confident recommendation on an untransformed baseline."
+        ),
         manifest_id="CORPUS02C-STONEFIST",
     ),
     CoverageCase(

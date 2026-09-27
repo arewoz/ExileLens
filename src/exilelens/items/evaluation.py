@@ -589,8 +589,8 @@ def _evaluate_item_impl(
             # in PoB's baseline; disclose it instead of silently comparing against it.
             comparison["stonefist_baseline_note"] = (
                 "The equipped gloves are ordinary gloves in this Path of Building build, but Way of the "
-                "Stonefist transforms them in game and their transformed rolls are unknown; this comparison "
-                "uses the untransformed gloves. Import the character from the game for exact gloves."
+                "Stonefist transforms them in game and their transformed rolls are unknown, so this comparison "
+                "cannot be trusted as measured; import the character from the game for exact gloves"
             )
         comparison["unmodeled_item_transform"] = unmodeled_item_transform(
             build_info.get("item_base_transforms"),
@@ -1014,7 +1014,7 @@ def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]]
                            "worst": low[1], "best": high[1]}
             if abs(high[0] - low[0]) > 1e-9:
                 delta["percent_delta_range"] = [low[0], high[0]]
-                delta["label"] = f"{delta.get('label') or key} [range {_pct_text(low[0])} to {_pct_text(high[0])}]"
+                delta["label"] = f"{delta.get('label') or key} [measured {_pct_text(low[0])} to {_pct_text(high[0])}]"
         offense = ranges.get("primary_offense") or {}
         ehp = ranges.get("ehp") or {}
         parts = []
@@ -1023,9 +1023,9 @@ def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]]
         if ehp:
             parts.append(f"EHP {_pct_text(ehp['worst_pct'])} to {_pct_text(ehp['best_pct'])}")
         guarantee = (
-            "an upgrade across the roll range" if verdict in _UPGRADE_VERDICTS
-            else "a downgrade across the roll range" if verdict in _DOWNGRADE_VERDICTS
-            else f"{verdict.replace('_', ' ').lower()} across the roll range"
+            "an upgrade at each measured roll" if verdict in _UPGRADE_VERDICTS
+            else "a downgrade at each measured roll" if verdict in _DOWNGRADE_VERDICTS
+            else f"{verdict.replace('_', ' ').lower()} at each measured roll"
         )
         cause = "rolls this glove's transformed modifiers when it is equipped"
         if alternatives > 1:
@@ -1033,7 +1033,7 @@ def _attach_stonefist_bounds(base: dict[str, Any], results: list[dict[str, Any]]
         summary = (
             f"Way of the Stonefist {cause}. Path of Building measured the lowest, middle and highest possible rolls"
             + (" of each" if alternatives > 1 else "") + ": " + ("; ".join(parts) or "the listed changes")
-            + f". Every transformed value only strengthens the item, so this is {guarantee}."
+            + f". The verdict was {guarantee}; rolls in between were not measured individually."
         )
         note = {"code": "STONEFIST_ROLL_DEPENDENT", "detail": summary}
         bounds = {

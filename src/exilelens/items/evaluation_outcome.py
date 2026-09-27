@@ -509,6 +509,10 @@ def assess_quality(
         ]
 
     partial: list[dict[str, str]] = []
+    if comparison.get("stonefist_baseline_note"):
+        # The baseline's equipped gloves differ from the game (untransformed, unknown
+        # transformed rolls), and an item's effect can depend on them: not confident.
+        partial.append(_reason("STONEFIST_BASELINE_UNTRANSFORMED", str(comparison["stonefist_baseline_note"])))
     offense = metric_profile.get("primary_offense") or {}
     claim = damage_claim or build_damage_claim(comparison, metric_profile)
     kind = str(offense.get("delta_kind") or "MEASURED")
@@ -650,9 +654,10 @@ def _unsupported_or_unmodeled(
     metric_profile: dict[str, Any],
     comparison: dict[str, Any],
 ) -> list[dict[str, str]]:
-    rows = [item for item in quality_reasons if item["code"].startswith(("OFFENSE_", "PRIMARY_", "ITEM_TRANSFORM_"))]
-    if comparison.get("stonefist_baseline_note"):
-        rows.append(_reason("STONEFIST_BASELINE_UNTRANSFORMED", str(comparison["stonefist_baseline_note"])))
+    rows = [
+        item for item in quality_reasons
+        if item["code"].startswith(("OFFENSE_", "PRIMARY_", "ITEM_TRANSFORM_", "STONEFIST_"))
+    ]
     seen_codes = {item["code"] for item in rows}
     offense = metric_profile.get("primary_offense") or {}
     kind = str(offense.get("delta_kind") or "MEASURED")
