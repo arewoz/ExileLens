@@ -170,6 +170,19 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.MELEE,),
         manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
     ),
+    CoverageCase(
+        id="CORPUS02B-VARASHTA-DJINN-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORPUS02B-VARASHTA-DJINN]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Sorceress/Disciple of Varashta, Navira, the Last Mirage (ascendancy-granted Water "
+            "Djinn), MINION actor. Public ladder build; not the community Djinn report's build."
+        ),
+        archetypes=(Archetype.MINION,),
+        manifest_id="CORPUS02B-VARASHTA-DJINN",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -775,6 +788,108 @@ CORPUS_02A_REAL_POB_CASES: tuple[CoverageCase, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# CORPUS-02B minion and Djinn verdicts (tests/integration/test_corpus02b_minion_djinn.py)
+# — minion-owned Item Check verdicts on the Infernal Hound and Varashta Djinn
+# fixtures, each numeric expectation checked against an independent cold PoB load.
+# The Varashta fixture is a public ladder build, not the community report's build.
+# See docs/CORPUS-02B.md.
+# ---------------------------------------------------------------------------
+CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="MINION-DAMAGE-RING-MEASURED",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_minion_damage_ring_is_measured_on_the_minion_actor",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A +30% minion damage ring is measured on the hound (Minion.CombinedDPS, MINION actor "
+            "SummonedHellhound; player CombinedDPS is 0): FULL, offense-only upgrade, matching PoB."
+        ),
+        archetypes=(Archetype.MINION,),
+        manifest_id="CORE04-MINION-ACTOR",
+    ),
+    CoverageCase(
+        id="MINION-SKILL-LEVEL-LOSS-MEASURED",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_losing_minion_skill_levels_is_a_measured_minion_downgrade",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Removing +4 to Level of all Minion Skills from the amulet: same minion actor and skill, "
+            "a PoB-verified >30% minion DPS loss, FULL / MEANINGFUL_DOWNGRADE."
+        ),
+        archetypes=(Archetype.MINION,),
+        manifest_id="CORE04-MINION-ACTOR",
+    ),
+    CoverageCase(
+        id="MINION-PLAYER-DEFENSE-RING-TRADEOFF",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_player_defense_ring_is_a_minion_offense_versus_defense_tradeoff",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A player-defense ring replacing a minion ring: minion offense down, player defense up, "
+            "FULL / SIDEGRADE in both ring slots."
+        ),
+        archetypes=(Archetype.MINION,),
+        manifest_id="CORE04-MINION-ACTOR",
+    ),
+    CoverageCase(
+        id="MINION-REPEATED-EVALUATION-NO-LEAK",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_minion_repeated_evaluation_is_deterministic_and_restores",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Interleaved minion candidates: the repeated check is identical and fingerprint/equipment "
+            "return to baseline."
+        ),
+        archetypes=(Archetype.MINION,),
+        manifest_id="CORE04-MINION-ACTOR",
+    ),
+    CoverageCase(
+        id="DJINN-MINION-LEVELS-AND-ALL-DJINN-COMPONENTS",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_djinn_minion_levels_are_measured_and_every_djinn_component_is_reported",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Ascendancy-granted Water Djinn primary: losing +5 minion levels is FULL / "
+            "MEANINGFUL_DOWNGRADE, and Ruzhan and Kelari (Fire/Sand Djinn) now appear as measured PoB "
+            "damage components matching cold PoB loads (previously omitted: empty PoB baseFlags)."
+        ),
+        archetypes=(Archetype.MINION, Archetype.ASCENDANCY),
+        manifest_id="CORPUS02B-VARASHTA-DJINN",
+    ),
+    CoverageCase(
+        id="DJINN-MINION-DAMAGE-RING-UPGRADE",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_djinn_minion_damage_ring_is_a_measured_upgrade_and_restores",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A +30% minion damage ring on the Djinn build: FULL directional upgrade on Navira's "
+            "Minion.CombinedDPS matching PoB, identical on repeat, fingerprint restored."
+        ),
+        archetypes=(Archetype.MINION, Archetype.ASCENDANCY),
+        manifest_id="CORPUS02B-VARASHTA-DJINN",
+    ),
+    CoverageCase(
+        id="DJINN-COMMAND-MAIN-SKILL-UNCERTAIN",
+        test_file="tests/integration/test_corpus02b_minion_djinn.py",
+        node_name="test_djinn_command_as_main_skill_is_truthfully_uncertain",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Configuration variant with the player-cast Djinn Command selected in PoB: PoB calculates "
+            "no offense, so Item Check is PARTIAL / UNCERTAIN (OFFENSE_MISSING), never directional."
+        ),
+        archetypes=(Archetype.MINION,),
+        manifest_id="CORPUS02B-VARASHTA-DJINN",
+    ),
+)
+
+# ---------------------------------------------------------------------------
 # CORE-04 adversarial policy suite (tests/test_core_04_adversarial_item_check.py)
 # — deterministic, worker-shaped unit tests of outcome policy. No real PoB, no
 # build fixture: these are the safety net around the verdict/quality contract
@@ -928,5 +1043,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + REAL_POB_VERDICT_CASES
     + SLICE_3_4D_REAL_POB_CASES
     + CORPUS_02A_REAL_POB_CASES
+    + CORPUS_02B_REAL_POB_CASES
     + POLICY_UNIT_CASES
 )

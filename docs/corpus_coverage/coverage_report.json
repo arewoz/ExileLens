@@ -199,6 +199,20 @@
     },
     {
       "archetypes": [
+        "minion"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "CORPUS02B-VARASHTA-DJINN-IDENTITY",
+      "manifest_id": "CORPUS02B-VARASHTA-DJINN",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "spell"
       ],
       "depth": "VERDICT",
@@ -249,6 +263,50 @@
       "passed_variants": 1,
       "result": "PASS",
       "test_file": "tests/integration/test_contextual_diagnostic_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "id": "DJINN-COMMAND-MAIN-SKILL-UNCERTAIN",
+      "manifest_id": "CORPUS02B-VARASHTA-DJINN",
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy",
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "DJINN-MINION-DAMAGE-RING-UPGRADE",
+      "manifest_id": "CORPUS02B-VARASHTA-DJINN",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ascendancy",
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "DJINN-MINION-LEVELS-AND-ALL-DJINN-COMPONENTS",
+      "manifest_id": "CORPUS02B-VARASHTA-DJINN",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
     {
@@ -465,6 +523,62 @@
       "passed_variants": 1,
       "result": "PASS",
       "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MINION-DAMAGE-RING-MEASURED",
+      "manifest_id": "CORE04-MINION-ACTOR",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MINION-PLAYER-DEFENSE-RING-TRADEOFF",
+      "manifest_id": "CORE04-MINION-ACTOR",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MINION-REPEATED-EVALUATION-NO-LEAK",
+      "manifest_id": "CORE04-MINION-ACTOR",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "minion"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "id": "MINION-SKILL-LEVEL-LOSS-MEASURED",
+      "manifest_id": "CORE04-MINION-ACTOR",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
     {
@@ -1007,13 +1121,12 @@
     }
   ],
   "result_counts": {
-    "EXPECTED_UNCERTAIN": 7,
-    "PASS": 66
+    "EXPECTED_UNCERTAIN": 8,
+    "PASS": 73
   },
-  "supported_count": 73,
-  "total_count": 73,
+  "supported_count": 81,
+  "total_count": 81,
   "uncovered_archetypes": [
-    "ascendancy",
     "es_scaling",
     "proxy_totem",
     "stat_stacker"

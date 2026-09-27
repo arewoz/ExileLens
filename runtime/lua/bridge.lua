@@ -1309,7 +1309,10 @@ local function group_identity(index, group, override_env, override_skill, overri
 		show_average = (flags and flags.showAverage) and true or false,
 		-- PoB flags are only a cheap discovery hint; a displayed component
 		-- still requires a directly calculated output from skill_report.
-		native_damage_candidate = (flags and (flags.hit or flags.dot or flags.minion)) and true or false,
+		-- A selected minion actor is also a hint: PoB's Fire/Sand Djinn summon
+		-- stat sets carry empty baseFlags although PoB calculates their minion.
+		native_damage_candidate = ((flags and (flags.hit or flags.dot or flags.minion))
+			or (src and (src.skillMinionCalcs or src.skillMinion))) and true or false,
 		label = group.label or "",
 		display_label = group.displayLabel or "",
 		source = group.source or "",

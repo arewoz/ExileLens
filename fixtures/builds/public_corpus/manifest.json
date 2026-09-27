@@ -90,6 +90,15 @@
       "primary_skill": "Supercharged Slam",
       "actor": "PLAYER",
       "purpose": "Giant's Blood two-hand mace plus shield layout, unique shield block-to-fire interaction, and non-ASCII passive-tree snapshot transport"
+    },
+    {
+      "id": "CORPUS02B-VARASHTA-DJINN",
+      "file": "fixtures/builds/public_corpus/corpus02b_varashta_djinn.xml",
+      "class": "Sorceress",
+      "ascendancy": "Disciple of Varashta",
+      "primary_skill": "Navira, the Last Mirage",
+      "actor": "MINION",
+      "purpose": "ascendancy-granted Djinn minions (three Djinns plus other minions): minion-owned verdicts and complete Djinn damage components"
     }
   ]
 }

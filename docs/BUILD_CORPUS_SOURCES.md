@@ -28,10 +28,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/core04_weapon_swap.xml` | Huntress/Ritualist Poisonburst Arrow with an active `useSecondWeaponSet="true"` item set; active-second-weapon-set identity, baseline, and candidate-substitution correctness (M1.1, weapon half) and (M1.2) offhand-half candidate substitution: a Quiver candidate against the ACTIVE `Weapon 2 Swap` item, proving the same `active_weapon_slot` bridge translation covers the offhand case with no separate mapper. Originally surfaced a confirmed Item Check candidate-substitution defect for this configuration, since fixed — see `docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md` risk register. |
 | `fixtures/builds/public_corpus/core04_skill_native_dot.xml` | Monk/Acolyte of Chayula "Profane Ritual" (triggered by Cast on Minion Death); zero hit DPS, zero named-ailment DPS — skill-native-DoT (`DamageQuantity.SKILL_DOT`, PoB's own `TotalDot`) primary offense selection. |
 | `fixtures/builds/public_corpus/corpus02_giants_blood_shield.xml` | Mercenary/Gemling Legionnaire Supercharged Slam wielding a two-hand mace *and* a tower shield (Giant's Blood keystone); the shield is Chernobog's Pillar (fire damage per block chance, which also makes the build ignite). CORPUS-02A: regression for the community `get_tree_snapshot` worker failure (its tree contains the non-ASCII passive "The Mórrigan's Guidance"), two-hand candidates PoB keeps beside the shield, a two-hander PoB does not (shield cleared and disclosed), and a unique-shield replacement whose damage semantics change (truthfully UNCERTAIN). See `docs/CORPUS-02A.md`. |
+| `fixtures/builds/public_corpus/corpus02b_varashta_djinn.xml` | Sorceress/Disciple of Varashta, level 100, with all three ascendancy-granted Djinns (Navira, the Last Mirage as main skill; Ruzhan and Kelari as additional socket groups) plus skeletal minions, a spectre and wolves. CORPUS-02B: minion-owned verdicts on an ascendancy-granted actor, complete Djinn damage components in the advanced view, and the Command-as-main-skill UNCERTAIN variant. A public ladder build, **not** the community Djinn report's build. See `docs/CORPUS-02B.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(10 scenarios: 9 from M1.1 plus the CORPUS-02A Giant's Blood build). It contains repository-relative paths and expected semantic
+(11 scenarios: 9 from M1.1, the CORPUS-02A Giant's Blood build, and the CORPUS-02B Varashta Djinn build). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -96,6 +97,16 @@ standard passive-tree `<URL>` every corpus fixture keeps), and it passes the pub
 character's live online state may have changed since the export and is intentionally not used; every figure
 in its tests is recomputed by a local PoB2 engine from this file. The account/character identifiers from the
 original report are not recorded in the repository.
+
+`corpus02b_varashta_djinn.xml` (CORPUS-02B) comes from the predecessor development repository's Build Corpus V1
+(case C08, acquired 2026-09-12). It is a representative, mature public character from the poe.ninja Runes of Aldur
+ladder (PoE2 0.5.5 Forbidden Rites, level 100, not rank 1), captured through poe.ninja's browser-visible "Copy PoB code"
+surface; that repository deliberately did not retain the character permalink. Before commit it was re-sanitized with this
+corpus's rules. 19 `Unique ID:` lines and poe.ninja's 100-line `<PlayerStat>` cache were removed; they had survived the
+earlier acquisition despite its documentation. Nothing else changed, and the build definition is untouched. It passes
+the public safety regression and contains no account/character name, notes, or links other than the standard
+passive-tree `<URL>`. It is **not** the build from the community report of Djinn builds being UNCERTAIN (that export
+was never obtained). It is used only as real evidence of how Item Check handles the same mechanic.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 
