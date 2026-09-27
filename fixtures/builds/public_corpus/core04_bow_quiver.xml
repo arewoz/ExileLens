@@ -228,7 +228,6 @@
 			Rarity: RARE
 Viper Heart
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000001
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -247,7 +246,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Heart of the Well
 Diamond
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000002
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -265,7 +263,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Megalomaniac
 Diamond
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000003
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -280,7 +277,6 @@ Corrupted
 			Rarity: RARE
 Hypnotic Desire
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000004
 Item Level: 82
 LevelReq: 0
 Implicits: 0
@@ -299,7 +295,6 @@ Implicits: 0
 			Rarity: RARE
 Sol Bliss
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000005
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -316,7 +311,6 @@ Implicits: 0
 			Rarity: RARE
 Vivid Heart
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000006
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -335,7 +329,6 @@ Implicits: 0
 			Rarity: RARE
 Gale Scar
 Time-Lost Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000007
 Item Level: 80
 LevelReq: 0
 Radius: Very Large
@@ -355,7 +348,6 @@ Small Passive Skills in Radius also grant 3% increased Damage with Bows
 			Rarity: RARE
 Blight Bloom
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000008
 Item Level: 78
 LevelReq: 0
 Implicits: 0
@@ -374,7 +366,6 @@ Implicits: 0
 			Rarity: RARE
 Blight Curio
 Emerald
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000009
 Item Level: 66
 LevelReq: 0
 Implicits: 0
@@ -395,7 +386,6 @@ Rift Grip
 Secured Wraps
 Evasion: 113
 Energy Shield: 35
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000a
 Item Level: 80
 Quality: 20
 Sockets: S S S
@@ -428,7 +418,6 @@ Corrupted
 			Rarity: UNIQUE
 Hysseg&apos;s Claw
 Runemastered Familial Talisman
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000b
 Item Level: 70
 Quality: 20
 Sockets: S S
@@ -458,7 +447,6 @@ Corrupted
 			Rarity: UNIQUE
 Lavianga&apos;s Spirits
 Gargantuan Mana Flask
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000c
 Item Level: 82
 Quality: 23
 LevelReq: 49
@@ -471,7 +459,6 @@ Corrupted
 		<Item id="13">
 			Rarity: MAGIC
 Bubbling Ultimate Life Flask of the Mixologist
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000d
 Item Level: 67
 Quality: 20
 LevelReq: 60
@@ -485,7 +472,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Nascent Hope
 Thawing Charm
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000e
 Item Level: 78
 Quality: 0
 LevelReq: 12
@@ -498,7 +484,6 @@ Energy Shield Recharge starts on use
 			Rarity: RARE
 Behemoth Grip
 Prismatic Ring
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000f
 Item Level: 79
 LevelReq: 60
 Implicits: 1
@@ -522,7 +507,6 @@ Adds 17 to 30 Physical Damage to Attacks
 Woe Salvation
 Slipstrike Vest
 Evasion: 3076
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000010
 Item Level: 82
 Quality: 30
 Sockets: S S S
@@ -554,7 +538,6 @@ Corrupted
 			Rarity: UNIQUE
 Rite of Passage
 Golden Charm
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000011
 Item Level: 75
 Quality: 0
 LevelReq: 50
@@ -566,7 +549,6 @@ Possessed by Spirit Of The Cat for 20 seconds on use
 			Rarity: UNIQUE
 The Fall of the Axe
 Silver Charm
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000012
 Item Level: 80
 Quality: 0
 LevelReq: 10
@@ -578,7 +560,6 @@ Grants Onslaught during effect
 			Rarity: RARE
 Pandemonium Breeze
 Warmonger Bow
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000013
 Item Level: 82
 Quality: 30
 Sockets: S S S
@@ -610,7 +591,6 @@ Implicits: 4
 			Rarity: RARE
 Dire Knot
 Gold Ring
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000014
 Item Level: 82
 LevelReq: 65
 Implicits: 1
@@ -634,7 +614,6 @@ Adds 13 to 26 Physical Damage to Attacks
 Morbid Halo
 Kamasan Tiara
 Energy Shield: 508
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000015
 Item Level: 82
 Quality: 20
 Sockets: S S
@@ -664,7 +643,6 @@ Implicits: 4
 			Rarity: RARE
 Corpse Collar
 Gold Amulet
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000016
 Item Level: 82
 LevelReq: 64
 Implicits: 2
@@ -690,7 +668,6 @@ Implicits: 2
 Headhunter
 Heavy Belt
 Charm Slots: 3
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000017
 Item Level: 67
 LevelReq: 50
 Implicits: 2
@@ -712,7 +689,6 @@ Mind Slippers
 Quickslip Shoes
 Evasion: 319
 Energy Shield: 98
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000018
 Item Level: 82
 Quality: 22
 Sockets: S S S
@@ -743,7 +719,6 @@ Corrupted
 			Rarity: UNIQUE
 Cadiro&apos;s Gambit
 Primed Quiver
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000019
 Item Level: 74
 LevelReq: 66
 Implicits: 2

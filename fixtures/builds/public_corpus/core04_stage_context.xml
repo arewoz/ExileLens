@@ -229,7 +229,6 @@
 			Rarity: UNIQUE
 Megalomaniac
 Diamond
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000001
 Item Level: 79
 LevelReq: 0
 Limited to: 1
@@ -244,7 +243,6 @@ Corrupted
 			Rarity: RARE
 Armageddon Glisten
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000002
 Item Level: 22
 LevelReq: 0
 Implicits: 0
@@ -266,7 +264,6 @@ Corrupted
 			Rarity: RARE
 Damnation Vessel
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000003
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -287,7 +284,6 @@ Gain additional Stun Threshold equal to 15% of maximum Energy Shield
 			Rarity: RARE
 Cataclysm Heart
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000004
 Item Level: 76
 LevelReq: 0
 Implicits: 0
@@ -309,7 +305,6 @@ Corrupted
 			Rarity: RARE
 Pandemonium Desire
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000005
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -333,7 +328,6 @@ Corrupted
 			Rarity: RARE
 Glyph Sliver
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000006
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -355,7 +349,6 @@ Corrupted
 			Rarity: RARE
 Spirit Eye
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000007
 Item Level: 80
 LevelReq: 0
 Implicits: 1
@@ -377,7 +370,6 @@ Corrupted
 			Rarity: UNIQUE
 Split Personality
 Ruby
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000008
 Item Level: 84
 LevelReq: 0
 Limited to: 1
@@ -390,7 +382,6 @@ Corrupted
 			Rarity: RARE
 Entropy Shard
 Sapphire
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000009
 Item Level: 80
 LevelReq: 0
 Implicits: 1
@@ -412,7 +403,6 @@ Corrupted
 			Rarity: UNIQUE
 Voices
 Sapphire
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000a
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -425,7 +415,6 @@ Corrupted
 			Rarity: RARE
 Dusk Drop
 Sapphire
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000b
 Item Level: 79
 LevelReq: 0
 Implicits: 0
@@ -447,7 +436,6 @@ Corrupted
 			Rarity: RARE
 Spirit Knot
 Gold Ring
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000c
 Item Level: 80
 LevelReq: 60
 Implicits: 2
@@ -474,7 +462,6 @@ Corrupted
 Mageblood
 Utility Belt
 Charm Slots: 3
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000d
 Item Level: 80
 LevelReq: 55
 Implicits: 2
@@ -499,7 +486,6 @@ Corrupted
 Onslaught Crown
 Kamasan Tiara
 Energy Shield: 512
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000e
 Item Level: 81
 Quality: 23
 Sockets: S S
@@ -532,7 +518,6 @@ Corrupted
 			Rarity: RARE
 Tempest Core
 Trarthan Cannon
-Unique ID: 000000000000000000000000000000000000000000000000000000000000000f
 Item Level: 81
 Quality: 22
 Sockets: S S
@@ -570,7 +555,6 @@ Blood Sanctuary
 Sleek Jacket
 Evasion: 1500
 Energy Shield: 459
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000010
 Item Level: 80
 Quality: 24
 Sockets: S S S
@@ -610,7 +594,6 @@ Corrupted
 			Rarity: RARE
 Havoc Beads
 Gold Amulet
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000011
 Item Level: 82
 LevelReq: 64
 Implicits: 2
@@ -637,7 +620,6 @@ Sanctified
 Bramble Call
 Cultist Focus
 Energy Shield: 233
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000012
 Item Level: 82
 Quality: 20
 Sockets: S
@@ -666,7 +648,6 @@ Corrupted
 			Rarity: RARE
 Victory Whorl
 Gold Ring
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000013
 Item Level: 80
 LevelReq: 60
 Implicits: 2
@@ -694,7 +675,6 @@ Blight Clutches
 Secured Wraps
 Evasion: 163
 Energy Shield: 50
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000014
 Item Level: 80
 Quality: 22
 Sockets: S S
@@ -726,7 +706,6 @@ Corrupted
 			Rarity: UNIQUE
 Arakaali&apos;s Gift
 Antidote Charm
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000015
 Item Level: 79
 Quality: 0
 LevelReq: 24
@@ -739,7 +718,6 @@ Recover Mana equal to 19% of Life Flask&apos;s Recovery Amount when used
 			Rarity: UNIQUE
 Runeseeker&apos;s Call
 Runemastered Runic Fork
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000016
 Item Level: 86
 Quality: 20
 Sockets: S S S S S S
@@ -774,7 +752,6 @@ Decree of Flight
 Ancient Leggings
 Armour: 516
 Energy Shield: 143
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000017
 Item Level: 84
 Quality: 20
 Sockets: S
@@ -798,7 +775,6 @@ Corrupted
 			Rarity: UNIQUE
 Lavianga&apos;s Spirits
 Gargantuan Mana Flask
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000018
 Item Level: 83
 Quality: 20
 LevelReq: 49
@@ -811,7 +787,6 @@ This Flask cannot be Used but applies its Effect constantly
 			Rarity: UNIQUE
 Sanguis Heroum
 Staunching Charm
-Unique ID: 0000000000000000000000000000000000000000000000000000000000000019
 Item Level: 83
 Quality: 3
 LevelReq: 18
@@ -827,7 +802,6 @@ Corrupted
 			Rarity: UNIQUE
 Rite of Passage
 Golden Charm
-Unique ID: 000000000000000000000000000000000000000000000000000000000000001a
 Item Level: 82
 Quality: 0
 LevelReq: 50
@@ -839,7 +813,6 @@ Possessed by Spirit Of The Ox for 20 seconds on use
 			Rarity: UNIQUE
 Olroth&apos;s Resolve
 Ultimate Life Flask
-Unique ID: 000000000000000000000000000000000000000000000000000000000000001b
 Item Level: 82
 Quality: 20
 LevelReq: 60

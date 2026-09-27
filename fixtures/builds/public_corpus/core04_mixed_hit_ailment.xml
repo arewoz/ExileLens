@@ -119,7 +119,6 @@
 			Rarity: UNIQUE
 Megalomaniac
 Diamond
-Unique ID: 6ee2c9d335989f877ce92369983c982617f42d8e9df458a208987e81f675bb9a
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -134,7 +133,6 @@ Corrupted
 			Rarity: RARE
 Hypnotic Shard
 Sapphire
-Unique ID: f41942ed102c96573c91b04f047d75ad77fab79a1f4003901241243c1d9b8207
 Item Level: 78
 LevelReq: 0
 Implicits: 0
@@ -153,7 +151,6 @@ Implicits: 0
 			Rarity: RARE
 Oblivion Splinter
 Sapphire
-Unique ID: 4cdbf91766aaad1af5a2ab4998216aca79a6cc3f730732405d44377446ebacd5
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -175,7 +172,6 @@ Corrupted
 			Rarity: UNIQUE
 Voices
 Sapphire
-Unique ID: 08987e54dffd8c9caeb2bebe8df674c9d88137d19fca935ad919b5869a0ad78f
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -188,7 +184,6 @@ Corrupted
 			Rarity: RARE
 Damnation Wisdom
 Sapphire
-Unique ID: 672543990a03b1da7c74fdc658ce830c5e4135a4e7745153701ad3164f47d244
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -207,7 +202,6 @@ Implicits: 0
 			Rarity: RARE
 Phoenix Drop
 Sapphire
-Unique ID: 786512a9a58f5a11d3644b9b150fd2a7a0abc66ddac01dd5a1eaf0eff9083e4c
 Item Level: 74
 LevelReq: 0
 Implicits: 0
@@ -226,7 +220,6 @@ Implicits: 0
 			Rarity: RARE
 Spirit Lens
 Sapphire
-Unique ID: ef12f140f9037cf3e9228ec64cc4530f146efa9c909caf7773cd3d312d4b92a3
 Item Level: 80
 LevelReq: 0
 Implicits: 1
@@ -248,7 +241,6 @@ Corrupted
 			Rarity: RARE
 Glyph Heart
 Sapphire
-Unique ID: 8732d1be9f49951436a89ca701bfad1d8039db67f18c1acddf91e9091243f831
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -267,7 +259,6 @@ Implicits: 0
 			Rarity: RARE
 Oblivion Sliver
 Time-Lost Sapphire
-Unique ID: 9606f051fa98deba594ac26424a5bb10d4660db4339654b31333071bd6f9427e
 Item Level: 62
 LevelReq: 0
 Radius: Very Large
@@ -288,7 +279,6 @@ Corrupted
 			Rarity: UNIQUE
 Heart of the Well
 Diamond
-Unique ID: 13b4d172b9447e7c5c5821241c6dd9c2027a4fc2c3d8ce135f0355a8035446bd
 Item Level: 82
 LevelReq: 0
 Limited to: 1
@@ -309,7 +299,6 @@ Corrupted
 			Rarity: UNIQUE
 From Nothing
 Diamond
-Unique ID: 7df3b3d49ff91f9b1718c5eca836010ae05c6be52245cadcaea86f79858d95b7
 Item Level: 82
 LevelReq: 0
 Radius: Small
@@ -324,7 +313,6 @@ Corrupted
 			Rarity: RARE
 Maelstrom Curio
 Sapphire
-Unique ID: ca3d942bc6a29d4d0129f7968970696514da9dad5f006e0ec9484f95a7f42138
 Item Level: 81
 LevelReq: 0
 Implicits: 0
@@ -343,7 +331,6 @@ Implicits: 0
 			Rarity: RARE
 Empyrean Glimmer
 Sapphire
-Unique ID: c9b2efbc240baa68cf7d7c657ce49af30f6bfa1d9b1d5fe2bd85f4484a6b13d1
 Item Level: 67
 LevelReq: 0
 Implicits: 0
@@ -362,7 +349,6 @@ Corrupted
 		<Item id="14">
 			Rarity: NORMAL
 Caster Arm
-Unique ID: 1f8303ab9f8634116c29dc5b0cca42f2981507e5d4c3db53df36e5fdf817f522
 Item Level: 99
 LevelReq: 0
 Implicits: 1
@@ -373,7 +359,6 @@ Implicits: 1
 			Rarity: RARE
 Dire Hold
 Breach Ring
-Unique ID: 42f437aa16364bdf95f2e0ab047d5b0b0f19eca2f7a43195faf5203e00e36cd8
 Item Level: 82
 LevelReq: 65
 Implicits: 1
@@ -398,7 +383,6 @@ Viper Weaver
 Runeforged Tasalian Focus
 Energy Shield: 43
 Ward: 217
-Unique ID: d2518aca756cea9dbb6880bf4beffd734baf4aceeac5adc279844f0517e08b61
 Item Level: 82
 Quality: 20
 Sockets: S S
@@ -428,7 +412,6 @@ Gain 9% of Elemental Damage as Extra Cold Damage
 			Rarity: UNIQUE
 Runeseeker&apos;s Call
 Runemastered Runic Fork
-Unique ID: 4a43a23d9e391fd756d92828a8da7e2d0297e6898663108d742ad53728fa452a
 Item Level: 86
 Quality: 20
 Sockets: S S S S S S
@@ -467,7 +450,6 @@ Corrupted
 			Rarity: RARE
 Grim Clasp
 Absent Amulet
-Unique ID: 0fde75713f0b1a6632ac189d71ef57c29183b93cc6ad2e9893ab2aa039370877
 Item Level: 81
 LevelReq: 50
 Implicits: 4
@@ -492,7 +474,6 @@ Sanctified
 		<Item id="19">
 			Rarity: MAGIC
 Experimenter&apos;s Thawing Charm of the Ample
-Unique ID: cd785683b66e2499c547197e5d9408086965bdeb68803c22e31aedf873d81c89
 Item Level: 81
 Quality: 8
 LevelReq: 64
@@ -508,7 +489,6 @@ Corrupted
 			Rarity: RARE
 Sorrow Coil
 Prismatic Ring
-Unique ID: cff17952631e3127cefd45ac87f870a128ad928c7e9f52c77c396aeaa4cf4720
 Item Level: 82
 LevelReq: 64
 Implicits: 1
@@ -533,7 +513,6 @@ Rapture Dash
 Runeforged Tasalian Greaves
 Armour: 304
 Ward: 218
-Unique ID: c5e06a63ae6b03126d2c7b5d246774c2b5d4a53f7f2e35a267dcdf5ede83d593
 Item Level: 82
 Quality: 21
 Sockets: S S
@@ -566,7 +545,6 @@ Debuffs on you expire 63% faster
 Headhunter
 Heavy Belt
 Charm Slots: 2
-Unique ID: 979e58d2bfc55c9ee3872f451478f0bab043aa3cd11491326a941cdbc6f18ae4
 Item Level: 80
 LevelReq: 50
 Implicits: 2
@@ -586,7 +564,6 @@ When you kill a Rare monster, you gain its Modifiers for 60 seconds
 			Rarity: UNIQUE
 Rite of Passage
 Golden Charm
-Unique ID: 284bff112b353580fcfb44688c2a532567737e811751ad43f6a15ec8bba21dad
 Item Level: 80
 Quality: 8
 LevelReq: 50
@@ -599,7 +576,6 @@ Corrupted
 			Rarity: UNIQUE
 Olroth&apos;s Resolve
 Ultimate Life Flask
-Unique ID: 291c2457e48d4f882f4a735d070b1e517fd63e4c1145c9cd90abda18c9e364ae
 Item Level: 82
 Quality: 20
 LevelReq: 60
@@ -615,7 +591,6 @@ Gain Guard equal to Current Runic Ward for 10 seconds when Effect ends
 Alpha&apos;s Howl
 Armoured Cap
 Evasion: 707
-Unique ID: a14d5b45819e85b2393275d794bf6aef7b52877b99ebb2fc98678f51e0519262
 Item Level: 83
 Quality: 20
 Sockets: S
@@ -639,7 +614,6 @@ Corrupted
 			Rarity: UNIQUE
 For Utopia
 Stone Charm
-Unique ID: 7e130b7fd0a949789869a2060512407d4e275c909eab39381350b556973a35f2
 Item Level: 80
 Quality: 2
 LevelReq: 8
@@ -654,7 +628,6 @@ Corrupted
 Skull Talons
 Massive Mitts
 Armour: 803
-Unique ID: fb5e07834e5c5667e97a76de05c7f91db04086a4257033effbc898bc45a64c8a
 Item Level: 82
 Quality: 24
 Sockets: S S
@@ -684,7 +657,6 @@ Temporalis
 Runemastered Silk Robe
 Energy Shield: 169
 Ward: 132
-Unique ID: 3f5fb2f0e7a8299266e20fdc4cf880433f5a23a1ae57bd9bf93720587ffe9b13
 Item Level: 82
 Quality: 20
 Sockets: S S S

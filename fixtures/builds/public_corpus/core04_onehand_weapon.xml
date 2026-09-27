@@ -121,7 +121,6 @@
 			Rarity: RARE
 Apocalypse Essence
 Emerald
-Unique ID: b0370535b5f7573623bd3b1f6d77ebb66568aedecfb946e6fcf60414874ef97b
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -140,7 +139,6 @@ Implicits: 0
 			Rarity: RARE
 Spirit Splinter
 Time-Lost Emerald
-Unique ID: 2502b1ed65294577349317004cb464b4667ea44ea7cfc21b8399903822b9f6ac
 Item Level: 80
 LevelReq: 0
 Radius: Very Large
@@ -160,7 +158,6 @@ Notable Passive Skills in Radius also grant 1% increased maximum Life
 			Rarity: RARE
 Behemoth Bloom
 Emerald
-Unique ID: 4b1ab28a9a932d1385d76a4f9532fdfac66814f50a447529363f3969d177b411
 Item Level: 79
 LevelReq: 0
 Implicits: 0
@@ -179,7 +176,6 @@ Implicits: 0
 			Rarity: RARE
 Oblivion Pause
 Emerald
-Unique ID: 8bb3f32c6b6aa385c062d1c49f073aa7c8276edb1c9b55eab445561a0efaa9f1
 Item Level: 79
 LevelReq: 0
 Implicits: 0
@@ -198,7 +194,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Prism of Belief
 Diamond
-Unique ID: 861633420b479e2b3bc0d81e4f184337758d361c2c76daae4205cd0657a4de3b
 Item Level: 84
 LevelReq: 0
 Limited to: 1
@@ -211,7 +206,6 @@ Corrupted
 			Rarity: UNIQUE
 Heart of the Well
 Diamond
-Unique ID: f7610f848d87c322f654ba3cc3bbdb2755066f4712b7644a7533064357424f36
 Item Level: 82
 LevelReq: 0
 Limited to: 1
@@ -231,7 +225,6 @@ Recover 1% of maximum Life on Kill
 			Rarity: UNIQUE
 Megalomaniac
 Diamond
-Unique ID: a7a65aef306940c88afd2a081a47f005fcc964b8bfa4086072fc4c782d49b627
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -248,7 +241,6 @@ Corrupted
 			Rarity: UNIQUE
 Voices
 Sapphire
-Unique ID: d72e7134b55824bdefede963d74c4eefc21eb8d0593d4cf1b0a6b98323af6eb2
 Item Level: 80
 LevelReq: 0
 Limited to: 1
@@ -263,7 +255,6 @@ Corruption Visage
 Runeforged Imperial Greathelm
 Armour: 211
 Ward: 300
-Unique ID: c60b8ec12c7a5ee6a309ee34ddfb00e3a2cd4872a5cd8a46a04a563959f8060d
 Item Level: 82
 Quality: 25
 Sockets: S S S
@@ -296,7 +287,6 @@ Corrupted
 			Rarity: UNIQUE
 Rite of Passage
 Golden Charm
-Unique ID: 4d4aff9a49741afa39d2b92492c6ffc8ff3a0a667d14df0e4220cbc0fdf32ef3
 Item Level: 80
 Quality: 0
 LevelReq: 50
@@ -309,7 +299,6 @@ Possessed by Spirit Of The Bear for 20 seconds on use
 Gloom Ward
 Tawhoan Tower Shield
 Armour: 2340
-Unique ID: d012b9f7b1ff10e626a9dc636fd222eb75c9e00b8de802cabf2104db2e263a00
 Item Level: 80
 Quality: 30
 Sockets: S S
@@ -339,7 +328,6 @@ Sanctified
 			Rarity: UNIQUE
 Nebuloch
 Execratus Hammer
-Unique ID: 7cedec24b743fc1f31d2a1dd5ebbbab26593a3768e5cb60c0eae2f6edf10846a
 Item Level: 82
 Quality: 0
 Sockets: S S
@@ -367,7 +355,6 @@ Twice Corrupted
 			Rarity: UNIQUE
 Uhtred&apos;s Chalice
 Transcendent Mana Flask
-Unique ID: 075f7ddc620b13f5dab6d2d036b7806f27b5b32f8325d4d2e706fea977d38ec3
 Item Level: 82
 Quality: 20
 LevelReq: 50
@@ -387,7 +374,6 @@ Mana Recovery from Flasks can Overflow maximum Mana during Effect
 Dragon Pelt
 Warlord Cuirass
 Armour: 620
-Unique ID: bba4043b1e3de5832bd1fa07560b5661b60f82b192d5d0bfefe79e76c3647bf5
 Item Level: 83
 Quality: 25
 Sockets: S S S S
@@ -425,7 +411,6 @@ Corrupted
 		<Item id="15">
 			Rarity: MAGIC
 Sunburst Thawing Charm of the Brewer
-Unique ID: 10353f17d4a5f55843354149c145af376fb9534ce17b0694feb3794d3d7ee198
 Item Level: 81
 Quality: 0
 LevelReq: 60
@@ -438,7 +423,6 @@ Also grants 476 Guard
 		<Item id="16">
 			Rarity: MAGIC
 Experimenter&apos;s Grounding Charm of the Brewer
-Unique ID: c123a9b55650ad7c4197aab58fdf7590c1747f707e65bf674f86b4cdc5a681f0
 Item Level: 81
 Quality: 5
 LevelReq: 62
@@ -454,7 +438,6 @@ Corrupted
 			Rarity: RARE
 Dusk Twirl
 Prismatic Ring
-Unique ID: 3c050a0cad511459306deca9b59af8a93b434acbfc32a2076918483e20cad197
 Item Level: 81
 LevelReq: 60
 Implicits: 3
@@ -481,7 +464,6 @@ Twice Corrupted
 		<Item id="18">
 			Rarity: MAGIC
 Potent Ultimate Life Flask of the Apprentice
-Unique ID: 2097891da8dd0bd6c34392913e6ca3cb5d5e008197ad290273d543ab2ffb8a94
 Item Level: 78
 Quality: 20
 LevelReq: 60
@@ -495,7 +477,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Amor Mandragora
 Changeling Talisman
-Unique ID: 93a6cf6f60361b91a5eab1d9f5f571f4bd569ffad16b2f74c5922b62f48f67dd
 Item Level: 82
 Quality: 0
 Sockets: S S S S
@@ -523,7 +504,6 @@ Corrupted
 Mageblood
 Utility Belt
 Charm Slots: 3
-Unique ID: 93bb8956dc4320554c3079b8cd751dbb820b290b6d48496750ce10b39d3b3e8c
 Item Level: 80
 LevelReq: 55
 Implicits: 2
@@ -546,7 +526,6 @@ All Mage&apos;s Legacies have 50% increased effect per duplicate Mage&apos;s Leg
 			Rarity: UNIQUE
 Defiance of Destiny
 Jade Amulet
-Unique ID: 95c7664e33e492fb23b562419c64a3203ea1c3668317c2ab6ddb62e316b30234
 Item Level: 80
 LevelReq: 56
 Implicits: 3
@@ -569,7 +548,6 @@ Twice Corrupted
 			Rarity: RARE
 Demon Nail
 Prismatic Ring
-Unique ID: c602d9c54efe0c454450edede11e41c0f7c198fcad1dd2c8142f531bc5ebc143
 Item Level: 80
 LevelReq: 54
 Implicits: 2
@@ -597,7 +575,6 @@ Dragon Hold
 Runeforged Massive Mitts
 Armour: 133
 Ward: 152
-Unique ID: cf59f33d2584170fbf423091415a628cd58a4c291468b10c082db5517d80dd8b
 Item Level: 82
 Quality: 20
 Sockets: S S S
@@ -629,7 +606,6 @@ Eagle March
 Runeforged Tasalian Greaves
 Armour: 160
 Ward: 227
-Unique ID: 96864c4150fef5cac3faaf09a8726a6d58dc303a938767795a9fccd3229c0189
 Item Level: 82
 Quality: 26
 Sockets: S S S

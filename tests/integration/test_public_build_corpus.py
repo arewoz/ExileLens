@@ -43,8 +43,9 @@ def test_manifest_is_small_complete_and_repository_relative() -> None:
         "CORE04-MIXED-HIT-AILMENT",
         "CORE04-WEAPON-SWAP",
         "CORE04-SKILL-NATIVE-DOT",
+        "CORPUS02-GIANTS-BLOOD-SHIELD",
     ]
-    assert len(CASES) == 9
+    assert len(CASES) == 10
     for case in CASES:
         assert set(case) == {"id", "file", "class", "ascendancy", "primary_skill", "actor", "purpose"}
         assert not Path(case["file"]).is_absolute()
@@ -72,8 +73,11 @@ def test_selected_fixture_contains_no_private_path_or_identity_markers(fixture: 
         r"(?i)accountname|charactername|lastcharacterhash",
         r"(?i)(?:authorization|bearer|oauth|session(?:id)?|cookie|api[_-]?key|secret|token)",
         r"(?i)[\w.+-]+@[\w.-]+\.[a-z]{2,}",
+        # GGG per-item identifiers tied to a real player's drops; never needed by a test.
+        r"(?im)^\s*Unique ID:",
     )
-    assert all(re.search(pattern, text) is None for pattern in forbidden)
+    matched = [pattern for pattern in forbidden if re.search(pattern, text)]
+    assert not matched, f"{fixture.name} contains forbidden markers: {matched}"
 
 
 @pytest.mark.integration
