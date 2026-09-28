@@ -200,6 +200,19 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         ),
         manifest_id="CORPUS02C-STONEFIST",
     ),
+    CoverageCase(
+        id="CORPUS02D2-VOLTAIC-BARRIER-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORPUS02D2-VOLTAIC-BARRIER]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Mercenary/Gemling Legionnaire, the community-reported build "
+            "(pobb.in/1PuQGhYCY9Fv). PoB's own saved main skill is Virtuous Barrier, "
+            "PLAYER actor."
+        ),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -1479,6 +1492,114 @@ CORPUS_02D1_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+
+# ---------------------------------------------------------------------------
+# CORPUS-02D2: the community-reported Voltaic Barrier build (docs/CORPUS-02D2.md).
+# The as-exported build (PoB's own saved main skill, "Virtuous Barrier", has zero
+# offense) is correctly, truthfully UNCERTAIN. An edited copy re-pinning PoB's main
+# skill to "Voltaic Barrier" (the skill the report names, a real weapon-scaling
+# attack skill) is FULL. Every number is checked against an independent cold PoB
+# load of the edited build.
+# ---------------------------------------------------------------------------
+_D2_FILE = "tests/integration/test_corpus02d2_voltaic_barrier.py"
+CORPUS_02D2_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="VOLTAIC-BARRIER-AS-EXPORTED-UNCERTAIN",
+        test_file=_D2_FILE,
+        node_name="test_as_exported_main_skill_has_no_offense_and_item_checks_are_truthfully_uncertain",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "As retrieved from pobb.in: PoB's saved main skill (Virtuous Barrier) is a pure "
+            "reservation/buff skill with zero calculated offense. A weapon Item Check correctly "
+            "stays PARTIAL/UNCERTAIN -- never a confident verdict manufactured from a skill that "
+            "deals no damage. This is the most direct reproduction available of the reported "
+            "symptom, and it is a genuine PoB build-state characteristic, not a defect."
+        ),
+        archetypes=(Archetype.ASCENDANCY, Archetype.WEAPON_SWAP),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="VOLTAIC-BARRIER-AS-EXPORTED-DEFENSE-MEASURED",
+        test_file=_D2_FILE,
+        node_name="test_as_exported_defensive_candidate_measures_defense_even_without_offense",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "On the same zero-offense as-exported build, a life-focused ring still gets a "
+            "truthful, measured DEFENSE verdict -- PARTIAL overall (offense unmeasured), but not "
+            "every axis is discarded."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="VOLTAIC-BARRIER-MAIN-WEAPON-UPGRADE-FRESH-LOAD",
+        test_file=_D2_FILE,
+        node_name="test_voltaic_barrier_as_main_measures_a_real_weapon_upgrade",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "With PoB's main skill re-pinned to Voltaic Barrier (the skill the report names -- a "
+            "real weapon-scaling attack skill, 100% physical-to-lightning conversion), a crossbow "
+            "upgrade is FULL / MEANINGFUL_UPGRADE, matching an independent fresh PoB reload of the "
+            "edited build."
+        ),
+        archetypes=(Archetype.ASCENDANCY, Archetype.WEAPON_SWAP),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="VOLTAIC-BARRIER-DOWNGRADE-AND-AMULET-UPGRADE",
+        test_file=_D2_FILE,
+        node_name="test_voltaic_barrier_downgrade_and_amulet_upgrade",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A weapon downgrade (FULL / MEANINGFUL_DOWNGRADE) and an unrelated defensive amulet "
+            "upgrade (FULL, DEFENSE positive, OFFENSE measured-neutral) on the Voltaic-Barrier-main "
+            "build, both fresh-load checked."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="VOLTAIC-BARRIER-REPEATED-EVALUATION-WEAPON-SET-PASSIVES",
+        test_file=_D2_FILE,
+        node_name="test_repeated_evaluation_and_restore_with_weapon_set_conditional_passives",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "This build allocates 47 weapon-set-conditional passive nodes, more than the existing "
+            "weapon-swap fixture. Two consecutive evaluations are identical and the restored build "
+            "equals an independent fresh reload exactly, including every conditional node's "
+            "contribution."
+        ),
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="VOLTAIC-BARRIER-CANDIDATE-ACTIVE-SLOT-SCOPE",
+        test_file=_D2_FILE,
+        node_name="test_candidate_only_targets_the_active_weapon_slot_and_is_labelled_truthfully",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Submitting the build's own inactive swap-set mace as a candidate resolves only "
+            "against the ACTIVE physical slot and truthfully names the crossbow it would actually "
+            "replace -- ordinary Item Check never silently writes into the inactive weapon-swap "
+            "slot, and never misrepresents which item is being compared."
+        ),
+        archetypes=(Archetype.WEAPON_SWAP,),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -1487,5 +1608,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02B_REAL_POB_CASES
     + CORPUS_02C_REAL_POB_CASES
     + CORPUS_02D1_CASES
+    + CORPUS_02D2_CASES
     + POLICY_UNIT_CASES
 )

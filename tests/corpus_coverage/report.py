@@ -213,7 +213,7 @@ def render_markdown(report: CoverageReport) -> str:
         lines.append("")
         lines.append(
             "This measures *executed coverage cases*, not real-build population share — the "
-            "corpus is currently 12 build fixtures plus deterministic policy unit tests, not a "
+            "corpus is currently 13 build fixtures plus deterministic policy unit tests, not a "
             "statistically representative sample of live PoE2 builds. Treat the percentage as "
             "\"how much of what we've encoded so far behaves correctly\", not \"what fraction "
             "of real builds ExileLens can evaluate\". See Known limitations."
