@@ -187,6 +187,23 @@ def test_material_real_hit_scores_pobs_combined_hit_and_poison() -> None:
     assert resolve_primary_metric(_identity(no_hit=False), small).pob_field == "PoisonDPS"
 
 
+def test_material_hit_share_boundary_is_inclusive_at_exactly_15_percent() -> None:
+    # hit / combined == 0.15 exactly: combined = hit / 0.15.
+    hit = 150000.0
+    combined = hit / 0.15
+    poison = combined - hit
+    at_boundary = _conflict_metrics(hit, poison)
+    assert resolve_primary_metric(_identity(no_hit=False), at_boundary).pob_field == "CombinedDPS"
+
+    # Just under 15%: still ailment-dominant (PoisonDPS scored alone).
+    just_under = _conflict_metrics(hit - 1.0, poison + 1.0)
+    assert resolve_primary_metric(_identity(no_hit=False), just_under).pob_field == "PoisonDPS"
+
+    # ailment_breakdown's hit_share/conflict gate uses the same >= boundary.
+    breakdown = ailment_breakdown(_primary(False, at_boundary), at_boundary, at_boundary)
+    assert breakdown["hit_share"] == pytest.approx(0.15)
+
+
 def test_real_hit_moving_against_the_scored_poison_is_a_conflict() -> None:
     # The baseline hit is immaterial (10%), so PoisonDPS is scored; the candidate's
     # hit becomes material while poison falls.
