@@ -108,3 +108,28 @@ SUPPORTED_RESULTS = frozenset(
 
 # Grades that represent a truthfulness/safety risk worth surfacing prominently.
 HIGH_RISK_RESULTS = frozenset({CoverageResult.WRONG_RESULT})
+
+
+class FunctionalMeasurement(str, Enum):
+    """CORPUS-02D1: how much of a mechanic a passing VERDICT case actually measures.
+
+    Separate from `CoverageResult`, which asks "did the case behave as its author
+    declared". A correct refusal is a supported result there, but it is not
+    functional coverage of the mechanic here.
+
+    FULLY_MEASURED       - the case asserts a FULL-quality evaluation of the mechanic.
+    PARTIALLY_MEASURED   - PoB measured the change, but the asserted evaluation is
+                            PARTIAL because ExileLens lacks evidence it could have.
+    EXPECTED_UNCERTAINTY - the asserted PARTIAL/UNCERTAIN outcome is correct because
+                            the specific information is genuinely insufficient.
+    UNSUPPORTED_MECHANIC - the case asserts an explicit UNSUPPORTED refusal.
+    """
+
+    FULLY_MEASURED = "FULLY_MEASURED"
+    PARTIALLY_MEASURED = "PARTIALLY_MEASURED"
+    EXPECTED_UNCERTAINTY = "EXPECTED_UNCERTAINTY"
+    UNSUPPORTED_MECHANIC = "UNSUPPORTED_MECHANIC"
+
+
+# Only these count as functional coverage of a mechanic.
+FUNCTIONAL_RESULTS = frozenset({FunctionalMeasurement.FULLY_MEASURED})

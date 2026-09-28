@@ -15,10 +15,13 @@ from dataclasses import dataclass, field
 from tests.corpus_coverage.junit import JUnitOutcome
 from tests.corpus_coverage.registry import ALL_CASES, CoverageCase
 from tests.corpus_coverage.taxonomy import (
+    FUNCTIONAL_RESULTS,
     SUPPORTED_RESULTS,
     Archetype,
     CoverageResult,
+    EvaluationDepth,
     ExpectedResult,
+    FunctionalMeasurement,
 )
 
 # Failure-message substrings that indicate the product safely under-answered
@@ -128,6 +131,52 @@ class CoverageReport:
         covered = set(self.archetype_counts())
         return [a for a in Archetype if a not in covered]
 
+    # CORPUS-02D1 functional coverage: separate from, and never mixed into, the
+    # headline supported-coverage metric above.
+    def classified_grades(self) -> list[CaseGrade]:
+        """Executed VERDICT cases that declare what they measure."""
+        return [
+            g for g in self.grades
+            if g.case.depth is EvaluationDepth.VERDICT
+            and g.case.functional is not None
+            and g.result is not CoverageResult.NOT_RUN
+        ]
+
+    def functional_counts(self) -> dict[str, int]:
+        """Declared measurement of each classified case whose test passed; a failed
+        case establishes nothing and is counted as NOT_ESTABLISHED."""
+        counts = {m.value: 0 for m in FunctionalMeasurement}
+        counts["NOT_ESTABLISHED"] = 0
+        for grade in self.classified_grades():
+            if grade.result in SUPPORTED_RESULTS:
+                counts[grade.case.functional.value] += 1
+            else:
+                counts["NOT_ESTABLISHED"] += 1
+        return counts
+
+    @property
+    def functional_count(self) -> int:
+        return sum(
+            1 for g in self.classified_grades()
+            if g.result in SUPPORTED_RESULTS and g.case.functional in FUNCTIONAL_RESULTS
+        )
+
+    def unclassified_verdict_count(self) -> int:
+        return sum(
+            1 for g in self.grades
+            if g.case.depth is EvaluationDepth.VERDICT and g.case.functional is None
+            and g.result is not CoverageResult.NOT_RUN
+        )
+
+    def functional_by_archetype(self) -> dict[Archetype, dict[str, int]]:
+        table: dict[Archetype, dict[str, int]] = {}
+        for grade in self.classified_grades():
+            key = grade.case.functional.value if grade.result in SUPPORTED_RESULTS else "NOT_ESTABLISHED"
+            for archetype in grade.case.archetypes:
+                row = table.setdefault(archetype, {m.value: 0 for m in FunctionalMeasurement} | {"NOT_ESTABLISHED": 0})
+                row[key] += 1
+        return table
+
 
 def build_report(outcomes: list[JUnitOutcome], cases: tuple[CoverageCase, ...] = ALL_CASES) -> CoverageReport:
     return CoverageReport(grades=[grade_case(case, outcomes) for case in cases])
@@ -178,6 +227,8 @@ def render_markdown(report: CoverageReport) -> str:
     for result, count in report.result_counts.items():
         lines.append(f"| {result} | {count} |")
     lines.append("")
+
+    lines.extend(_render_functional(report))
 
     lines.append("## Archetype / mechanic coverage matrix")
     lines.append("")
@@ -252,6 +303,49 @@ def render_markdown(report: CoverageReport) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _render_functional(report: CoverageReport) -> list[str]:
+    lines = ["## Functional coverage (separate from the headline metric)", ""]
+    lines.append(
+        "The headline metric above counts a correct refusal as supported. This section does "
+        "not: it counts what each classified verdict-level case's own assertions establish "
+        "about the mechanic (see `FunctionalMeasurement` in `tests/corpus_coverage/taxonomy.py`). "
+        "Only FULLY_MEASURED is functional coverage. Identity, restore/repeatability and policy "
+        "cases are not classified."
+    )
+    lines.append("")
+    classified = report.classified_grades()
+    if not classified:
+        lines.append("**Functional coverage: not computable.** No classified case executed.")
+        lines.append("")
+        return lines
+    lines.append(
+        f"**Fully measured (of executed classified cases): {report.functional_count}/{len(classified)} "
+        f"({100.0 * report.functional_count / len(classified):.0f}%).** "
+        f"Executed verdict-level cases not yet classified: {report.unclassified_verdict_count()}."
+    )
+    lines.append("")
+    lines.append("| Measurement | Cases |")
+    lines.append("| --- | --- |")
+    for name, count in report.functional_counts().items():
+        lines.append(f"| {name} | {count} |")
+    lines.append("")
+    columns = [m.value for m in FunctionalMeasurement] + ["NOT_ESTABLISHED"]
+    lines.append("| Archetype | " + " | ".join(columns) + " |")
+    lines.append("| --- |" + " --- |" * len(columns))
+    by_archetype = report.functional_by_archetype()
+    for archetype in Archetype:
+        row = by_archetype.get(archetype)
+        if row:
+            lines.append(f"| {archetype.value} | " + " | ".join(str(row[c]) for c in columns) + " |")
+    lines.append("")
+    lines.append("| Case | Measurement | Result |")
+    lines.append("| --- | --- | --- |")
+    for grade in classified:
+        lines.append(f"| {grade.case.id} | {grade.case.functional.value} | {grade.result.value} |")
+    lines.append("")
+    return lines
+
+
 def to_json_dict(report: CoverageReport) -> dict:
     """Deterministic, diff-friendly machine-readable form (sorted keys, no timestamps)."""
     return {
@@ -259,6 +353,12 @@ def to_json_dict(report: CoverageReport) -> dict:
         "supported_count": report.supported_count,
         "total_count": report.total_count,
         "uncovered_archetypes": sorted(a.value for a in report.uncovered_archetypes()),
+        "functional": {
+            "counts": report.functional_counts(),
+            "fully_measured": report.functional_count,
+            "classified_executed": len(report.classified_grades()),
+            "unclassified_verdict_executed": report.unclassified_verdict_count(),
+        },
         "cases": [
             {
                 "id": grade.case.id,
@@ -267,6 +367,7 @@ def to_json_dict(report: CoverageReport) -> dict:
                 "expected": grade.case.expected.value,
                 "archetypes": sorted(a.value for a in grade.case.archetypes),
                 "manifest_id": grade.case.manifest_id,
+                "functional": grade.case.functional.value if grade.case.functional else None,
                 "result": grade.result.value,
                 "passed_variants": grade.passed_variants,
                 "total_variants": grade.total_variants,

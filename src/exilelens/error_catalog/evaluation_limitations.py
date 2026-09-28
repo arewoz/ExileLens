@@ -55,6 +55,12 @@ _EVALUATION_LIMITATIONS: tuple[EvaluationLimitationDefinition, ...] = (
         "Prefer qualitative tradeoffs over precise upgrade/downgrade calls.",
     ),
     EvaluationLimitationDefinition(
+        "AILMENT_HIT_COMPONENTS_DISAGREE",
+        "Hit and ailment damage disagree",
+        "The item moves the main skill's ailment damage and its hit damage in opposite directions.",
+        "Compare Path of Building's combined damage for this skill before deciding.",
+    ),
+    EvaluationLimitationDefinition(
         "PRIMARY_METRIC_LOW_CONFIDENCE",
         "Low-confidence primary metric",
         "The main comparison metric could not be identified with confidence.",

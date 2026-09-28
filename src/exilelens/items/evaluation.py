@@ -32,6 +32,7 @@ from exilelens.items.native_metric_discovery import (
     select_baseline_components,
     should_discover_components,
 )
+from exilelens.items.ailment_intel import ailment_breakdown
 from exilelens.items.primary_metric import DamageOwner, DamageQuantity, MetricScope, resolve_primary_metric
 from exilelens.items.offense_coverage import OffenseCoverageAuditor, infer_offense_coverage
 from exilelens.items.ranking import rank_slot_comparisons
@@ -622,6 +623,13 @@ def _evaluate_item_steps(
             "eval_ms": timings.per_slot_eval_ms[pob_slot],
         }
         comparison["native_damage_discovery"] = compare_native_components(primary_metric, components, comparison)
+        breakdown = ailment_breakdown(
+            comparison["baseline_primary_metric"],
+            baseline_block.get("metrics"),
+            (entry.get("candidate") or {}).get("metrics"),
+        )
+        if breakdown is not None:
+            comparison["ailment_breakdown"] = breakdown
         item_set_id = str(item_set or build_info.get("active_item_set_id") or "")
         item_set_name = display_item_set_name(build_info.get("active_item_set_name"), item_set_id)
         loadout_id = str(loadout or build_info.get("active_loadout") or "")

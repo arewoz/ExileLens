@@ -552,7 +552,9 @@ def assess_quality(
             # The established fallback reason above is more specific.
             pass
         elif "OFFENSE_MECHANICS_PARTIAL" in claim_codes:
-            partial.append(_reason("OFFENSE_MECHANICS_PARTIAL", _OFFENSE_MECHANICS_PARTIAL_DETAIL))
+            # CORPUS-02D1: an ailment audit names the specific missing evidence.
+            detail = str((comparison.get("offense_coverage") or {}).get("scope_gap_detail") or "")
+            partial.append(_reason("OFFENSE_MECHANICS_PARTIAL", detail or _OFFENSE_MECHANICS_PARTIAL_DETAIL))
         else:
             partial.append(
                 _reason(
@@ -560,6 +562,19 @@ def assess_quality(
                     "the measured damage component does not establish complete build damage",
                 )
             )
+    breakdown = comparison.get("ailment_breakdown") or {}
+    if kind in {"MEASURED", "MEASURED_ZERO"} and breakdown.get("hit_ailment_conflict"):
+        # CORPUS-02D1: the scored ailment and a material real hit moved in opposite
+        # directions; the ailment alone does not establish the damage direction.
+        ailment = str(breakdown.get("ailment") or "ailment").lower()
+        partial.append(
+            _reason(
+                "AILMENT_HIT_COMPONENTS_DISAGREE",
+                f"{ailment} damage changed {float(breakdown.get('ailment_percent_delta') or 0):+.1f}% but hit "
+                f"damage changed {float(breakdown.get('hit_percent_delta') or 0):+.1f}%, so the {ailment} "
+                "measurement alone does not establish the total damage change",
+            )
+        )
     if str(primary_confidence or "").lower() == "low":
         partial.append(_reason("PRIMARY_METRIC_LOW_CONFIDENCE", "the main damage metric could not be identified with confidence"))
     if _unavailable(metric_profile.get("ehp")):
@@ -656,7 +671,7 @@ def _unsupported_or_unmodeled(
 ) -> list[dict[str, str]]:
     rows = [
         item for item in quality_reasons
-        if item["code"].startswith(("OFFENSE_", "PRIMARY_", "ITEM_TRANSFORM_", "STONEFIST_"))
+        if item["code"].startswith(("OFFENSE_", "PRIMARY_", "ITEM_TRANSFORM_", "STONEFIST_", "AILMENT_"))
     ]
     seen_codes = {item["code"] for item in rows}
     offense = metric_profile.get("primary_offense") or {}

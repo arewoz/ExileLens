@@ -462,11 +462,15 @@ def test_poison_ailment_dominant_offense_is_selected_and_measured(real_pob_engin
     assert offense["direction"] == "POSITIVE"
     assert offense["support"] == "MEASURED"
     assert offense["magnitude_pct"] > 40.0
-    # Ailment-dominant offense keeps a truthful, cautious classification: a real,
-    # correctly measured and directionally right change still does not earn FULL
-    # quality or a confident directional verdict for this mechanic today.
-    assert outcome["evaluation_quality"] == "PARTIAL"
-    assert outcome["verdict"] == "UNCERTAIN"
+    # CORPUS-02D1: this used to be PARTIAL / UNCERTAIN because every ailment audit
+    # was capped at "stack scope unproven". The poison audit now proves PoB derives
+    # the active stacks (PoisonDPS responds to poison duration) and that the poison
+    # scales with the skill (attack speed, projectile levels) while the spell-damage
+    # control does not move it, so the measured upgrade is a complete evaluation.
+    assert result["offense_coverage"]["state"] == "FULL"
+    assert result["offense_coverage"]["offense_trustworthy"] is True
+    assert outcome["evaluation_quality"] == "FULL"
+    assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
 
     assert row["restore"]["pass"] is True
     assert result["recommendation"]["pob_slot"] == "Weapon 1"
@@ -482,6 +486,9 @@ def test_poison_ailment_repeated_evaluation_does_not_leak_state(real_pob_engine)
     first_row = first["slot_comparisons"][0]
     second_row = second["slot_comparisons"][0]
     assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "PoisonDPS"
+    # CORPUS-02D1: both repetitions are complete evaluations, not repeated refusals.
+    assert first_row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert second_row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
@@ -686,6 +693,8 @@ def test_weapon_swap_candidate_substitution_resolves_the_active_slot(real_pob_en
     assert offense["support"] == "MEASURED"
     assert offense["direction"] == "POSITIVE"
     assert offense["magnitude_pct"] > 100.0
+    # CORPUS-02D1: scored on PoisonDPS; the stat set's fake hit is excluded.
+    assert row["baseline_primary_metric"]["pob_field"] == "PoisonDPS"
     assert outcome["evaluation_quality"] == "FULL"
     assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
 
@@ -732,8 +741,14 @@ def test_weapon_swap_offhand_candidate_substitution_resolves_the_active_slot(rea
 
     Captured from a real PoB run before writing these assertions (see
     docs/CORE_04_ITEM_CHECK_COVERAGE_MATRIX.md, M1.2 offhand slice): a real
-    +26.94% offense-only gain (Poisonburst Arrow benefits from attack speed) with an
+    +26.94% CombinedDPS gain (Poisonburst Arrow benefits from attack speed) with an
     unmeasured/neutral defense axis, FULL quality, MEANINGFUL_UPGRADE.
+
+    CORPUS-02D1: the selected "Poison Burst" stat set deals no hit damage in game
+    (PoB data stat display_statset_no_hit_damage), so that CombinedDPS added PoB's
+    fake poison-sizing hit (TotalDPS +31.45%) to the poison. The scored quantity is
+    now PoB's PoisonDPS: +20.70%, still FULL / MEANINGFUL_UPGRADE after the poison
+    audit (Ring 1 is Kalandra's Touch, an inert probe carrier, and is skipped).
     """
     active_quiver = _equipped_item(WEAPON_SWAP_BUILD, "Weapon 2 Swap")
     candidate = active_quiver + "\n50% increased Attack Speed\n"
@@ -753,7 +768,9 @@ def test_weapon_swap_offhand_candidate_substitution_resolves_the_active_slot(rea
     offense = outcome["item_impact"]["axes"]["OFFENSE"]
     assert offense["support"] == "MEASURED"
     assert offense["direction"] == "POSITIVE"
-    assert offense["magnitude_pct"] > 15.0
+    assert offense["magnitude_pct"] == pytest.approx(20.70, abs=0.01)
+    assert row["baseline_primary_metric"]["pob_field"] == "PoisonDPS"
+    assert row["ailment_breakdown"]["combined_includes_fake_hit"] is True
     assert outcome["evaluation_quality"] == "FULL"
     assert outcome["verdict"] == "MEANINGFUL_UPGRADE"
 

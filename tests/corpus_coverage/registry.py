@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tests.corpus_coverage.taxonomy import Archetype, EvaluationDepth, ExpectedResult
+from tests.corpus_coverage.taxonomy import Archetype, EvaluationDepth, ExpectedResult, FunctionalMeasurement
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,11 @@ class CoverageCase:
     archetypes: tuple[Archetype, ...] = ()
     manifest_id: str | None = None
     node_name_is_prefix: bool = False
+    # CORPUS-02D1: what the case's own assertions establish about the mechanic. Left
+    # unset for identity, restore/repeatability and policy cases, and for verdict
+    # cases not yet classified; `tests/test_corpus_coverage_report.py` checks each
+    # declared value against the quality the test body asserts.
+    functional: FunctionalMeasurement | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -359,17 +364,18 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         test_file="tests/integration/test_public_real_pob.py",
         node_name="test_poison_ailment_dominant_offense_is_selected_and_measured",
         depth=EvaluationDepth.VERDICT,
-        expected=ExpectedResult.UNCERTAIN,
+        expected=ExpectedResult.CONFIDENT,
         description=(
             "A real poison-dominant build (PoisonDPS ~89% of CombinedDPS) correctly selects "
             "PoisonDPS/AILMENT_DPS/DOT_DPS as primary offense (not hit DPS or CombinedDPS), "
-            "correctly measures a real +54%-class offense increase from a physical-damage "
-            "candidate, and still reports PARTIAL quality / UNCERTAIN verdict -- a truthful, "
-            "cautious classification is the correct, safe outcome for this ailment mechanic "
-            "today, not a confident directional verdict."
+            "and measures a real +54%-class offense increase from a physical-damage candidate. "
+            "CORPUS-02D1: formerly PARTIAL / UNCERTAIN (every ailment audit was capped at "
+            "'stack scope unproven'); the poison audit now proves PoB-derived stacks, so the "
+            "evaluation is FULL / MEANINGFUL_UPGRADE."
         ),
         archetypes=(Archetype.AILMENT, Archetype.DOT),
         manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="POISON-AILMENT-REPEATED-EVALUATION-NO-LEAK",
@@ -377,9 +383,10 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         node_name="test_poison_ailment_repeated_evaluation_does_not_leak_state",
         depth=EvaluationDepth.VERDICT,
         expected=ExpectedResult.CONFIDENT,
-        description="Two consecutive Item Checks against the same poison-ailment candidate select the same PoB field and produce identical score/verdict, both restoring cleanly.",
+        description="Two consecutive Item Checks against the same poison-ailment candidate select the same PoB field and produce identical FULL-quality score/verdict, both restoring cleanly.",
         archetypes=(Archetype.AILMENT, Archetype.DOT),
         manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MIXED-HIT-AILMENT-OFFENSE-SELECTS-COMBINED-DPS",
@@ -401,6 +408,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
         manifest_id="CORE04-MIXED-HIT-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MIXED-HIT-AILMENT-REPEATED-EVALUATION-NO-LEAK",
@@ -487,6 +495,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.DOT,),
         manifest_id="CORE04-SKILL-NATIVE-DOT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="SKILL-NATIVE-DOT-REPEATED-EVALUATION-NO-LEAK",
@@ -511,10 +520,13 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
             "retains stage_count 1 / CHANNEL_RELEASE / sole stat set on both sides, "
             "measures a real ignite loss with MEASURED support, and still reports "
             "PARTIAL quality / UNCERTAIN verdict -- the truthful ailment-dominant "
-            "classification, never a confident directional verdict."
+            "classification, never a confident directional verdict. CORPUS-02D1: counted as "
+            "partially measured -- PoB measures the ignite change, but ExileLens has no "
+            "verified ignite stack/stage scope check (AILMENT_SCOPE_UNVERIFIED)."
         ),
         archetypes=(Archetype.SPELL, Archetype.AILMENT, Archetype.DOT, Archetype.UNUSUAL_SKILL_PART),
         manifest_id="CORE04-STAGE-CONTEXT",
+        functional=FunctionalMeasurement.PARTIALLY_MEASURED,
     ),
 )
 
@@ -1339,6 +1351,134 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# CORPUS-02D1 poison and damaging-ailment Item Check (docs/CORPUS-02D1.md).
+# Reuses the CORE04 poison and weapon-swap fixtures; edited copies cover the
+# really-hitting "Arrow" stat set and a configured poison-stack count. Every
+# number is checked against an independent cold PoB load of the edited build.
+# ---------------------------------------------------------------------------
+_D1_FILE = "tests/integration/test_corpus02d1_poison_ailment.py"
+_D1_UNIT = "tests/test_corpus02d1_ailment_intel.py"
+CORPUS_02D1_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="POISON-MAGNITUDE-UPGRADE-FRESH-LOAD",
+        test_file=_D1_FILE,
+        node_name="test_poison_magnitude_upgrade_is_fully_measured_and_matches_a_fresh_load",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Quiver + 40% increased Magnitude of Poison: FULL / MEANINGFUL_UPGRADE, PoisonDPS "
+            "+9.24% (PoisonMagnitudeEffect +9.24%), equal to a fresh load of the edited build."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="POISON-DURATION-STACK-CAP-INTERACTION",
+        test_file=_D1_FILE,
+        node_name="test_duration_and_stack_cap_interaction_follows_pob",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Duration +20% gives PoisonDPS +15.59% (stacks capped at 4); +1 poison stack alone "
+            "is a measured zero (SIDEGRADE); both together +20.00%. All FULL, fresh-load checked."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="POISON-DOWNGRADE-AND-OFFENSE-DEFENSE-TRADEOFF",
+        test_file=_D1_FILE,
+        node_name="test_attack_speed_downgrade_and_offense_defense_tradeoff",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Gloves without attack speed: FULL / MEANINGFUL_DOWNGRADE -11.48% (fewer active "
+            "poisons). Gloves trading ES for attack speed: FULL / SIDEGRADE meaningful trade-off "
+            "(offense +10.95%, defense down). Fresh-load checked."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="POISON-FAKE-HIT-EXCLUDED-REPEATED-RESTORE",
+        test_file=_D1_FILE,
+        node_name="test_fake_hit_is_excluded_and_repeated_evaluations_restore_exactly",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The no-hit Poison Burst stat set's PoB TotalDPS is reported as an excluded fake "
+            "hit, ailment factors as incorporated; two FULL evaluations are identical and the "
+            "restored build equals the baseline exactly."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="POISON-REAL-HIT-STAT-SET-COMBINED",
+        test_file=_D1_FILE,
+        node_name="test_real_hit_stat_set_scores_pobs_combined_hit_and_poison",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Edited copy on the 'Arrow' stat set (real hit ~19%): poison -42% with hit +12% is "
+            "scored on PoB's CombinedDPS (-31.54%), FULL / MEANINGFUL_DOWNGRADE, fresh-load checked."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.RANGED_ATTACK),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="POISON-CONFIGURED-STACKS-UNCERTAIN",
+        test_file=_D1_FILE,
+        node_name="test_configured_poison_stack_count_keeps_a_specific_uncertainty",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Edited copy with '# of Poisons on enemy' configured: PoB fixes the stacks, poison "
+            "duration no longer moves PoisonDPS, and the comparison is PARTIAL / UNCERTAIN with "
+            "the specific AILMENT_STACK_SCOPE_UNPROVEN reason."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="POISON-INERT-PROBE-CARRIER-SKIPPED",
+        test_file=_D1_FILE,
+        node_name="test_inert_probe_carrier_is_skipped",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Weapon-swap build: Ring 1 is Kalandra's Touch, whose added lines PoB ignores; the "
+            "poison audit skips it, probes Ring 2 and the quiver check is FULL."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.WEAPON_SWAP, Archetype.UNIQUE_INTERACTION),
+        manifest_id="CORE04-WEAPON-SWAP",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="AILMENT-STACK-SCOPE-UNPROVEN-POLICY",
+        test_file=_D1_UNIT,
+        node_name="test_poison_stack_count_fixed_by_configuration_stays_partial_with_reason",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNCERTAIN,
+        description="A poison audit whose duration probe is insensitive stays PARTIAL with AILMENT_STACK_SCOPE_UNPROVEN.",
+    ),
+    CoverageCase(
+        id="AILMENT-HIT-CONFLICT-POLICY",
+        test_file=_D1_UNIT,
+        node_name="test_hit_ailment_conflict_is_a_specific_partial_reason",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNCERTAIN,
+        description="A scored ailment moving against a material real hit is PARTIAL with AILMENT_HIT_COMPONENTS_DISAGREE.",
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -1346,5 +1486,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02A_REAL_POB_CASES
     + CORPUS_02B_REAL_POB_CASES
     + CORPUS_02C_REAL_POB_CASES
+    + CORPUS_02D1_CASES
     + POLICY_UNIT_CASES
 )

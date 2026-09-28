@@ -78,6 +78,10 @@ _OFFENSE_EPS = 0.5
 #: ExileLens can honestly claim it knows what the quantity contains.
 _UNEXPLAINED_DELTA_RATIO = 0.05
 
+#: Share of CombinedDPS from which a real hit is not negligible beside a dominant
+#: damaging ailment (same bound as the "negligible DoT" rule below).
+_MATERIAL_HIT_SHARE = 0.15
+
 
 @dataclass(frozen=True)
 class PrimarySkill:
@@ -109,6 +113,10 @@ class PrimarySkill:
     damage_owner: DamageOwner = DamageOwner.PLAYER
     output_table: str = "mainOutput"
     show_average: bool = False
+    # PoB game data marks stat sets whose "hit" only carries an ailment
+    # ("display_statset_no_hit_damage", e.g. Poisonburst Arrow's Poison Burst). PoB
+    # still reports a TotalDPS for that fake hit and adds it into CombinedDPS.
+    no_hit_damage: bool = False
 
     @property
     def known(self) -> bool:
@@ -142,6 +150,7 @@ class PrimarySkill:
             "damage_owner": self.damage_owner.value,
             "output_table": self.output_table,
             "show_average": self.show_average,
+            "no_hit_damage": self.no_hit_damage,
         }
 
     @classmethod
@@ -177,6 +186,7 @@ class PrimarySkill:
             damage_owner=damage_owner,
             output_table=str(identity.get("output_table") or "mainOutput"),
             show_average=bool(identity.get("show_average")),
+            no_hit_damage=bool(identity.get("stat_set_no_hit_damage")),
         )
 
 
@@ -501,9 +511,21 @@ def resolve_primary_metric(
 
     if ailment_total > 0 and skill.damage_owner == DamageOwner.PLAYER:
         dominant = max(ailments, key=ailments.get)
+        if skill.no_hit_damage and ailments[dominant] > _OFFENSE_EPS:
+            # CORPUS-02D1: the selected stat set deals no hit damage in game; PoB's
+            # TotalDPS is the fake hit it uses to size the ailment, and CombinedDPS
+            # adds that fake hit to the ailment. Only the ailment output is real.
+            field = f"{dominant.title()}DPS"
+            return select(field, f"selected stat set deals no hit damage; its damage is PoB's {field}",
+                          identified, OffenseKind.DOT_DPS, DamageQuantity.AILMENT_DPS,
+                          MetricScope.STAT_SET_PART, ailment=dominant)
         # For an ailment-dominant stat set the isolated PoB ailment output is
         # authoritative; this keeps hit-up/ailment-down tradeoffs visible.
-        if ailments[dominant] > total_hit:
+        # CORPUS-02D1: unless the stat set's real hit is a material share of PoB's
+        # CombinedDPS (which sums hit and ailment without double counting); scoring
+        # the ailment alone would then drop real damage from the comparison.
+        material_real_hit = combined > 0 and total_hit >= combined * _MATERIAL_HIT_SHARE
+        if ailments[dominant] > total_hit and not material_real_hit:
             field = f"{dominant.title()}DPS"
             return select(field, f"selected stat set is {dominant.lower()}-dominant in PoB output",
                           identified, OffenseKind.DOT_DPS, DamageQuantity.AILMENT_DPS,
