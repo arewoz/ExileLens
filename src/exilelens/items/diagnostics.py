@@ -56,6 +56,7 @@ _OUTCOME_FIELDS = (
     "score_contributors",
     "critical_tradeoffs",
     "unsupported_or_unmodeled",
+    "main_skill_diagnostic",
     "resistances",
     "source_slot",
     "replacement_slot",
