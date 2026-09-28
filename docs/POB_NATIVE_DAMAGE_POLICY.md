@@ -112,6 +112,38 @@ formulas. Useful diagnostic reason codes include `FULL_DPS_NOT_CONFIGURED`,
 in plain language. A future UX may offer instructions or a status indicator
 for configuring Full DPS *in PoB*; ExileLens must not set the flags for users.
 
+## Damaging ailments (CORPUS-02D1)
+
+PoB2's `<Ailment>DPS` already multiplies in the ailment's chance per hit,
+duration, stack potential and maximum stacks, magnitude effect, roll average,
+enemy mitigation and the skill's hit rate (CalcOffence
+`calcDamagingAilmentOutputs`). ExileLens copies those PoB outputs as
+*incorporated factors* that explain a change; it never adds them to a damage
+number. `<Ailment>Damage` (DPS x duration) is a different quantity and is never
+added to DPS either. PoB's `CombinedDPS` is hit (`TotalDPS`) + impale + mirage +
+`TotalDotDPS` (skill DoT, each damaging ailment and its ground effect), times the
+cull and reservation multipliers; the per-comparison `ailment_breakdown` checks
+that this sum reconciles on both sides.
+
+* A stat set that deals no hit damage in game (PoB data stat
+  `display_statset_no_hit_damage`, e.g. Poisonburst Arrow's Poison Burst) still
+  has a PoB `TotalDPS`: the fake hit PoB uses to size the ailment. Its ailment
+  output is the primary quantity; the fake hit is reported as excluded.
+* An ailment-dominant stat set whose real hit is at least 15% of `CombinedDPS`
+  is compared on PoB's `CombinedDPS` (`HIT_PLUS_AILMENT`); below that the
+  dominant ailment output remains the primary quantity. If a scored ailment and
+  a material real hit then move in opposite directions the comparison is
+  PARTIAL (`AILMENT_HIT_COMPONENTS_DISAGREE`).
+* A poison primary quantity is fully measured when PoB's poison DPS responds to
+  poison duration (PoB derives the active stacks rather than a configured "# of
+  Poisons on enemy"), to a hit-rate/damage probe, and not to the actor control.
+  A configured stack count keeps the comparison PARTIAL
+  (`AILMENT_STACK_SCOPE_UNPROVEN`). Ignite and bleed have no equivalent verified
+  scope check yet and stay PARTIAL (`AILMENT_SCOPE_UNVERIFIED`).
+
+These are readings of PoB-exposed quantities (for example `PoisonStackPotential`),
+not the prohibited independent stack-equilibrium derivation below.
+
 ## Prohibited combat derivations
 
 Do not independently calculate trigger frequency, expected triggers per

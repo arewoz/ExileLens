@@ -7,6 +7,7 @@ the real manifest/test files it describes.
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -15,7 +16,13 @@ import pytest
 from tests.corpus_coverage.junit import JUnitOutcome
 from tests.corpus_coverage.registry import ALL_CASES, CoverageCase
 from tests.corpus_coverage.report import build_report, grade_case, render_markdown, to_json_dict
-from tests.corpus_coverage.taxonomy import Archetype, CoverageResult, EvaluationDepth, ExpectedResult
+from tests.corpus_coverage.taxonomy import (
+    Archetype,
+    CoverageResult,
+    EvaluationDepth,
+    ExpectedResult,
+    FunctionalMeasurement,
+)
 
 pytestmark = pytest.mark.itemcheck
 
@@ -204,3 +211,71 @@ def test_every_manifest_fixture_has_at_least_one_registered_case() -> None:
 def test_case_ids_are_unique() -> None:
     ids = [case.id for case in ALL_CASES]
     assert len(ids) == len(set(ids))
+
+
+# --------------------------------------------------------------- CORPUS-02D1 functional coverage
+
+
+def test_functional_coverage_counts_only_passing_fully_measured_cases() -> None:
+    cases = (
+        _case(id="FULL", node_name="test_full", functional=FunctionalMeasurement.FULLY_MEASURED,
+              archetypes=(Archetype.AILMENT,)),
+        _case(id="REFUSAL", node_name="test_refusal", expected=ExpectedResult.UNCERTAIN,
+              functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY, archetypes=(Archetype.AILMENT,)),
+        _case(id="PARTIAL", node_name="test_partial", expected=ExpectedResult.UNCERTAIN,
+              functional=FunctionalMeasurement.PARTIALLY_MEASURED),
+        _case(id="BROKEN", node_name="test_broken", functional=FunctionalMeasurement.FULLY_MEASURED,
+              archetypes=(Archetype.AILMENT,)),
+        _case(id="UNCLASSIFIED", node_name="test_unclassified"),
+        _case(id="IDENTITY", node_name="test_identity", depth=EvaluationDepth.IDENTITY_ONLY),
+    )
+    outcomes = [
+        _outcome(name="test_full"), _outcome(name="test_refusal"), _outcome(name="test_partial"),
+        _outcome(name="test_broken", status="failed", message="assert 'PARTIAL' == 'FULL'"),
+        _outcome(name="test_unclassified"), _outcome(name="test_identity"),
+    ]
+    report = build_report(outcomes, cases)
+
+    # The historical headline still counts the correct refusals as supported.
+    assert report.supported_count == 5
+    assert report.functional_count == 1
+    counts = report.functional_counts()
+    assert counts["FULLY_MEASURED"] == 1
+    assert counts["EXPECTED_UNCERTAINTY"] == 1
+    assert counts["PARTIALLY_MEASURED"] == 1
+    assert counts["NOT_ESTABLISHED"] == 1
+    assert report.unclassified_verdict_count() == 1
+    ailment = report.functional_by_archetype()[Archetype.AILMENT]
+    assert ailment["FULLY_MEASURED"] == 1 and ailment["EXPECTED_UNCERTAINTY"] == 1 and ailment["NOT_ESTABLISHED"] == 1
+    markdown = render_markdown(report)
+    assert "Functional coverage (separate from the headline metric)" in markdown
+    assert "Fully measured (of executed classified cases): 1/4 (25%)" in markdown
+    assert to_json_dict(report)["functional"]["fully_measured"] == 1
+
+
+_ASSERTED_QUALITY = {
+    FunctionalMeasurement.FULLY_MEASURED: ('"FULL"',),
+    FunctionalMeasurement.PARTIALLY_MEASURED: ('"PARTIAL"', '"UNCERTAIN"'),
+    FunctionalMeasurement.EXPECTED_UNCERTAINTY: ('"PARTIAL"', '"UNCERTAIN"'),
+    FunctionalMeasurement.UNSUPPORTED_MECHANIC: ('"UNSUPPORTED"',),
+}
+
+
+def test_declared_functional_measurement_matches_what_the_test_asserts() -> None:
+    """A case may only claim what its own test body asserts about quality."""
+    sources: dict[str, dict[str, str]] = {}
+    for case in ALL_CASES:
+        if case.functional is None:
+            continue
+        assert case.depth is EvaluationDepth.VERDICT, case.id
+        if case.test_file not in sources:
+            text = (ROOT / case.test_file).read_text(encoding="utf-8")
+            sources[case.test_file] = {
+                node.name: ast.get_source_segment(text, node) or ""
+                for node in ast.walk(ast.parse(text))
+                if isinstance(node, ast.FunctionDef)
+            }
+        body = sources[case.test_file][case.node_name.split("[", 1)[0]]
+        assert any(marker in body for marker in _ASSERTED_QUALITY[case.functional]), case.id
+        if case.functional is FunctionalMeasurement.FULLY_MEASURED:
+            assert case.expected is ExpectedResult.CONFIDENT, case.id

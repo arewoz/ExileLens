@@ -46,6 +46,13 @@ local ACTOR_OUTPUT_FIELDS = {
 
 -- Preserve the distinction between skill DoT and damaging ailments on the
 -- selected player skill.  Missing PoB outputs stay absent, not fabricated 0s.
+-- CORPUS-02D1: PoB2's damaging-ailment calculation (CalcOffence
+-- calcDamagingAilmentOutputs) writes <Ailment>ChancePerHit, <Ailment>StacksMax,
+-- <Ailment>StackPotential, <Ailment>MagnitudeEffect, <Ailment>RollAverage and
+-- <Ailment>EffMult. They are the factors PoB already multiplied into
+-- <Ailment>DPS, copied here as explanatory evidence only. The older names
+-- PoisonChance/PoisonStacks/MaxPoisonStacks/PoisonApplicationRate are never written
+-- by the supported PoB2 and stay listed only so an older runtime still reports them.
 local PLAYER_AILMENT_FIELDS = {
 	"IgniteDPS", "PoisonDPS", "BleedDPS", "TotalDotDPS",
 	"WithIgniteDPS", "WithPoisonDPS", "WithBleedDPS", "WithDotDPS",
@@ -53,6 +60,14 @@ local PLAYER_AILMENT_FIELDS = {
 	"PoisonChance", "PoisonDamage", "PoisonDuration", "TotalPoisonDPS",
 	"BleedChance", "BleedDamage", "BleedDuration", "TotalBleedDPS",
 	"PoisonStacks", "MaxPoisonStacks", "PoisonApplicationRate",
+	"PoisonChancePerHit", "BleedChancePerHit",
+	"PoisonStacksMax", "IgniteStacksMax", "BleedStacksMax",
+	"PoisonStackPotential", "IgniteStackPotential", "BleedStackPotential",
+	"PoisonMagnitudeEffect", "IgniteMagnitudeEffect", "BleedMagnitudeEffect",
+	"PoisonRollAverage", "IgniteRollAverage", "BleedRollAverage",
+	"PoisonEffMult", "IgniteEffMult", "BleedEffMult",
+	"CausticGroundDPS", "BurningGroundDPS", "ImpaleDPS", "MirageDPS",
+	"CullMultiplier", "ReservationDpsMultiplier",
 }
 
 local MODE_OUTPUT_FIELDS = { "ChannelTime", "Time" }
@@ -1171,6 +1186,14 @@ local function stat_set_catalog(granted)
 	return catalog
 end
 
+local function stat_set_has_stat(set, stat_id)
+	if type(set) ~= "table" then return false end
+	for _, id in ipairs(set.stats or {}) do
+		if id == stat_id then return true end
+	end
+	return false
+end
+
 local function selected_stat_set(granted, src)
 	if not granted then return 1, nil, "", false, 0 end
 	local count = #(granted.statSets or {})
@@ -1307,6 +1330,10 @@ local function group_identity(index, group, override_env, override_skill, overri
 		actor_id = src and tostring(src.skillMinionCalcs or src.skillMinion or "") or "",
 		actor_skill = src and tostring(src.skillMinionSkillCalcs or src.skillMinionSkill or "") or "",
 		show_average = (flags and flags.showAverage) and true or false,
+		-- CORPUS-02D1: the game data marks stat sets whose "hit" only carries an
+		-- ailment (e.g. Poisonburst Arrow's Poison Burst). PoB still computes a
+		-- TotalDPS for that fake hit, and CombinedDPS includes it.
+		stat_set_no_hit_damage = stat_set_has_stat(stat_data, "display_statset_no_hit_damage"),
 		-- PoB flags are only a cheap discovery hint; a displayed component
 		-- still requires a directly calculated output from skill_report.
 		-- A selected minion actor is also a hint: PoB's Fire/Sand Djinn summon
@@ -1703,7 +1730,7 @@ local function skill_report(indices, defer_restore_frame, opts)
 					row.skill_name, row.skill_id, row.skill_level = refreshed.skill_name, refreshed.skill_id, refreshed.skill_level
 					for _, field in ipairs({ "stat_set", "stat_set_index", "stat_set_count", "stat_set_key", "stat_set_resolved",
 						"part_index", "part_name", "part_key", "part_resolved", "part_count", "stage_count",
-						"stage_explicit", "calculation_mode" }) do
+						"stage_explicit", "calculation_mode", "stat_set_no_hit_damage" }) do
 						row[field] = refreshed[field]
 					end
 					row.show_average = refreshed.show_average or per_hit_combined_signature(build.calcsTab.mainOutput or {})

@@ -58,6 +58,17 @@ def assess_thresholds(
     offense = _metric(metric_profile, "primary_offense")
     cur_off = offense.get("current")
     cand_off = offense.get("candidate")
+    if cur_off is not None and cand_off is None:
+        # CORPUS-02D1: PoB writes an ailment field (e.g. PoisonDPS) only while the
+        # skill deals that ailment. A main skill that can no longer be used leaves the
+        # field absent and PoB's CombinedDPS at zero: the same collapse.
+        combined_before = _num(raw_current, "CombinedDPS")
+        combined_after = _num(raw_candidate, "CombinedDPS")
+        if (
+            combined_before is not None and combined_before > SKILL_COLLAPSE
+            and combined_after is not None and combined_after <= SKILL_COLLAPSE
+        ):
+            cand_off = combined_after
     if cur_off is not None and cand_off is not None:
         if float(cur_off) > SKILL_COLLAPSE and float(cand_off) <= SKILL_COLLAPSE:
             events.append(

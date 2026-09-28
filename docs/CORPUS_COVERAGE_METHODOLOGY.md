@@ -120,6 +120,26 @@ This mirrors the product's own guardrail policy: fail closed, never open.
 "supported real-build coverage" — an explicit, correct `UNCERTAIN`/`UNSUPPORTED` is
 success (truthful), not failure. `WRONG_*` and `NOT_RUN` never count.
 
+### Functional coverage (CORPUS-02D1)
+
+The headline metric deliberately counts a correct refusal (`EXPECTED_UNCERTAIN`,
+`UNSUPPORTED`) as supported. That methodology is unchanged. It cannot say how much
+of a mechanic ExileLens actually measures, so the report adds a separate
+**functional coverage** section. A verdict-level `CoverageCase` may declare
+`functional=FunctionalMeasurement...`:
+
+| Measurement | Meaning |
+| --- | --- |
+| `FULLY_MEASURED` | The test asserts a FULL-quality evaluation of the mechanic. The only value that counts as functional coverage. |
+| `PARTIALLY_MEASURED` | PoB measured the change, but the asserted evaluation is PARTIAL because ExileLens lacks evidence it could have. |
+| `EXPECTED_UNCERTAINTY` | The asserted PARTIAL/UNCERTAIN outcome is correct: the specific information is genuinely insufficient. |
+| `UNSUPPORTED_MECHANIC` | The test asserts an explicit UNSUPPORTED refusal. |
+
+A declared case whose test fails is `NOT_ESTABLISHED`. Identity, restore/repeatability
+and policy cases are not classified, and unclassified verdict cases are counted
+separately rather than guessed. `test_declared_functional_measurement_matches_what_the_test_asserts`
+checks every declaration against the quality the test body actually asserts.
+
 ### Registry, not manifest, carries the taxonomy
 
 Archetype/mechanic tags are **not** added as a new field to

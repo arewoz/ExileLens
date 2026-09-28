@@ -11,7 +11,7 @@ from exilelens.analysis.catalog import ProbeCatalog
 from exilelens.items.primary_metric import DamageOwner, DamageQuantity, PrimaryMetricSelection, resolve_primary_metric
 from exilelens.items.value_profiles import ValueProfile
 
-OFFENSE_COVERAGE_VERSION = 1
+OFFENSE_COVERAGE_VERSION = 2
 RESPONSE_ABS_EPS = 0.5
 RESPONSE_PCT_EPS = 0.05
 CONTROL_OFFENSE_PCT_MAX = 0.15
@@ -80,6 +80,35 @@ AILMENT_AUDIT_PROBES: dict[str, tuple[tuple[str, float], ...]] = {
 }
 
 
+# CORPUS-02D1: the probe that proves PoB derives an ailment's active-stack count
+# from the build (application rate x duration) rather than a fixed configured count.
+# PoB2 CalcOffence: <Ailment>DPS = per-application DPS x min(stacks, max stacks), and
+# stacks = hit chance x ailment chance x duration x hit rate unless the enemy config
+# "Multiplier:<Ailment>Stacks" overrides them. A duration change moves the ailment
+# DPS only in the derived case. Ignite does not stack, and its selected-stage scope
+# has no equivalent single-probe proof, so it has no entry and stays PARTIAL.
+AILMENT_STACK_SCOPE_PROBES: dict[str, str] = {
+    "POISON": "POISON_DURATION",
+}
+
+# Specific, player-facing reasons an ailment comparison remains partial.
+AILMENT_SCOPE_GAP_DETAILS: dict[str, str] = {
+    "AILMENT_STACK_SCOPE_UNPROVEN": (
+        "Path of Building's active {ailment} stack count did not respond to {ailment} duration "
+        "(it may be fixed by the build's configuration), so changes to application rate or "
+        "duration are not measured"
+    ),
+    "AILMENT_SCOPE_UNVERIFIED": (
+        "Path of Building's {ailment} damage is measured for the selected skill, but "
+        "ExileLens has no verified check that it covers every {ailment} source and stage"
+    ),
+    "AILMENT_RESPONSE_UNVERIFIED": (
+        "Path of Building's {ailment} damage did not respond to the offense checks, "
+        "or a control check changed it"
+    ),
+}
+
+
 @dataclass
 class OffenseCoverage:
     state: str
@@ -92,6 +121,9 @@ class OffenseCoverage:
     pob_recalcs: int = 0
     carrier_slot: str = ""
     coverage_version: int = OFFENSE_COVERAGE_VERSION
+    # CORPUS-02D1: why an ailment metric is not fully measured (empty when it is).
+    scope_gap: str = ""
+    scope_gap_detail: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -105,6 +137,8 @@ class OffenseCoverage:
             "pob_recalcs": self.pob_recalcs,
             "carrier_slot": self.carrier_slot,
             "coverage_version": self.coverage_version,
+            "scope_gap": self.scope_gap,
+            "scope_gap_detail": self.scope_gap_detail,
         }
 
 
@@ -672,7 +706,7 @@ def dimension_eligible(coverage: dict[str, Any] | None, probe_id: str) -> tuple[
     return True, ""
 
 
-def _equipment_carrier(equipment_payload: Any) -> tuple[str, str] | None:
+def _equipment_carriers(equipment_payload: Any) -> list[tuple[str, str]]:
     if isinstance(equipment_payload, dict):
         rows = equipment_payload.get("equipment") or equipment_payload.get("slots") or []
     else:
@@ -681,12 +715,21 @@ def _equipment_carrier(equipment_payload: Any) -> tuple[str, str] | None:
     for row in rows:
         if isinstance(row, dict) and row.get("slot"):
             mapping[str(row["slot"])] = row
+    carriers: list[tuple[str, str]] = []
     for slot in ("Ring 1", "Ring 2", "Amulet", "Belt", "Helmet", "Gloves", "Boots", "Body Armour"):
         row = mapping.get(slot)
         raw = (row or {}).get("raw") or ""
         if row and row.get("equipped") and raw.strip():
-            return slot, raw
-    return None
+            carriers.append((slot, raw))
+    return carriers
+
+
+def _probes_inert(rows: list[dict[str, Any]]) -> bool:
+    """Every measured probe left both the selected output and CombinedDPS exactly unchanged."""
+    measured = [row for row in rows if row.get("status") == "ok"]
+    return bool(measured) and all(
+        not row.get("primary_offense_abs") and not row.get("combined_dps_pct") for row in measured
+    )
 
 
 class OffenseCoverageAuditor:
@@ -756,8 +799,8 @@ class OffenseCoverageAuditor:
             self._cache[key] = static.__dict__
             return static
 
-        carrier = _equipment_carrier(self.engine.get_equipment())
-        if carrier is None:
+        carriers = _equipment_carriers(self.engine.get_equipment())
+        if not carriers:
             limited = OffenseCoverage(
                 state=OffenseCoverageState.LIMITED.value,
                 selected_metric=primary.pob_field,
@@ -769,10 +812,8 @@ class OffenseCoverageAuditor:
             self._cache[key] = limited.__dict__
             return limited
 
-        carrier_slot, carrier_raw = carrier
         from exilelens.analysis.probes import clone_item_with_mods, score_probe_metrics
 
-        probe_rows: list[dict[str, Any]] = []
         minion_metric = primary.damage_owner == DamageOwner.MINION
         ailment_metric = primary.semantic_quantity == DamageQuantity.AILMENT_DPS
         audit_probes = (MINION_OFFENSE_AUDIT_PROBES if minion_metric else
@@ -780,6 +821,59 @@ class OffenseCoverageAuditor:
         actor_controls = ({"SPELL_DAMAGE", "MOVEMENT_SPEED"} if minion_metric else
                           {"POISON_MAGNITUDE"} if primary.ailment == "IGNITE" else
                           {"SPELL_DAMAGE"} if ailment_metric else {"MOVEMENT_SPEED"})
+
+        def carrier_is_inert(carrier_slot: str, carrier_raw: str) -> bool:
+            # CORPUS-02D1: some equipped items ignore lines added to them in PoB (e.g.
+            # Kalandra's Touch, "Reflects opposite Ring", which PoB replaces with the
+            # opposite ring's modifiers). Every probe on such a carrier is a no-op.
+            definition = self.catalog.get("MOVEMENT_SPEED")
+            if definition is None:
+                return False
+            try:
+                evaluation = self.engine.evaluate_candidate(
+                    carrier_slot, clone_item_with_mods(carrier_raw, [definition.line(10.0)]), context=context,
+                )
+            except Exception:
+                return False
+            self.probe_engine.pob_recalcs += 1
+            before = _num(evaluation["baseline"]["metrics"], "MovementSpeedMod")
+            after = _num(evaluation["candidate"]["metrics"], "MovementSpeedMod")
+            return before is not None and after is not None and before == after
+
+        skipped_carriers: list[str] = []
+        for carrier_index, (carrier_slot, carrier_raw) in enumerate(carriers):
+            probe_rows = self._run_probes(
+                carrier_slot, carrier_raw, primary, audit_probes, actor_controls, context,
+                clone_item_with_mods, score_probe_metrics,
+            )
+            if (
+                carrier_index + 1 < len(carriers)
+                and _probes_inert(probe_rows)
+                and carrier_is_inert(carrier_slot, carrier_raw)
+            ):
+                skipped_carriers.append(carrier_slot)
+                continue
+            break
+
+        coverage = _classify_from_probes(primary, baseline_metrics, probe_rows, carrier_slot=carrier_slot)
+        if skipped_carriers:
+            coverage.reason = f"{coverage.reason} Inert probe carriers skipped: {', '.join(skipped_carriers)}."
+        coverage.pob_recalcs = self.probe_engine.pob_recalcs
+        self._cache[key] = coverage.__dict__
+        return coverage
+
+    def _run_probes(
+        self,
+        carrier_slot: str,
+        carrier_raw: str,
+        primary: PrimaryMetricSelection,
+        audit_probes: tuple[tuple[str, float], ...],
+        actor_controls: set[str],
+        context: str,
+        clone_item_with_mods: Any,
+        score_probe_metrics: Any,
+    ) -> list[dict[str, Any]]:
+        probe_rows: list[dict[str, Any]] = []
         for probe_id, magnitude in audit_probes:
             definition = self.catalog.get(probe_id)
             if definition is None:
@@ -836,11 +930,7 @@ class OffenseCoverageAuditor:
                     "fingerprint_match": evaluation["baseline"]["fingerprint_hash"] == evaluation["restored"]["fingerprint_hash"],
                 }
             )
-
-        coverage = _classify_from_probes(primary, baseline_metrics, probe_rows, carrier_slot=carrier_slot)
-        coverage.pob_recalcs = self.probe_engine.pob_recalcs
-        self._cache[key] = coverage.__dict__
-        return coverage
+        return probe_rows
 
 
 def _classify_from_probes(
@@ -915,14 +1005,37 @@ def _classify_from_probes(
         for row in probes
         if row.get("probe_id") in actor_probe_ids and row.get("status") == "ok"
     )
+    scope_gap = ""
     if primary.semantic_quantity == DamageQuantity.AILMENT_DPS:
+        trustworthy = False
+        stack_probe = AILMENT_STACK_SCOPE_PROBES.get(primary.ailment, "")
+        scaling_responsive = any(
+            row.get("responsive") for row in offense_rows if row.get("probe_id") != stack_probe
+        )
         if not any_offense_response or control_leaked or primary.confidence.value == "low":
             state = OffenseCoverageState.LIMITED.value
             reason = "Selected ailment output lacks responsive probes or its negative control leaked."
-        else:
+            scope_gap = "AILMENT_RESPONSE_UNVERIFIED"
+        elif not stack_probe:
             state = OffenseCoverageState.PARTIAL.value
-            reason = "PoB ailment response verified for selected stat set; full build/stage/stack scope unproven."
-        trustworthy = False
+            reason = "PoB ailment response verified for selected stat set; no stack/stage scope proof for this ailment."
+            scope_gap = "AILMENT_SCOPE_UNVERIFIED"
+        elif dimension_evidence.get(stack_probe) != PotentialDimensionEvidence.RESPONSIVE.value:
+            state = OffenseCoverageState.PARTIAL.value
+            reason = f"{primary.pob_field} did not respond to {stack_probe}; the active stack count is not derived by PoB."
+            scope_gap = "AILMENT_STACK_SCOPE_UNPROVEN"
+        elif not scaling_responsive:
+            state = OffenseCoverageState.PARTIAL.value
+            reason = f"{primary.pob_field} responds only to {stack_probe}; hit-rate/damage scaling is unverified."
+            scope_gap = "AILMENT_RESPONSE_UNVERIFIED"
+        else:
+            # PoB derives the stacks from application rate and duration, scales the
+            # ailment with the skill's hit rate/damage, and the actor control is clean:
+            # the selected ailment output is PoB's complete measurement of that ailment.
+            state = OffenseCoverageState.FULL.value
+            reason = (f"{primary.pob_field} responds to {stack_probe} (PoB-derived stacks) and to "
+                      "hit-rate/damage probes; the actor control did not move it.")
+            trustworthy = True
     elif not any_offense_response and not cast_responsive:
         state = OffenseCoverageState.INSENSITIVE.value
         reason = f"{primary.pob_field} did not respond to cast speed / skill / damage probes."
@@ -953,4 +1066,9 @@ def _classify_from_probes(
         probes=probes,
         dimension_evidence=dimension_evidence,
         carrier_slot=carrier_slot,
+        scope_gap=scope_gap,
+        scope_gap_detail=(
+            AILMENT_SCOPE_GAP_DETAILS[scope_gap].format(ailment=(primary.ailment or "ailment").lower())
+            if scope_gap else ""
+        ),
     )
