@@ -4,9 +4,19 @@ Runs against the local supported PoB2 revision only (`-m real_pob`, with
 `POB2_PATH` set). Exercises candidate -> measurements -> evidence ->
 proof -> required scope -> eligibility through the read-only diagnostic
 consumer on `core04_weapon_swap` (active set 2, bow/quiver vs
-spear/shield) -- the strongest existing weapon-set fixture. No exact
-community (Voltaic Barrier) build exists locally; see
-EXACT_COMMUNITY_FIXTURE_MISSING below.
+spear/shield) -- the strongest existing weapon-set fixture for exercising
+this diagnostic chain's own read-only evidence path (not a public
+Item Check verdict).
+
+CORPUS-02D2 (docs/CORPUS-02D2.md) retrieved and committed the exact
+reported community build (`corpus02d2_voltaic_barrier.xml`,
+`tests/integration/test_corpus02d2_voltaic_barrier.py`); it did not
+reproduce a defect in this diagnostic chain and is exercised separately,
+since Voltaic Barrier itself never sits on a weapon-swap-different set in
+that build (`useSecondWeaponSet="false"` throughout). This module's own
+scope -- the diagnostic chain's structural behavior on a fixture whose two
+weapon sets are materially different -- remains best served by
+`core04_weapon_swap`.
 
 The expected truthful outcome is NOT forced: a bow mod moves bow skills
 but not spear/shield skills, so a complete-scope assessment should
@@ -33,11 +43,11 @@ WEAPON_SWAP = ROOT / "fixtures" / "builds" / "public_corpus" / "core04_weapon_sw
 RING_BUILD = ROOT / "fixtures" / "builds" / "core04_player_ring.xml"
 ITEMS = ROOT / "fixtures" / "items"
 
-# No exact recent-community (Voltaic Barrier cross-set) build is checked in
-# locally. The only "Voltaic" text in-repo is an unrelated equipped staff
-# in core04_player_ring.xml. The artifact needed later is an exported
-# PoB/build fixture of the reported community case.
-EXACT_COMMUNITY_FIXTURE_MISSING = True
+# CORPUS-02D2: the exact reported community build is now checked in as
+# fixtures/builds/public_corpus/corpus02d2_voltaic_barrier.xml. It is not used
+# here because its two weapon sets never differ (useSecondWeaponSet="false"
+# throughout, no cross-set divergence to diagnose); see docs/CORPUS-02D2.md.
+EXACT_COMMUNITY_FIXTURE_MISSING = False
 
 pytestmark = [pytest.mark.integration, pytest.mark.real_pob, pytest.mark.itemcheck]
 

@@ -108,6 +108,15 @@
       "primary_skill": "Twister",
       "actor": "PLAYER",
       "purpose": "Way of the Stonefist: already-transformed Fists of Stone gloves in the baseline; untransformed glove candidates must not get confident verdicts"
+    },
+    {
+      "id": "CORPUS02D2-VOLTAIC-BARRIER",
+      "file": "fixtures/builds/public_corpus/corpus02d2_voltaic_barrier.xml",
+      "class": "Mercenary",
+      "ascendancy": "Gemling Legionnaire",
+      "primary_skill": "Virtuous Barrier",
+      "actor": "PLAYER",
+      "purpose": "the community-reported build (pobb.in/1PuQGhYCY9Fv): PoB's saved main skill is a zero-damage reservation buff; weapon-set-conditional passives and a real weapon-scaling attack skill (Voltaic Barrier, socket group 9) it does not select"
     }
   ]
 }
