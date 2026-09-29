@@ -30,10 +30,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/corpus02_giants_blood_shield.xml` | Mercenary/Gemling Legionnaire Supercharged Slam wielding a two-hand mace *and* a tower shield (Giant's Blood keystone); the shield is Chernobog's Pillar (fire damage per block chance, which also makes the build ignite). CORPUS-02A: regression for the community `get_tree_snapshot` worker failure (its tree contains the non-ASCII passive "The Mórrigan's Guidance"), two-hand candidates PoB keeps beside the shield, a two-hander PoB does not (shield cleared and disclosed), and a unique-shield replacement whose damage semantics change (truthfully UNCERTAIN). See `docs/CORPUS-02A.md`. |
 | `fixtures/builds/public_corpus/corpus02b_varashta_djinn.xml` | Sorceress/Disciple of Varashta, level 100, with all three ascendancy-granted Djinns (Navira, the Last Mirage as main skill; Ruzhan and Kelari as additional socket groups) plus skeletal minions, a spectre and wolves. CORPUS-02B: minion-owned verdicts on an ascendancy-granted actor, complete Djinn damage components in the advanced view, and the Command-as-main-skill UNCERTAIN variant. A public ladder build, **not** the community Djinn report's build. See `docs/CORPUS-02B.md`. |
 | `fixtures/builds/public_corpus/corpus02c_stonefist_martial_artist.xml` | Monk/Martial Artist (level 100) Twister with **Way of the Stonefist** allocated; its export already carries the equipped gloves transformed ("Runeforged Fists of Stone" with transformed modifiers). CORPUS-02C: ordinary glove candidates are transformed in memory into the Fists of Stone item the character equips and measured by PoB (exact or across the independently rolled transformed range), the exported gloves are never transformed twice, and other slots stay measured. See `docs/CORPUS-02C.md`. |
+| `fixtures/builds/public_corpus/corpus02e_spell_totem_titan.xml` | Warrior/Titan (level 100) whose selected socket group is the **Spell Totem** meta skill; the totem casts Grim Pillars. CORPUS-02E: the first proxy/totem build. PoB calculates the totem's per-cast damage and cast rate on the player's main output (`TotalDPS` = per-cast damage x cast rate; `CombinedDPS` is the per-cast damage), and player defences separately. Candidate amulets get FULL verdicts checked against fresh PoB loads. See `docs/CORPUS-02E.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(12 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn and CORPUS-02C Stonefist builds). It contains repository-relative paths and expected semantic
+(14 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier and CORPUS-02E Spell Totem builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -116,6 +117,18 @@ re-sanitized with this corpus's rules before commit. 21 `Unique ID:` lines and p
 cache were removed, and nothing else changed. It passes the public safety regression. It was selected because it
 allocates Way of the Stonefist (passive node 39595), found by scanning every available real fixture for that node,
 not by build name.
+
+`corpus02e_spell_totem_titan.xml` (CORPUS-02E) was found on 2026-09-29 by reading the main socket group of the
+public Runes of Aldur ladder characters of the Warrior ascendancies through poe.ninja's own per-character API
+(the `pathOfBuildingExport` string), keeping those whose main group is a totem, ballista or mortar skill. It is a
+mature level-100 Titan; poe.ninja's "Copy PoB code" export was used unchanged apart from sanitization, and no
+character permalink, account or character name was retained anywhere in the repository. Sanitization removed 19
+`Unique ID:` lines and poe.ninja's 102-line `<PlayerStat>` cache (121 lines in total) and changed nothing else. A
+real-engine comparison of the raw export and the committed fixture gave identical `TotalDPS`, `CombinedDPS`, Life,
+Energy Shield, EHP and Speed. Committed SHA-256:
+`6a7a3dc85c0e09c84de1cd929e66a50f5a2e0f7518da66e752decf42925ea9fb` (LF line endings). It passes the public safety
+regression and contains only the standard passive-tree `<URL>`. Its selected effect (Grim Pillars, socket group 5,
+effect 2) is the state PoB saved, not a selection made by ExileLens.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

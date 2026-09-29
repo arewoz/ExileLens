@@ -117,6 +117,15 @@
       "primary_skill": "Virtuous Barrier",
       "actor": "PLAYER",
       "purpose": "the community-reported build (pobb.in/1PuQGhYCY9Fv): PoB's saved main skill is a zero-damage reservation buff; weapon-set-conditional passives and a real weapon-scaling attack skill (Voltaic Barrier, socket group 9) it does not select"
+    },
+    {
+      "id": "CORPUS02E-SPELL-TOTEM",
+      "file": "fixtures/builds/public_corpus/corpus02e_spell_totem_titan.xml",
+      "class": "Warrior",
+      "ascendancy": "Titan",
+      "primary_skill": "Grim Pillars",
+      "actor": "PLAYER",
+      "purpose": "Spell Totem proxy: the selected socket group is the Spell Totem meta skill whose totem casts Grim Pillars; PoB reports the totem's per-cast damage and cast rate on the player's main output, with player defences (Life, Energy Shield, resistances) measured separately"
     }
   ]
 }
