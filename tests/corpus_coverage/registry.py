@@ -2134,6 +2134,131 @@ CORPUS_02G_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# CORPUS-02H - authentic Eldritch Battery build: Energy Shield is converted to Mana, and Mana scales
+# the main skill. Every measured case is checked against an independent fresh PoB load.
+# ---------------------------------------------------------------------------
+_H_FILE = "tests/integration/test_corpus02h_energy_shield_mana.py"
+_H_ID = "CORPUS02H-ELDRITCH-BATTERY"
+CORPUS_02H_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="ES-MANA-IDENTITY-AND-CONVERSION",
+        test_file=_H_FILE,
+        node_name="test_energy_shield_is_converted_to_mana_and_mana_scales_the_main_skill",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Eldritch Battery converts all Energy Shield to maximum Mana (PoB Energy Shield 0, Mana above 10,000) and Rathpith Globe scales Spark with maximum Mana; the scored field is TotalDPS."
+        ),
+        archetypes=(Archetype.ES_SCALING, Archetype.MANA_SCALING),
+        manifest_id=_H_ID,
+    ),
+    CoverageCase(
+        id="ES-MANA-MORE-ES-RAISES-MANA-DAMAGE-EHP",
+        test_file=_H_FILE,
+        node_name="test_more_energy_shield_raises_mana_damage_and_effective_hp",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "+200 flat Energy Shield on the helmet: Mana, damage and effective HP rise while the Energy Shield output stays 0; FULL MEANINGFUL_UPGRADE, fresh-load checked."
+        ),
+        archetypes=(Archetype.ES_SCALING, Archetype.MANA_SCALING),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-LESS-ES-LOWERS-MANA-DAMAGE-EHP",
+        test_file=_H_FILE,
+        node_name="test_less_energy_shield_lowers_mana_damage_and_effective_hp",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "-70 flat Energy Shield: Mana, damage and effective HP fall; FULL MEANINGFUL_DOWNGRADE, fresh-load checked."
+        ),
+        archetypes=(Archetype.ES_SCALING, Archetype.MANA_SCALING),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-PERCENT-INCREASED-ES",
+        test_file=_H_FILE,
+        node_name="test_percent_increased_energy_shield_on_the_armour_reaches_the_mana_pool",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "100% more increased Energy Shield on the helmet raises Mana and damage: FULL upgrade, fresh-load checked."
+        ),
+        archetypes=(Archetype.ES_SCALING, Archetype.MANA_SCALING),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-SLOT-DEPENDENT-VALUE",
+        test_file=_H_FILE,
+        node_name="test_the_same_flat_energy_shield_is_worth_more_on_the_helmet_than_the_amulet",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The same +200 flat Energy Shield adds over three times as much Mana on the helmet (enchant and increased Energy Shield) as on the amulet; both FULL, the helmet scores higher."
+        ),
+        archetypes=(Archetype.ES_SCALING, Archetype.MANA_SCALING),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-DIRECT-MANA-INDEPENDENT-EFFECT",
+        test_file=_H_FILE,
+        node_name="test_direct_mana_and_converted_energy_shield_are_measured_alike",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Flat maximum Mana (no conversion) is measured like converted Energy Shield: Energy Shield stays 0, Mana and damage rise; FULL upgrade."
+        ),
+        archetypes=(Archetype.ES_SCALING, Archetype.MANA_SCALING),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-ES-GAIN-WITH-LOST-RESISTANCE-CAP",
+        test_file=_H_FILE,
+        node_name="test_energy_shield_gain_that_costs_a_resistance_cap_is_a_flagged_tradeoff",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "More Energy Shield but the Chaos Resistance cap is lost: FULL, RES_CAP_LOST, never an upgrade."
+        ),
+        archetypes=(Archetype.ES_SCALING,),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-ES-SWAPPED-FOR-LIFE",
+        test_file=_H_FILE,
+        node_name="test_swapping_energy_shield_for_life_costs_damage_and_effective_hp",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Life instead of increased Energy Shield: measured damage and effective HP both fall (FULL), verdict is not an upgrade."
+        ),
+        archetypes=(Archetype.ES_SCALING,),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="ES-MANA-REPEATED-EVALUATION-RESTORE",
+        test_file=_H_FILE,
+        node_name="test_repeated_evaluations_are_identical_and_restore_the_build",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Interleaved evaluations are identical and the fingerprint and equipment return to baseline (FULL)."
+        ),
+        archetypes=(Archetype.ES_SCALING,),
+        manifest_id=_H_ID,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -2147,5 +2272,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02E_CASES
     + CORPUS_02F_CASES
     + CORPUS_02G_CASES
+    + CORPUS_02H_CASES
     + POLICY_UNIT_CASES
 )
