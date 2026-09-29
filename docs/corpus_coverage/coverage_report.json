@@ -280,6 +280,21 @@
     },
     {
       "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "CORPUS02E-SPELL-TOTEM-IDENTITY",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "spell"
       ],
       "depth": "VERDICT",
@@ -1256,6 +1271,115 @@
     },
     {
       "archetypes": [
+        "proxy_totem",
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "SPELL-TOTEM-CAST-SPEED-REACHES-TOTEM",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "SPELL-TOTEM-DEFENSE-ONLY-NO-INVENTED-OFFENSE",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "spell"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "SPELL-TOTEM-IDENTITY-AND-DPS-SEMANTICS",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "SPELL-TOTEM-OFFENSE-DEFENSE-TRADEOFF",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "SPELL-TOTEM-OFFENSE-DOWNGRADE",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "spell"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "SPELL-TOTEM-OFFENSE-UPGRADE",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "SPELL-TOTEM-REPEATED-EVALUATION-RESTORE",
+      "manifest_id": "CORPUS02E-SPELL-TOTEM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02e_spell_totem.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "ailment",
         "dot",
         "spell",
@@ -1919,27 +2043,26 @@
     }
   ],
   "functional": {
-    "classified_executed": 22,
+    "classified_executed": 28,
     "counts": {
       "EXPECTED_UNCERTAINTY": 5,
-      "FULLY_MEASURED": 16,
+      "FULLY_MEASURED": 22,
       "NOT_ESTABLISHED": 0,
       "PARTIALLY_MEASURED": 1,
       "UNSUPPORTED_MECHANIC": 0
     },
-    "fully_measured": 16,
+    "fully_measured": 22,
     "unclassified_verdict_executed": 61
   },
   "result_counts": {
     "EXPECTED_UNCERTAIN": 16,
-    "PASS": 107,
+    "PASS": 115,
     "UNSUPPORTED": 8
   },
-  "supported_count": 131,
-  "total_count": 131,
+  "supported_count": 139,
+  "total_count": 139,
   "uncovered_archetypes": [
     "es_scaling",
-    "proxy_totem",
     "stat_stacker"
   ]
 }

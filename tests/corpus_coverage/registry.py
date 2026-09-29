@@ -213,6 +213,19 @@ BUILD_CORPUS_IDENTITY_CASES: tuple[CoverageCase, ...] = (
         ),
         manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
     ),
+    CoverageCase(
+        id="CORPUS02E-SPELL-TOTEM-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[CORPUS02E-SPELL-TOTEM]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Warrior/Titan, a public poe.ninja ladder character whose selected group is the Spell Totem "
+            "meta skill casting Grim Pillars; PLAYER actor (PoB calculates the totem on the player's output)."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -1689,6 +1702,103 @@ MAIN_SKILL_01_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# CORPUS-02E — authentic Spell Totem (proxy/totem) build. Every measured case is
+# checked against an independent fresh PoB load with the candidate equipped.
+# ---------------------------------------------------------------------------
+_E_FILE = "tests/integration/test_corpus02e_spell_totem.py"
+CORPUS_02E_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="SPELL-TOTEM-IDENTITY-AND-DPS-SEMANTICS",
+        test_file=_E_FILE,
+        node_name="test_spell_totem_group_is_the_selected_player_calculation",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The Spell Totem group's selected effect is Grim Pillars on the PLAYER output; the meta skill "
+            "and the second linked spell deal no damage of their own. PoB's TotalDPS is per-cast damage x "
+            "the totem's cast rate (CombinedDPS is the per-cast damage), so TotalDPS is the scored field."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM, Archetype.SPELL),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+    ),
+    CoverageCase(
+        id="SPELL-TOTEM-OFFENSE-UPGRADE",
+        test_file=_E_FILE,
+        node_name="test_genuine_offense_upgrade_is_a_full_verdict",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="+2 spell skill levels on the amulet: FULL / MEANINGFUL_UPGRADE, matching a fresh PoB reload.",
+        archetypes=(Archetype.PROXY_TOTEM, Archetype.SPELL),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="SPELL-TOTEM-OFFENSE-DOWNGRADE",
+        test_file=_E_FILE,
+        node_name="test_genuine_offense_downgrade_is_a_full_verdict",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="-2 spell skill levels: FULL / MEANINGFUL_DOWNGRADE, OFFENSE negative, matching a fresh PoB reload.",
+        archetypes=(Archetype.PROXY_TOTEM, Archetype.SPELL),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="SPELL-TOTEM-DEFENSE-ONLY-NO-INVENTED-OFFENSE",
+        test_file=_E_FILE,
+        node_name="test_defense_only_item_improves_the_player_without_inventing_offense",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "More Energy Shield on the amulet: FULL upgrade with DEFENSE positive; the totem's damage and "
+            "cast rate are exactly unchanged, so no offensive gain is reported."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="SPELL-TOTEM-CAST-SPEED-REACHES-TOTEM",
+        test_file=_E_FILE,
+        node_name="test_player_cast_speed_reaches_the_totems_cast_rate_as_pob_calculates_it",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Player cast speed raises the totem's PoB cast rate; per-cast damage is unchanged so DPS follows "
+            "Speed exactly (FULL / MEANINGFUL_UPGRADE, fresh-load checked)."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM, Archetype.SPELL),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="SPELL-TOTEM-OFFENSE-DEFENSE-TRADEOFF",
+        test_file=_E_FILE,
+        node_name="test_offense_gain_with_a_lost_resistance_cap_is_a_flagged_tradeoff",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "+15% totem DPS but Cold Resistance falls below the cap and EHP drops: FULL, TRADEOFF pattern, "
+            "RES_CAP_LOST guardrail, never an upgrade; numbers match a fresh PoB reload."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="SPELL-TOTEM-REPEATED-EVALUATION-RESTORE",
+        test_file=_E_FILE,
+        node_name="test_repeated_evaluations_are_identical_and_restore_the_build",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Interleaved evaluations are identical and the fingerprint and equipment return to baseline.",
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id="CORPUS02E-SPELL-TOTEM",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -1699,5 +1809,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02D1_CASES
     + CORPUS_02D2_CASES
     + MAIN_SKILL_01_CASES
+    + CORPUS_02E_CASES
     + POLICY_UNIT_CASES
 )
