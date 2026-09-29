@@ -176,6 +176,8 @@ class EvaluationOutcome:
     score_contributors: list[dict[str, Any]] = field(default_factory=list)
     timings: dict[str, Any] = field(default_factory=dict)
     profile: str = ""
+    # MAIN-SKILL-01: set only when the selected main skill has no calculated offense.
+    main_skill_diagnostic: dict[str, Any] = field(default_factory=dict)
 
     @property
     def pre_guardrail_score(self) -> float | None:
@@ -509,6 +511,12 @@ def assess_quality(
         ]
 
     partial: list[dict[str, str]] = []
+    main_skill_diagnostic = comparison.get("main_skill_diagnostic")
+    if isinstance(main_skill_diagnostic, dict) and main_skill_diagnostic.get("summary"):
+        # MAIN-SKILL-01: first, so the tooltip's one-line note and More Info lead with
+        # the actionable cause. The underlying OFFENSE_* reasons still follow.
+        partial.append(_reason(str(main_skill_diagnostic.get("code") or "MAIN_SKILL_NO_OFFENSE"),
+                               str(main_skill_diagnostic["summary"])))
     if comparison.get("stonefist_baseline_note"):
         # The baseline's equipped gloves differ from the game (untransformed, unknown
         # transformed rolls), and an item's effect can depend on them: not confident.
@@ -807,6 +815,7 @@ def build_evaluation_outcome(
         score_contributors=_score_contributors(value),
         timings={"slot_eval_ms": float(eval_ms)} if eval_ms is not None else {},
         profile=str(value.get("profile") or ""),
+        main_skill_diagnostic=dict(comparison.get("main_skill_diagnostic") or {}),
     )
 
 

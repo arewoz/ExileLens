@@ -73,3 +73,9 @@ passing test is not proof that a whole mechanic is supported.
 - New fixture `fixtures/builds/public_corpus/corpus02d2_voltaic_barrier.xml` (`CORPUS02D2-VOLTAIC-BARRIER`) -- retrieved from the reported `pobb.in/1PuQGhYCY9Fv` link's raw export endpoint and sanitized -- and `tests/integration/test_corpus02d2_voltaic_barrier.py` (6 real-PoB tests).
 - `tests/corpus_coverage/registry.py`: 1 identity case plus `CORPUS_02D2_CASES` (6 cases, 4 fully measured, 2 expected-uncertain); `scripts/generate_corpus_coverage_report.py` `SUITES` gains the new file; the generated header says 13 build fixtures.
 - No production code changed: no ExileLens defect specific to Voltaic Barrier or weapon-set interaction was confirmed. Row 12 above, closed from `MISSING_FIXTURE` to `COVERED`. Full write-up: `docs/CORPUS-02D2.md`.
+
+## Reporting changes (MAIN-SKILL-01)
+
+- No new fixture. `tests/integration/test_main_skill_01_real_pob.py` (5 real-PoB tests) and `tests/test_main_skill_diagnostics.py` (13 unit tests) cover the Voltaic Barrier build (row 12) and the Djinn Command variant (row 15).
+- Rows 12 and 15: when the selected main skill has no calculated offense, Item Check now names it, explains the refusal, lists the PoB-calculated alternatives of the same build (for Djinn Command including its same-group Navira) and gives the select-in-PoB / save / reload recovery path. The two cases have different causes (a zero-damage buff in its own group vs. a utility effect sharing a group with the damage skill) and are diagnosed separately. Verdicts are unchanged (still UNCERTAIN); measured defense survives.
+- Registry: 4 real-PoB cases and 2 policy-unit cases. Full write-up: `docs/MAIN-SKILL-01.md`.

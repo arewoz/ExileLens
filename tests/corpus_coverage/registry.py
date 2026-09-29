@@ -1600,6 +1600,95 @@ CORPUS_02D2_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# MAIN-SKILL-01: actionable diagnostics when the selected main skill has no
+# calculated offense (docs/MAIN-SKILL-01.md). Two builds whose symptom looks alike
+# but whose causes differ: the Voltaic Barrier build (PoB's saved main skill is a
+# zero-damage buff in its own socket group) and the Djinn Command variant (Command
+# shares a socket group with the calculated Navira summon).
+# ---------------------------------------------------------------------------
+_MS_FILE = "tests/integration/test_main_skill_01_real_pob.py"
+_MS_UNIT = "tests/test_main_skill_diagnostics.py"
+MAIN_SKILL_01_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="MAINSKILL-VOLTAIC-ACTIONABLE-DIAGNOSTIC",
+        test_file=_MS_FILE,
+        node_name="test_as_exported_voltaic_build_gets_an_actionable_diagnostic",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "As exported, PoB's main skill is Virtuous Barrier (zero offense). Both ring slots are "
+            "PARTIAL/UNCERTAIN with the main-skill reason first, the selected skill named by its PoB "
+            "identity, the five PoB-calculated alternatives (Voltaic Barrier among them) in group "
+            "order, the recovery path, measured DEFENSE preserved, and no automatic skill switch."
+        ),
+        archetypes=(Archetype.ASCENDANCY,),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="MAINSKILL-SELECT-IN-POB-AND-RELOAD-FULL",
+        test_file=_MS_FILE,
+        node_name="test_selecting_the_skill_in_pob_and_reloading_gives_full_evaluations",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The recovery path on one build file: evaluate (UNCERTAIN with diagnostic), save Voltaic "
+            "Barrier as PoB's main skill, evaluate again -- ExileLens reloads the changed file and the "
+            "weapon upgrade is FULL / MEANINGFUL_UPGRADE with no diagnostic."
+        ),
+        archetypes=(Archetype.ASCENDANCY, Archetype.WEAPON_SWAP),
+        manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MAINSKILL-DJINN-COMMAND-DIFFERENT-CAUSE",
+        test_file=_MS_FILE,
+        node_name="test_djinn_command_has_a_different_cause_and_the_group_sibling_is_offered",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Djinn Command selected: no fallback component is substituted (OFFENSE_MISSING), and the "
+            "selected group's own Navira summon (same socket group) is offered alongside the other "
+            "calculated minions; selecting Navira and reloading is FULL. Classified as expected "
+            "uncertainty: the case's primary claim is the correct diagnostic refusal."
+        ),
+        archetypes=(Archetype.MINION, Archetype.ASCENDANCY),
+        manifest_id="CORPUS02B-VARASHTA-DJINN",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="MAINSKILL-MEASURABLE-BUILDS-UNAFFECTED",
+        test_file=_MS_FILE,
+        node_name="test_builds_with_a_measurable_main_skill_are_unaffected",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Builds whose selected skill PoB measures (poison, Djinn Navira) get no diagnostic, no "
+            "MAIN_SKILL_NO_OFFENSE reason and no More Info section; the poison check stays FULL."
+        ),
+        archetypes=(Archetype.AILMENT, Archetype.MINION),
+        manifest_id="CORE04-POISON-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MAINSKILL-ALTERNATIVES-POLICY",
+        test_file=_MS_UNIT,
+        node_name="test_alternatives_are_only_calculated_skills_in_pob_group_order",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Alternatives are limited to enabled, PoB-calculated skills, in PoB group order, never ranked by damage.",
+    ),
+    CoverageCase(
+        id="MAINSKILL-REASON-LEADS-POLICY",
+        test_file=_MS_UNIT,
+        node_name="test_main_skill_reason_leads_the_quality_reasons_and_stays_partial",
+        depth=EvaluationDepth.POLICY_UNIT,
+        expected=ExpectedResult.UNCERTAIN,
+        description="MAIN_SKILL_NO_OFFENSE is the first quality reason and the evaluation stays PARTIAL.",
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -1609,5 +1698,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02C_REAL_POB_CASES
     + CORPUS_02D1_CASES
     + CORPUS_02D2_CASES
+    + MAIN_SKILL_01_CASES
     + POLICY_UNIT_CASES
 )

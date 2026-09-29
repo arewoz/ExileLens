@@ -23,6 +23,7 @@ MORE_INFO_TITLE = "MORE INFO"
 #: internals, so it must not be buried behind a click.
 MORE_INFO_SECTION_ORDER = (
     "verdict_header",
+    "main_skill",
     "key_impact",
     "offense",
     "defense",
@@ -193,6 +194,46 @@ def _native_components_section(model: dict[str, Any], outcome: dict[str, Any]) -
     lines.append("Overall build damage: unavailable from this PoB configuration")
     lines.append("Defensive values remain separately measured")
     return {"id": "native_components", "title": "POB DAMAGE COMPONENTS", "lines": lines}
+
+
+_OWNER_TAGS = {"MINION": "minion", "TOTEM": "totem", "SECONDARY_ACTOR": "other actor"}
+
+
+def _main_skill_section(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
+    """MAIN-SKILL-01: why offense is unmeasured and how to recover. Only when it applies."""
+    diagnostic = outcome.get("main_skill_diagnostic") or model.get("main_skill_diagnostic") or {}
+    selected = diagnostic.get("selected") or {}
+    if not diagnostic or not selected:
+        return None
+    where = [f"PoB group {selected['group_index']}"] if selected.get("group_index") else []
+    if selected.get("stat_set") and selected.get("stat_set") != selected.get("name"):
+        where.append(f"stat set {selected['stat_set']}")
+    if selected.get("context"):
+        where.append(f"{selected['context']} context")
+    name = _text(selected.get("name")) or "Selected skill"
+    lines = [f"Selected in Path of Building: {name}" + (f" ({', '.join(where)})" if where else "")]
+    lines.append(_text(diagnostic.get("explanation")))
+    alternatives = list(diagnostic.get("alternatives") or [])
+    if alternatives:
+        lines.append("Other skills in this build that Path of Building calculates offense for:")
+        for alt in alternatives:
+            tag = _OWNER_TAGS.get(_text(alt.get("owner")))
+            field = _text(alt.get("field")).replace("Minion.", "")
+            marks = ([tag] if tag else []) + (["same group"] if alt.get("same_group") else [])
+            suffix = f" ({', '.join(marks)})" if marks else ""
+            lines.append(f"• {_text(alt.get('label') or alt.get('name'))}{suffix} — PoB {field} {_num(alt.get('value'))}")
+        extra = int(diagnostic.get("alternatives_total") or 0) - len(alternatives)
+        if extra > 0:
+            lines.append(f"• …and {extra} more")
+    elif _text(diagnostic.get("alternatives_note")):
+        lines.append(_text(diagnostic["alternatives_note"]))
+    lines.append("To evaluate the skill you intend:")
+    lines.extend(f"{index}. {step}" for index, step in enumerate(diagnostic.get("recovery_steps") or [], start=1))
+    lines.append("ExileLens does not change your selected skill.")
+    defense = ((outcome.get("item_impact") or {}).get("axes") or {}).get("DEFENSE") or {}
+    if defense.get("support") == "MEASURED":
+        lines.append("Defensive changes below are still measured.")
+    return {"id": "main_skill", "title": "MAIN SKILL", "lines": [line for line in lines if line]}
 
 
 def _key_impact(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
@@ -421,6 +462,7 @@ def _unmodeled(outcome: dict[str, Any]) -> dict[str, Any] | None:
 
 _BUILDERS = {
     "verdict_header": _verdict_header,
+    "main_skill": _main_skill_section,
     "damage_reference": _damage_reference_section,
     "native_components": _native_components_section,
     "key_impact": _key_impact,

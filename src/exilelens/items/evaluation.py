@@ -27,12 +27,14 @@ from exilelens.items.pob_parse import PobParseResult
 from exilelens.items.intelligence import enrich_fast_result
 from exilelens.items.language_detect import detect_poe_item_language, unsupported_language_body
 from exilelens.items.native_metric_discovery import (
+    MAX_REPORT_GROUPS,
     candidate_keys,
     compare_native_components,
     select_baseline_components,
     should_discover_components,
 )
 from exilelens.items.ailment_intel import ailment_breakdown
+from exilelens.items.main_skill_diagnostics import build_main_skill_diagnostic, selected_skill_has_no_offense
 from exilelens.items.primary_metric import DamageOwner, DamageQuantity, MetricScope, resolve_primary_metric
 from exilelens.items.offense_coverage import OffenseCoverageAuditor, infer_offense_coverage
 from exilelens.items.ranking import rank_slot_comparisons
@@ -433,6 +435,34 @@ def _evaluate_item_steps(
         except Exception:
             logger.exception("PoB native component discovery unavailable; primary comparison retained")
 
+    # MAIN-SKILL-01: a selected main skill with no calculated offense gets an
+    # actionable diagnostic (identity, why, PoB-calculated alternatives, recovery).
+    # Baseline-only, so it is read once and shared by every slot comparison.
+    main_skill_diagnostic: dict[str, Any] | None = None
+    if selected_skill_has_no_offense(primary_metric, baseline_metrics):
+        skill_group_count = int(build_info.get("skill_group_count") or 0)
+        diagnostic_report: dict[str, Any] | None = None
+        if hasattr(engine, "_call") and 0 < skill_group_count <= MAX_REPORT_GROUPS:
+            diag_cache = getattr(engine, "_native_component_report_cache", None)
+            if diag_cache is None:
+                diag_cache = {}
+                setattr(engine, "_native_component_report_cache", diag_cache)
+            diagnostic_key = ("main-skill-diagnostic", baseline_fingerprint, context, build_info.get("main_socket_group"),
+                              build_info.get("weapon_set", 1), str(build_info.get("active_skill_set_id") or ""))
+            try:
+                diagnostic_report = diag_cache.get(diagnostic_key)
+                if diagnostic_report is None:
+                    diagnostic_report = engine._call("get_skill_report", {})
+                    diag_cache[diagnostic_key] = diagnostic_report
+            except Exception:
+                logger.exception("PoB skill report unavailable; main-skill diagnostic lists no alternatives")
+                diagnostic_report = None
+        main_skill_diagnostic = build_main_skill_diagnostic(
+            primary_metric, baseline_metrics, diagnostic_report,
+            context=context, skill_group_count=skill_group_count,
+            effect_catalog=build_info.get("effect_catalog"),
+        )
+
     comparisons: list[dict[str, Any]] = []
     failed_slot_outcomes: list[dict[str, Any]] = []
     recovery_used = False
@@ -623,6 +653,8 @@ def _evaluate_item_steps(
             "eval_ms": timings.per_slot_eval_ms[pob_slot],
         }
         comparison["native_damage_discovery"] = compare_native_components(primary_metric, components, comparison)
+        if main_skill_diagnostic is not None:
+            comparison["main_skill_diagnostic"] = main_skill_diagnostic
         breakdown = ailment_breakdown(
             comparison["baseline_primary_metric"],
             baseline_block.get("metrics"),
@@ -739,6 +771,7 @@ def _evaluate_item_steps(
         "primary_metric": primary_metric.to_dict(),
         "effect_catalog": build_info.get("effect_catalog") or {},
         "native_damage_discovery": (ranking["recommendation"] or {}).get("native_damage_discovery") or {},
+        "main_skill_diagnostic": main_skill_diagnostic or {},
         "damage_claim": (ranking["recommendation"] or {}).get("damage_claim") or {},
         "offense_coverage": coverage_payload,
         "value_profile": selected_profile.value,

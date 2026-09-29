@@ -55,6 +55,12 @@ _EVALUATION_LIMITATIONS: tuple[EvaluationLimitationDefinition, ...] = (
         "Prefer qualitative tradeoffs over precise upgrade/downgrade calls.",
     ),
     EvaluationLimitationDefinition(
+        "MAIN_SKILL_NO_OFFENSE",
+        "Selected main skill has no calculated offense",
+        "Path of Building calculated no offensive output for the skill selected as the main skill, so damage changes cannot be compared.",
+        "If another skill is the one you want evaluated, select it in Path of Building, save the build and reload it in ExileLens. Defensive changes are still measured.",
+    ),
+    EvaluationLimitationDefinition(
         "AILMENT_HIT_COMPONENTS_DISAGREE",
         "Hit and ailment damage disagree",
         "The item moves the main skill's ailment damage and its hit damage in opposite directions.",
