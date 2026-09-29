@@ -28,6 +28,68 @@
     },
     {
       "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "BALLISTA-DEFENCE-RING-MEASURED",
+      "manifest_id": "CORPUS02F-BALLISTA",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "BALLISTA-IDENTITY-AND-DPS-SEMANTICS",
+      "manifest_id": "CORPUS02F-BALLISTA",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "functional": "EXPECTED_UNCERTAINTY",
+      "id": "BALLISTA-TOTEM-COUNT-CHANGE-IS-PARTIAL",
+      "manifest_id": "CORPUS02F-BALLISTA",
+      "passed_variants": 2,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "BALLISTA-WEAPON-OFFENSE-VERDICTS",
+      "manifest_id": "CORPUS02F-BALLISTA",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "ranged_attack"
       ],
       "depth": "VERDICT",
@@ -879,6 +941,148 @@
       "passed_variants": 1,
       "result": "PASS",
       "test_file": "tests/integration/test_public_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "MORTAR-COOLDOWN-RECOVERY-REACHES-THE-RATE",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "MORTAR-DEFENCE-ONLY-NO-INVENTED-OFFENSE",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "MORTAR-IDENTITY-AND-DPS-SEMANTICS",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ailment",
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "functional": "PARTIALLY_MEASURED",
+      "id": "MORTAR-IGNITE-ONLY-CHANGE-IS-PARTIAL",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "MORTAR-OFFENSE-DEFENSE-TRADEOFF",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "MORTAR-OFFENSE-UPGRADE-AND-DOWNGRADE",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "MORTAR-REPEATED-EVALUATION-RESTORE",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem",
+        "ranged_attack"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "MORTAR-SCORES-THE-PER-SECOND-RATE",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "proxy_totem"
+      ],
+      "depth": "VERDICT",
+      "expected": "UNCERTAIN",
+      "failure_messages": [],
+      "functional": "EXPECTED_UNCERTAINTY",
+      "id": "MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL",
+      "manifest_id": "CORPUS02F-MORTAR-CANNON",
+      "passed_variants": 1,
+      "result": "EXPECTED_UNCERTAIN",
+      "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
     {
@@ -2043,24 +2247,24 @@
     }
   ],
   "functional": {
-    "classified_executed": 28,
+    "classified_executed": 37,
     "counts": {
-      "EXPECTED_UNCERTAINTY": 5,
-      "FULLY_MEASURED": 22,
+      "EXPECTED_UNCERTAINTY": 7,
+      "FULLY_MEASURED": 28,
       "NOT_ESTABLISHED": 0,
-      "PARTIALLY_MEASURED": 1,
+      "PARTIALLY_MEASURED": 2,
       "UNSUPPORTED_MECHANIC": 0
     },
-    "fully_measured": 22,
-    "unclassified_verdict_executed": 61
+    "fully_measured": 28,
+    "unclassified_verdict_executed": 63
   },
   "result_counts": {
-    "EXPECTED_UNCERTAIN": 16,
-    "PASS": 115,
+    "EXPECTED_UNCERTAIN": 19,
+    "PASS": 125,
     "UNSUPPORTED": 8
   },
-  "supported_count": 139,
-  "total_count": 139,
+  "supported_count": 152,
+  "total_count": 152,
   "uncovered_archetypes": [
     "es_scaling",
     "stat_stacker"

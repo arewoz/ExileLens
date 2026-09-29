@@ -67,6 +67,18 @@ _EVALUATION_LIMITATIONS: tuple[EvaluationLimitationDefinition, ...] = (
         "Compare Path of Building's combined damage for this skill before deciding.",
     ),
     EvaluationLimitationDefinition(
+        "PER_USE_DOT_NOT_MEASURED",
+        "Damage over time not in the scored damage",
+        "This skill is calculated per use; its hit damage is scored, and its ignite or other damage over time moved differently from that hit damage.",
+        "Compare Path of Building's per-use and ignite damage for this skill before deciding.",
+    ),
+    EvaluationLimitationDefinition(
+        "TOTEM_LIMIT_CHANGED",
+        "Totem count changed",
+        "The item changes how many totems the main skill can keep, but Path of Building reports damage for a single totem.",
+        "Estimate the change from the number of totems yourself; the per-totem damage comparison is not the whole change.",
+    ),
+    EvaluationLimitationDefinition(
         "PRIMARY_METRIC_LOW_CONFIDENCE",
         "Low-confidence primary metric",
         "The main comparison metric could not be identified with confidence.",

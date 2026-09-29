@@ -31,10 +31,12 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/corpus02b_varashta_djinn.xml` | Sorceress/Disciple of Varashta, level 100, with all three ascendancy-granted Djinns (Navira, the Last Mirage as main skill; Ruzhan and Kelari as additional socket groups) plus skeletal minions, a spectre and wolves. CORPUS-02B: minion-owned verdicts on an ascendancy-granted actor, complete Djinn damage components in the advanced view, and the Command-as-main-skill UNCERTAIN variant. A public ladder build, **not** the community Djinn report's build. See `docs/CORPUS-02B.md`. |
 | `fixtures/builds/public_corpus/corpus02c_stonefist_martial_artist.xml` | Monk/Martial Artist (level 100) Twister with **Way of the Stonefist** allocated; its export already carries the equipped gloves transformed ("Runeforged Fists of Stone" with transformed modifiers). CORPUS-02C: ordinary glove candidates are transformed in memory into the Fists of Stone item the character equips and measured by PoB (exact or across the independently rolled transformed range), the exported gloves are never transformed twice, and other slots stay measured. See `docs/CORPUS-02C.md`. |
 | `fixtures/builds/public_corpus/corpus02e_spell_totem_titan.xml` | Warrior/Titan (level 100) whose selected socket group is the **Spell Totem** meta skill; the totem casts Grim Pillars. CORPUS-02E: the first proxy/totem build. PoB calculates the totem's per-cast damage and cast rate on the player's main output (`TotalDPS` = per-cast damage x cast rate; `CombinedDPS` is the per-cast damage), and player defences separately. Candidate amulets get FULL verdicts checked against fresh PoB loads. See `docs/CORPUS-02E.md`. |
+| `fixtures/builds/public_corpus/corpus02f_mortar_cannon_warbringer.xml` | Warrior/Warbringer (level 100) whose main group is **Mortar Cannon** + Cluster Grenade; the selected effect is Cluster Grenade, a per-use (show average) attack limited by its cooldown. CORPUS-02F: PoB's `CombinedDPS` is the per-use average, `TotalDPS` the per-second rate for one totem, and the totem limit is a separate output. See `docs/CORPUS-02F.md`. |
+| `fixtures/builds/public_corpus/corpus02f_ballista_warbringer.xml` | Warrior/Warbringer (level 97) whose saved main skill is Explosive Grenade, with a dedicated **Siege Ballista** group (socket group 9) whose second effect, Artillery, is the ballista's damage. CORPUS-02F: the tests select that effect on a temporary copy; the committed file keeps the saved selection. See `docs/CORPUS-02F.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(14 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier and CORPUS-02E Spell Totem builds). It contains repository-relative paths and expected semantic
+(16 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem and CORPUS-02F Mortar Cannon and Ballista builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -129,6 +131,21 @@ Energy Shield, EHP and Speed. Committed SHA-256:
 `6a7a3dc85c0e09c84de1cd929e66a50f5a2e0f7518da66e752decf42925ea9fb` (LF line endings). It passes the public safety
 regression and contains only the standard passive-tree `<URL>`. Its selected effect (Grim Pillars, socket group 5,
 effect 2) is the state PoB saved, not a selection made by ExileLens.
+
+`corpus02f_mortar_cannon_warbringer.xml` and `corpus02f_ballista_warbringer.xml` (CORPUS-02F) were found on
+2026-09-29 through poe.ninja's own build search for the Runes of Aldur ladder (skill filters Mortar Cannon and
+Siege Ballista) and its per-character API (the `pathOfBuildingExport` string); the Mortar Cannon build was
+selected from Warbringer characters whose saved main group is Mortar Cannon, the Ballista build from the 27
+characters carrying Siege Ballista (none had it as the saved main skill). poe.ninja's "Copy PoB code" export was
+used unchanged apart from sanitization, and no character permalink, account or character name was retained anywhere
+in the repository. Sanitization removed the 19 `Unique ID:` lines and poe.ninja's `<PlayerStat>` cache (107 lines
+for the Mortar build, 108 for the Ballista build) and changed nothing else. Both contain only the standard
+passive-tree `<URL>` and an empty `<Notes>`. Committed SHA-256 (LF line endings): Mortar
+`8b4f540b1e6bbacbd2551246d4c7c3176a1fde0474a41d7d68f017de15fadad2`, Ballista
+`c46e5e3fb3afd7738a3403f4412af3f54dd2175be0402a421fc546946fe80ef0`. The Mortar build's selected effect is the state PoB
+saved. The Ballista build's saved main skill is Explosive Grenade: the tests select the Siege Ballista group's
+Artillery effect on a temporary copy (`mainSocketGroup` 7 -> 9 and that group's `mainActiveSkill` /
+`mainActiveSkillCalcs` 1 -> 2) and nothing else is changed; the committed file is unmodified.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

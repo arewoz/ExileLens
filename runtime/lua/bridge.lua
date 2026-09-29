@@ -627,6 +627,9 @@ local function collect_actor_output(out)
 	return present and row or nil
 end
 
+-- Defined with the effect helpers below; forward-declared for collect_metrics.
+local group_totem_limit
+
 local function collect_metrics()
 	local out = build.calcsTab.mainOutput or {}
 	local raw = {}
@@ -647,6 +650,11 @@ local function collect_metrics()
 			raw["Minion." .. k] = value
 		end
 	end
+	-- CORPUS-02F: PoB reports a totem skill's damage for one totem. The number of totems the
+	-- main group's summoning skill may keep is a separate PoB output that its DPS does not
+	-- include, so it is exposed as evidence to detect items that change it.
+	local totem_limit = group_totem_limit and group_totem_limit() or nil
+	if totem_limit then raw.GroupTotemLimit = totem_limit end
 	-- Effective cap = clamped resist + missing-to-cap. Overcap does not raise the cap.
 	for _, elem in ipairs({"Fire", "Cold", "Lightning", "Chaos"}) do
 		local resist = out[elem .. "Resist"]
@@ -1422,8 +1430,13 @@ end
 
 local function per_hit_combined_signature(out)
 	local combined, average, dps = out.CombinedDPS, out.AverageDamage, out.TotalDPS
+	-- PoB's showAverage skills report CombinedDPS == AverageDamage (per use). TotalDPS is the
+	-- per-second rate, which is above it for fast skills and below it for cooldown-limited
+	-- ones (e.g. Cluster Grenade, 0.15 uses/s). Ordinary skills only match when the rate
+	-- equals the per-use value exactly, which is excluded.
 	return type(combined) == "number" and type(average) == "number" and type(dps) == "number"
-		and combined > 0 and dps > combined
+		and combined > 0 and dps > 0
+		and math.abs(dps - combined) > math.max(0.000001, math.abs(combined) * 0.000001)
 		and math.abs(combined - average) <= math.max(0.000001, math.abs(average) * 0.000001)
 end
 
@@ -1524,6 +1537,32 @@ local function resolve_effect_active_skill(group, env, display_skill)
 		end
 	end
 	return nil
+end
+
+-- Largest ActiveTotemLimit PoB calculated for a totem skill of the main socket group, read
+-- from GlobalCache (no extra frame). nil when the group has no calculated totem skill.
+group_totem_limit = function()
+	local group = build.skillsTab and build.skillsTab.socketGroupList[build.mainSocketGroup]
+	local main_env = build.calcsTab and build.calcsTab.mainEnv
+	local cached = GlobalCache and GlobalCache.cachedData and GlobalCache.cachedData.MAIN
+	if not (group and main_env and cached) then return nil end
+	local best = nil
+	for _, display_skill in ipairs(group.displaySkillList or {}) do
+		local matched = resolve_effect_active_skill(group, main_env, display_skill)
+		if matched then
+			local ok, uuid = pcall(cacheSkillUUID, matched, main_env)
+			local entry = ok and uuid and cached[uuid] or nil
+			local player = type(entry) == "table" and type(entry.Env) == "table" and entry.Env.player or nil
+			local skill = type(player) == "table" and player.mainSkill or nil
+			local effect = type(skill) == "table" and skill.activeEffect or nil
+			local flags = type(effect) == "table" and type(effect.statSet) == "table" and effect.statSet.skillFlags or nil
+			local limit = type(player) == "table" and type(player.output) == "table" and player.output.ActiveTotemLimit or nil
+			if type(flags) == "table" and flags.totem and type(limit) == "number" then
+				best = math.max(best or 0, limit)
+			end
+		end
+	end
+	return best
 end
 
 local function resolve_group_active_skill(group, env)
