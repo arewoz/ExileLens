@@ -583,6 +583,32 @@ def assess_quality(
                 "measurement alone does not establish the total damage change",
             )
         )
+    if kind in {"MEASURED", "MEASURED_ZERO"} and breakdown.get("per_use_hit_omits_dot"):
+        # CORPUS-02F: a per-use skill is scored on its hit rate; its ailment/DoT rate moved
+        # differently, so the scored hit rate does not establish the total damage direction.
+        partial.append(
+            _reason(
+                "PER_USE_DOT_NOT_MEASURED",
+                "this skill's damage over time (ignite/DoT) moved differently from its hit damage, and the "
+                "scored hit damage does not include it, so the measurement does not establish the total change",
+            )
+        )
+    if isinstance(raw_current, dict) and isinstance(raw_candidate, dict):
+        totems_before, totems_after = raw_current.get("GroupTotemLimit"), raw_candidate.get("GroupTotemLimit")
+        if (
+            isinstance(totems_before, (int, float)) and isinstance(totems_after, (int, float))
+            and not isinstance(totems_before, bool) and not isinstance(totems_after, bool)
+            and totems_before != totems_after
+        ):
+            # CORPUS-02F: PoB's damage for a totem skill is one totem's. The candidate changes how
+            # many totems the main group may keep, which that damage does not include.
+            partial.append(
+                _reason(
+                    "TOTEM_LIMIT_CHANGED",
+                    f"the item changes the maximum number of totems from {totems_before:g} to {totems_after:g}; "
+                    "Path of Building's damage is for one totem, so the change in total damage is not measured",
+                )
+            )
     if str(primary_confidence or "").lower() == "low":
         partial.append(_reason("PRIMARY_METRIC_LOW_CONFIDENCE", "the main damage metric could not be identified with confidence"))
     if _unavailable(metric_profile.get("ehp")):

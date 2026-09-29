@@ -1799,6 +1799,178 @@ CORPUS_02E_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# CORPUS-02F — authentic Mortar Cannon and Siege Ballista builds. Every measured case is
+# checked against an independent fresh PoB load with the candidate equipped.
+# ---------------------------------------------------------------------------
+_F_FILE = "tests/integration/test_corpus02f_mortar_ballista.py"
+_F_MORTAR = "CORPUS02F-MORTAR-CANNON"
+_F_BALLISTA = "CORPUS02F-BALLISTA"
+_F_TAGS = (Archetype.PROXY_TOTEM, Archetype.RANGED_ATTACK)
+CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="MORTAR-IDENTITY-AND-DPS-SEMANTICS",
+        test_file=_F_FILE,
+        node_name="test_mortar_selected_effect_is_the_per_use_cluster_grenade",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The Mortar Cannon group's selected effect is Cluster Grenade on the PLAYER output. PoB's "
+            "CombinedDPS is the per-use AverageDamage; TotalDPS is the per-second rate (uses per second, "
+            "limited by the cooldown, x PoB's DPS multiplier) for one totem; the totem limit is separate."
+        ),
+        archetypes=_F_TAGS,
+        manifest_id=_F_MORTAR,
+    ),
+    CoverageCase(
+        id="MORTAR-SCORES-THE-PER-SECOND-RATE",
+        test_file=_F_FILE,
+        node_name="test_mortar_scores_the_per_second_hit_rate_not_the_per_use_average",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="The resolver scores TotalDPS (HIT_DPS, showAverage reason), not the per-use CombinedDPS.",
+        archetypes=_F_TAGS,
+        manifest_id=_F_MORTAR,
+    ),
+    CoverageCase(
+        id="MORTAR-OFFENSE-UPGRADE-AND-DOWNGRADE",
+        test_file=_F_FILE,
+        node_name="test_mortar_offense_upgrade_and_downgrade_match_fresh_loads",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="More/less flat fire damage to attacks on the ring: FULL upgrade / downgrade, fresh-load checked.",
+        archetypes=_F_TAGS,
+        manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MORTAR-COOLDOWN-RECOVERY-REACHES-THE-RATE",
+        test_file=_F_FILE,
+        node_name="test_cooldown_recovery_reaches_the_rate_that_the_per_use_average_cannot_show",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Cooldown recovery leaves PoB's per-use CombinedDPS exactly unchanged but raises the rate: FULL / "
+            "MEANINGFUL_UPGRADE. Before the fix the cooldown-limited skill was scored on the per-use figure."
+        ),
+        archetypes=_F_TAGS,
+        manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MORTAR-DEFENCE-ONLY-NO-INVENTED-OFFENSE",
+        test_file=_F_FILE,
+        node_name="test_defence_only_ring_leaves_the_mortar_damage_untouched",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="More life on the ring: FULL upgrade, DEFENSE positive, the damage rate exactly unchanged.",
+        archetypes=_F_TAGS,
+        manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MORTAR-OFFENSE-DEFENSE-TRADEOFF",
+        test_file=_F_FILE,
+        node_name="test_offense_gain_with_a_lost_resistance_cap_is_a_flagged_tradeoff",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="More damage but the Fire Resistance cap is lost: FULL, TRADEOFF, RES_CAP_LOST, never an upgrade.",
+        archetypes=_F_TAGS,
+        manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MORTAR-IGNITE-ONLY-CHANGE-IS-PARTIAL",
+        test_file=_F_FILE,
+        node_name="test_ignite_only_change_is_not_claimed_as_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "Ignite chance doubles PoB's IgniteDPS while the scored hit rate is unchanged: PARTIAL / UNCERTAIN "
+            "(PER_USE_DOT_NOT_MEASURED). PoB measures the ignite; ExileLens does not yet score a per-use skill's "
+            "ignite as a rate."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM, Archetype.AILMENT),
+        manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.PARTIALLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL",
+        test_file=_F_FILE,
+        node_name="test_a_changed_totem_count_is_not_claimed_as_measured",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "+1 maximum totems (limit 4 -> 5): PoB's damage is for one totem, so the change in total damage is "
+            "not measured; PARTIAL / UNCERTAIN (TOTEM_LIMIT_CHANGED)."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="BALLISTA-IDENTITY-AND-DPS-SEMANTICS",
+        test_file=_F_FILE,
+        node_name="test_ballista_group_is_calculated_through_its_artillery_effect",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "The saved main skill is another grenade; the Siege Ballista group's Artillery effect (selected by "
+            "the test only) is a plain per-second skill for one ballista; the summoning effect deals no damage "
+            "and carries the totem limit."
+        ),
+        archetypes=_F_TAGS,
+        manifest_id=_F_BALLISTA,
+    ),
+    CoverageCase(
+        id="BALLISTA-WEAPON-OFFENSE-VERDICTS",
+        test_file=_F_FILE,
+        node_name="test_ballista_weapon_offense_verdicts_match_fresh_loads",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Faster / slower crossbow: FULL upgrade / downgrade of the ballista's rate, fresh-load checked.",
+        archetypes=_F_TAGS,
+        manifest_id=_F_BALLISTA,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="BALLISTA-TOTEM-COUNT-CHANGE-IS-PARTIAL",
+        test_file=_F_FILE,
+        node_name="test_ballista_totem_count_change_is_not_claimed_as_measured",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.UNCERTAIN,
+        description=(
+            "A weapon that changes the maximum number of Ballista totems (4 -> 2 / 4 -> 6): PoB's Artillery "
+            "damage does not move, so the change in total damage is not measured; PARTIAL / UNCERTAIN."
+        ),
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id=_F_BALLISTA,
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+    ),
+    CoverageCase(
+        id="BALLISTA-DEFENCE-RING-MEASURED",
+        test_file=_F_FILE,
+        node_name="test_ballista_defence_ring_is_measured_without_inventing_offense",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="More life on the ring: FULL, the ballista's damage rate exactly unchanged.",
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id=_F_BALLISTA,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="MORTAR-REPEATED-EVALUATION-RESTORE",
+        test_file=_F_FILE,
+        node_name="test_repeated_evaluations_are_identical_and_restore_the_build",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Interleaved evaluations are identical and the fingerprint and equipment return to baseline.",
+        archetypes=(Archetype.PROXY_TOTEM,),
+        manifest_id=_F_MORTAR,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -1810,5 +1982,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02D2_CASES
     + MAIN_SKILL_01_CASES
     + CORPUS_02E_CASES
+    + CORPUS_02F_CASES
     + POLICY_UNIT_CASES
 )

@@ -113,6 +113,42 @@ def _composition(metrics: dict[str, Any]) -> tuple[str, float | None]:
     return ("EXPLAINED" if abs(residual) <= tolerance else "UNEXPLAINED"), residual
 
 
+def _dot_rate(metrics: dict[str, Any]) -> float:
+    """PoB's per-second damage-over-time total (skill DoT plus every damaging ailment)."""
+    total = _num(metrics, "TotalDotDPS")
+    if total is not None:
+        return total
+    return sum(_num(metrics, f"{name}DPS") or 0.0 for name in _AILMENTS)
+
+
+def _per_use_hit_omits_dot(
+    primary_metric: dict[str, Any],
+    before_metrics: dict[str, Any],
+    after_metrics: dict[str, Any],
+    hit_pct: float | None,
+) -> bool:
+    """A per-use (showAverage) skill is scored on its hit rate, which leaves out its DoT.
+
+    PoB's CombinedDPS is the per-use average damage for such skills and cannot be compared
+    as a rate, so the hit ``TotalDPS`` is scored. The ailment/DoT rate is a separate PoB
+    output that this leaves out; when it moves and the hit rate does not show the same
+    direction, the scored number does not establish the total change. Nothing is added to
+    the score; PoB's own additive rate (hit + DoT) is only used to check the direction.
+    """
+    if not str(primary_metric.get("reason") or "").startswith("showAverage"):
+        return False
+    if str(primary_metric.get("pob_field") or "") != "TotalDPS":
+        return False
+    hit_before = _num(before_metrics, "TotalDPS") or 0.0
+    hit_after = _num(after_metrics, "TotalDPS") or 0.0
+    total_before = hit_before + _dot_rate(before_metrics)
+    total_after = hit_after + _dot_rate(after_metrics)
+    total_pct = _pct(total_before, total_after)
+    if total_pct is None or abs(total_pct) < _DIRECTION_PCT:
+        return False
+    return hit_pct is None or abs(hit_pct) < _DIRECTION_PCT or (hit_pct > 0) != (total_pct > 0)
+
+
 def ailment_breakdown(
     primary_metric: dict[str, Any] | None,
     baseline_metrics: dict[str, Any] | None,
@@ -210,6 +246,8 @@ def ailment_breakdown(
         and (hit_pct > 0) != (ailment_pct > 0)
     )
 
+    dot_omitted = _per_use_hit_omits_dot(primary_metric, before_metrics, after_metrics, hit_pct)
+
     return {
         "version": AILMENT_BREAKDOWN_VERSION,
         "ailment": dominant.upper(),
@@ -228,4 +266,5 @@ def ailment_breakdown(
         "hit_percent_delta": hit_pct,
         "ailment_percent_delta": ailment_pct,
         "hit_ailment_conflict": conflict,
+        "per_use_hit_omits_dot": dot_omitted,
     }

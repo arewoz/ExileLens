@@ -126,6 +126,24 @@
       "primary_skill": "Grim Pillars",
       "actor": "PLAYER",
       "purpose": "Spell Totem proxy: the selected socket group is the Spell Totem meta skill whose totem casts Grim Pillars; PoB reports the totem's per-cast damage and cast rate on the player's main output, with player defences (Life, Energy Shield, resistances) measured separately"
+    },
+    {
+      "id": "CORPUS02F-MORTAR-CANNON",
+      "file": "fixtures/builds/public_corpus/corpus02f_mortar_cannon_warbringer.xml",
+      "class": "Warrior",
+      "ascendancy": "Warbringer",
+      "primary_skill": "Cluster Grenade",
+      "actor": "PLAYER",
+      "purpose": "Mortar Cannon: the selected effect is Cluster Grenade, a per-use (show average) attack limited by its cooldown; PoB reports CombinedDPS as the per-use average and TotalDPS as the per-second rate for one totem, plus a separate totem limit"
+    },
+    {
+      "id": "CORPUS02F-BALLISTA",
+      "file": "fixtures/builds/public_corpus/corpus02f_ballista_warbringer.xml",
+      "class": "Warrior",
+      "ascendancy": "Warbringer",
+      "primary_skill": "Explosive Grenade",
+      "actor": "PLAYER",
+      "purpose": "Siege Ballista: the saved main skill is a different grenade; the Siege Ballista group (socket group 9) is calculated with its second effect, Artillery, selected by the tests only, and carries the totem limit"
     }
   ]
 }

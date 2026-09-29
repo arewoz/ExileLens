@@ -500,7 +500,7 @@ def resolve_primary_metric(
 
     # PoB's showAverage output is per hit even when the selected skill has an
     # ailment. Never compare that CombinedDPS as a per-second quantity.
-    if (show_average or (combined > 0 and total_hit > combined)) and combined > 0 and abs(combined - average) <= max(1e-6, average * 1e-6):
+    if (show_average or (combined > 0 and total_hit > 0 and abs(total_hit - combined) > max(1e-6, combined * 1e-6))) and combined > 0 and abs(combined - average) <= max(1e-6, average * 1e-6):
         return select("TotalDPS", "showAverage: CombinedDPS is AverageDamage per hit", identified,
                       OffenseKind.HIT_DPS)
 

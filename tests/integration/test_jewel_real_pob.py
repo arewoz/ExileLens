@@ -142,7 +142,10 @@ def test_multi_socket_ranking_reflects_best_valid_placement_not_first_socket(rea
     # sort/iterate before "Jewel 2491"/"Jewel 55190" is not guaranteed by
     # dict order, so this only holds if selection is genuinely score-driven).
     assert result["recommendation"]["product_slot"] == "Jewel 55190"
-    assert result["recommendation"]["verdict"] == "CLEAR_UPGRADE"
+    # CORPUS-02F: Sunder is a per-use (showAverage) skill, so the scored metric is its per-second TotalDPS.
+    # This jewel raises per-use damage but lowers attack speed (0.8064 -> 0.7812), leaving the rate
+    # unchanged; only the defence gain remains. The per-use figure used before hid the speed loss.
+    assert result["recommendation"]["verdict"] == "DEFENSE_UPGRADE"
 
 
 def test_multi_axis_tradeoff_is_reported_not_hidden(real_pob_engine) -> None:
