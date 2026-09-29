@@ -85,10 +85,6 @@ def _role_from_evidence(
     resist: dict[str, Any],
     offense_zero: bool,
 ) -> tuple[str, list[str], str, float]:
-    reasons: list[str] = []
-    threshold_relation = ""
-    strength = 0.0
-
     for event in thresholds:
         if event.is_build_fix and _event_matches_family(event, family):
             return BuildRole.CORE.value, [event.code], event.code, 1.0
@@ -200,9 +196,6 @@ def _role_from_evidence(
         if pct <= -3:
             return BuildRole.HARMFUL.value, ["SKILL_LEVEL_LOSS"], "SKILL_LEVEL", max(-1.0, strength)
 
-    del reasons
-    if threshold_relation:
-        return BuildRole.USEFUL.value, reasons, threshold_relation, strength
     return BuildRole.NEUTRAL.value, ["NO_MEASURED_IMPACT"], "", 0.0
 
 
