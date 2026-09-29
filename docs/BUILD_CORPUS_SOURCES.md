@@ -35,10 +35,11 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/corpus02f_ballista_warbringer.xml` | Warrior/Warbringer (level 97) whose saved main skill is Explosive Grenade, with a dedicated **Siege Ballista** group (socket group 9) whose second effect, Artillery, is the ballista's damage. CORPUS-02F: the tests select that effect on a temporary copy; the committed file keeps the saved selection. See `docs/CORPUS-02F.md`. |
 | `fixtures/builds/public_corpus/corpus02g_strength_oracle_brutus.xml` | Druid/Oracle (level 99, Chaos Inoculation) dual wielding Brutus' Lead Sprinkler ("Added Attack Fire Damage per 25 Strength") with about 1,900 Strength; main skill Molten Blast. CORPUS-02G: the Strength stacker. See `docs/CORPUS-02G.md`. |
 | `fixtures/builds/public_corpus/corpus02g_dex_int_acolyte_hand_of_wisdom.xml` | Monk/Acolyte of Chayula (level 98) with Astramentis and Hand of Wisdom and Action (attack speed per 20 Dexterity, added lightning damage per 20 Intelligence); main skill Fragments of the Past. CORPUS-02G: the Dexterity/Intelligence stacker. See `docs/CORPUS-02G.md`. |
+| `fixtures/builds/public_corpus/corpus02h_eldritch_battery_shaman.xml` | Druid/Shaman (level 100) with the **Eldritch Battery** keystone (all Energy Shield converted to maximum Mana) and Rathpith Globe (damage and crit per 100 maximum Mana); main skill Spark from a Spell Totem. CORPUS-02H: Energy Shield that feeds the resource pool and, through it, damage. See `docs/CORPUS-02H.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(18 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, and CORPUS-02G Strength and Dexterity/Intelligence stacker builds). It contains repository-relative paths and expected semantic
+(19 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, CORPUS-02G Strength and Dexterity/Intelligence stacker, and CORPUS-02H Eldritch Battery builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -159,6 +160,16 @@ no character permalink, account or character name was retained. Sanitization rem
 passive-tree `<URL>` and an empty `<Notes>`. Committed SHA-256 (LF line endings): Strength build
 `343fc6c6da4903b800917eb008b62b2f5fb8e4e302a1987f956b20e5eb51c361`, Dexterity/Intelligence build
 `d67801f86e08e49657306a454d9e16b696acf55fdd846c887e14fd7c701ea5be`. Both saved main skills are used unchanged.
+
+`corpus02h_eldritch_battery_shaman.xml` (CORPUS-02H) was found on 2026-09-29 through poe.ninja's own build search for the
+Runes of Aldur ladder (key passive filter Eldritch Battery, a keystone named in PoB's passive tree data as "Convert 100% of
+maximum Energy Shield to maximum Mana") and its per-character API (the `pathOfBuildingExport` string). Seven filtered builds
+were ranked by PoB's response to +500 maximum Energy Shield on their own equipped amulet (Mana +635 to +1,215 and damage
++2.6% to +20.2%), never by name. Ordinary high-Energy-Shield builds without the keystone showed no damage response and were
+not used. The export was used unchanged apart from sanitization: 20 `Unique ID:` lines and poe.ninja's 108-line
+`<PlayerStat>` cache were removed (128 lines), nothing else changed, and no character permalink, account or character name
+was retained. It contains only the standard passive-tree `<URL>` and an empty `<Notes>`. Committed SHA-256 (LF line
+endings): `67d06d522604f1e9cc99d53689104db8d83c723ca6a9291a0d7dcc2f73bef5e2`. The saved main skill is used unchanged.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

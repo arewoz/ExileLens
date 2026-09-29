@@ -162,6 +162,15 @@
       "primary_skill": "Fragments of the Past",
       "actor": "PLAYER",
       "purpose": "Dexterity/Intelligence stacker: Astramentis (all attributes) and Hand of Wisdom and Action (attack speed per 20 Dexterity, added lightning damage per 20 Intelligence)"
+    },
+    {
+      "id": "CORPUS02H-ELDRITCH-BATTERY",
+      "file": "fixtures/builds/public_corpus/corpus02h_eldritch_battery_shaman.xml",
+      "class": "Druid",
+      "ascendancy": "Shaman",
+      "primary_skill": "Spark",
+      "actor": "PLAYER",
+      "purpose": "Energy Shield scaling: the Eldritch Battery keystone converts all Energy Shield to maximum Mana and Rathpith Globe scales the Spell Totem's Spark with maximum Mana; PoB reports Energy Shield 0 and calculates Mana, damage and effective HP from the same pool"
     }
   ]
 }
