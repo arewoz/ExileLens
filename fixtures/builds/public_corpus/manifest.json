@@ -144,6 +144,24 @@
       "primary_skill": "Explosive Grenade",
       "actor": "PLAYER",
       "purpose": "Siege Ballista: the saved main skill is a different grenade; the Siege Ballista group (socket group 9) is calculated with its second effect, Artillery, selected by the tests only, and carries the totem limit"
+    },
+    {
+      "id": "CORPUS02G-STRENGTH-BRUTUS",
+      "file": "fixtures/builds/public_corpus/corpus02g_strength_oracle_brutus.xml",
+      "class": "Druid",
+      "ascendancy": "Oracle",
+      "primary_skill": "Molten Blast",
+      "actor": "PLAYER",
+      "purpose": "Strength stacker: dual Brutus' Lead Sprinkler (Added Attack Fire Damage per 25 Strength), about 1,900 Strength, Chaos Inoculation; PoB's Str and ReqStr outputs and the per-25 threshold staircase"
+    },
+    {
+      "id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
+      "file": "fixtures/builds/public_corpus/corpus02g_dex_int_acolyte_hand_of_wisdom.xml",
+      "class": "Monk",
+      "ascendancy": "Acolyte of Chayula",
+      "primary_skill": "Fragments of the Past",
+      "actor": "PLAYER",
+      "purpose": "Dexterity/Intelligence stacker: Astramentis (all attributes) and Hand of Wisdom and Action (attack speed per 20 Dexterity, added lightning damage per 20 Intelligence)"
     }
   ]
 }

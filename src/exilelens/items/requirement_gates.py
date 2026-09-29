@@ -56,8 +56,9 @@ def attribute_requirement_warnings(
             continue
         cur = _num(raw_current, field)
         cand = _num(raw_candidate, field)
-        req_cur = _first_known(raw_current, f"{field}Req", f"Required{field}")
-        req_cand = _first_known(raw_candidate, f"{field}Req", f"Required{field}")
+        names = (f"{field}Req", f"Required{field}", f"Req{field}")
+        req_cur = _first_known(raw_current, *names)
+        req_cand = _first_known(raw_candidate, *names)
         missing_cur = _num(raw_current, f"Missing{field}")
         missing_cand = _num(raw_candidate, f"Missing{field}")
         if missing_cur is None and cur is not None and req_cur is not None:
@@ -67,7 +68,8 @@ def attribute_requirement_warnings(
         if missing_cand is None:
             continue
         seen.add(metric)
-        if missing_cand > _ATTR_EPS:
+        # A shortfall the build already had is not something the candidate causes.
+        if missing_cand > _ATTR_EPS and (missing_cur is None or missing_cand > missing_cur + _ATTR_EPS):
             required = req_cand if req_cand is not None else req_cur
             warnings.append(
                 {

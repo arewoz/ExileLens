@@ -1971,6 +1971,169 @@ CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# CORPUS-02G — authentic attribute-stacking builds (Strength; Dexterity/Intelligence). Every
+# measured case is checked against an independent fresh PoB load with the candidate equipped.
+# ---------------------------------------------------------------------------
+_G_FILE = "tests/integration/test_corpus02g_attribute_stacking.py"
+_G_STR = "CORPUS02G-STRENGTH-BRUTUS"
+_G_DI = "CORPUS02G-DEX-INT-HAND-OF-WISDOM"
+CORPUS_02G_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="STRENGTH-IDENTITY-AND-ATTRIBUTE-STACK",
+        test_file=_G_FILE,
+        node_name="test_strength_build_stacks_strength_through_the_weapons_and_uses_combined_dps",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Oracle with dual Brutus' Lead Sprinkler (Added Attack Fire Damage per 25 Strength) and about 1,900 Strength; PoB's Str and ReqStr outputs are visible; the scored field is CombinedDPS."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+    ),
+    CoverageCase(
+        id="STRENGTH-MORE-AND-LESS-STRENGTH",
+        test_file=_G_FILE,
+        node_name="test_more_and_less_strength_move_offense_and_defence_together",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "+40 / -40 flat Strength on the amulet: FULL upgrade / downgrade, offense and Energy Shield move together, fresh-load checked."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="STRENGTH-THRESHOLD-STEP",
+        test_file=_G_FILE,
+        node_name="test_strength_scaling_has_thresholds_and_is_not_a_fixed_rate",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Three more Strength across a per-25 boundary is worth several times the neighbouring three; Item Check reports PoB's number on both sides (FULL)."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="STRENGTH-PERCENT-INCREASED-BEATS-LARGER-FLAT",
+        test_file=_G_FILE,
+        node_name="test_percent_increased_strength_beats_a_larger_flat_bonus",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "An amulet with no flat Strength change but 70% increased Strength outscores one with +106 more flat Strength: FULL, fresh-load checked."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="STRENGTH-DEFENCE-ONLY",
+        test_file=_G_FILE,
+        node_name="test_defence_only_amulet_leaves_the_strength_stack_untouched",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "More Energy Shield only: FULL upgrade, DEFENSE positive, Strength and damage exactly unchanged."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="STRENGTH-OFFENSE-DEFENSE-TRADEOFF",
+        test_file=_G_FILE,
+        node_name="test_strength_gain_with_a_lost_resistance_cap_is_a_flagged_tradeoff",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "More Strength but the Cold Resistance cap is lost: FULL, TRADEOFF, RES_CAP_LOST, never an upgrade."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="STRENGTH-REQUIREMENT-LOST",
+        test_file=_G_FILE,
+        node_name="test_dropping_below_an_equipped_requirement_is_not_viable",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Strength below the equipped items' requirement (PoB's ReqStr): NOT_VIABLE with ATTRIBUTE_REQUIREMENT_LOST. PoB still applies the unmet item, so only the guardrail catches it."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+    ),
+    CoverageCase(
+        id="STRENGTH-REPEATED-EVALUATION-RESTORE",
+        test_file=_G_FILE,
+        node_name="test_strength_build_repeated_evaluations_restore_the_build",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Interleaved evaluations are identical and the fingerprint and equipment return to baseline (FULL)."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="DEX-INT-IDENTITY-AND-ATTRIBUTE-SCALING",
+        test_file=_G_FILE,
+        node_name="test_dex_int_build_scales_speed_and_added_damage_from_attributes",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Acolyte of Chayula with Astramentis and Hand of Wisdom and Action: attack speed per 20 Dexterity and added lightning damage per 20 Intelligence; PoB's attributes and requirements are visible."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_DI,
+    ),
+    CoverageCase(
+        id="DEX-INT-MORE-AND-FEWER-ATTRIBUTES",
+        test_file=_G_FILE,
+        node_name="test_more_and_fewer_attributes_change_speed_and_damage",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "+60 / -120 all attributes on Astramentis: Speed and damage follow; FULL upgrade / downgrade, fresh-load checked."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_DI,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="DEX-INT-ES-DOES-NOT-PAY-FOR-LOST-ATTRIBUTES",
+        test_file=_G_FILE,
+        node_name="test_extra_energy_shield_does_not_pay_for_lost_attributes",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Fewer attributes but +150 Energy Shield: offense and effective HP both fall, FULL MEANINGFUL_DOWNGRADE, fresh-load checked."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_DI,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="DEX-INT-DEFENCE-ONLY",
+        test_file=_G_FILE,
+        node_name="test_dex_int_defence_only_amulet_leaves_offense_unchanged",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "More Energy Shield only: FULL, offense exactly unchanged."
+        ),
+        archetypes=(Archetype.ATTRIBUTE_STACKER,),
+        manifest_id=_G_DI,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -1983,5 +2146,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + MAIN_SKILL_01_CASES
     + CORPUS_02E_CASES
     + CORPUS_02F_CASES
+    + CORPUS_02G_CASES
     + POLICY_UNIT_CASES
 )
