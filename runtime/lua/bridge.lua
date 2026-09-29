@@ -33,6 +33,8 @@ local METRIC_FIELDS = {
 	"ManaCost", "ManaPerSecondCost", "ManaRegenRecovery",
 	"LifeCost", "LifePerSecondCost", "LifeRegenRecovery",
 	"MovementSpeedMod",
+	-- CORPUS-02G: attributes and PoB's own item/gem requirement (the highest of them) per attribute.
+	"Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt",
 }
 
 -- Offensive fields exposed by PoB for a selected non-player actor.  Keep this

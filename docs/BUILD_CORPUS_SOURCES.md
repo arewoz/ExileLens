@@ -33,10 +33,12 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/corpus02e_spell_totem_titan.xml` | Warrior/Titan (level 100) whose selected socket group is the **Spell Totem** meta skill; the totem casts Grim Pillars. CORPUS-02E: the first proxy/totem build. PoB calculates the totem's per-cast damage and cast rate on the player's main output (`TotalDPS` = per-cast damage x cast rate; `CombinedDPS` is the per-cast damage), and player defences separately. Candidate amulets get FULL verdicts checked against fresh PoB loads. See `docs/CORPUS-02E.md`. |
 | `fixtures/builds/public_corpus/corpus02f_mortar_cannon_warbringer.xml` | Warrior/Warbringer (level 100) whose main group is **Mortar Cannon** + Cluster Grenade; the selected effect is Cluster Grenade, a per-use (show average) attack limited by its cooldown. CORPUS-02F: PoB's `CombinedDPS` is the per-use average, `TotalDPS` the per-second rate for one totem, and the totem limit is a separate output. See `docs/CORPUS-02F.md`. |
 | `fixtures/builds/public_corpus/corpus02f_ballista_warbringer.xml` | Warrior/Warbringer (level 97) whose saved main skill is Explosive Grenade, with a dedicated **Siege Ballista** group (socket group 9) whose second effect, Artillery, is the ballista's damage. CORPUS-02F: the tests select that effect on a temporary copy; the committed file keeps the saved selection. See `docs/CORPUS-02F.md`. |
+| `fixtures/builds/public_corpus/corpus02g_strength_oracle_brutus.xml` | Druid/Oracle (level 99, Chaos Inoculation) dual wielding Brutus' Lead Sprinkler ("Added Attack Fire Damage per 25 Strength") with about 1,900 Strength; main skill Molten Blast. CORPUS-02G: the Strength stacker. See `docs/CORPUS-02G.md`. |
+| `fixtures/builds/public_corpus/corpus02g_dex_int_acolyte_hand_of_wisdom.xml` | Monk/Acolyte of Chayula (level 98) with Astramentis and Hand of Wisdom and Action (attack speed per 20 Dexterity, added lightning damage per 20 Intelligence); main skill Fragments of the Past. CORPUS-02G: the Dexterity/Intelligence stacker. See `docs/CORPUS-02G.md`. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(16 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem and CORPUS-02F Mortar Cannon and Ballista builds). It contains repository-relative paths and expected semantic
+(18 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, and CORPUS-02G Strength and Dexterity/Intelligence stacker builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -146,6 +148,17 @@ passive-tree `<URL>` and an empty `<Notes>`. Committed SHA-256 (LF line endings)
 saved. The Ballista build's saved main skill is Explosive Grenade: the tests select the Siege Ballista group's
 Artillery effect on a temporary copy (`mainSocketGroup` 7 -> 9 and that group's `mainActiveSkill` /
 `mainActiveSkillCalcs` 1 -> 2) and nothing else is changed; the committed file is unmodified.
+
+`corpus02g_strength_oracle_brutus.xml` and `corpus02g_dex_int_acolyte_hand_of_wisdom.xml` (CORPUS-02G) were found on
+2026-09-29 through poe.ninja's own build search for the Runes of Aldur ladder (unique item filters Brutus' Lead
+Sprinkler and Pillar of the Caged God; PoB's own unique-item data names the per-Strength/Dexterity/Intelligence mods)
+and its per-character API (the `pathOfBuildingExport` string). Candidate builds were ranked by PoB's response to +100
+of each attribute on their own equipped amulet, never by name. The export was used unchanged apart from sanitization;
+no character permalink, account or character name was retained. Sanitization removed the `Unique ID:` lines (31 and
+26) and poe.ninja's `<PlayerStat>` cache (109 and 105 lines) and changed nothing else; both contain only the standard
+passive-tree `<URL>` and an empty `<Notes>`. Committed SHA-256 (LF line endings): Strength build
+`343fc6c6da4903b800917eb008b62b2f5fb8e4e302a1987f956b20e5eb51c361`, Dexterity/Intelligence build
+`d67801f86e08e49657306a454d9e16b696acf55fdd846c887e14fd7c701ea5be`. Both saved main skills are used unchanged.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

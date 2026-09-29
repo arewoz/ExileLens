@@ -415,6 +415,66 @@
     },
     {
       "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "DEX-INT-DEFENCE-ONLY",
+      "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "DEX-INT-ES-DOES-NOT-PAY-FOR-LOST-ATTRIBUTES",
+      "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "DEX-INT-IDENTITY-AND-ATTRIBUTE-SCALING",
+      "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "DEX-INT-MORE-AND-FEWER-ATTRIBUTES",
+      "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
         "minion"
       ],
       "depth": "VERDICT",
@@ -1931,6 +1991,126 @@
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STRENGTH-DEFENCE-ONLY",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "STRENGTH-IDENTITY-AND-ATTRIBUTE-STACK",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STRENGTH-MORE-AND-LESS-STRENGTH",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STRENGTH-OFFENSE-DEFENSE-TRADEOFF",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STRENGTH-PERCENT-INCREASED-BEATS-LARGER-FLAT",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STRENGTH-REPEATED-EVALUATION-RESTORE",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "STRENGTH-REQUIREMENT-LOST",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "attribute_stacker"
+      ],
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STRENGTH-THRESHOLD-STEP",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
@@ -2247,24 +2427,24 @@
     }
   ],
   "functional": {
-    "classified_executed": 37,
+    "classified_executed": 46,
     "counts": {
       "EXPECTED_UNCERTAINTY": 7,
-      "FULLY_MEASURED": 28,
+      "FULLY_MEASURED": 37,
       "NOT_ESTABLISHED": 0,
       "PARTIALLY_MEASURED": 2,
       "UNSUPPORTED_MECHANIC": 0
     },
-    "fully_measured": 28,
-    "unclassified_verdict_executed": 63
+    "fully_measured": 37,
+    "unclassified_verdict_executed": 64
   },
   "result_counts": {
     "EXPECTED_UNCERTAIN": 19,
-    "PASS": 125,
+    "PASS": 137,
     "UNSUPPORTED": 8
   },
-  "supported_count": 152,
-  "total_count": 152,
+  "supported_count": 164,
+  "total_count": 164,
   "uncovered_archetypes": [
     "es_scaling",
     "stat_stacker"

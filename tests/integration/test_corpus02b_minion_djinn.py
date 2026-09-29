@@ -176,7 +176,13 @@ def test_player_defense_ring_is_a_minion_offense_versus_defense_tradeoff(real_po
     for entry in result["slot_comparisons"]:
         assert entry["evaluation_outcome"]["evaluation_quality"] == "FULL"
         assert _axes(entry)["OFFENSE"] == "NEGATIVE" and _axes(entry)["DEFENSE"] == "POSITIVE"
-        assert entry["evaluation_outcome"]["verdict"] == "SIDEGRADE"
+        if entry["pob_slot"] == "Ring 2":
+            # CORPUS-02G: this ring costs 20 Dexterity (52 -> 32), below the 45 Dexterity PoB reports as
+            # required by an equipped item or gem. The requirement guard now reads PoB's real fields.
+            assert entry["evaluation_outcome"]["verdict"] == "NOT_VIABLE"
+            assert "ATTRIBUTE_REQUIREMENT_LOST" in {g["code"] for g in entry["evaluation_outcome"]["guardrails_applied"]}
+        else:
+            assert entry["evaluation_outcome"]["verdict"] == "SIDEGRADE"
         assert entry["restore"]["pass"] is True
 
 

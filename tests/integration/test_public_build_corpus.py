@@ -50,8 +50,10 @@ def test_manifest_is_small_complete_and_repository_relative() -> None:
         "CORPUS02E-SPELL-TOTEM",
         "CORPUS02F-MORTAR-CANNON",
         "CORPUS02F-BALLISTA",
+        "CORPUS02G-STRENGTH-BRUTUS",
+        "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
     ]
-    assert len(CASES) == 16
+    assert len(CASES) == 18
     for case in CASES:
         assert set(case) == {"id", "file", "class", "ascendancy", "primary_skill", "actor", "purpose"}
         assert not Path(case["file"]).is_absolute()
@@ -66,7 +68,7 @@ def test_fixture_is_well_formed_and_matches_declared_semantics(case: dict) -> No
     assert build is not None
     assert build.get("className") == case["class"]
     assert build.get("ascendClassName") == case["ascendancy"]
-    assert case["primary_skill"] in {gem.get("nameSpec") for gem in root.iter("Gem")}
+    assert case["primary_skill"].casefold() in {str(gem.get("nameSpec")).casefold() for gem in root.iter("Gem")}
     assert hashlib.sha256(path.read_bytes()).hexdigest()
 
 
