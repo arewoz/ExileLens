@@ -187,14 +187,15 @@ def test_runic_bases_become_runeforged_fists_of_stone() -> None:
 # --------------------------------------------------------------------------- verdict-spanning wrapper
 
 
-def _fake_result(verdict: str, metrics: dict[str, float], bounded: bool = True, alternatives: int = 1, pattern: str = "SINGLE_AXIS") -> dict[str, Any]:
+def _fake_result(verdict: str, metrics: dict[str, float], bounded: bool = True, alternatives: int = 1, pattern: str = "SINGLE_AXIS",
+                 conflict: str | None = None) -> dict[str, Any]:
     row = {
         "pob_slot": "Gloves",
         "primary_metric_field": "CombinedDPS",
         "item_transform": {"candidate": {"ok": True, "bounded": bounded, "alternatives": alternatives}},
         "metric_profile": {"primary_offense": {"percent_delta": metrics["CombinedDPS"] - 100}},
         "candidate": {"metrics": metrics},
-        "evaluation_outcome": {"verdict": verdict, "item_impact": {"pattern": pattern, "axes": {}}, "all_deltas": [
+        "evaluation_outcome": {"verdict": verdict, "item_impact": {"pattern": pattern, "axes": {}, **({"conflict": {"kind": conflict}} if conflict else {})}, "all_deltas": [
             {"key": "primary_offense", "label": "Damage", "percent_delta": metrics["CombinedDPS"] - 100, "candidate": metrics["CombinedDPS"]},
         ], "unsupported_or_unmodeled": []},
     }
@@ -461,6 +462,24 @@ def test_a_probe_with_a_different_verdict_structure_is_refused(monkeypatch: pyte
         "best": _rolled("SIDEGRADE", {"CombinedDPS": 101, "TotalEHP": 10}),
         f"flip:{_TWO_ROLLS[0]}": _rolled("SIDEGRADE", {"CombinedDPS": 100, "TotalEHP": 10}),
         f"flip:{_TWO_ROLLS[1]}": probe,
+    })
+    assert "changes character" in evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
+
+
+def test_a_probe_that_differs_only_in_whether_the_conflict_is_material_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SCORING-01a: a material conflict is what lets the canonical sidegrade replace the score, so it is part of
+    the verdict structure even when the descriptive pattern and the verdict are identical."""
+    def row(metrics: dict[str, float], conflict: str) -> dict[str, Any]:
+        result = _fake_result("SIDEGRADE", metrics, pattern="TRADEOFF", conflict=conflict)
+        result["slot_comparisons"][0]["item_transform"]["candidate"]["ranged_lines"] = list(_TWO_ROLLS)
+        return result
+
+    _stub(monkeypatch, {
+        "worst": row({"CombinedDPS": 99, "TotalEHP": 10}, "MATERIAL"),
+        "middle": row({"CombinedDPS": 100, "TotalEHP": 10}, "MATERIAL"),
+        "best": row({"CombinedDPS": 101, "TotalEHP": 10}, "MATERIAL"),
+        f"flip:{_TWO_ROLLS[0]}": row({"CombinedDPS": 100, "TotalEHP": 10}, "MATERIAL"),
+        f"flip:{_TWO_ROLLS[1]}": row({"CombinedDPS": 100, "TotalEHP": 10}, "NONE"),
     })
     assert "changes character" in evaluation_module.evaluate_item("raw", _BatchEngine())["unresolved"]
 

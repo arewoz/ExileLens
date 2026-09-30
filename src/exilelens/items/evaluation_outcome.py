@@ -26,8 +26,18 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Iterable
 
-from exilelens.items.guardrails import AppliedGuardrail, apply_score_ceilings, evaluate_guardrails
-from exilelens.items.item_impact import ItemImpact, interpret_item_impact
+from exilelens.items.guardrails import (
+    MINOR_UPGRADE_CEILING,
+    AppliedGuardrail,
+    apply_score_ceilings,
+    evaluate_guardrails,
+)
+from exilelens.items.item_impact import (
+    CONFLICT_MATERIAL,
+    ItemImpact,
+    interpret_item_impact,
+    negligible_opposition_note,
+)
 from exilelens.items.value_profiles import CONTRIBUTION_LABELS, SCORE_SCALE, rating_band
 from exilelens.metrics import RAW_METRIC_FIELDS
 
@@ -275,17 +285,31 @@ def decide_verdict(
             f"Partial comparison: {detail}.",
             guardrail_rows,
         )
-    # Keep the CORE-01 score/verdict agreement: a supported major cross-axis
-    # conflict has the canonical sidegrade score, while raw_score retains the
-    # weighted aggregate for diagnostics. Binding feasibility ceilings win.
-    if item_impact is not None and item_impact.pattern == "TRADEOFF" and not applied:
-        detail = "; ".join(item_impact.reasons) or "important build dimensions disagree"
-        return VerdictDecision(
-            50.0,
-            PublicVerdict.SIDEGRADE,
-            f"Meaningful trade-off: {detail}.",
-            guardrail_rows,
-        )
+    # SCORING-01a: only a MATERIAL two-sided conflict (a real gain and a real loss) may replace the
+    # score, and only when the score itself is not decisive. Keeping CORE-01's score/verdict agreement,
+    # the canonical sidegrade score is used for that case. Opposing changes that are not material
+    # (`conflict.kind == NONE`) never force anything: the ordinary score decides. Binding feasibility
+    # ceilings win over all of this.
+    if item_impact is not None and item_impact.conflict.kind == CONFLICT_MATERIAL and not applied:
+        detail = "; ".join(item_impact.conflict.reasons) or "important build dimensions disagree"
+        if final >= SCORE_SCALE.useful:
+            # A real, named loss keeps a strong score from reading as a meaningful upgrade.
+            capped = min(final, MINOR_UPGRADE_CEILING)
+            capped_band = classify_score_verdict(capped)
+            return VerdictDecision(
+                capped,
+                capped_band,
+                f"Meaningful trade-off: {detail}. Limited to {VERDICT_LABELS[capped_band]}.",
+                guardrail_rows,
+            )
+        if final > SCORE_SCALE.meaningful_downgrade:
+            return VerdictDecision(
+                SCORE_SCALE.equivalent,
+                PublicVerdict.SIDEGRADE,
+                f"Meaningful trade-off: {detail}.",
+                guardrail_rows,
+            )
+        # At or below the meaningful-downgrade edge the score is decisive: ordinary downgrade below.
     if binding:
         return VerdictDecision(
             final,
@@ -293,12 +317,16 @@ def decide_verdict(
             f"{binding[0].reason} Limited to {VERDICT_LABELS[band]}.",
             guardrail_rows,
         )
-    return VerdictDecision(
-        final,
-        band,
-        f"Net score {final - SCORE_SCALE.equivalent:+.1f} against the current item.",
-        guardrail_rows,
-    )
+    reason = f"Net score {final - SCORE_SCALE.equivalent:+.1f} against the current item."
+    if (item_impact is not None and item_impact.pattern == "TRADEOFF" and not applied
+            and item_impact.conflict.kind != CONFLICT_MATERIAL):
+        # Opposing changes were measured but are not material: say so instead of calling it a trade-off.
+        note = negligible_opposition_note(
+            {"text": record.text} for record in item_impact.conflict.negligible_opposition
+        )
+        if note:
+            reason = f"{reason} {note}"
+    return VerdictDecision(final, band, reason, guardrail_rows)
 
 
 # ------------------------------------------------------------------ quality

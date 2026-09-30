@@ -55,6 +55,34 @@ def _fmt(value: float) -> str:
     return f"{value:.1f}"
 
 
+# Impact-metric key -> the legacy axis row that describes the same metric.
+_LEGACY_AXIS_FOR_METRIC = {
+    "primary_offense": "OFFENSE",
+    "ehp": "DEFENCE",
+    "movement_speed": "MOBILITY",
+    "LifeRegenRecovery": "RECOVERY",
+}
+
+
+def _material_conflict(outcome: dict[str, Any], impact: dict[str, Any]) -> bool:
+    """A real two-sided conflict (SCORING-01a), not merely the descriptive TRADEOFF pattern."""
+    return (
+        outcome.get("evaluation_quality") == "FULL"
+        and (impact.get("conflict") or {}).get("kind") == "MATERIAL"
+    )
+
+
+def _split_negligible(
+    rows: list[dict[str, Any]], negligible: set[tuple[str, str]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Move legacy axis rows that are negligible opposition out of the reasons/trade-offs lists."""
+    kept, moved = [], []
+    for row in rows:
+        direction = "POSITIVE" if float(row.get("percent_delta") or 0) > 0 else "NEGATIVE"
+        (moved if (str(row.get("metric") or "").upper(), direction) in negligible else kept).append(row)
+    return kept, moved
+
+
 def _axis_reason(axis_id: str, axes: dict[str, Any]) -> dict[str, Any] | None:
     axis = axes.get(axis_id)
     if not axis:
@@ -191,7 +219,8 @@ def compare_slot(
     # The outcome's structured impact is the semantic authority for trustworthy
     # whole-item comparisons. Legacy raw AxisDelta rows remain explanation data.
     impact = outcome.get("item_impact") or {}
-    if outcome.get("evaluation_quality") == "FULL" and not hard_problems and impact.get("pattern") == "TRADEOFF":
+    material_conflict = not hard_problems and _material_conflict(outcome, impact)
+    if material_conflict:
         product = BuildVerdict.TRADEOFF
     significance = classify_significance(axes, build_fixes=build_fixes, hard_problems=hard_problems)
 
@@ -225,6 +254,19 @@ def compare_slot(
                 row["detail"] = "MAJOR MOBILITY LOSS"
                 row["text"] = f"MAJOR MOBILITY LOSS  {row.get('range_text') or row['text']}"
             tradeoffs.append(row)
+    # A change that opposes the main effects but is too small to offset them is not a reason and not a
+    # trade-off: it is disclosed separately (only where the descriptive pattern would have called it one).
+    conflict = impact.get("conflict") or {}
+    negligible_rows: list[dict[str, Any]] = []
+    if impact.get("pattern") == "TRADEOFF" and conflict.get("kind") == "NONE":
+        negligible = {
+            (_LEGACY_AXIS_FOR_METRIC[str(record.get("metric"))], str(record.get("direction")))
+            for record in conflict.get("negligible_opposition") or []
+            if str(record.get("metric")) in _LEGACY_AXIS_FOR_METRIC
+        }
+        improvements, moved_up = _split_negligible(improvements, negligible)
+        tradeoffs, moved_down = _split_negligible(tradeoffs, negligible)
+        negligible_rows = moved_up + moved_down
     primary = [_evidence_line(item) for item in build_fixes[:2]]
     if not primary:
         primary = [row for row in improvements[:2] if row]
@@ -246,6 +288,7 @@ def compare_slot(
         synergy_findings=[item.to_dict() for item in synergy],
         confidence=confidence,
         profile_note=profile_note,
+        negligible_opposition=negligible_rows,
     )
 
     return BuildComparisonResult(
@@ -262,8 +305,7 @@ def compare_slot(
         explanation=explanation,
         best_slot=str(comparison.get("pob_slot") or ""),
         slot_opportunity="",
-        pareto_status=("TRADEOFF" if outcome.get("evaluation_quality") == "FULL"
-                       and not hard_problems and impact.get("pattern") == "TRADEOFF"
+        pareto_status=("TRADEOFF" if material_conflict
                        else pareto_status(axes, hard_break=bool(hard_problems))),
         contribution=[],
         synergy=synergy,

@@ -47,13 +47,14 @@ of the same build with the candidate saved in its slot (`TotalDPS`, `Speed`, `Li
 `ManaPerSecondCost`, `ManaRegenRecovery`, `TotalEHP`, `ChaosResist` to 1e-6). The Energy Shield output staying at exactly 0 while
 Mana, damage and EHP move is asserted. The 02F/02G real-PoB suites are unaffected (no code changed).
 
-## 5. Observation, not changed: a life gain can turn a clear loss into SIDEGRADE
+## 5. Observation: a life gain turned a clear loss into SIDEGRADE (resolved by SCORING-01a)
 
 Replacing the helmet's increased Energy Shield with +300 Life measures -17.9% damage and -8.3% EHP (both FULL, both
-significant), yet the verdict is SIDEGRADE: the +18% Life Regen Recovery axis (37 -> 44 per second, a small absolute change)
-makes the impact a TRADEOFF, and the established policy scores any major cross-axis conflict as the canonical sidegrade.
-The regression asserts the measured numbers and that the verdict is not an upgrade, and does not pin SIDEGRADE. Whether a
-small-absolute recovery gain should count as a conflicting axis is a scoring-policy decision; it was not changed here.
+significant). At the time of CORPUS-02H the verdict was SIDEGRADE: the +18% Life Regen Recovery axis (37 -> 44 per second, +6.8/s,
+about 0.37% of max Life per second) made the impact a TRADEOFF, and the policy scored any cross-axis conflict as the canonical
+sidegrade, discarding the raw score of 6.9. The regression therefore asserted the measured numbers and only that the verdict was not
+an upgrade. SCORING-01a (`docs/SCORING-01A.md`) makes recovery material only when it is also a real part of the Life pool, so this case
+is now decided by the ordinary score (MEANINGFUL DOWNGRADE). The real-PoB assertion is tightened in SCORING-01b.
 
 ## 6. Not covered
 

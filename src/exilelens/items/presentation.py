@@ -18,6 +18,7 @@ from exilelens.items.presentation_copy import (
 )
 from exilelens.items.decision import derive_swap_risk
 from exilelens.items.evaluation_outcome import authoritative_public_verdict
+from exilelens.items.item_impact import negligible_opposition_note
 from exilelens.items.offense_coverage import (
     OffenseCoverageState,
     offense_claim_allowed,
@@ -460,6 +461,12 @@ def build_presentation(
                 for item in intel_reasons[:2]
                 if item.get("text") or item.get("detail")
             ) or verdict_explanation
+    conflict = (outcome.get("item_impact") or {}).get("conflict") or {}
+    if (outcome.get("item_impact") or {}).get("pattern") == "TRADEOFF" and conflict.get("kind") == "NONE":
+        # SCORING-01a: opposing changes were measured but are too small to offset the main effects.
+        note = negligible_opposition_note(conflict.get("negligible_opposition") or [])
+        if note and note not in verdict_explanation:
+            verdict_explanation = f"{verdict_explanation} · {note}".strip(" ·")
     value_block = None
     if value and not outcome_failed:
         rating = value.get("rating")
