@@ -54,7 +54,8 @@ significant). At the time of CORPUS-02H the verdict was SIDEGRADE: the +18% Life
 about 0.37% of max Life per second) made the impact a TRADEOFF, and the policy scored any cross-axis conflict as the canonical
 sidegrade, discarding the raw score of 6.9. The regression therefore asserted the measured numbers and only that the verdict was not
 an upgrade. SCORING-01a (`docs/SCORING-01A.md`) makes recovery material only when it is also a real part of the Life pool, so this case
-is now decided by the ordinary score (MEANINGFUL DOWNGRADE). The real-PoB assertion is tightened in SCORING-01b.
+is now decided by the ordinary score: MEANINGFUL DOWNGRADE, score 6.9, with the recovery gain kept visible ("Recovery +6.8 life/s (0.37% of max Life per second) is too small to
+offset the larger offense and defense losses."). The real-PoB regression now asserts exactly that (SCORING-01b).
 
 ## 6. Not covered
 

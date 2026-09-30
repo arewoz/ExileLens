@@ -66,6 +66,9 @@ class ImpactMetric:
     reason: str = ""
     # Size of the change as a percentage of the baseline pool per second (recovery only).
     pool_pct: float | None = None
+    # The baseline is exactly zero, so no relative percentage exists (and none is invented). Materiality
+    # then rests on the pool-normalised change alone (recovery only).
+    from_zero: bool = False
 
 
 @dataclass(frozen=True)
@@ -180,12 +183,30 @@ def _recovery_metric(current: dict[str, Any], candidate: dict[str, Any]) -> Impa
 
     ``pool_pct`` stays None when PoB gave no usable Life pool (missing, or a Chaos Inoculation style
     pool of 1): nothing is invented, and the recovery change then cannot be material.
+
+    A baseline of exactly zero regeneration (PoB then reports 0) has no relative percentage. The change is
+    still fully described by the absolute per-second difference and the Life pool, so it is marked
+    ``from_zero`` and judged by the pool-normalised quantity alone, without a made-up percentage.
     """
     metric = _raw_metric(current, candidate, "LifeRegenRecovery")
     life = _raw(current, "Life")
     if metric.absolute_delta is None or life is None or life <= MIN_LIFE_POOL:
         return metric
-    return replace(metric, pool_pct=abs(metric.absolute_delta) * 100.0 / life)
+    return replace(
+        metric,
+        pool_pct=abs(metric.absolute_delta) * 100.0 / life,
+        from_zero=metric.current == 0.0 and metric.absolute_delta != 0.0,
+    )
+
+
+def _change_sign(metric: ImpactMetric, noise: float) -> int:
+    """+1 / -1 / 0: which way a measured metric moved. A zero baseline has no percentage, only a signed change."""
+    pct = metric.percent_delta
+    if pct is not None:
+        return 1 if pct > noise else -1 if pct < -noise else 0
+    if metric.from_zero and metric.pool_pct is not None and metric.absolute_delta:
+        return 1 if metric.absolute_delta > 0 else -1
+    return 0
 
 
 def _axis(axis: str, metrics: tuple[ImpactMetric, ...], threshold: float, reasons: tuple[str, ...] = (),
@@ -196,16 +217,20 @@ def _axis(axis: str, metrics: tuple[ImpactMetric, ...], threshold: float, reason
         support = "UNSUPPORTED" if any(metric.support == "UNSUPPORTED" for metric in metrics) else "UNMEASURED"
         return ImpactAxis(axis, support, "UNKNOWN", None, False, metrics, reasons)
     pct_values = [metric.percent_delta for metric in measured if metric.percent_delta is not None]
-    if not pct_values:
+    signs = [_change_sign(metric, noise) for metric in measured]
+    if not pct_values and not any(signs):
         return ImpactAxis(axis, "MEASURED", "NEUTRAL", None, False, metrics, reasons)
-    positive = [pct for pct in pct_values if pct > noise]
-    negative = [pct for pct in pct_values if pct < -noise]
+    positive, negative = any(sign > 0 for sign in signs), any(sign < 0 for sign in signs)
     direction = "MIXED" if positive and negative else "POSITIVE" if positive else "NEGATIVE" if negative else "NEUTRAL"
-    magnitude = max(pct_values, key=abs)
-    significant = any(abs(pct) >= threshold for pct in pct_values)
+    magnitude = round(max(pct_values, key=abs), 4) if pct_values else None
+    # A zero baseline satisfies the relative test trivially (any regeneration is unbounded relative growth),
+    # so only the absolute gate decides whether that change is significant.
+    zero_significant = gate is not None and any(
+        metric.from_zero and _change_sign(metric, noise) != 0 and gate(metric) for metric in measured)
+    significant = any(abs(pct) >= threshold for pct in pct_values) or zero_significant
     material_positive = any(_is_material(metric, 1, threshold, gate) for metric in measured)
     material_negative = any(_is_material(metric, -1, threshold, gate) for metric in measured)
-    return ImpactAxis(axis, "MEASURED", direction, round(magnitude, 4), significant, metrics, reasons,
+    return ImpactAxis(axis, "MEASURED", direction, magnitude, significant, metrics, reasons,
                       material_positive, material_negative)
 
 
@@ -213,7 +238,10 @@ def _is_material(metric: ImpactMetric, sign: int, threshold: float,
                  gate: Callable[[ImpactMetric], bool] | None) -> bool:
     """One metric counts as a real gain (sign +1) or loss (-1): it clears the axis threshold and any absolute gate."""
     pct = metric.percent_delta
-    if pct is None or sign * pct < threshold:
+    if pct is None:
+        # No relative percentage exists for a zero baseline; the pool-normalised gate is the whole test.
+        return bool(metric.from_zero and gate is not None and gate(metric) and _change_sign(metric, 0.0) == sign)
+    if sign * pct < threshold:
         return False
     return gate is None or gate(metric)
 
@@ -337,7 +365,8 @@ def _axis_reasons(axis: ImpactAxis, thresholds: ImpactThresholds, *, material_on
         return rows + list(axis.reasons)
     if axis.magnitude_pct is not None and abs(axis.magnitude_pct) > thresholds.noise_pct:
         return [f"{axis.axis.lower()} {axis.magnitude_pct:+.1f}%"]
-    return list(axis.reasons)
+    zero = [_metric_text(metric) for metric in axis.metrics if metric.from_zero and metric.support == "MEASURED"]
+    return zero or list(axis.reasons)
 
 
 def _recovery_gate(thresholds: ImpactThresholds) -> Callable[[ImpactMetric], bool]:
@@ -364,18 +393,18 @@ def _assess_conflict(core: tuple[ImpactAxis, ...], thresholds: ImpactThresholds)
             pct = metric.percent_delta
             if metric.key in _EXPLANATORY_ONLY:
                 continue  # Life / Energy Shield explain the defence change but never decide direction
-            if metric.support != "MEASURED" or pct is None or abs(pct) <= thresholds.noise_pct:
+            sign = _change_sign(metric, thresholds.noise_pct) if metric.support == "MEASURED" else 0
+            if sign == 0:
                 continue
-            sign = 1 if pct > 0 else -1
             if _is_material(metric, sign, limit, gate):
                 continue
             if not (negative if sign > 0 else positive):
                 continue  # nothing material on the other side for it to oppose
             negligible.append(NegligibleOpposition(
                 axis=axis.axis, metric=metric.key, direction="POSITIVE" if sign > 0 else "NEGATIVE",
-                percent_delta=round(pct, 4), absolute_delta=metric.absolute_delta,
+                percent_delta=None if pct is None else round(pct, 4), absolute_delta=metric.absolute_delta,
                 pool_pct=None if metric.pool_pct is None else round(metric.pool_pct, 4),
-                why="BELOW_AXIS_THRESHOLD" if abs(pct) < limit else "BELOW_POOL_FLOOR",
+                why="BELOW_AXIS_THRESHOLD" if pct is not None and abs(pct) < limit else "BELOW_POOL_FLOOR",
                 text=_metric_text(metric),
             ))
     reasons: list[str] = []
@@ -385,12 +414,28 @@ def _assess_conflict(core: tuple[ImpactAxis, ...], thresholds: ImpactThresholds)
     return ConflictAssessment(kind, positive, negative, tuple(reasons), tuple(negligible))
 
 
-def negligible_opposition_note(records: Iterable[Mapping[str, Any]]) -> str:
-    """One truthful sentence for opposing changes that were measured but cannot offset the main effects."""
-    texts = [str(record.get("text") or "") for record in records if record.get("text")]
-    if not texts:
+_AXIS_WORDS = {"OFFENSE": "offense", "DEFENSE": "defense", "UTILITY": "utility", "RECOVERY": "recovery"}
+
+
+def negligible_opposition_note(conflict: Mapping[str, Any] | ConflictAssessment) -> str:
+    """One truthful sentence for opposing changes that were measured but cannot offset the main effects.
+
+    Example: "Recovery -1.5 life/s (0.12% of max Life per second) is too small to offset the larger defense and
+    utility gains." Empty when there is nothing negligible to disclose.
+    """
+    data = asdict(conflict) if isinstance(conflict, ConflictAssessment) else dict(conflict or {})
+    records = [record for record in data.get("negligible_opposition") or [] if record.get("text")]
+    if not records:
         return ""
-    return "Small opposing change not large enough to offset: " + ", ".join(texts[:2]) + "."
+    against_gains = str(records[0].get("direction")) == "NEGATIVE"
+    axes = [_AXIS_WORDS.get(str(axis), str(axis).lower())
+            for axis in data.get("positive_axes" if against_gains else "negative_axes") or []]
+    side = " and ".join(axes) + " " if axes else ""
+    texts = [str(record["text"]) for record in records[:2]]
+    subject = " and ".join(texts)
+    subject = subject[:1].upper() + subject[1:]
+    verb = "is" if len(texts) == 1 else "are"
+    return f"{subject} {verb} too small to offset the larger {side}{'gains' if against_gains else 'losses'}."
 
 
 def interpret_item_impact(

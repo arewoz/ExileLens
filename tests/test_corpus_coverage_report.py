@@ -188,6 +188,18 @@ def test_to_json_dict_is_json_serializable_and_deterministic() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_report_prose_derives_the_fixture_count_from_the_manifest() -> None:
+    """The header used to hard-code 13 fixtures while the manifest held 19."""
+    from tests.corpus_coverage.report import manifest_fixture_count
+
+    manifest = json.loads((ROOT / "fixtures" / "builds" / "public_corpus" / "manifest.json").read_text(encoding="utf-8"))
+    count = manifest_fixture_count()
+    assert count == len(manifest["fixtures"])
+    markdown = render_markdown(build_report([_outcome()], cases=(_case(),)))
+    assert f"the corpus is currently {count} build fixtures" in markdown
+    assert "13 build fixtures" not in markdown or count == 13
+
+
 def test_every_registered_case_test_file_exists() -> None:
     for case in ALL_CASES:
         assert (ROOT / case.test_file).is_file(), f"{case.id} references a missing test file"

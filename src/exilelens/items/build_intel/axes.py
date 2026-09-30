@@ -29,7 +29,9 @@ def _pair(current: float | None, candidate: float | None) -> tuple[float | None,
     absolute = candidate - current
     percent = None
     if current not in (0, 0.0):
-        percent = (candidate / current - 1.0) * 100.0
+        # Relative to the size of the baseline: a sustain of -30.5 improving to -29.7 is +2.6%, not -2.6%.
+        # (The old `candidate / current - 1` inverted the sign for every negative baseline.)
+        percent = (candidate - current) / abs(current) * 100.0
     return absolute, percent
 
 

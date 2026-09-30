@@ -1,5 +1,8 @@
 # SCORING-01a - verdict policy core
 
+> **Superseded in part by SCORING-01b** (`docs/SCORING-01B.md`), which changed: the decisive-downgrade edge (47 instead of 40, so no band is skipped), the wording of
+> the negligible-opposition sentence, zero-baseline recovery (now judged by the pool fraction), and `result["pareto"]`. The sections below describe SCORING-01a as merged.
+
 Scope: how already-measured PoB effects are combined into the public verdict. No PoB measurement, quality
 (FULL / PARTIAL / UNSUPPORTED / FAILED) or scoring-weight logic changed.
 

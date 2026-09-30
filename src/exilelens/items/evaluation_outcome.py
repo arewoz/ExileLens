@@ -285,11 +285,14 @@ def decide_verdict(
             f"Partial comparison: {detail}.",
             guardrail_rows,
         )
-    # SCORING-01a: only a MATERIAL two-sided conflict (a real gain and a real loss) may replace the
-    # score, and only when the score itself is not decisive. Keeping CORE-01's score/verdict agreement,
-    # the canonical sidegrade score is used for that case. Opposing changes that are not material
-    # (`conflict.kind == NONE`) never force anything: the ordinary score decides. Binding feasibility
-    # ceilings win over all of this.
+    # SCORING-01a/01b: only a MATERIAL two-sided conflict (a real gain and a real loss) may replace the
+    # score, and it may only hold an UPGRADE back: it never softens a downgrade the ordinary score already
+    # reads (01b: the decisive-downgrade edge is the minor-downgrade edge, so MEANINGFUL DOWNGRADE ->
+    # MINOR DOWNGRADE -> SIDEGRADE -> MINOR UPGRADE are adjacent bands with no skipped step). Keeping CORE-01's
+    # score/verdict agreement, the canonical sidegrade score is used where the conflict wins. Opposing changes
+    # that are not material (`conflict.kind == NONE`) never force anything: the ordinary score decides.
+    # Binding feasibility ceilings win over all of this.
+    material_detail = ""
     if item_impact is not None and item_impact.conflict.kind == CONFLICT_MATERIAL and not applied:
         detail = "; ".join(item_impact.conflict.reasons) or "important build dimensions disagree"
         if final >= SCORE_SCALE.useful:
@@ -302,14 +305,15 @@ def decide_verdict(
                 f"Meaningful trade-off: {detail}. Limited to {VERDICT_LABELS[capped_band]}.",
                 guardrail_rows,
             )
-        if final > SCORE_SCALE.meaningful_downgrade:
+        if final > SCORE_SCALE.minor_downgrade:
             return VerdictDecision(
                 SCORE_SCALE.equivalent,
                 PublicVerdict.SIDEGRADE,
                 f"Meaningful trade-off: {detail}.",
                 guardrail_rows,
             )
-        # At or below the meaningful-downgrade edge the score is decisive: ordinary downgrade below.
+        # At or below the minor-downgrade edge the ordinary downgrade stands; the trade-off stays visible.
+        material_detail = detail
     if binding:
         return VerdictDecision(
             final,
@@ -318,12 +322,12 @@ def decide_verdict(
             guardrail_rows,
         )
     reason = f"Net score {final - SCORE_SCALE.equivalent:+.1f} against the current item."
+    if material_detail:
+        reason = f"{reason} Trade-off: {material_detail}."
     if (item_impact is not None and item_impact.pattern == "TRADEOFF" and not applied
             and item_impact.conflict.kind != CONFLICT_MATERIAL):
         # Opposing changes were measured but are not material: say so instead of calling it a trade-off.
-        note = negligible_opposition_note(
-            {"text": record.text} for record in item_impact.conflict.negligible_opposition
-        )
+        note = negligible_opposition_note(item_impact.conflict)
         if note:
             reason = f"{reason} {note}"
     return VerdictDecision(final, band, reason, guardrail_rows)

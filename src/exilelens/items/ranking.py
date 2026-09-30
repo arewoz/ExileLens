@@ -373,5 +373,11 @@ def _pareto_summary(ranked: list[dict[str, Any]]) -> dict[str, Any]:
     }:
         return {"status": "DOMINATES", "verdict": verdict, "slot": best.get("product_slot")}
     if verdict in {"SIDEGRADE", Verdict.TRADEOFF.value}:
+        # SCORING-01b: a SIDEGRADE is a trade-off only when the outcome found a material two-sided conflict
+        # (a measured-zero or near-equal item is a sidegrade without any trade-off). Outcomes that carry no
+        # conflict information (legacy payloads) keep the old reading.
+        conflict = (((best.get("evaluation_outcome") or {}).get("item_impact") or {}).get("conflict") or {})
+        if verdict == "SIDEGRADE" and conflict.get("kind") == "NONE":
+            return {"status": "NEITHER_DOMINATES", "verdict": verdict, "slot": best.get("product_slot")}
         return {"status": "TRADEOFF", "verdict": verdict, "slot": best.get("product_slot")}
     return {"status": "NEITHER_DOMINATES", "verdict": verdict, "slot": best.get("product_slot")}

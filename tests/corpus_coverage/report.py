@@ -9,8 +9,10 @@ a local PoB2 install.
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from tests.corpus_coverage.junit import JUnitOutcome
 from tests.corpus_coverage.registry import ALL_CASES, CoverageCase
@@ -23,6 +25,14 @@ from tests.corpus_coverage.taxonomy import (
     ExpectedResult,
     FunctionalMeasurement,
 )
+
+MANIFEST_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "builds" / "public_corpus" / "manifest.json"
+
+
+def manifest_fixture_count(path: Path = MANIFEST_PATH) -> int:
+    """Number of build fixtures in the public corpus manifest (the one source of truth for report prose)."""
+    return len(json.loads(path.read_text(encoding="utf-8"))["fixtures"])
+
 
 # Failure-message substrings that indicate the product safely under-answered
 # (degraded to an explicit non-answer) rather than confidently returning a wrong
@@ -213,7 +223,8 @@ def render_markdown(report: CoverageReport) -> str:
         lines.append("")
         lines.append(
             "This measures *executed coverage cases*, not real-build population share — the "
-            "corpus is currently 13 build fixtures plus deterministic policy unit tests, not a "
+            f"corpus is currently {manifest_fixture_count()} build fixtures (from the corpus manifest) plus "
+            "deterministic policy unit tests, not a "
             "statistically representative sample of live PoE2 builds. Treat the percentage as "
             "\"how much of what we've encoded so far behaves correctly\", not \"what fraction "
             "of real builds ExileLens can evaluate\". See Known limitations."

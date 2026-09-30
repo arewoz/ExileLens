@@ -151,10 +151,14 @@ def test_genuine_balanced_trade_off_remains_sidegrade() -> None:
     assert SCORE_SCALE.meaningful_downgrade < outcome["raw_score"] < SCORE_SCALE.useful
 
 
-def test_minion_offense_loss_against_defense_gain_remains_sidegrade() -> None:
+def test_minion_offense_loss_against_a_smaller_defense_gain_is_a_minor_downgrade() -> None:
+    """SCORING-01b: -10.6% minion offense for +5.3% EHP is a real trade-off with a net score of -6.5. A conflict
+    holds an upgrade back but never softens a downgrade the score already reads, so it is a MINOR DOWNGRADE that
+    still names the trade-off. (01a forced it to SIDEGRADE.)"""
     outcome = _outcome(MINION_RING)
-    assert outcome["verdict"] == "SIDEGRADE" and outcome["final_score"] == SCORE_SCALE.equivalent
-    assert outcome["verdict_reason"].startswith("Meaningful trade-off")
+    assert _conflict(outcome)["kind"] == "MATERIAL"
+    assert outcome["verdict"] == "MINOR_DOWNGRADE" and outcome["final_score"] == outcome["raw_score"]
+    assert "Trade-off: " in outcome["verdict_reason"] and not outcome["verdict_reason"].startswith("Meaningful trade-off")
 
 
 def test_resistance_cap_loss_keeps_its_ceiling_and_never_becomes_a_forced_sidegrade() -> None:
@@ -295,7 +299,7 @@ def test_material_two_sided_conflict_with_a_middling_score_is_the_canonical_side
     before, after = _pair(dps=111.0, ehp=910.0)  # +11% offense, -9% EHP
     outcome = _synthetic(before, after)
     assert _conflict(outcome)["kind"] == "MATERIAL"
-    assert SCORE_SCALE.meaningful_downgrade < outcome["raw_score"] < SCORE_SCALE.useful
+    assert SCORE_SCALE.minor_downgrade < outcome["raw_score"] < SCORE_SCALE.useful
     assert outcome["verdict"] == "SIDEGRADE" and outcome["final_score"] == SCORE_SCALE.equivalent
     assert outcome["verdict_reason"].startswith("Meaningful trade-off")
 
@@ -306,6 +310,7 @@ def test_material_conflict_with_a_strongly_negative_score_is_a_normal_downgrade(
     assert _conflict(outcome)["kind"] == "MATERIAL"
     assert outcome["raw_score"] <= SCORE_SCALE.meaningful_downgrade
     assert outcome["verdict"] == "MEANINGFUL_DOWNGRADE" and outcome["final_score"] == outcome["raw_score"]
+    assert "Trade-off: " in outcome["verdict_reason"]
 
 
 def test_material_conflict_with_a_strongly_positive_score_is_capped_at_minor_upgrade() -> None:
@@ -423,16 +428,15 @@ def test_a_growing_defence_loss_never_improves_the_verdict_and_never_skips_a_ban
 def test_a_growing_defence_gain_against_an_offense_loss_never_worsens_the_verdict() -> None:
     """-20% offense against an EHP gain that grows from nothing to +20%.
 
-    Crossing the meaningful-downgrade score edge moves a material conflict from an ordinary downgrade to the
-    canonical sidegrade, which skips the minor-downgrade band. That step is the specified resolution rule
-    (SCORING-01a section 4); it is asserted here so it stays visible rather than accidental.
+    SCORING-01b: the decisive-downgrade edge is the minor-downgrade edge, so every step is to an adjacent band
+    (01a used the meaningful-downgrade edge, which skipped MINOR DOWNGRADE).
     """
     ranks = []
     for ehp_change in (0.0, 1.0, 2.9, 3.0, 5.0, 7.0, 8.0, 9.0, 10.0, 15.0, 20.0):
         before, after = _pair(dps=80.0, ehp=1_000.0 * (1 + ehp_change / 100.0))
         ranks.append(_rank(_synthetic(before, after)))
     assert ranks == sorted(ranks, reverse=True), ranks
-    assert all(a - b <= 2 for a, b in zip(ranks, ranks[1:])), ranks
+    assert all(a - b <= 1 for a, b in zip(ranks, ranks[1:])), ranks
 
 
 # =========================================================================== 7. user-facing consistency
@@ -458,7 +462,7 @@ def test_the_negligible_axis_is_neither_a_reason_nor_a_trade_off_line(fixture_id
     assert not [row for row in reasons if row.get("metric") == "recovery"]
     assert [row["metric"] for row in explanation["negligible_opposition"]] == ["recovery"]
     text = " ".join(visible_text(shown)).lower()
-    assert "not large enough to offset" in text and "recovery" in text
+    assert "too small to offset" in text and "recovery" in text
 
 
 def test_the_visible_reason_for_case_a_is_the_measured_loss_not_the_recovery_gain() -> None:
@@ -468,9 +472,8 @@ def test_the_visible_reason_for_case_a_is_the_measured_loss_not_the_recovery_gai
     assert "Offense" in shown["presentation"]["verdict_explanation"]
 
 
-@pytest.mark.parametrize("fixture_id", [GLOVES_TRADEOFF, MINION_RING])
-def test_a_material_conflict_keeps_the_trade_off_wording(fixture_id: str) -> None:
-    shown = surface(load_fixture(fixture_id))
+def test_a_material_conflict_keeps_the_trade_off_wording() -> None:
+    shown = surface(load_fixture(GLOVES_TRADEOFF))
     assert _conflict(shown["comparison"]["evaluation_outcome"])["kind"] == "MATERIAL"
     assert shown["comparison"]["evaluation_outcome"]["verdict_reason"].startswith("Meaningful trade-off")
     assert shown["intel"]["product_verdict"] == "TRADEOFF"
@@ -487,6 +490,9 @@ DECLARED_FLIPS = {
     # +21.7% offense against -4.3% EHP, raw 62.5: a material but lopsided conflict. It is no longer forced to
     # SIDEGRADE; the score decides, and a real named loss caps it at MINOR UPGRADE (SCORING-01a section 4).
     CORE04_RING: ("SIDEGRADE", "MINOR_UPGRADE"),
+    # SCORING-01b: -10.6% minion offense against +5.3% EHP, raw 43.5. The conflict no longer softens a downgrade
+    # the score already reads (net -6.5), so it is a MINOR DOWNGRADE that names the trade-off.
+    MINION_RING: ("SIDEGRADE", "MINOR_DOWNGRADE"),
 }
 
 
