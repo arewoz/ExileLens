@@ -942,11 +942,16 @@ def _verdict_structure(row: dict[str, Any]) -> tuple[Any, ...]:
     outcome = row.get("evaluation_outcome") or {}
     impact = outcome.get("item_impact") or {}
     axes = tuple(sorted(
-        (name, str(axis.get("direction")), bool(axis.get("significant")))
+        (name, str(axis.get("direction")), bool(axis.get("significant")),
+         bool(axis.get("material_positive")), bool(axis.get("material_negative")))
         for name, axis in (impact.get("axes") or {}).items()
     ))
     guardrails = tuple(sorted(str(g.get("code")) for g in outcome.get("guardrails_applied") or []))
-    return (str(outcome.get("verdict")), str(outcome.get("evaluation_quality")), str(impact.get("pattern")), axes, guardrails)
+    # SCORING-01a: whether a material two-sided conflict exists (not just the descriptive pattern) is
+    # what lets the score be replaced by the canonical sidegrade, so it is part of the verdict structure.
+    conflict = str((impact.get("conflict") or {}).get("kind"))
+    return (str(outcome.get("verdict")), str(outcome.get("evaluation_quality")), str(impact.get("pattern")), conflict,
+            axes, guardrails)
 
 
 def _roll_monotone_violations(rows: list[dict[str, Any]]) -> list[str]:

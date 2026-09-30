@@ -279,6 +279,9 @@ class BuildImpactExplanation:
     synergy_findings: list[dict[str, Any]] = field(default_factory=list)
     confidence: str = BuildConfidence.HIGH.value
     profile_note: str = ""
+    # SCORING-01a: measured changes that oppose the main effects but are too small to offset them.
+    # They are explanatory only and are not listed as improvements or trade-offs.
+    negligible_opposition: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

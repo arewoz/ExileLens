@@ -128,8 +128,14 @@ def test_ring_tradeoff_and_best_slot_remain_semantic(real_pob_engine) -> None:
     result = evaluate_item(_item("core04_tradeoff_ring.txt"), real_pob_engine, build_path=str(BUILD))
     ring_one = next(row for row in result["slot_comparisons"] if row["pob_slot"] == "Ring 1")
     assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Ring 1", "Ring 2"}
-    assert ring_one["evaluation_outcome"]["item_impact"]["pattern"] == "TRADEOFF"
-    assert ring_one["evaluation_outcome"]["verdict"] == "SIDEGRADE"
+    outcome = ring_one["evaluation_outcome"]
+    assert outcome["item_impact"]["pattern"] == "TRADEOFF"
+    # SCORING-01a: +21.7% offense against -4.3% EHP is a material but lopsided conflict (raw score 62.5). It is
+    # no longer forced to SIDEGRADE: the score decides, and the real loss caps it at MINOR UPGRADE. The trade-off
+    # itself stays visible in the verdict reason.
+    assert outcome["item_impact"]["conflict"]["kind"] == "MATERIAL"
+    assert outcome["verdict"] == "MINOR_UPGRADE" and outcome["final_score"] == 59.0
+    assert outcome["verdict_reason"].startswith("Meaningful trade-off") and "Limited to MINOR UPGRADE" in outcome["verdict_reason"]
     assert result["recommendation"]["pob_slot"] == result["slot_comparisons"][0]["pob_slot"]
     assert all(row["restore"]["pass"] is True for row in result["slot_comparisons"])
 
