@@ -440,13 +440,17 @@ def build_presentation(
         ranking_verdict, decision, recommendation
     )
     if intel.get("explanation"):
-        intel_reasons = list((intel.get("explanation") or {}).get("improvements") or [])
+        # SCORING-01b: a downgrade is explained by what it costs, an upgrade by what it gains. (Explaining a
+        # downgrade with the first improvement row read as a contradiction, e.g. "+18% Recovery" for a
+        # MEANINGFUL DOWNGRADE.)
+        losing = verdict in {"MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE"}
+        intel_reasons = list((intel.get("explanation") or {}).get("tradeoffs" if losing else "improvements") or [])
         if not intel_reasons:
             intel_reasons = list((intel.get("explanation") or {}).get("primary_reasons") or [])
         rebuilt = [
             {
                 "explanation": item.get("text") or item.get("detail") or item.get("explanation"),
-                "severity": "positive",
+                "severity": "negative" if losing else "positive",
                 "code": item.get("code"),
                 "category": "INTEL",
             }
@@ -462,9 +466,12 @@ def build_presentation(
                 if item.get("text") or item.get("detail")
             ) or verdict_explanation
     conflict = (outcome.get("item_impact") or {}).get("conflict") or {}
+    # The panel that lists measured losses is called a trade-off only when the outcome found a material
+    # two-sided conflict; otherwise it is simply what gets worse. No conflict information keeps the old title.
+    tradeoff_title = "WHAT GETS WORSE" if conflict.get("kind") == "NONE" else "TRADE-OFF"
     if (outcome.get("item_impact") or {}).get("pattern") == "TRADEOFF" and conflict.get("kind") == "NONE":
         # SCORING-01a: opposing changes were measured but are too small to offset the main effects.
-        note = negligible_opposition_note(conflict.get("negligible_opposition") or [])
+        note = negligible_opposition_note(conflict)
         if note and note not in verdict_explanation:
             verdict_explanation = f"{verdict_explanation} · {note}".strip(" ·")
     value_block = None
@@ -626,6 +633,7 @@ def build_presentation(
         "axis_rows": intel_axes,
         "important_mods": intel_mods[:4],
         "tradeoff_lines": intel_tradeoffs[:3],
+        "tradeoff_title": tradeoff_title,
         "hard_problems": intel_hard[:3],
         "slot_options": slot_options,
         "slot_alternate_line": slot_alternate_line,

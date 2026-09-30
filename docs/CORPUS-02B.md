@@ -84,7 +84,7 @@ compared with a cold PoB load of an edited copy of the fixture.
 | --- | --- | --- | --- |
 | `test_minion_damage_ring_is_measured_on_the_minion_actor` | Hound | Ring 1 with +30% minion damage: 67,034 → 69,750 (+4.1%). Player CombinedDPS is 0. FULL, offense-only upgrade | CONFIDENT |
 | `test_losing_minion_skill_levels_is_a_measured_minion_downgrade` | Hound | Amulet without +4 minion skill levels: −36.3%, same actor and skill. FULL / MEANINGFUL_DOWNGRADE | CONFIDENT |
-| `test_player_defense_ring_is_a_minion_offense_versus_defense_tradeoff` | Hound | Player-defense ring: minion −10.6% (Ring 1), defense up. FULL / SIDEGRADE in both ring slots | CONFIDENT |
+| `test_player_defense_ring_is_a_minion_offense_versus_defense_tradeoff` | Hound | Player-defense ring: minion −10.6% (Ring 1), defense up. FULL; Ring 1 MINOR_DOWNGRADE with a named trade-off (SCORING-01b: net score −6.5; SIDEGRADE before), Ring 2 NOT_VIABLE since CORPUS-02G | CONFIDENT |
 | `test_minion_repeated_evaluation_is_deterministic_and_restores` | Hound | Identical repeat; fingerprint and equipment restored | CONFIDENT |
 | `test_djinn_minion_levels_are_measured_and_every_djinn_component_is_reported` | Djinn | Amulet without +5 minion levels: Navira −43.5%, Ruzhan −41.6%, Kelari −41.7%, each matching PoB with that Djinn selected. FULL / MEANINGFUL_DOWNGRADE. All three Djinns shown in More Info. No whole-build total claimed | CONFIDENT |
 | `test_djinn_minion_damage_ring_is_a_measured_upgrade_and_restores` | Djinn | Ring with +30% minion damage: +5.2%, FULL directional, identical on repeat, fingerprint restored | CONFIDENT |

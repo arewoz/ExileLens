@@ -755,7 +755,7 @@ class ItemOverlayPanel(QWidget):
             self._populate_current_edge({})
         self._populate_build_fixes([] if not inline_current_edge else model.get("build_fixes") or [])
         self._populate_axes(model.get("axis_rows") or [])
-        self._populate_tradeoffs(model.get("tradeoff_lines") or [])
+        self._populate_tradeoffs(model.get("tradeoff_lines") or [], str(model.get("tradeoff_title") or "TRADE-OFF"))
         self._populate_important_mods(model.get("important_mods") or [])
         if str(model.get("decomposition_status") or "") == "PENDING" and pinned_extended:
             self._compact.setText((self._compact.text() + " · details pending").strip(" ·"))
@@ -1052,7 +1052,8 @@ class ItemOverlayPanel(QWidget):
         self._axis_line.setText("\n".join(parts))
         self._axis_host.show()
 
-    def _populate_tradeoffs(self, lines: list[dict[str, Any]]) -> None:
+    def _populate_tradeoffs(self, lines: list[dict[str, Any]], title: str = "TRADE-OFF") -> None:
+        self._tradeoff_title.setText(title)
         for widget in self._tradeoff_widgets:
             self._tradeoff_layout.removeWidget(widget)
             widget.deleteLater()

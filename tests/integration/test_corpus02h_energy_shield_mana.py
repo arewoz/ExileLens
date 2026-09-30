@@ -217,7 +217,13 @@ def test_swapping_energy_shield_for_life_costs_damage_and_effective_hp(real_pob_
     assert outcome["evaluation_quality"] == "FULL"
     axes = outcome["item_impact"]["axes"]
     assert axes["OFFENSE"]["direction"] == "NEGATIVE" and axes["DEFENSE"]["direction"] == "NEGATIVE"
-    assert outcome["verdict"] not in {"MINOR_UPGRADE", "MEANINGFUL_UPGRADE", "CLEAR_UPGRADE"}
+    # SCORING-01: the +6.8 life/s recovery gain (0.37% of max Life per second) is measured and visible, but it is
+    # not a material opposing effect, so the ordinary score decides: a clear downgrade, not a forced sidegrade.
+    assert axes["RECOVERY"]["direction"] == "POSITIVE" and not axes["RECOVERY"]["material_positive"]
+    conflict = outcome["item_impact"]["conflict"]
+    assert conflict["kind"] == "NONE" and [o["metric"] for o in conflict["negligible_opposition"]] == ["LifeRegenRecovery"]
+    assert outcome["verdict"] == "MEANINGFUL_DOWNGRADE" and outcome["final_score"] == outcome["raw_score"]
+    assert "too small to offset the larger offense and defense losses" in outcome["verdict_reason"]
 
 
 def test_repeated_evaluations_are_identical_and_restore_the_build(real_pob_engine) -> None:

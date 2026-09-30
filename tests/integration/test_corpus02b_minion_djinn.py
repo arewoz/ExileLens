@@ -182,7 +182,12 @@ def test_player_defense_ring_is_a_minion_offense_versus_defense_tradeoff(real_po
             assert entry["evaluation_outcome"]["verdict"] == "NOT_VIABLE"
             assert "ATTRIBUTE_REQUIREMENT_LOST" in {g["code"] for g in entry["evaluation_outcome"]["guardrails_applied"]}
         else:
-            assert entry["evaluation_outcome"]["verdict"] == "SIDEGRADE"
+            # SCORING-01b: -10.6% minion offense for +5.3% EHP is a material trade-off with a net score of -6.5. A
+            # conflict holds an upgrade back but never softens a downgrade the score reads: MINOR DOWNGRADE.
+            outcome = entry["evaluation_outcome"]
+            assert outcome["item_impact"]["conflict"]["kind"] == "MATERIAL"
+            assert outcome["verdict"] == "MINOR_DOWNGRADE" and outcome["final_score"] == outcome["raw_score"]
+            assert "Trade-off: " in outcome["verdict_reason"]
         assert entry["restore"]["pass"] is True
 
 

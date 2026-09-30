@@ -99,7 +99,8 @@ def _tradeoff_section(model: dict[str, Any]) -> dict[str, Any] | None:
     ]
     if not lines:
         return None
-    return {"id": "tradeoffs", "title": "TRADE-OFFS", "lines": lines}
+    title = "WHAT GETS WORSE" if model.get("tradeoff_title") == "WHAT GETS WORSE" else "TRADE-OFFS"
+    return {"id": "tradeoffs", "title": title, "lines": lines}
 
 
 def _important_mods_section(model: dict[str, Any]) -> dict[str, Any] | None:
