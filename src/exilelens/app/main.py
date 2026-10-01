@@ -1189,6 +1189,9 @@ class ExileLensApp:
             self._shutdown_step("item_dismiss", self.controller.item_dismiss.stop)
         if self.clipboard:
             self._shutdown_step("clipboard", lambda: self.clipboard.set_enabled(False))
+        if getattr(self, "dashboard", None) is not None:
+            # TRUST-01D: no scheduled update check may fire while the app is tearing down.
+            self._shutdown_step("update_scheduler", self.dashboard.update_service.stop_scheduler)
         # Persist layout. A settings file that failed to load is never overwritten: it
         # stays on disk for inspection and Reset Configuration.
         if not getattr(self, "_settings_load_error", False):
