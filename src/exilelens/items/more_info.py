@@ -429,22 +429,18 @@ def _flexibility_section(outcome: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _why_verdict(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
-    lines: list[str] = []
-    reason = _text(outcome.get("verdict_reason") or model.get("verdict_reason"))
-    if reason:
-        lines.append(reason)
-    for item in outcome.get("guardrails_applied") or []:
-        text = _text(item.get("reason"))
-        if text and text not in lines:
-            lines.append(text)
-    for item in outcome.get("critical_tradeoffs") or []:
-        text = _text(item.get("text"))
-        if text and text not in lines:
-            marker = _text(item.get("marker")) or "▼"
-            lines.append(f"{marker} {text}")
+    """Same canonical Why as the compact tooltip; the net-score sentence is a last-resort fallback only."""
+    from exilelens.items.why_explanation import build_why_explanation
+
+    why = build_why_explanation(outcome)
+    lines = [block["text"] for block in why["reasons"]]
+    if not lines:
+        reason = _text(outcome.get("verdict_reason") or model.get("verdict_reason"))
+        if reason:
+            lines.append(reason)
     if not lines:
         return None
-    return {"id": "why_verdict", "title": "WHY THIS VERDICT", "lines": lines}
+    return {"id": "why_verdict", "title": "WHY THIS VERDICT", "lines": lines, "reasons": why["reasons"]}
 
 
 def _unmodeled(outcome: dict[str, Any]) -> dict[str, Any] | None:
