@@ -178,23 +178,29 @@ def _raw_metric(current: dict[str, Any], candidate: dict[str, Any], key: str) ->
                         after - before if before is not None and after is not None else None)
 
 
-def _recovery_metric(current: dict[str, Any], candidate: dict[str, Any]) -> ImpactMetric:
-    """Life regeneration per second, with its change expressed against the baseline Life pool.
+def _recovery_metric(current: dict[str, Any], candidate: dict[str, Any], *, metric_key: str,
+                     pool_key: str, use_candidate_pool_when_baseline_missing: bool = False) -> ImpactMetric:
+    """One continuous recovery channel, normalised against its own resource pool.
 
-    ``pool_pct`` stays None when PoB gave no usable Life pool (missing, or a Chaos Inoculation style
+    ``pool_pct`` stays None when PoB gave no usable resource pool (missing, or a Chaos Inoculation style
     pool of 1): nothing is invented, and the recovery change then cannot be material.
 
     A baseline of exactly zero regeneration (PoB then reports 0) has no relative percentage. The change is
-    still fully described by the absolute per-second difference and the Life pool, so it is marked
+    still fully described by the absolute per-second difference and the resource pool, so it is marked
     ``from_zero`` and judged by the pool-normalised quantity alone, without a made-up percentage.
+
+    Energy Shield may be newly introduced by the candidate. In that specific zero/missing-baseline case,
+    its usable candidate pool is the only truthful denominator; normal baselines always use their baseline pool.
     """
-    metric = _raw_metric(current, candidate, "LifeRegenRecovery")
-    life = _raw(current, "Life")
-    if metric.absolute_delta is None or life is None or life <= MIN_LIFE_POOL:
+    metric = _raw_metric(current, candidate, metric_key)
+    pool = _raw(current, pool_key)
+    if use_candidate_pool_when_baseline_missing and (pool is None or pool <= MIN_LIFE_POOL):
+        pool = _raw(candidate, pool_key)
+    if metric.absolute_delta is None or pool is None or pool <= MIN_LIFE_POOL:
         return metric
     return replace(
         metric,
-        pool_pct=abs(metric.absolute_delta) * 100.0 / life,
+        pool_pct=abs(metric.absolute_delta) * 100.0 / pool,
         from_zero=metric.current == 0.0 and metric.absolute_delta != 0.0,
     )
 
@@ -332,15 +338,17 @@ _METRIC_LABELS = {
     "worst_max_hit": "max hit",
     "movement_speed": "movement",
     "LifeRegenRecovery": "recovery",
+    "EnergyShieldRegenRecovery": "Energy Shield Regeneration",
 }
 
 
 def _metric_text(metric: ImpactMetric) -> str:
     label = _METRIC_LABELS.get(metric.key, metric.key)
-    if metric.key == "LifeRegenRecovery" and metric.absolute_delta is not None:
-        text = f"{label} {metric.absolute_delta:+.1f} life/s"
+    resource = {"LifeRegenRecovery": "life", "EnergyShieldRegenRecovery": "Energy Shield"}.get(metric.key)
+    if resource and metric.absolute_delta is not None:
+        text = f"{label} {metric.absolute_delta:+.1f} {resource}/s"
         if metric.pool_pct is not None:
-            text += f" ({metric.pool_pct:.2f}% of max Life per second)"
+            text += f" ({metric.pool_pct:.2f}% of max {resource.title() if resource == 'life' else resource} per second)"
         return text
     return f"{label} {metric.percent_delta:+.1f}%" if metric.percent_delta is not None else label
 
@@ -359,7 +367,7 @@ def _axis_reasons(axis: ImpactAxis, thresholds: ImpactThresholds, *, material_on
         return []
     if axis.direction == "MIXED":
         limit = _axis_threshold(axis.axis, thresholds) if material_only else thresholds.noise_pct
-        rows = [f"{metric.key} {metric.percent_delta:+.1f}%" for metric in axis.metrics
+        rows = [_metric_text(metric) for metric in axis.metrics
                 if metric.support == "MEASURED" and metric.percent_delta is not None
                 and abs(metric.percent_delta) > thresholds.noise_pct and abs(metric.percent_delta) >= limit]
         return rows + list(axis.reasons)
@@ -451,8 +459,14 @@ def interpret_item_impact(
                     thresholds.defense_pct, noise=thresholds.noise_pct)
     defense = replace(defense, metrics=defense.metrics +
                       tuple(_metric(metric_profile, key) for key in ("life", "energy_shield")))
-    # Recovery is material only when the change is also a real part of the Life pool per second.
-    recovery = _axis("RECOVERY", (_recovery_metric(raw_current, raw_candidate),),
+    # Each recovery resource remains independent: Life regeneration is never combined with ES regeneration.
+    recovery = _axis("RECOVERY", (
+                         _recovery_metric(raw_current, raw_candidate,
+                                          metric_key="LifeRegenRecovery", pool_key="Life"),
+                         _recovery_metric(raw_current, raw_candidate,
+                                          metric_key="EnergyShieldRegenRecovery", pool_key="EnergyShield",
+                                          use_candidate_pool_when_baseline_missing=True),
+                     ),
                      thresholds.recovery_pct, noise=thresholds.noise_pct, gate=_recovery_gate(thresholds))
     movement = _metric(metric_profile, "movement_speed")
     if movement.support == "MEASURED" and movement.current is not None and movement.candidate is not None:

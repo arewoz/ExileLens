@@ -61,6 +61,7 @@ _LEGACY_AXIS_FOR_METRIC = {
     "ehp": "DEFENCE",
     "movement_speed": "MOBILITY",
     "LifeRegenRecovery": "RECOVERY",
+    "EnergyShieldRegenRecovery": "RECOVERY",
 }
 
 
