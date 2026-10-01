@@ -201,6 +201,8 @@ class AxisDelta:
     availability: str = "available"
     delta_kind: str = "MEASURED"
     label: str = ""
+    # Composite axes retain their independently measured components instead of inventing a combined score.
+    components: dict[str, "AxisDelta"] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

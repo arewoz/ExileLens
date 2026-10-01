@@ -53,6 +53,7 @@ RAW_METRIC_FIELDS = [
     "MovementSpeedMod",
     "ManaPerSecondCost",
     "ManaRegenRecovery",
+    "EnergyShieldRegenRecovery",
     "Minion.CombinedDPS",
     "Minion.TotalDPS",
     "Minion.FullDPS",

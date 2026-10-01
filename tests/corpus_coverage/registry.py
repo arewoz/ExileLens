@@ -246,7 +246,22 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
             "Sorceress/Stormweaver, Spark (crit-support gem equipped): FULL quality, "
             "directional OFFENSE/DEFENSE axis improvement, clean restore."
         ),
-        archetypes=(Archetype.SPELL, Archetype.CRIT, Archetype.LIFE_SCALING),
+        archetypes=(Archetype.SPELL, Archetype.CRIT),
+    ),
+    CoverageCase(
+        id="LIFE01-BLOOD-MAGE-GORE-SPIKE",
+        test_file="tests/integration/test_life01_blood_mage.py",
+        node_name="test_life01_gore_spike_life_increases_authoritative_player_offense",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Authentic Witch/Blood Mage Ember Fusillade build (pobb.in/duLtV2Cf4TfL): "
+            "a Life-only Original Sin candidate increases current unreserved Life, Gore Spike "
+            "critical damage, selected player DPS, and EHP with verified transaction restore."
+        ),
+        archetypes=(Archetype.SPELL, Archetype.CRIT, Archetype.LIFE_SCALING, Archetype.ASCENDANCY),
+        manifest_id="LIFE01-BLOOD-MAGE-GORE-SPIKE",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="RING-TRADEOFF-BEST-SLOT",

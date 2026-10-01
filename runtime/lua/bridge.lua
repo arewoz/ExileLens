@@ -31,7 +31,7 @@ local METRIC_FIELDS = {
 	"MissingFireResist", "MissingColdResist", "MissingLightningResist", "MissingChaosResist",
 	"Armour", "Evasion", "BlockChance",
 	"ManaCost", "ManaPerSecondCost", "ManaRegenRecovery",
-	"LifeCost", "LifePerSecondCost", "LifeRegenRecovery",
+	"LifeCost", "LifePerSecondCost", "LifeRegenRecovery", "EnergyShieldRegenRecovery",
 	"MovementSpeedMod",
 	-- CORPUS-02G: attributes and PoB's own item/gem requirement (the highest of them) per attribute.
 	"Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt",

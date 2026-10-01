@@ -117,33 +117,39 @@ def build_axes(
         label="Resource",
     )
 
-    cur_life_regen = _raw(raw_current, "LifeRegenRecovery") or _raw(raw_current, "LifeRecovery")
-    cand_life_regen = _raw(raw_candidate, "LifeRegenRecovery") or _raw(raw_candidate, "LifeRecovery")
-    es_metric = _entry(metric_profile, "energy_shield")
-    # Recovery prefers regen fields; ES/life pool changes are defence, not recovery.
-    if cur_life_regen is None and cand_life_regen is None:
-        recovery = AxisDelta(
+    cur_life_regen = _raw(raw_current, "LifeRegenRecovery")
+    cand_life_regen = _raw(raw_candidate, "LifeRegenRecovery")
+    if cur_life_regen is None:
+        cur_life_regen = _raw(raw_current, "LifeRecovery")
+    if cand_life_regen is None:
+        cand_life_regen = _raw(raw_candidate, "LifeRecovery")
+    cur_es_regen = _raw(raw_current, "EnergyShieldRegenRecovery")
+    cand_es_regen = _raw(raw_candidate, "EnergyShieldRegenRecovery")
+
+    def recovery_component(label: str, before: float | None, after: float | None) -> AxisDelta:
+        absolute, percent = _pair(before, after)
+        return AxisDelta(
             axis=AxisId.RECOVERY.value,
-            current=0.0,
-            candidate=0.0,
-            absolute_delta=0.0,
-            percent_delta=0.0,
-            availability="available",
-            delta_kind="UNMEASURED",
-            label="Recovery",
+            current=before,
+            candidate=after,
+            absolute_delta=absolute,
+            percent_delta=percent,
+            availability="available" if before is not None and after is not None else "missing",
+            delta_kind="MEASURED" if before is not None and after is not None else "UNMEASURED",
+            label=label,
         )
-    else:
-        abs_rec, pct_rec = _pair(cur_life_regen or 0.0, cand_life_regen or 0.0)
-        recovery = AxisDelta(
-            axis=AxisId.RECOVERY.value,
-            current=cur_life_regen,
-            candidate=cand_life_regen,
-            absolute_delta=abs_rec,
-            percent_delta=pct_rec,
-            availability="available",
-            delta_kind="MEASURED",
-            label="Recovery",
-        )
+
+    # Recovery has no honest common unit: retain Life and ES regeneration as named, independent values.
+    recovery = AxisDelta(
+        axis=AxisId.RECOVERY.value,
+        availability="available",
+        delta_kind="COMPOSITE",
+        label="Recovery",
+        components={
+            "life_regen": recovery_component("Life Regen", cur_life_regen, cand_life_regen),
+            "energy_shield_regen": recovery_component("Energy Shield Regen", cur_es_regen, cand_es_regen),
+        },
+    )
 
     mana = _entry(metric_profile, "mana")
     utility = AxisDelta(
@@ -167,8 +173,6 @@ def build_axes(
         delta_kind="WEIGHTED" if score_delta is not None else "MISSING",
         label="Build Value",
     )
-    # Keep ES metric available for explanation without folding it into recovery.
-    del es_metric
     return {
         AxisId.OVERALL.value: overall,
         AxisId.OFFENSE.value: offense,
