@@ -35,6 +35,9 @@ local METRIC_FIELDS = {
 	"MovementSpeedMod",
 	-- CORPUS-02G: attributes and PoB's own item/gem requirement (the highest of them) per attribute.
 	"Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt",
+	-- M5.5: per-use mana cost, leech/on-hit mana gain and energy-shield-paid cost, so resource pressure is read from
+	-- PoB's own accounting instead of cost-per-second versus passive regeneration alone.
+	"ManaCost", "ManaLeechGainRate", "ESPerSecondCost",
 }
 
 -- Offensive fields exposed by PoB for a selected non-player actor.  Keep this

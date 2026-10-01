@@ -69,7 +69,7 @@ def test_measured_offense_signal_keeps_magnitude_response_and_separates_score() 
     sig = _signal(sens, "CAST_SPEED")
     assert sens["schema_version"] == SCHEMA_VERSION == 1
     assert sig["status"] == "MEASURED" and sig["probe"]["magnitude"] == 10.0 and sig["family"] == "offense"
-    assert sig["response"]["offense"] == {"absolute": 780.0, "evidence": "MEASURED", "percent": 7.8}
+    assert sig["response"]["offense"] == {"absolute": 780.0, "evidence": "MEASURED", "percent": 7.8, "confidence": "HIGH"}
     assert "energy_shield" not in sig["response"]  # unavailable axes are omitted, never a fake 0
     assert sig["response_per_unit"] == {"evidence": "DERIVED", "offense_percent_per_unit": 0.78, "ehp_percent_per_unit": 0.0}
     assert sig["profile_dependent"]["score_delta"] == 4.2
@@ -126,7 +126,7 @@ def test_existing_nonlinear_samples_are_preserved_not_extended() -> None:
 
 def test_low_confidence_offense_is_not_upgraded() -> None:
     sig = _signal(build_sensitivity(_result([_probe()], offense_confidence="LOW")), "CAST_SPEED")
-    assert sig["confidence"] == "LOW" and sig["response"]["offense"]["offense_confidence"] == "LOW"
+    assert sig["response"]["offense"]["confidence"] == "LOW"  # M5.5: axis-aware; the signal keeps the probe confidence
     assert _signal(build_sensitivity(_result([_probe()])), "CAST_SPEED")["confidence"] == "HIGH"
 
 

@@ -115,12 +115,12 @@ def test_resistance_breakpoint_goes_to_fix_first_not_to_a_lane() -> None:
     assert "Fire Resistance" not in [r["label"] for r in pri["ehp"]]  # no per-point resistance ranking, no score-based opportunity needs
 
 
-def test_resource_pressure_and_attribute_deficit_are_fix_first_from_existing_evidence() -> None:
+def test_resistance_and_attribute_deficit_are_fix_first_and_raw_resource_pressure_is_not() -> None:
     needs = [{"code": "RESOURCE_PRESSURE", "severity": "medium", "metric": "mana", "deficit": 5.0},
              {"code": "LOW_CHAOS_RES", "severity": "high", "metric": "chaos_res", "deficit": 40.0}]
     extra = {"requirements": {"dexterity": {"state": {"value": "DEFICIT"}, "margin": {"value": -12.0}}, "strength": {"state": {"value": "MET"}, "margin": {"value": 5.0}}}}
     rows = build_priorities(_result(PROBES, needs=needs, fingerprint_extra=extra))["fix_first"]
-    assert [r["kind"] for r in rows] == ["ATTRIBUTE_REQUIREMENT", "RESISTANCE_CAP", "RESOURCE"]  # severity, then source order
+    assert [r["kind"] for r in rows] == ["ATTRIBUTE_REQUIREMENT", "RESISTANCE_CAP"]  # severity, then source order; M5.5: RESOURCE_PRESSURE is context
     assert rows[0]["detail"] == "12 short of the highest requirement"
 
 
