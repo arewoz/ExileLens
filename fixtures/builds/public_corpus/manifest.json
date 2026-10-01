@@ -171,6 +171,15 @@
       "primary_skill": "Spark",
       "actor": "PLAYER",
       "purpose": "Energy Shield scaling: the Eldritch Battery keystone converts all Energy Shield to maximum Mana and Rathpith Globe scales the Spell Totem's Spark with maximum Mana; PoB reports Energy Shield 0 and calculates Mana, damage and effective HP from the same pool"
+    },
+    {
+      "id": "LIFE01-BLOOD-MAGE-GORE-SPIKE",
+      "file": "fixtures/builds/public_corpus/life01_blood_mage_ember_fusillade.xml",
+      "class": "Witch",
+      "ascendancy": "Blood Mage",
+      "primary_skill": "Ember Fusillade",
+      "actor": "PLAYER",
+      "purpose": "Authentic PoE2 0.4 Early Endgame Blood Mage by Upto64Bit (pobb.in/duLtV2Cf4TfL), exported without normalization. Gore Spike (node 52703 in tree version 0_4) scales critical damage with current unreserved Life; Original Sin plus 100 maximum Life raises Life, CritMultiplier, selected DPS, and EHP in PoB."
     }
   ]
 }
