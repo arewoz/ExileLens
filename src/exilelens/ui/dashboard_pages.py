@@ -360,7 +360,10 @@ class SettingsPage(QWidget):
         pob_browse.clicked.connect(self._browse_pob)
         pob_apply = make_button("Apply", "secondary", tooltip="Reconnect using this folder")
         pob_apply.clicked.connect(self._apply_pob_path)
+        pob_detect = make_button("Auto-detect", "tertiary", tooltip="Look for Path of Building automatically")
+        pob_detect.clicked.connect(self._auto_detect_pob)
         pob_row.addWidget(pob_browse)
+        pob_row.addWidget(pob_detect)
         pob_row.addWidget(pob_apply)
         self._advanced.add_widget(QLabel("Path of Building folder"))
         self._advanced.add_layout(pob_row)
@@ -616,6 +619,33 @@ class SettingsPage(QWidget):
         self.settings.pob_path = path
         save_settings(self.settings)
         self.refresh_setup_status()
+
+    def _auto_detect_pob(self) -> None:
+        """Rerun bounded local discovery: one result is applied, several are offered, none keeps the current path."""
+        from PySide6.QtWidgets import QInputDialog
+
+        from exilelens.pob_discovery import find_pob_installation
+
+        result = find_pob_installation()
+        chosen = result.selected
+        if chosen is None and result.ambiguous:
+            labels = [candidate.display() for candidate in result.ambiguous]
+            label, accepted = QInputDialog.getItem(
+                self, "Path of Building", "Multiple Path of Building installations were found:", labels, 0, False
+            )
+            if not accepted:
+                return
+            chosen = result.ambiguous[labels.index(label)]
+        if chosen is None:
+            QMessageBox.information(
+                self,
+                "Path of Building",
+                "Path of Building could not be detected automatically. Use Browse to choose its installation folder.",
+            )
+            return
+        self._pob_edit.setText(str(chosen.path))
+        if str(chosen.path) != self.settings.pob_path:
+            self._apply_pob_path()
 
     def _browse_pob(self) -> None:
         from exilelens.ui.setup_dialog import pick_pob_directory

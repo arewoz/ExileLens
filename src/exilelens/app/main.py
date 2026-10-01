@@ -85,6 +85,7 @@ class ExileLensApp:
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
         migrate_character_build(self.settings)
+        self._auto_configure_pob_path()
         if self._settings_load_error:
             from exilelens.app.settings import backup_settings_file
 
@@ -308,6 +309,23 @@ class ExileLensApp:
 
     def _tray_visible(self) -> bool:
         return self.tray is not None and self.tray.isVisible()
+
+    def _auto_configure_pob_path(self) -> None:
+        """TRUST-01C: use a clearly best local PoB2 installation when none is configured. Never replaces a valid path."""
+        if self._settings_load_error:
+            return  # never write over a settings file that failed to load
+        try:
+            from exilelens.pob_discovery import auto_configure_pob_path
+
+            path, result = auto_configure_pob_path(self.settings.pob_path)
+            if path and path != self.settings.pob_path:
+                self.settings.pob_path = path
+                save_settings(self.settings)
+                logger.info("pob_autodetect_applied")
+            elif result is not None and result.ambiguous:
+                logger.info("pob_autodetect_ambiguous count=%d", len(result.ambiguous))
+        except Exception:  # noqa: BLE001 - discovery is best-effort and must never block startup
+            logger.exception("pob_autodetect_failed")
 
     def _start_engine(self) -> None:
         if self.controller is None:
