@@ -5,8 +5,11 @@ from typing import Any, Callable
 
 from exilelens.analysis.audit import BuildNeed, BuildStateAudit, build_state_audit
 from exilelens.analysis.cache import ProbeCache
+from exilelens.analysis.fingerprint import build_fingerprint, with_probe_signals
 from exilelens.analysis.catalog import ProbeCatalog
 from exilelens.analysis.identity import AnalysisBaseline
+from exilelens.analysis.priorities import build_priorities
+from exilelens.analysis.sensitivity import build_sensitivity
 from exilelens.analysis.opportunity import (
     SAFE_CONTRIBUTION_SLOTS,
     WEAPON_PRODUCT_SLOTS,
@@ -141,6 +144,8 @@ def analyze_build(
         generation=generation,
         fingerprint=fingerprint,
     )
+    # M5.1: base Build Fingerprint from the data already loaded above (no extra PoB recalculation).
+    base_fingerprint = build_fingerprint(raw=raw, baseline=baseline, primary=primary, audit=audit).to_dict()
     carrier = _carrier(equipment)
     skipped: list[dict[str, Any]] = []
     global_probes: list[dict[str, Any]] = []
@@ -449,6 +454,7 @@ def analyze_build(
         "audit": audit.to_dict(),
         "needs": [need.to_dict() if hasattr(need, "to_dict") else need for need in audit.needs],
         "global_probes": global_probes,
+        "build_fingerprint": with_probe_signals(base_fingerprint, global_probes),
         "slots": ranked,
         "skipped": skipped,
         "performance": {
@@ -462,6 +468,10 @@ def analyze_build(
         "market": False,
         "network": False,
     }
+    # M5.2: normalise the probes that just ran; no further PoB work.
+    result["build_sensitivity"] = build_sensitivity(result)
+    # M5.3: priorities from the measured sensitivity only (no PoB, no profile).
+    result["build_priorities"] = build_priorities(result)
     return result
 
 
@@ -549,4 +559,10 @@ def rescore_analysis(result: dict[str, Any], profile: str | ValueProfile) -> dic
         slots.append(slot)
     updated["slots"] = slots
     updated["baseline"] = baseline.to_dict()
+    if result.get("build_fingerprint"):
+        # Profile-independent facts are carried over unchanged; only profile-dependent signal scores refresh.
+        updated["build_fingerprint"] = with_probe_signals(result["build_fingerprint"], updated["global_probes"])
+    if result.get("build_sensitivity"):
+        updated["build_sensitivity"] = build_sensitivity(updated)  # pure: measured response unchanged, scores refreshed
+        updated["build_priorities"] = build_priorities(updated)  # profile independent: identical after any rescore
     return updated
