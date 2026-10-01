@@ -600,6 +600,7 @@ def build_presentation(
         "verdict_class": str(outcome.get("verdict_class") or ""),
         "verdict_reason": str(outcome.get("verdict_reason") or ""),
         "evaluation_outcome": outcome,
+        "build_freshness": dict(result.get("build_freshness") or {}),
         "damage_claim": dict(outcome.get("damage_claim") or recommendation.get("damage_claim") or result.get("damage_claim") or {}),
         "evaluation_quality": str(outcome.get("evaluation_quality") or ""),
         "quality_label": str(outcome.get("quality_label") or ""),

@@ -254,6 +254,26 @@ class OverviewPage(QWidget):
             self._notice.setVisible(True)
         else:
             self._notice.setVisible(False)
+        self._apply_freshness_notice(build)
+
+    def _apply_freshness_notice(self, build) -> None:
+        """TRUST-01B: persistent home of build freshness. Quiet when CURRENT; never claims the character is stale."""
+        try:
+            freshness = self.controller.build_freshness()
+        except Exception:  # noqa: BLE001 - never break Overview
+            return
+        state = freshness.get("state")
+        if state == "USING_LAST_GOOD":
+            severity = "error"
+        elif state in {"OLD_FILE", "DISK_CHANGED", "RELOADING"}:
+            severity = "warn"
+        else:
+            return
+        if state == "OLD_FILE" and self._notice.isVisible():
+            return  # a more specific problem is already shown
+        text = " ".join(part for part in (freshness.get("title"), freshness.get("detail")) if part)
+        self._notice.set_value(text, severity)
+        self._notice.setVisible(True)
 
     def _refresh_action(self, health) -> None:
         """Tell the player what to do next, in priority order of what is broken."""

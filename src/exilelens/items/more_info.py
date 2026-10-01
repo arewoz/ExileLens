@@ -31,6 +31,7 @@ MORE_INFO_SECTION_ORDER = (
     "resists",
     "why_verdict",
     "unmodeled",
+    "build_source",
     "flexibility",
     "score_drivers",
     "damage_reference",
@@ -454,6 +455,19 @@ def _why_verdict(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, An
     return {"id": "why_verdict", "title": "WHY THIS VERDICT", "lines": lines, "reasons": why["reasons"]}
 
 
+def _build_source_section(model: dict[str, Any]) -> dict[str, Any] | None:
+    """Source context only (TRUST-01B); absent for an ordinary current build."""
+    freshness = model.get("build_freshness") or {}
+    if freshness.get("state") not in {"OLD_FILE", "DISK_CHANGED", "RELOADING", "USING_LAST_GOOD"}:
+        return None
+    lines = [_text(freshness.get("title")), _text(freshness.get("detail"))]
+    if freshness.get("state") == "OLD_FILE":
+        lines = ["PoB " + _text(freshness.get("detail")).replace("File", "build file", 1).replace("last modified", "was last modified", 1)]
+        lines.append("Results are relative to the loaded PoB build.")
+    lines = [line for line in lines if line]
+    return {"id": "build_source", "title": "BUILD SOURCE", "lines": lines} if lines else None
+
+
 def _unmodeled(outcome: dict[str, Any]) -> dict[str, Any] | None:
     lines: list[str] = []
     for item in list(outcome.get("unsupported_or_unmodeled") or []) + list(
@@ -485,6 +499,7 @@ _BUILDERS = {
     "flexibility": lambda model, outcome: _flexibility_section(outcome),
     "why_verdict": _why_verdict,
     "unmodeled": lambda model, outcome: _unmodeled(outcome),
+    "build_source": lambda model, outcome: _build_source_section(model),
 }
 
 

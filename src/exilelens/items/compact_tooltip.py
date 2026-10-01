@@ -670,7 +670,12 @@ def _semantic_notes(model: dict[str, Any], impact_rows: list[dict[str, Any]]) ->
         ):
             add("⚠ Large damage loss")
 
-    return notes[:MAX_NOTES]
+    notes = notes[:MAX_NOTES]
+    # TRUST-01B: build-source context never displaces an Item Check warning and never grows the budget.
+    freshness_note = str((model.get("build_freshness") or {}).get("note") or "")
+    if freshness_note and len(notes) < MAX_NOTES:
+        notes.append(freshness_note)
+    return notes
 
 
 def _claimed_facts(model: dict[str, Any], impact_rows: list[dict[str, Any]], notes: list[str]) -> frozenset[str]:
