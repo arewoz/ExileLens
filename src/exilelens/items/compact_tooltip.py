@@ -15,8 +15,10 @@ import re
 from typing import Any
 
 from exilelens.items.companion import build_companion_analysis, prune_companion_duplicates
+from exilelens.items.presentation_copy import fact_id_for_metric_row
 from exilelens.items.score_bands import score_band, score_text
 from exilelens.items.slots import is_jewel_socket_pob_slot
+from exilelens.items.why_explanation import QUALITY_FACT_ID, build_why_explanation
 
 # Ordered ids of what the compact tooltip is allowed to render. No score: it lives
 # in More Info (Companion `score` section).
@@ -522,8 +524,16 @@ def _delta_text_from_outcome(delta: dict[str, Any]) -> str:
     return ""
 
 
-def _reason_lines(model: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
-    """Up to three strongest semantic reasons, and the title that frames them."""
+def _reason_lines(
+    model: dict[str, Any],
+    claimed: frozenset[str] = frozenset(),
+) -> tuple[str, list[dict[str, Any]]]:
+    """Up to three strongest semantic reasons, and the title that frames them.
+
+    The canonical deterministic Why (`why_explanation`) is the source; blocks whose
+    fact the impact rows or notes already state (`claimed`) are not repeated.
+    The legacy upstream reasons only back-fill an outcome with no structured evidence.
+    """
     edge = model.get("current_edge") or {}
     edge_lines = [
         {"text": str(line.get("text") if isinstance(line, dict) else line).strip()}
@@ -532,6 +542,15 @@ def _reason_lines(model: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
     edge_lines = [line for line in edge_lines if line["text"]]
     if edge_lines:
         return str(edge.get("title") or "WHY CURRENT ITEM WINS"), edge_lines[:MAX_REASONS]
+
+    why = build_why_explanation(model.get("evaluation_outcome") or {})
+    if why["reasons"]:
+        shown = [
+            {"text": block["text"], "kind": block["kind"], "metric": block["metric"], "fact_id": block["fact_id"]}
+            for block in why["reasons"]
+            if not (block["fact_id"] and block["fact_id"] in claimed)
+        ]
+        return (why["title"], shown[:MAX_REASONS]) if shown else ("", [])
 
     keep = [
         {"text": str(item.get("explanation") or "").strip()}
@@ -649,6 +668,20 @@ def _semantic_notes(model: dict[str, Any], impact_rows: list[dict[str, Any]]) ->
             add("⚠ Large damage loss")
 
     return notes[:MAX_NOTES]
+
+
+def _claimed_facts(model: dict[str, Any], impact_rows: list[dict[str, Any]], notes: list[str]) -> frozenset[str]:
+    """Fact ids the impact rows or notes already state, so Why does not say them a second time."""
+    claimed = {str(row.get("guardrail_code") or "") for row in impact_rows}
+    for row in impact_rows:
+        claimed.add(fact_id_for_metric_row(row) or "")
+    for row in model.get("rows") or []:  # the "Breaks ... cap" note is derived from these
+        if str(row.get("cap_state") or "") == "CAP_LOST":
+            claimed.add(fact_id_for_metric_row(row) or "")
+    if any(note.startswith("◐") for note in notes):
+        claimed.add(QUALITY_FACT_ID)
+    claimed.discard("")
+    return frozenset(claimed)
 
 
 def _compared_with_line(model: dict[str, Any]) -> str:
@@ -842,8 +875,8 @@ def apply_compact_tooltip(model: dict[str, Any]) -> None:
         candidate_rows = extra + candidate_rows
         candidate_rows = _inject_outcome_loss_candidates(candidate_rows, outcome)
     impact_rows = select_impact_rows(candidate_rows)
-    reasons_title, reasons = _reason_lines(model)
     notes = _semantic_notes(model, impact_rows)
+    reasons_title, reasons = _reason_lines(model, _claimed_facts(model, impact_rows, notes))
     choices = _replacement_choices(model)
     slot_lines = slot_verdict_lines(model)
     replace_line = replacing_line(model)

@@ -510,3 +510,60 @@ so `_clear_body()` cleans them up identically. No `QLayout.addSpacing()`/raw
 `QSpacerItem` remains anywhere in the file. Verified: content always starts at the very
 top of the drawer regardless of what was shown before it, and repeated cycling between
 dense and sparse results no longer grows the layout's item count.
+
+## M2.3 — Deterministic Why
+
+One canonical, deterministic explanation shared by the compact tooltip's reason lines and More Info's
+`WHY THIS VERDICT`. Presentation only: no scoring, threshold, or verdict change, no model call.
+
+**Where:** `items/why_explanation.py` — `build_why_explanation(outcome) -> {"verdict", "title", "reasons"}`.
+Each reason is a structured block `{kind, metric, text, priority, fact_id}` (`kind` is `gain`, `loss`,
+`tradeoff`, `blocker`, `uncertainty` or `neutral`; a tradeoff block also carries `counter_metric`).
+`priority` is internal ordering and is never rendered. Maximum 3 blocks; usually 1–2.
+
+**Canonical input data** (all read from `EvaluationOutcome`, never from raw item text or candidate mods):
+`guardrails_applied`, `evaluation_quality` + `evaluation_quality_reasons`, `all_deltas` (measured only — an
+unmeasured/estimated damage delta is never stated as a change), `resistances` (cap states),
+`item_impact.axes.RECOVERY` (per-channel regeneration) and `item_impact.conflict` (the existing
+"too small to offset" note). Materiality reuses `IMPACT_THRESHOLDS` and `RES_MATERIAL_DEFICIT_POINTS`; no
+second threshold system exists.
+
+**Ranking policy:** hard blockers, then the evaluation-quality reason, then resistance cap/deficit events
+(cap events before deficit movement), then Damage / EHP / Max Hit by magnitude, then recovery channels, then
+movement/speed, then other measured deltas. This mirrors the compact impact-row buckets; it is not a sort by
+absolute percentage.
+
+**Verdict-specific behavior**
+
+| Verdict | Lines |
+| --- | --- |
+| Upgrade | strongest material gain; strongest material loss only if one exists |
+| Sidegrade | gain **and** loss in one line, then "That trade-off keeps this a sidegrade."; with no material change, the below-threshold line (or "unchanged" only when every value is zero) |
+| Downgrade | strongest loss; strongest gain "but not enough to offset it" |
+| Not viable | the exact guardrail text(s); an incomplete-evaluation line follows if quality is not FULL |
+| Uncertain / unsupported | the real quality reason, then "Defensive changes are still measured." when that axis is measured |
+
+Examples (synthetic fixtures): `Damage improves by 11.2%.` · `Damage improves by 8.4%, but EHP falls 9.7%.` /
+`That trade-off keeps this a sidegrade.` · `Damage falls 7.6%.` / `EHP improves by 3.5%, but not enough to offset it.`
+· `Strength requirement not met (90/120).` · `The main skill's damage change could not be measured.` /
+`Defensive changes are still measured.`
+
+**Recovery:** Life Regeneration and Energy Shield Regeneration are separate facts and are never combined.
+`Energy Shield Regeneration increases by 93/s, but Life Regeneration falls by 30/s.` is one tradeoff block that
+names both channels. A recovery change that fails the existing pool gate is not explained. Recovery still does
+not affect the raw score.
+
+**Compact vs More Info:** both read the same blocks. Compact keeps `MAX_REASONS = 3` / `MAX_NOTES = 2` and adds
+no widget; it drops a block whose fact the impact rows or notes already state (a blocker row, a resistance
+cap/deficit row or "Breaks … cap" note, the "◐" quality note, matched by `fact_id`), so a Not-viable compact
+tooltip may show no Why at all — the `Cannot equip` row already says it. More Info renders every selected
+block, including those. When an outcome has no structured evidence (empty blocks) compact keeps its previous
+upstream reasons and More Info falls back to `verdict_reason`. Advanced detail (damage reference, score
+drivers, native components, flexibility) stays under Advanced; the score stays in the verdict header.
+
+**Truthfulness boundary (unchanged, binding):** every line states a build-level measured effect. No line says
+which item modifier caused it ("+2 Projectile Skills gives you 11.2% more damage" is explicitly unsupported)
+because the engine measures build state before/after, not per-mod attribution. Do not parse candidate item
+text to add causes.
+
+Tests: `tests/test_m2_3_deterministic_why.py`.
