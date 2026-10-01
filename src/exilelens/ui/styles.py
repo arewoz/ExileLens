@@ -578,6 +578,11 @@ QWidget#dashboardStatusFooter {{
     background-color: {_V2_SURFACE};
     border-top: 1px solid {DASHBOARD_BORDER};
 }}
+QWidget#updateNotice {{
+    background-color: {_V2_SURFACE};
+    border: 1px solid {DASHBOARD_BORDER};
+    border-radius: 8px;
+}}
 QLabel#updateStatusText {{
     font-size: 12px;
     font-weight: 600;

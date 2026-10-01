@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from exilelens._version import __version__, is_packaged
 from exilelens.app.settings import save_settings
@@ -70,6 +70,12 @@ class UpdateService(QObject):
         self._check_in_flight = False
         self._availability: UpdateAvailability | None = None
         self._verified_manifest: VerifiedUpdateManifest | None = None
+        self._download_when_verified = False
+        # TRUST-01D: one single-shot timer that wakes locally when the 24h cooldown elapses. It never polls;
+        # the network request itself is still gated by `start_automatic`.
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self.start_automatic)
         self._check_finished.connect(self._finish_check)
         self._download_finished.connect(self._finish_download)
 
@@ -89,14 +95,39 @@ class UpdateService(QObject):
             self.state_changed.emit("unavailable", "")
             return False
         ensure_updater_bootstrapped()
+        if self._check_in_flight:
+            # A check is already running: neither touch the cooldown timestamp nor re-emit stale state.
+            return False
         now = float(self.clock())
         previous = float(getattr(self.settings, "update_last_check_at", 0.0) or 0.0)
         if previous > 0 and now - previous < CHECK_COOLDOWN_SECONDS:
             self._emit_known_state()
+            self._schedule_next_automatic()
             return False
         self.settings.update_last_check_at = now
         save_settings(self.settings)
-        return self._start_check(manual=False)
+        started = self._start_check(manual=False)
+        self._schedule_next_automatic()
+        return started
+
+    def next_automatic_delay_ms(self) -> int:
+        """Milliseconds until the next automatic check becomes eligible (last check + cooldown)."""
+        now = float(self.clock())
+        previous = float(getattr(self.settings, "update_last_check_at", 0.0) or 0.0)
+        due = (previous + CHECK_COOLDOWN_SECONDS) if previous > 0 else now
+        # +1s tolerance so the wake-up lands just after the cooldown; never faster than every 60s.
+        return int(max(60.0, due - now + 1.0) * 1000)
+
+    def _schedule_next_automatic(self) -> None:
+        self._timer.start(min(self.next_automatic_delay_ms(), 2**31 - 1))
+
+    def stop_scheduler(self) -> None:
+        self._timer.stop()
+
+    def release_url(self) -> str:
+        """Official GitHub release page of the verified newest release, or "" when unknown or not GitHub."""
+        url = str(self._availability.remote.url or "") if self._availability is not None else ""
+        return url if url.startswith("https://github.com/") else ""
 
     def check_now(self) -> bool:
         if not is_packaged():
@@ -108,7 +139,23 @@ class UpdateService(QObject):
     def cancel_download(self) -> None:
         self.downloader.cancel()
 
+    def _pending_remote_is_newer(self) -> bool:
+        remote = ExileLensVersion.parse(getattr(self.settings, "update_latest_version", ""))
+        installed = installed_version()
+        return remote is not None and installed is not None and remote > installed
+
     def start_download(self) -> bool:
+        if (
+            (self._availability is None or self._verified_manifest is None)
+            and is_packaged()
+            and self._pending_remote_is_newer()
+        ):
+            # A pending update remembered from an earlier session has no verified manifest yet: the user's click
+            # verifies it first (a user-initiated check), then the download starts.
+            self._download_when_verified = True
+            self.download_state_changed.emit("downloading")
+            self._start_check(manual=True)
+            return True
         if self._availability is None:
             self.action_error.emit("No update is available to download.")
             return False
@@ -199,6 +246,18 @@ class UpdateService(QObject):
         return True
 
     def _finish_check(self, result: object, manual: bool) -> None:
+        self._finish_check_inner(result, manual)
+        if self._download_when_verified:
+            self._download_when_verified = False
+            if self._availability is not None and self._verified_manifest is not None and (
+                self._availability.remote.version > self._availability.installed
+            ):
+                self.start_download()
+            else:
+                self.download_state_changed.emit("")
+                self.action_error.emit("The update could not be verified right now. Try again later.")
+
+    def _finish_check_inner(self, result: object, manual: bool) -> None:
         self._check_in_flight = False
         self._verified_manifest = None
         if isinstance(result, RuntimeError):

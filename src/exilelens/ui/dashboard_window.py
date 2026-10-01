@@ -26,7 +26,7 @@ from exilelens.ui.gear_optimizer_page import GearOptimizerPage
 from exilelens.ui.components import make_button
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
 from exilelens.ui.ui_icons import apply_button_icon
-from exilelens.ui.update_actions import footer_update_summary, restart_and_update
+from exilelens.ui.update_actions import footer_update_summary, restart_and_update, update_notice_view
 from exilelens.ui.tree_window import TreeWorkspace
 from exilelens.ui.managed_window import ManagedToolWindow, recover_window_geometry
 from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style
@@ -207,6 +207,7 @@ class DashboardWindow(ManagedToolWindow):
             theme.PAGE_GUTTER, theme.SPACE_MD, theme.PAGE_GUTTER, theme.SPACE_MD
         )
         content.setSpacing(0)
+        content.addWidget(self._build_update_notice())
         content.addWidget(self._stack, 1)
 
         # The old status footer repeated "PoB <state> / Generation N / <item set>",
@@ -250,6 +251,7 @@ class DashboardWindow(ManagedToolWindow):
         self.update_service.download_progress.connect(self._on_update_download_progress_footer)
         self.update_service.action_error.connect(self._on_update_action_error_footer)
         self._refresh_version_footer()
+        self._refresh_update_notice()
 
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -391,6 +393,74 @@ class DashboardWindow(ManagedToolWindow):
             self._update_progress_percent = None
         self._refresh_version_footer()
 
+    def _build_update_notice(self) -> QWidget:
+        """TRUST-01D: one non-modal in-dashboard notice for a pending, verified update (no new window, no focus grab)."""
+        self._dismissed_update_versions: set[str] = set()  # session only; a new app session may remind again
+        self._update_notice = QWidget()
+        self._update_notice.setObjectName("updateNotice")
+        row = QHBoxLayout(self._update_notice)
+        row.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
+        row.setSpacing(theme.SPACE_SM)
+        texts = QVBoxLayout()
+        texts.setSpacing(0)
+        self._update_notice_title = QLabel("")
+        self._update_notice_title.setObjectName("cardTitle")
+        self._update_notice_detail = QLabel("")
+        self._update_notice_detail.setObjectName("secondaryText")
+        texts.addWidget(self._update_notice_title)
+        texts.addWidget(self._update_notice_detail)
+        self._update_notice_action = make_button("Download update", "primary")
+        self._update_notice_action.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._update_notice_action.clicked.connect(self._footer_update_action)
+        self._update_notice_whats_new = make_button("What's new", "tertiary")
+        self._update_notice_whats_new.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._update_notice_whats_new.clicked.connect(self._open_release_page)
+        self._update_notice_later = make_button("Later", "tertiary")
+        self._update_notice_later.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._update_notice_later.clicked.connect(self._dismiss_update_notice)
+        row.addLayout(texts, 1)
+        row.addWidget(self._update_notice_whats_new)
+        row.addWidget(self._update_notice_action)
+        row.addWidget(self._update_notice_later)
+        self._update_notice.setVisible(False)
+        return self._update_notice
+
+    def _refresh_update_notice(self) -> None:
+        from exilelens._version import __version__
+
+        view = update_notice_view(
+            self._update_check_state,
+            self._update_download_state,
+            self._update_remote_version,
+            __version__,
+            self._update_progress_percent,
+            self._dismissed_update_versions,
+        )
+        if view is None:
+            self._update_notice.setVisible(False)
+            return
+        self._update_notice_title.setText(view["title"])
+        self._update_notice_detail.setText(view["detail"])
+        self._update_notice_action.setText(view["action"])
+        self._update_notice_action.setEnabled(view["action_enabled"])
+        self._update_notice_later.setVisible(view["later_visible"])
+        release_url = getattr(self.update_service, "release_url", lambda: "")()
+        self._update_notice_whats_new.setVisible(bool(release_url))
+        self._update_notice.setVisible(True)
+
+    def _dismiss_update_notice(self) -> None:
+        if self._update_remote_version:
+            self._dismissed_update_versions.add(self._update_remote_version)
+        self._refresh_update_notice()
+
+    def _open_release_page(self) -> None:
+        url = self.update_service.release_url()
+        if url:
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
+
+            QDesktopServices.openUrl(QUrl(url))
+
     def _footer_update_action(self) -> None:
         if self._update_download_state == "ready":
             restart_and_update(self.update_service)
@@ -427,6 +497,7 @@ class DashboardWindow(ManagedToolWindow):
             self._footer_download_btn.setVisible(True)
         else:
             self._footer_download_btn.setVisible(False)
+        self._refresh_update_notice()
 
     def on_hide(self) -> None:
         self._remember_geometry()
@@ -454,6 +525,9 @@ class DashboardWindow(ManagedToolWindow):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
+        # TRUST-01D: opening the dashboard asks for an automatic check; the service owns the 24h cooldown
+        # (and the packaged-build gate), so repeated opens make no extra network request.
+        self.update_service.start_automatic()
         apply_native_extended_style(self, WindowInteractionPolicy.INTERACTIVE_APP_WINDOW)
         self._header.refresh()
         recover_window_geometry(self, cap_size=True)
