@@ -220,3 +220,16 @@ def test_dashboard_notice_shows_once_dismisses_for_the_session_and_footer_state_
     again._update_check_state, again._update_remote_version = "available", NEWER
     again._refresh_update_notice()
     assert not again._update_notice.isHidden()
+
+
+def test_verification_failed_release_never_starts_a_download_or_recheck(make_service, monkeypatch) -> None:
+    service = make_service(update_latest_version=NEWER)
+    from exilelens.app.updates.version import Release as _Release
+
+    service._finish_check(svc.NewestReleaseVerificationFailed(_Release(ExileLensVersion.parse(NEWER), "u", "v", False), "x"), True)
+    started = []
+    monkeypatch.setattr(service, "_start_check", lambda manual: started.append(manual) or True)
+    errors = []
+    service.action_error.connect(errors.append)
+    assert service.start_download() is False
+    assert started == [] and errors

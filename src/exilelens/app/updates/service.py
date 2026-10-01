@@ -71,6 +71,7 @@ class UpdateService(QObject):
         self._availability: UpdateAvailability | None = None
         self._verified_manifest: VerifiedUpdateManifest | None = None
         self._download_when_verified = False
+        self._verification_failed = False  # newest release failed signed-manifest verification this session
         # TRUST-01D: one single-shot timer that wakes locally when the 24h cooldown elapses. It never polls;
         # the network request itself is still gated by `start_automatic`.
         self._timer = QTimer(self)
@@ -148,6 +149,7 @@ class UpdateService(QObject):
         if (
             (self._availability is None or self._verified_manifest is None)
             and is_packaged()
+            and not self._verification_failed
             and self._pending_remote_is_newer()
         ):
             # A pending update remembered from an earlier session has no verified manifest yet: the user's click
@@ -259,6 +261,7 @@ class UpdateService(QObject):
 
     def _finish_check_inner(self, result: object, manual: bool) -> None:
         self._check_in_flight = False
+        self._verification_failed = isinstance(result, NewestReleaseVerificationFailed)
         self._verified_manifest = None
         if isinstance(result, RuntimeError):
             self.state_changed.emit("failed", "")
