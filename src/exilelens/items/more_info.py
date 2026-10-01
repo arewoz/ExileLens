@@ -23,6 +23,7 @@ MORE_INFO_TITLE = "MORE INFO"
 #: internals, so it must not be buried behind a click.
 MORE_INFO_SECTION_ORDER = (
     "verdict_header",
+    "equipability",
     "main_skill",
     "key_impact",
     "offense",
@@ -163,6 +164,16 @@ def _verdict_header(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str,
     if not lines:
         return None
     return {"id": "verdict_header", "title": "VERDICT", "lines": lines, "score_secondary": True}
+
+
+def _equipability_section(outcome: dict[str, Any]) -> dict[str, Any] | None:
+    """Every verified failed requirement of the candidate itself, in player terms (PoB-sourced)."""
+    equip = outcome.get("equipability") or {}
+    lines = [_text(line) for line in equip.get("blocking_reasons") or []]
+    lines = [line for line in lines if line]
+    if not lines:
+        return None
+    return {"id": "equipability", "title": "CAN'T EQUIP", "lines": lines}
 
 
 def _damage_reference_section(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
@@ -458,6 +469,7 @@ def _unmodeled(outcome: dict[str, Any]) -> dict[str, Any] | None:
 
 _BUILDERS = {
     "verdict_header": _verdict_header,
+    "equipability": lambda model, outcome: _equipability_section(outcome),
     "main_skill": _main_skill_section,
     "damage_reference": _damage_reference_section,
     "native_components": _native_components_section,

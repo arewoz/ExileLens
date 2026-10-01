@@ -52,6 +52,7 @@ GUARDRAIL_RULES: dict[str, GuardrailRule] = {
         GuardrailRule("RESOURCE_FAILURE", NOT_VIABLE_CEILING, True, "Mana cost per second exceeds regeneration."),
         GuardrailRule("RESOURCE_SUSTAIN_LOST", NOT_VIABLE_CEILING, True, "Mana cost per second exceeds regeneration."),
         GuardrailRule("ATTRIBUTE_REQUIREMENT_LOST", NOT_VIABLE_CEILING, True, "Attribute requirements are not met."),
+        GuardrailRule("EQUIP_REQUIREMENT_NOT_MET", NOT_VIABLE_CEILING, True, "This item cannot be equipped."),
         GuardrailRule("RES_CAP_LOST", SIDEGRADE_CEILING, False, "{element} resistance cap lost."),
         GuardrailRule(
             "RES_DEFICIT_WORSENED_MATERIAL",
@@ -111,6 +112,15 @@ def _warning_detail(warnings: Iterable[dict[str, Any]] | None, code: str) -> str
     return None
 
 
+def _lost_attributes_explained_by_candidate(warnings: Iterable[dict[str, Any]] | None) -> bool:
+    rows = list(warnings or [])
+    equip = [str(w.get("metric") or "") for w in rows if str(w.get("code") or "") == "EQUIP_REQUIREMENT_NOT_MET"]
+    lost = {str(w.get("metric") or "") for w in rows if str(w.get("code") or "") == "ATTRIBUTE_REQUIREMENT_LOST"}
+    if not equip or not lost:
+        return False
+    return lost <= {metric for entry in equip for metric in entry.split(",")}
+
+
 def _cap_loss_ceiling(
     resist: dict[str, Any] | None,
     present: set[str],
@@ -161,7 +171,11 @@ def evaluate_guardrails(
     for code in ("BUILD_INVALID", "MAIN_SKILL_INVALID"):
         if code in present:
             add(code)
-    if "ATTRIBUTE_REQUIREMENT_LOST" in present:
+    if "EQUIP_REQUIREMENT_NOT_MET" in present:
+        add("EQUIP_REQUIREMENT_NOT_MET", reason=_warning_detail(warnings, "EQUIP_REQUIREMENT_NOT_MET"))
+    # One canonical blocker: when the candidate's own attribute requirement already explains every
+    # post-swap attribute shortfall, the equipability blocker stands alone.
+    if "ATTRIBUTE_REQUIREMENT_LOST" in present and not _lost_attributes_explained_by_candidate(warnings):
         add("ATTRIBUTE_REQUIREMENT_LOST", reason=_warning_detail(warnings, "ATTRIBUTE_REQUIREMENT_LOST"))
     # One resource failure, however many sources report it.
     if "RESOURCE_FAILURE" in present:

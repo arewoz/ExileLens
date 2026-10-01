@@ -91,8 +91,11 @@ _NOT_VIABLE_CODES = frozenset(
         "RESOURCE_FAILURE",
         "RESOURCE_SUSTAIN_LOST",
         "ATTRIBUTE_REQUIREMENT_LOST",
+        "EQUIP_REQUIREMENT_NOT_MET",
     }
 )
+# Only these literally mean "you cannot wear it"; other hard blockers (main skill, sustain) keep their own wording.
+_CANNOT_EQUIP_CODES = frozenset({"ATTRIBUTE_REQUIREMENT_LOST", "EQUIP_REQUIREMENT_NOT_MET"})
 _REQUIREMENT_CODES = frozenset({"ATTRIBUTE_REQUIREMENT_LOST", "REQUIRED_DEFENCE_THRESHOLD"})
 
 # Ranker buckets — lower is more important. Not a fixed Damage/EHP/Max Hit trio.
@@ -456,7 +459,7 @@ def rows_from_outcome_deltas(outcome: dict[str, Any]) -> list[dict[str, Any]]:
             rows.append(
                 {
                     "key": "cannot_equip",
-                    "label": "Cannot equip",
+                    "label": "Can't equip" if code in _CANNOT_EQUIP_CODES else "Not viable",
                     "delta_text": str(item.get("reason") or "Not viable"),
                     "direction": "negative",
                     "emphasis": "critical",

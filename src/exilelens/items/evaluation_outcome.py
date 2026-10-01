@@ -188,6 +188,8 @@ class EvaluationOutcome:
     profile: str = ""
     # MAIN-SKILL-01: set only when the selected main skill has no calculated offense.
     main_skill_diagnostic: dict[str, Any] = field(default_factory=dict)
+    # TRUST-01A: candidate-own equipability checks (PoB level / attribute requirements).
+    equipability: dict[str, Any] = field(default_factory=dict)
 
     @property
     def pre_guardrail_score(self) -> float | None:
@@ -874,6 +876,7 @@ def build_evaluation_outcome(
         timings={"slot_eval_ms": float(eval_ms)} if eval_ms is not None else {},
         profile=str(value.get("profile") or ""),
         main_skill_diagnostic=dict(comparison.get("main_skill_diagnostic") or {}),
+        equipability=dict(comparison.get("equipability") or {}),
     )
 
 
