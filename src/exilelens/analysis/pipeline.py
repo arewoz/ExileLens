@@ -8,6 +8,7 @@ from exilelens.analysis.cache import ProbeCache
 from exilelens.analysis.fingerprint import build_fingerprint, with_probe_signals
 from exilelens.analysis.catalog import ProbeCatalog
 from exilelens.analysis.identity import AnalysisBaseline
+from exilelens.analysis.priorities import build_priorities
 from exilelens.analysis.sensitivity import build_sensitivity
 from exilelens.analysis.opportunity import (
     SAFE_CONTRIBUTION_SLOTS,
@@ -469,6 +470,8 @@ def analyze_build(
     }
     # M5.2: normalise the probes that just ran; no further PoB work.
     result["build_sensitivity"] = build_sensitivity(result)
+    # M5.3: priorities from the measured sensitivity only (no PoB, no profile).
+    result["build_priorities"] = build_priorities(result)
     return result
 
 
@@ -561,4 +564,5 @@ def rescore_analysis(result: dict[str, Any], profile: str | ValueProfile) -> dic
         updated["build_fingerprint"] = with_probe_signals(result["build_fingerprint"], updated["global_probes"])
     if result.get("build_sensitivity"):
         updated["build_sensitivity"] = build_sensitivity(updated)  # pure: measured response unchanged, scores refreshed
+        updated["build_priorities"] = build_priorities(updated)  # profile independent: identical after any rescore
     return updated

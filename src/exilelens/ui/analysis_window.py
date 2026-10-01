@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from exilelens.analysis.priorities import format_priorities
 from exilelens.app.controller import EvaluationController
 from exilelens.ui.styles import OVERLAY_STYLESHEET
 from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style, apply_window_interaction_policy
@@ -38,6 +39,8 @@ class AnalysisWindow(QWidget):
         self.resize(920, 640)
         self._result: dict[str, Any] | None = None
         self._slots: list[dict[str, Any]] = []
+        # M5.3: row 0 is the Build Priorities summary when present; slot rows follow.
+        self._has_priorities = False
 
         self._header = QLabel("No analysis yet")
         self._header.setObjectName("nameLabel")
@@ -122,6 +125,10 @@ class AnalysisWindow(QWidget):
         )
         self._slots = list(result.get("slots") or [])
         self._list.clear()
+        priorities = result.get("build_priorities")
+        self._has_priorities = bool(priorities)
+        if self._has_priorities:
+            self._list.addItem(QListWidgetItem("BUILD PRIORITIES"))
         for slot in self._slots:
             opp = slot.get("opportunity") or {}
             score = opp.get("score")
@@ -133,10 +140,17 @@ class AnalysisWindow(QWidget):
                 text = f"{label}    {band}    {score}"
             item = QListWidgetItem(text)
             self._list.addItem(item)
-        if self._slots:
-            self._list.setCurrentRow(0)
+        if self._has_priorities or self._slots:
+            self._list.setCurrentRow(0)  # priorities first, then the existing slot entries
+
+    def _slot_index(self, row: int) -> int:
+        return row - 1 if self._has_priorities else row
 
     def _show_slot(self, row: int) -> None:
+        if self._has_priorities and row == 0:
+            self._detail.setPlainText(format_priorities((self._result or {}).get("build_priorities") or {}))
+            return
+        row = self._slot_index(row)
         if row < 0 or row >= len(self._slots):
             self._detail.clear()
             return
@@ -192,7 +206,7 @@ class AnalysisWindow(QWidget):
         self._detail.setPlainText("\n".join(lines))
 
     def _current_intent(self) -> dict[str, Any]:
-        row = self._list.currentRow()
+        row = self._slot_index(self._list.currentRow())
         if row < 0 or row >= len(self._slots):
             return {}
         return self._slots[row].get("search_intent") or {}
