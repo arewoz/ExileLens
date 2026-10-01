@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from exilelens.items.equipability import equipability_warnings
 from exilelens.items.requirement_gates import attribute_requirement_warnings
 from exilelens.items.display_thresholds import DEFAULT_DISPLAY_THRESHOLDS, DisplayThresholds
 
@@ -40,6 +41,7 @@ def build_warnings(
     *,
     thresholds: DisplayThresholds = DEFAULT_DISPLAY_THRESHOLDS,
     restore_failed: bool = False,
+    equipability: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
     if restore_failed:
@@ -235,5 +237,7 @@ def build_warnings(
             )
 
     warnings.extend(attribute_requirement_warnings(raw_current, raw_candidate))
+    # TRUST-01A: the candidate itself cannot be worn (level / attributes from PoB).
+    warnings.extend(equipability_warnings(equipability))
 
     return warnings

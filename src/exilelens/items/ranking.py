@@ -281,6 +281,7 @@ def enrich_slot_comparison(
         candidate_raw,
         thresholds=DEFAULT_DISPLAY_THRESHOLDS,
         restore_failed=restore_failed,
+        equipability=comparison.get("equipability"),
     )
     value = score_profile(metric_profile, resist, warnings, profile)
     # Internal / regression verdict. The player-facing verdict is the outcome's.

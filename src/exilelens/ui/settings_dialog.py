@@ -24,7 +24,8 @@ from PySide6.QtWidgets import (
 
 from exilelens.branding import app_icon, window_title
 from exilelens.app.settings import AppSettings, save_settings
-from exilelens.config import PobConfig, detect_common_pob_installation, validate_pob_path
+from exilelens.config import PobConfig, validate_pob_path
+from exilelens.pob_discovery import detect_common_pob_installation
 from exilelens.engine import Engine
 from exilelens.ui.managed_window import clamp_window_to_screen, recover_window_geometry
 
@@ -141,7 +142,10 @@ class SetupDialog(_GeometryLockedDialog):
         if detected:
             initial_status = "PoB2 detected automatically. Use Browse… to choose a different folder."
         elif not settings.pob_path:
-            initial_status = "PoB2 was not detected. Use Browse… to select its installation folder."
+            initial_status = (
+                "PoB2 was not detected automatically (or several installations were found). "
+                "Use Browse… to select its installation folder."
+            )
         else:
             initial_status = ""
         self._status = QLabel(initial_status)

@@ -23,6 +23,7 @@ from exilelens.items.baseline_item import resolve_baseline_item, resolve_candida
 from exilelens.items.cache import ItemPipelineCache
 from exilelens.items.comparison_trace import build_comparison_trace
 from exilelens.items.evaluation_outcome import failed_outcome
+from exilelens.items.equipability import build_equipability
 from exilelens.items.pob_parse import PobParseResult
 from exilelens.items.intelligence import enrich_fast_result
 from exilelens.items.language_detect import detect_poe_item_language, unsupported_language_body
@@ -652,6 +653,9 @@ def _evaluate_item_steps(
             ).to_dict(),
             "eval_ms": timings.per_slot_eval_ms[pob_slot],
         }
+        comparison["equipability"] = build_equipability(
+            pob_parse.item, baseline_block.get("metrics"), (entry.get("candidate") or {}).get("metrics")
+        )
         comparison["native_damage_discovery"] = compare_native_components(primary_metric, components, comparison)
         if main_skill_diagnostic is not None:
             comparison["main_skill_diagnostic"] = main_skill_diagnostic

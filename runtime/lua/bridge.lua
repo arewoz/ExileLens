@@ -529,6 +529,10 @@ local function item_summary(item)
 		quality = item.quality,
 		ilvl = item.itemLevel,
 		level_req = item.requirements and item.requirements.level or nil,
+		-- TRUST-01A: PoB's own post-local-mod attribute requirements of this item (Item:BuildModList).
+		req_str = item.requirements and item.requirements.strMod or nil,
+		req_dex = item.requirements and item.requirements.dexMod or nil,
+		req_int = item.requirements and item.requirements.intMod or nil,
 		primary_slot = item:GetPrimarySlot(),
 		tags = tags,
 		weapon = item.base.weapon and true or false,
@@ -646,6 +650,8 @@ local function collect_metrics()
 	for _, k in ipairs(MODE_OUTPUT_FIELDS) do
 		if type(out[k]) == "number" then raw[k] = out[k] end
 	end
+	-- TRUST-01A: the loaded character's level (PoB build state), for item level-requirement checks.
+	if type(build.characterLevel) == "number" then raw.CharacterLevel = build.characterLevel end
 	local minion = collect_actor_output(out.Minion)
 	if minion then
 		for k, value in pairs(minion) do

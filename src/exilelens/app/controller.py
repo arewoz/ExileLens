@@ -10,6 +10,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QPoint, QThread, QTimer, Signal
 
+from exilelens.app.build_freshness import OLD_FILE, assess_build_freshness
 from exilelens.app.build_revision import BuildFileRevision, read_build_revision
 from exilelens.app.build_cache import (
     ActiveBuildStatus,
@@ -981,6 +982,8 @@ class EvaluationController(QObject):
         self._last_good_source: BuildSource | None = None
         self._build_loaded_at: float | None = None
         self._reload_warning = ""
+        # TRUST-01B: the soft old-file advisory is shown in Item Check at most once per app session.
+        self._old_file_note_surfaced = False
         self._shutting_down = False
         self._engine_boot_result.connect(self._on_engine_boot_result)
         self._request_id = 0
@@ -1648,6 +1651,31 @@ class EvaluationController(QObject):
     def reload_warning(self) -> str:
         """Non-empty while a reload failed and the previous build is still in use."""
         return self._reload_warning
+
+    def build_freshness(self) -> dict:
+        """Cheap freshness of the loaded build (stat only: no XML read, hashing or PoB work)."""
+        path = self.build_info.path
+        return assess_build_freshness(
+            has_build=bool(path) and self.build_info.state != BuildState.NO_BUILD,
+            loaded_revision=self._build_file_revision,
+            current_revision=read_build_revision(path) if path else None,
+            loaded_at=self._build_loaded_at,
+            reload_in_progress=self.build_info.state in {BuildState.RELOADING, BuildState.LOADING},
+            reload_failed_kept_previous=bool(self._reload_warning),
+        )
+
+    def _item_check_build_freshness(self) -> dict:
+        """Freshness for one Item Check result; the old-file advisory is surfaced only once per session."""
+        try:
+            freshness = self.build_freshness()
+        except Exception:  # noqa: BLE001 - freshness must never break Item Check
+            return {}
+        if freshness.get("state") == OLD_FILE:
+            if self._old_file_note_surfaced:
+                freshness = {**freshness, "note": ""}
+            else:
+                self._old_file_note_surfaced = True
+        return freshness
 
     @property
     def build_loaded_at(self) -> float | None:
@@ -4354,6 +4382,8 @@ class EvaluationController(QObject):
         if fp:
             self._equipment_fingerprint = fp
         pro = self.item_check_settings()
+        # Source context only (never scoring/verdict/quality); set after the evaluation cache store.
+        result["build_freshness"] = self._item_check_build_freshness()
         result = self._apply_optional_presentation_enrichment(result, pro, request_id=request_id)
         self._last_result = result
         from exilelens.error_catalog.integration import record_evaluation_outcome

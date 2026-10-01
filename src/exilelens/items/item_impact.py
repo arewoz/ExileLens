@@ -490,7 +490,7 @@ def interpret_item_impact(
     constraints = list(_requirement_constraints(raw_current, raw_candidate))
     for row in guardrails:
         code = str(row.get("code") or "")
-        if code in {"MAIN_SKILL_INVALID", "RESOURCE_SUSTAIN_LOST", "ATTRIBUTE_REQUIREMENT_LOST"}:
+        if code in {"MAIN_SKILL_INVALID", "RESOURCE_SUSTAIN_LOST", "ATTRIBUTE_REQUIREMENT_LOST", "EQUIP_REQUIREMENT_NOT_MET"}:
             supported = True
             if code == "MAIN_SKILL_INVALID":
                 supported = offense.support == "MEASURED"
