@@ -198,7 +198,7 @@ def _details(result: Mapping[str, Any], priorities: Mapping[str, Any]) -> list[s
 # from that layer; this only chooses the words and the short forms.
 
 _LADDER_TITLES = (("damage", "DAMAGE"), ("ehp", "EHP"), ("max_hit", "MAX HIT"), ("movement", "MOVEMENT"))
-_HEALTH_TONE = {"NEEDS_ATTENTION": "warn", "OPPORTUNITY": "ok", "NO_URGENT_ISSUE": "neutral", "LIMITED": "muted"}
+_HEALTH_TONE = {"NEEDS_ATTENTION": "warn", "NEARLY_CAPPED": "neutral", "OPPORTUNITY": "ok", "NO_URGENT_ISSUE": "neutral", "LIMITED": "muted"}
 
 
 def _action_summary(action: Mapping[str, Any], ladders: Mapping[str, Any]) -> str:
@@ -241,7 +241,9 @@ def _actionable_view(actionable: Mapping[str, Any]) -> dict[str, Any]:
         "focus": {"title": str(focus.get("title") or "CURRENT FOCUS"), "headline": str(focus.get("headline") or ""),
                   "detail": str(focus.get("detail") or ""), "issue": focus.get("kind") == "ISSUE"},
         "actions": [
-            {"number": action["number"], "title": str(action["title"]), "summary": _action_summary(action, ladders), "fix": action["kind"] == "FIX"}
+            {"number": action["number"], "title": str(action["title"]), "summary": _action_summary(action, ladders),
+             # Only a critical or material problem is emphasised; a nearly capped resistance reads like any other line.
+             "fix": action["kind"] == "FIX" and action.get("severity") != "MINOR"}
             for action in actionable.get("action_plan") or []
         ],
         "best": ({"measured": True, "value": percent(best["response_percent"]), "change": short_change(best["tested_change"]),
@@ -259,8 +261,15 @@ def _actionable_view(actionable: Mapping[str, Any]) -> dict[str, Any]:
             for key, title in _LADDER_TITLES if ladders.get(key)
         ],
         "packages": [
-            {"title": str(package["title"]), "stats": [{"change": str(stat["tested_change"]), "evidence": str(stat["evidence"])} for stat in package["stats"]]}
-            for package in actionable.get("stat_packages") or []
+            {"title": str(package["title"]), "stats": [
+                {"change": str(stat["tested_change"]),
+                 "evidence": str(stat["evidence"]) + (f" · also moves {_join([str(axis) for axis in stat['also']])}" if stat.get("also") else "")}
+                for stat in package["stats"]]}
+            for package in actionable.get("stat_packages") or [] if package["stats"]  # an emptied Hybrid is not shown
+        ],
+        "package_details": [
+            f"{package['title'].title()} (all multi-impact stats): " + "; ".join(f"{stat['tested_change']} → {stat['evidence']}" for stat in package["all_stats"])
+            for package in actionable.get("stat_packages") or [] if package.get("all_stats")
         ],
         "changes": [str(item["text"]) for item in (actionable.get("changes") or {}).get("items") or []],
         "coverage_summary": {"label": str(coverage.get("label") or ""), "summary": str(coverage.get("summary") or ""),

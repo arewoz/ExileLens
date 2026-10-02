@@ -283,6 +283,53 @@ is within its run-to-run noise.
 `tests/test_r1_5_actionable.py` (21), `tests/test_r1_5_item_check.py` (5), R1.5 additions in
 `tests/test_r1_analyze_build_ui.py`.
 
+## Breakpoint severity and Hybrid presentation (final polish)
+
+This section supersedes the Action plan, Current focus, Build health and Stat focus rules above where they differ.
+
+### Severity is not existence
+
+Whether a breakpoint problem exists is decided by the unchanged FIX FIRST evidence. How loudly R1.5 presents it is decided
+by a separate, explicit severity (`breakpoint_severity`), per issue type:
+
+| Issue | Severity |
+|---|---|
+| Resistance below cap by less than 5 points (the existing `RES_MATERIAL_DEFICIT_POINTS` "materially below cap" edge) | MINOR — "nearly capped" |
+| Elemental resistance below cap by 5 points or more | CRITICAL |
+| Chaos resistance below cap by 5 points or more | MATERIAL |
+| Unmet attribute requirement | CRITICAL at any size |
+| Mana pool smaller than one use of the main skill | CRITICAL at any size |
+
+Observed real gaps were 1, 12, 25, 40, 53, 75 and 76 points; only the 1-point gap (Sunder, Chaos 74% → 75%) is minor.
+Severity is not confidence: coverage, measurement confidence and every measured number are unaffected, and the raw
+evidence (`build_priorities.fix_first`, the breakpoint row with its values) is unchanged.
+
+### Order
+
+Next actions: critical and material problems (existing FIX FIRST order) → the well-supported directions (defensive, then
+damage) → minor gaps. A minor gap stays actionable: `Finish capping Chaos Resistance — 74% → 75% · nearly capped`. When
+the plan would overflow, the first minor gap takes the last place instead of an optimisation. Only when three critical or
+material problems already fill the plan is a minor gap left to Build Health.
+
+Current focus is the plan's first action: `BIGGEST CURRENT ISSUE` only for a critical or material problem; otherwise
+`CURRENT FOCUS: No critical issue detected.` with the first direction. A minor gap is the focus
+(`CURRENT FOCUS: Chaos Resistance is nearly capped.`) only when nothing else is actionable.
+
+Build health, Resistances: `Needs attention` for a critical or material deficit (a nearly capped one is mentioned beside
+it); `Nearly capped` when the only deficits are minor (`Chaos Resistance is 1% below cap.`). The other rows are unchanged
+and there is still no score.
+
+Item Check follows the plan: "your current #1 priority" refers to action #1, so a nearly capped resistance is
+"a current priority".
+
+### Hybrid focus
+
+A multi-impact stat that is already listed under Offense or Defence is not repeated as a third package. Its existing row
+says which other results it also moves (`+50 to maximum Energy Shield · Max Hit +1.8% · EHP +1.8% · also moves Damage and
+Mana`), and HYBRID FOCUS keeps only stats that add something new. If none do, the Hybrid package is not shown. The full
+multi-impact composition stays in the data (`stat_packages[].all_stats`) and under measurement details. No percentage is
+ever added to another.
+
 ## Limitations
 
 * Curves have two points. They show whether the next equal step pays the same, not the whole shape or where a cap lies.

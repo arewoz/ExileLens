@@ -512,7 +512,8 @@ class AnalysisWindow(QWidget):
                 out.append(f"<p style='margin:0 0 3px 0;color:{text}'>{_esc(line)}</p>")
         if self._details_toggle.isChecked():
             out.append(self._heading("MEASUREMENT DETAILS"))
-            for line in [*(view.get("curve_details") or []), *(view.get("breakpoint_details") or []), *(view.get("details") or [])]:
+            for line in [*(view.get("curve_details") or []), *(view.get("breakpoint_details") or []),
+                         *(view.get("package_details") or []), *(view.get("details") or [])]:
                 out.append(f"<p style='margin:0 0 3px 0;color:{muted}'>{_esc(line)}</p>")
         out.append(f"<p style='margin:14px 0 0 0;color:{muted}'>{_esc(view.get('coverage_basis'))}</p>")
         return "".join(out)

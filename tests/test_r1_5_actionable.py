@@ -245,7 +245,8 @@ def test_packages_show_component_evidence_and_never_a_summed_percentage() -> Non
     assert [s["label"] for s in packages["offense"]["stats"]] == ["Spell Skill Levels", "Cast Speed"]
     assert packages["offense"]["stats"][0]["evidence"] == "Damage +8.7%"
     assert [(s["label"], s["evidence"]) for s in packages["defence"]["stats"]] == [("Energy Shield", "Max Hit +2.0% · EHP +3.1%"), ("Life", "EHP +2.4%")]
-    assert packages["hybrid"]["stats"] == [{"label": "Intelligence", "tested_change": "+20 to Intelligence", "evidence": "Damage +2.1% · ES +4.3% · Mana +3.0%"}]
+    assert [(s["label"], s["tested_change"], s["evidence"]) for s in packages["hybrid"]["stats"]] == [
+        ("Intelligence", "+20 to Intelligence", "Damage +2.1% · ES +4.3% · Mana +3.0%")]
     text = json.dumps(list(packages.values()))
     assert "+14.8" not in text and "total" not in text.lower() and "combined" not in text.lower()  # 8.7 + 6.1 is never claimed
     assert all("total" not in p and "percent" not in p for p in packages.values())
@@ -267,7 +268,7 @@ def test_health_states_come_from_evidence_never_from_sensitivity_size() -> None:
     assert only_life["damage"]["state"] == act.LIMITED and only_life["movement"]["state"] == act.LIMITED
     text = json.dumps(_act()["build_health"]).lower()
     assert "score" not in text and "strong build" not in text and "weak" not in text
-    assert set(act.HEALTH_LABELS.values()) == {"Needs attention", "Opportunity", "No urgent issue detected", "Limited analysis"}
+    assert set(act.HEALTH_LABELS.values()) == {"Needs attention", "Nearly capped", "Opportunity", "No urgent issue detected", "Limited analysis"}
 
 
 # ------------------------------------------------------------------------ coverage
@@ -360,3 +361,110 @@ def test_actionable_is_pure_profile_independent_and_leaves_m5_and_r1_outputs_unt
     assert _act(flipped, needs=[CHAOS_NEED], chaos=42.0, baseline={"profile": "MAPPING"}) == result["actionable"]
     assert build_actionable({"slots": []}) == {}
     assert result["actionable"]["identity"] == {k if k != "fingerprint" else "baseline_fingerprint": v for k, v in BASELINE.items() if k != "profile"}
+
+
+# ---------------------------------------------------------- breakpoint severity (polish)
+
+NEAR_CHAOS = {"code": "LOW_CHAOS_RES", "severity": "high", "metric": "chaos_res", "deficit": 1.0}  # the Sunder case: 74% -> 75%
+
+
+def test_severity_rules_are_explicit_per_issue_type() -> None:
+    assert act.breakpoint_severity("RESISTANCE_CAP", "chaos_res", 1.0) == act.SEVERITY_MINOR
+    assert act.breakpoint_severity("RESISTANCE_CAP", "fire_res", 4.9) == act.SEVERITY_MINOR
+    assert act.breakpoint_severity("RESISTANCE_CAP", "fire_res", 5.0) == act.SEVERITY_CRITICAL  # the existing "materially below cap" edge
+    assert act.breakpoint_severity("RESISTANCE_CAP", "chaos_res", 33.0) == act.SEVERITY_MATERIAL
+    assert act.breakpoint_severity("ATTRIBUTE_REQUIREMENT", "strength", 1.0) == act.SEVERITY_CRITICAL  # a blocker at any size
+    assert act.breakpoint_severity("RESOURCE", "mana_one_use", 0.5) == act.SEVERITY_CRITICAL
+
+
+def test_a_one_point_resistance_gap_stays_actionable_but_does_not_headline_the_page() -> None:
+    result = _analysis(needs=[NEAR_CHAOS], chaos=74.0)
+    actionable = result["actionable"]
+    # The FIX FIRST evidence is unchanged: the gap still exists in the source data.
+    assert result["build_priorities"]["fix_first"] == [{"kind": "RESISTANCE_CAP", "title": "Chaos Resistance", "detail": "+1% reaches cap", "severity": "high", "source": "audit"}]
+    chaos = next(b for b in actionable["breakpoints"] if b["key"] == "chaos_res")
+    assert (chaos["status"], chaos["needed"], chaos["severity"]) == ("BELOW_CAP", 1.0, act.SEVERITY_MINOR)
+    plan = actionable["action_plan"]
+    assert [a["title"] for a in plan] == ["Improve Max Hit", "Improve Damage", "Finish capping Chaos Resistance"]
+    assert (plan[2]["detail"], plan[2]["severity"], plan[2]["id"]) == ("74% → 75% · nearly capped", act.SEVERITY_MINOR, "FIX:RESISTANCE_CAP:Chaos Resistance")
+    focus = actionable["current_focus"]
+    assert (focus["kind"], focus["title"], focus["headline"]) == (act.FOCUS_NO_CRITICAL, "CURRENT FOCUS", "No critical issue detected.")
+    assert focus["detail"].startswith("Energy Shield gives the strongest measured Max Hit response")
+    health = {r["key"]: r for r in actionable["build_health"]}
+    assert (health["resistances"]["state"], health["resistances"]["reason"]) == (act.NEARLY_CAPPED, "Chaos Resistance is 1% below cap.")
+    for alarm in ("urgent", "critical", "biggest", "below cap."):
+        assert alarm not in " ".join([plan[2]["title"], plan[2]["detail"], plan[2]["issue"], focus["detail"]]).lower()
+
+
+def test_a_minor_gap_keeps_a_place_when_the_plan_is_full_and_is_the_focus_only_when_nothing_else_is() -> None:
+    crowded = _act(needs=[NEAR_CHAOS, FIRE_NEED], fire=58.0, chaos=74.0)["action_plan"]
+    assert [a["title"] for a in crowded] == ["Cap Fire Resistance", "Improve Max Hit", "Finish capping Chaos Resistance"]
+    alone = _act([_probe("LIFE", "Life", "+50 to maximum Life", 50.0, family="defense", status="NO_SIGNAL")], needs=[NEAR_CHAOS], chaos=74.0)
+    assert [a["title"] for a in alone["action_plan"]] == ["Finish capping Chaos Resistance"]
+    assert (alone["current_focus"]["kind"], alone["current_focus"]["title"], alone["current_focus"]["headline"]) == (
+        act.FOCUS_MINOR, "CURRENT FOCUS", "Chaos Resistance is nearly capped.")
+
+
+def test_large_gaps_and_hard_blockers_keep_their_priority() -> None:
+    large = _act(needs=[CHAOS_NEED], chaos=42.0)
+    assert large["action_plan"][0]["title"] == "Cap Chaos Resistance" and large["action_plan"][0]["severity"] == act.SEVERITY_MATERIAL
+    assert large["current_focus"]["kind"] == act.FOCUS_ISSUE and large["current_focus"]["title"] == "BIGGEST CURRENT ISSUE"
+    assert next(r for r in large["build_health"] if r["key"] == "resistances")["state"] == act.NEEDS_ATTENTION
+    attribute = _act(strength_short=1.0)  # one point short is still a requirement failure
+    assert attribute["action_plan"][0]["title"] == "Meet your Strength requirement" and attribute["current_focus"]["kind"] == act.FOCUS_ISSUE
+    mana = _act(pool=89.0, cost=90.0)
+    assert mana["action_plan"][0]["title"] == "Make one use of your main skill affordable" and mana["current_focus"]["kind"] == act.FOCUS_ISSUE
+    mixed = {r["key"]: r for r in _act(needs=[NEAR_CHAOS, FIRE_NEED], fire=58.0, chaos=74.0)["build_health"]}
+    assert mixed["resistances"]["state"] == act.NEEDS_ATTENTION
+    assert mixed["resistances"]["reason"] == "Fire Resistance below cap. Chaos Resistance nearly capped."
+
+
+def test_severity_changes_neither_coverage_nor_measurement_data() -> None:
+    minor, material, none = _analysis(needs=[NEAR_CHAOS], chaos=74.0), _analysis(needs=[CHAOS_NEED], chaos=42.0), _analysis()
+    assert minor["actionable"]["coverage"] == material["actionable"]["coverage"] == none["actionable"]["coverage"]
+    assert minor["actionable"]["ladders"] == material["actionable"]["ladders"] == none["actionable"]["ladders"]
+    assert minor["build_sensitivity"] == none["build_sensitivity"]
+
+
+def test_resolving_a_minor_gap_is_still_reported_as_a_change() -> None:
+    before = _act(needs=[NEAR_CHAOS], chaos=74.0)
+    after = _act(baseline={"fingerprint": "hash2", "generation": 3})
+    assert diff_actionable(before, after)["items"][0]["text"] == "✓ Chaos Resistance is no longer a priority."
+
+
+# ------------------------------------------------------------- hybrid focus (polish)
+
+
+def _spark_like():
+    """Energy Shield and Mana lead Defence and are also the multi-impact stats (the observed Spark overlap)."""
+    return [
+        _probe("SPELL_SKILL_LEVELS", "Spell Skill Levels", "+1 to Level of all Spell Skills", 1.0, offense=23.4),
+        _probe("CAST_SPEED", "Cast Speed", "10% increased Cast Speed", 10.0, offense=6.8),
+        _probe("ENERGY_SHIELD", "Energy Shield", "+50 to maximum Energy Shield", 50.0, family="defense", offense=3.2, ehp=1.8, max_hit=1.8, mana=1.8),
+        _probe("MANA", "Mana", "+50 to maximum Mana", 50.0, family="defense", offense=3.2, ehp=1.8, max_hit=1.8, mana=1.8),
+    ]
+
+
+def test_hybrid_that_only_repeats_defence_is_not_a_third_package_and_the_overlap_is_explained_in_place() -> None:
+    packages = {p["key"]: p for p in _act(_spark_like())["stat_packages"]}
+    assert packages["hybrid"]["stats"] == []  # nothing new to say
+    assert [s["label"] for s in packages["hybrid"]["all_stats"]] == ["Energy Shield", "Mana"]  # raw composition kept
+    defence = packages["defence"]["stats"]
+    assert [(s["label"], s["evidence"], s["also"]) for s in defence] == [
+        ("Energy Shield", "Max Hit +1.8% · EHP +1.8%", ["Damage", "Mana"]), ("Mana", "Max Hit +1.8% · EHP +1.8%", ["Damage", "Mana"])]
+    text = json.dumps(list(packages.values()))
+    assert "+6.8" in text and "+8.6" not in text and "total" not in text.lower()  # 3.2 + 1.8 + 1.8 + 1.8 is never formed
+
+
+def test_hybrid_overlap_with_offense_and_a_distinct_multi_impact_stat() -> None:
+    probes = [_probe("STRENGTH", "Strength", "+20 to Strength", 20.0, family="utility", offense=9.0, life=2.0),
+              _probe("CAST_SPEED", "Cast Speed", "10% increased Cast Speed", 10.0, offense=6.0),
+              _probe("SPELL_DAMAGE", "Spell Damage", "20% increased Spell Damage", 20.0, offense=5.0),
+              _probe("INTELLIGENCE", "Intelligence", "+20 to Intelligence", 20.0, family="utility", offense=1.5, es=4.0, mana=3.0)]
+    packages = {p["key"]: p for p in _act(probes)["stat_packages"]}
+    offense = packages["offense"]["stats"]
+    assert offense[0]["label"] == "Strength" and offense[0]["also"] == ["Life"]  # the overlap is explained where the stat already is
+    assert [s["label"] for s in packages["hybrid"]["stats"]] == ["Intelligence"]  # distinct information stays visible
+    assert [s["label"] for s in packages["hybrid"]["all_stats"]] == ["Strength", "Intelligence"]
+    unchanged = {p["key"]: p for p in _act()["stat_packages"]}  # Intelligence is in neither Offense nor Defence here
+    assert [s["label"] for s in unchanged["hybrid"]["stats"]] == ["Intelligence"]

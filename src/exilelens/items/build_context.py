@@ -322,6 +322,11 @@ def _fix_first(priorities: Mapping[str, Any] | None, kind: str) -> set[str]:
 def _priority(priorities: Mapping[str, Any] | None, kind: str, title: str = "") -> str:
     """How the build's action plan ranks this issue. The plan lists hard problems in FIX FIRST order, so the first
     FIX FIRST row is the build's current #1 priority."""
+    plan = (priorities or {}).get("_action_plan")
+    if plan:  # R1.5: the plan orders problems by severity, so a nearly capped resistance is not called #1
+        first = plan[0]
+        top = first.get("kind") == "FIX" and first.get("fix_kind") == kind and (not title or first.get("subject") == title)
+        return "your current #1 priority" if top else "a current priority"
     rows = (priorities or {}).get("fix_first") or []
     first = rows[0] if rows else {}
     top = first.get("kind") == kind and (not title or first.get("title") == title)
@@ -460,6 +465,9 @@ def _slot_notes(comparison: Mapping[str, Any], candidate_stats: Mapping[str, flo
 def build_item_context(result: Mapping[str, Any], snapshot: Mapping[str, Any] | None, *, status: str) -> dict[str, Any]:
     """Structured build context for one Item Check result, per legal slot. Pure: no engine, no mutation of `result`."""
     priorities = (snapshot or {}).get("priorities") if status == AVAILABLE else None
+    plan = ((snapshot or {}).get("actionable") or {}).get("action_plan")
+    if priorities and plan:
+        priorities = {**priorities, "_action_plan": plan}  # a copy: the cached analysis is never modified
     candidate_stats = item_stat_totals((result.get("raw_input") or {}).get("raw_text")) if priorities else {}
     slots: dict[str, list[dict[str, Any]]] = {}
     for comparison in result.get("slot_comparisons") or []:

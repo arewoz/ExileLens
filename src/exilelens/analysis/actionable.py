@@ -21,6 +21,7 @@ from typing import Any, Mapping
 from exilelens.analysis.curves import COULD_NOT_ESTABLISH as CURVE_NOT_ESTABLISHED
 from exilelens.analysis.curves import STATE_LABELS as CURVE_STATE_LABELS
 from exilelens.analysis.fingerprint import MEASURED
+from exilelens.items.guardrails import RES_MATERIAL_DEFICIT_POINTS
 from exilelens.analysis.priorities import (
     _DEFENCE_DETAILS,
     MAX_ROWS_PER_LANE,
@@ -40,11 +41,13 @@ MAX_CHANGES = 6
 
 # Health states (qualitative; there is deliberately no score).
 NEEDS_ATTENTION = "NEEDS_ATTENTION"
+NEARLY_CAPPED = "NEARLY_CAPPED"
 OPPORTUNITY = "OPPORTUNITY"
 NO_URGENT_ISSUE = "NO_URGENT_ISSUE"
 LIMITED = "LIMITED"
 HEALTH_LABELS = {
     NEEDS_ATTENTION: "Needs attention",
+    NEARLY_CAPPED: "Nearly capped",
     OPPORTUNITY: "Opportunity",
     NO_URGENT_ISSUE: "No urgent issue detected",
     LIMITED: "Limited analysis",
@@ -58,6 +61,26 @@ COVERAGE_PARTIAL_FROM = 0.50
 
 # Current focus kinds.
 FOCUS_ISSUE, FOCUS_NO_CRITICAL, FOCUS_NOT_ESTABLISHED = "ISSUE", "NO_CRITICAL_ISSUE", "NOT_ESTABLISHED"
+FOCUS_MINOR = "MINOR_ISSUE"
+
+# Breakpoint severity: how much a breakpoint problem matters, which is a different question from whether it exists.
+# The FIX FIRST evidence is untouched; this only decides how loudly R1.5 presents it. Explicit per issue type:
+#   resistance below cap by less than RES_MATERIAL_DEFICIT_POINTS (the existing "materially below cap" edge, 5 points)
+#       -> MINOR ("nearly capped");
+#   a larger elemental deficit -> CRITICAL, a larger chaos deficit -> MATERIAL (the existing FIX FIRST severities);
+#   an unmet attribute requirement or a mana pool smaller than one use -> always CRITICAL, whatever its size.
+# Severity is not confidence and never touches coverage.
+SEVERITY_CRITICAL, SEVERITY_MATERIAL, SEVERITY_MINOR = "CRITICAL", "MATERIAL", "MINOR"
+_HARD_SEVERITIES = (SEVERITY_CRITICAL, SEVERITY_MATERIAL)
+
+
+def breakpoint_severity(kind: str, key: str, needed: float | None) -> str:
+    """Severity of one existing breakpoint problem. Per-type rules; never a generic multiplier."""
+    if kind != "RESISTANCE_CAP":
+        return SEVERITY_CRITICAL  # requirement and one-use affordability problems are hard blockers at any size
+    if needed is not None and needed < RES_MATERIAL_DEFICIT_POINTS:
+        return SEVERITY_MINOR
+    return SEVERITY_MATERIAL if key == "chaos_res" else SEVERITY_CRITICAL
 
 # What Changed: a response has to move by this much (absolute points AND relative share) to be worth a line.
 CHANGE_MIN_POINTS = 1.0
@@ -138,8 +161,11 @@ def _breakpoints(result: Mapping[str, Any], priorities: Mapping[str, Any]) -> li
             status, text = "BELOW_CAP", f"{current:g}% → {cap:g}% · {needed:g}% needed"
         else:
             status, text = "AT_CAP", "At cap — more of it does not improve this measured breakpoint."
-        rows.append({"kind": "RESISTANCE_CAP", "key": f"{element}_res", "title": title, "status": status,
-                     "current": current, "target": cap, "needed": max(0.0, cap - current), "text": text})
+        row = {"kind": "RESISTANCE_CAP", "key": f"{element}_res", "title": title, "status": status,
+               "current": current, "target": cap, "needed": needed if status == "BELOW_CAP" else max(0.0, cap - current), "text": text}
+        if status == "BELOW_CAP":
+            row["severity"] = breakpoint_severity("RESISTANCE_CAP", row["key"], row["needed"])
+        rows.append(row)
     for name, info in (fingerprint.get("requirements") or {}).items():
         have, need, state = _num(_leaf(info.get("value"))), _num(_leaf(info.get("highest_requirement"))), _leaf(info.get("state"))
         if state == "DEFICIT" and have is not None and need is not None:
@@ -162,14 +188,23 @@ def _fix_action(row: Mapping[str, Any], breakpoints: list[Mapping[str, Any]]) ->
     kind, title = str(row.get("kind")), str(row.get("title"))
     fact = next((b for b in breakpoints if b["kind"] == kind and (b["title"] == title or kind == "RESOURCE")), None)
     detail = str(fact["text"]) if fact else str(row.get("detail") or "")
-    if kind == "RESISTANCE_CAP":
+    needed = _num((fact or {}).get("needed"))
+    if needed is None and kind == "RESISTANCE_CAP":  # no fingerprint values: read the amount FIX FIRST itself states
+        text = str(row.get("detail") or "")
+        needed = _num(text[1:text.index("%")]) if text.startswith("+") and "%" in text else None
+    severity = breakpoint_severity(kind, f"{title.split(' ')[0].lower()}_res" if kind == "RESISTANCE_CAP" else kind, needed)
+    if kind == "RESISTANCE_CAP" and severity == SEVERITY_MINOR:
+        current, target = (fact or {}).get("current"), (fact or {}).get("target")
+        values = f"{current:g}% → {target:g}%" if current is not None and target is not None else detail
+        headline, issue, detail = f"Finish capping {title}", f"{title} is nearly capped.", f"{values} · nearly capped"
+    elif kind == "RESISTANCE_CAP":
         headline, issue = f"Cap {title}", f"{title} is below cap."
     elif kind == "ATTRIBUTE_REQUIREMENT":
         headline, issue = f"Meet your {title} requirement", f"{title} is below what your gear and gems require."
     else:
         headline, issue = "Make one use of your main skill affordable", "Unreserved Mana is smaller than one use of your main skill."
     return {"id": f"FIX:{kind}:{title}", "kind": "FIX", "fix_kind": kind, "subject": title, "title": headline,
-            "detail": detail, "issue": issue, "urgency": str(row.get("severity") or "")}
+            "detail": detail, "issue": issue, "urgency": str(row.get("severity") or ""), "severity": severity}
 
 
 def _curve_for(curves: list[Mapping[str, Any]], label: str) -> Mapping[str, Any] | None:
@@ -184,11 +219,15 @@ def _improve_action(ladder_key: str, axis_label: str, row: Mapping[str, Any], cu
 
 
 def _action_plan(priorities: Mapping[str, Any], ladders: Mapping[str, list], breakpoints: list, curves: list) -> list[dict[str, Any]]:
-    """At most three: hard problems in their existing severity order, then the strongest well-supported directions.
+    """At most three: critical and material problems in their existing FIX FIRST order, then the strongest
+    well-supported directions, then minor breakpoint gaps. A minor gap is never dropped: when the plan is full it takes
+    the last place instead of an optimisation.
 
     Two different axes cannot be ranked against each other without a universal score, so the order of the optimisation
     part is fixed: the defensive direction (Max Hit, else EHP), then damage."""
-    actions = [_fix_action(row, breakpoints) for row in priorities.get("fix_first") or []]
+    fixes = [_fix_action(row, breakpoints) for row in priorities.get("fix_first") or []]
+    actions = [a for a in fixes if a["severity"] in _HARD_SEVERITIES]
+    minor = [a for a in fixes if a["severity"] == SEVERITY_MINOR]
     improve: list[dict[str, Any]] = []
     for ladder_key, label in (("max_hit", "Max Hit"), ("ehp", "EHP")):
         rows = ladders.get(ladder_key) or []
@@ -198,17 +237,26 @@ def _action_plan(priorities: Mapping[str, Any], ladders: Mapping[str, list], bre
     damage = ladders.get("damage") or []
     if damage and float(damage[0]["response_percent"]) >= MEANINGFUL_PERCENT:
         improve.append(_improve_action("damage", "Damage", damage[0], curves))
-    actions = (actions + improve)[:MAX_ACTIONS]
+    actions = actions[:MAX_ACTIONS]
+    room = MAX_ACTIONS - len(actions)
+    kept_minor = minor[: max(0, min(len(minor), room))] if room else []
+    if kept_minor and len(improve) + len(kept_minor) > room:
+        kept_minor = kept_minor[: max(1, room - len(improve))]  # always at least one minor gap stays visible
+    actions = actions + improve[: room - len(kept_minor)] + kept_minor
     for number, action in enumerate(actions, start=1):
         action["number"] = number
     return actions
 
 
 def _current_focus(actions: list[Mapping[str, Any]], measured: int) -> dict[str, Any]:
-    fixes = [a for a in actions if a["kind"] == "FIX"]
-    if fixes:
-        top = fixes[0]
+    """The first action of the plan. Only a critical or material problem is called the biggest issue; a nearly capped
+    resistance does not headline the page while a well-supported direction exists."""
+    if actions and actions[0]["kind"] == "FIX" and actions[0]["severity"] in _HARD_SEVERITIES:
+        top = actions[0]
         return {"kind": FOCUS_ISSUE, "title": "BIGGEST CURRENT ISSUE", "headline": top["issue"], "detail": top["detail"], "action_id": top["id"]}
+    if actions and actions[0]["kind"] == "FIX":
+        top = actions[0]
+        return {"kind": FOCUS_MINOR, "title": "CURRENT FOCUS", "headline": top["issue"], "detail": top["detail"], "action_id": top["id"]}
     if actions:
         top = actions[0]
         return {"kind": FOCUS_NO_CRITICAL, "title": "CURRENT FOCUS", "headline": "No critical issue detected.",
@@ -255,12 +303,21 @@ def _packages(ladders: Mapping[str, list], priorities: Mapping[str, Any]) -> lis
         stats = [{"label": e["label"], "tested_change": e["tested_change"], "evidence": " · ".join(e["parts"])} for e in list(defence.values())[:MAX_PACKAGE_STATS]]
         packages.append({"key": "defence", "title": "DEFENCE FOCUS", "stats": stats})
     hybrid = [
-        {"label": row["label"], "tested_change": row["tested_change"],
+        {"label": row["label"], "tested_change": row["tested_change"], "axes": list((row.get("responses") or {})),
          "evidence": " · ".join(f"{name} {_pct(value)}" for name, value in (row.get("responses") or {}).items())}
         for row in (priorities.get("multi_axis") or [])[:MAX_PACKAGE_STATS]
     ]
     if hybrid:
-        packages.append({"key": "hybrid", "title": "HYBRID FOCUS", "stats": hybrid})
+        # A multi-impact stat already listed under Offense or Defence is not repeated as a third recommendation. Its
+        # row there says which other results it also moves; Hybrid keeps only stats that add something new. The full
+        # composition stays in `all_stats`. Percentages are never added together.
+        shown: dict[str, dict[str, Any]] = {str(stat["label"]): stat for package in packages for stat in package["stats"]}
+        for stat in hybrid:
+            listed = shown.get(str(stat["label"]))
+            if listed is not None:
+                listed["also"] = [axis for axis in stat["axes"] if axis not in str(listed["evidence"])]
+        distinct = [stat for stat in hybrid if str(stat["label"]) not in shown]
+        packages.append({"key": "hybrid", "title": "HYBRID FOCUS", "stats": distinct, "all_stats": hybrid})
     return packages
 
 
@@ -287,10 +344,15 @@ def _build_health(priorities: Mapping[str, Any], ladders: Mapping[str, list], br
         _axis_health("max_hit", "Max Hit", ladders.get("max_hit") or [], actions, limited_reason="No tested stat moved Max Hit."),
     ]
     resistances = [b for b in breakpoints if b["kind"] == "RESISTANCE_CAP"]
-    below = [b["title"] for b in resistances if b["status"] == "BELOW_CAP"]
+    below = [b["title"] for b in resistances if b["status"] == "BELOW_CAP" and b.get("severity") != SEVERITY_MINOR]
+    nearly = [b for b in resistances if b["status"] == "BELOW_CAP" and b.get("severity") == SEVERITY_MINOR]
     pinned = [b["title"] for b in resistances if b["status"] == "PINNED"]
     if below:
-        rows.append({"key": "resistances", "title": "Resistances", "state": NEEDS_ATTENTION, "reason": f"{_join(below)} below cap."})
+        also = f" {_join([b['title'] for b in nearly])} nearly capped." if nearly else ""
+        rows.append({"key": "resistances", "title": "Resistances", "state": NEEDS_ATTENTION, "reason": f"{_join(below)} below cap.{also}"})
+    elif nearly:
+        reason = " ".join(f"{b['title']} is {b['needed']:g}% below cap." for b in nearly)
+        rows.append({"key": "resistances", "title": "Resistances", "state": NEARLY_CAPPED, "reason": reason})
     elif resistances:
         note = f" {_join(pinned)} fixed by an equipped item." if pinned else ""
         rows.append({"key": "resistances", "title": "Resistances", "state": NO_URGENT_ISSUE,

@@ -635,3 +635,49 @@ def test_overview_cards_do_not_claim_a_damage_stat_the_coverage_cannot_support()
 
 def test_progress_names_the_curve_step_in_player_words() -> None:
     assert progress_text({"stage": "curves"}) == "Checking how your top stats scale"
+
+
+# --------------------------------------------------------- R1.5 severity / hybrid polish
+
+
+def test_minor_gap_is_visible_but_quiet_on_the_overview() -> None:
+    from tests.test_r1_5_actionable import NEAR_CHAOS, _analysis as actionable_analysis
+
+    window, _controller = _window()
+    window.show_result(actionable_analysis(needs=[NEAR_CHAOS], chaos=74.0, slots=[]))
+    assert window.focus_text()[:2] == ["CURRENT FOCUS", "No critical issue detected."]
+    assert window._focus_card.property("issue") is False
+    assert window.actions_text() == [
+        "1. Improve Max Hit — Energy Shield · +50 Energy Shield → +2.0%",
+        "2. Improve Damage — Spell Skill Levels · +1 Spell Skill Level → +8.7%",
+        "3. Finish capping Chaos Resistance — 74% → 75% · nearly capped",
+    ]
+    assert window._action_labels[2].objectName() == "tileChange"  # not emphasised like a hard problem
+    detail = window._detail.toPlainText()
+    assert "Nearly capped" in detail and "Chaos Resistance is 1% below cap." in detail and "Needs attention" not in detail
+    assert "MINOR" not in detail and "BIGGEST" not in " ".join(window.focus_text())
+
+
+def test_material_gap_still_leads_and_is_emphasised() -> None:
+    from tests.test_r1_5_actionable import CHAOS_NEED as CHAOS, _analysis as actionable_analysis
+
+    window, _controller = _window()
+    window.show_result(actionable_analysis(needs=[CHAOS], chaos=42.0, slots=[]))
+    assert window.focus_text()[:2] == ["BIGGEST CURRENT ISSUE", "Chaos Resistance is below cap."] and window._focus_card.property("issue") is True
+    assert window._action_labels[0].objectName() == "fixFirstRow" and "Needs attention" in window._detail.toPlainText()
+
+
+def test_hybrid_overlap_is_not_rendered_as_a_duplicate_package_and_raw_data_is_in_details() -> None:
+    from tests.test_r1_5_actionable import _analysis as actionable_analysis, _spark_like
+
+    window, _controller = _window()
+    result = actionable_analysis(_spark_like(), slots=[])
+    result["performance"] = {"elapsed_ms": 1000, "pob_recalcs": 20, "cache": {}}
+    window.show_result(result)
+    detail = window._detail.toPlainText()
+    assert "DEFENCE FOCUS" in detail and "HYBRID FOCUS" not in detail
+    assert "+50 to maximum Energy Shield · Max Hit +1.8% · EHP +1.8% · also moves Damage and Mana" in detail
+    assert detail.count("+50 to maximum Energy Shield · ") == 1  # once, under Defence
+    window._details_toggle.setChecked(True)
+    technical = window._detail.toPlainText()
+    assert "Hybrid Focus (all multi-impact stats): +50 to maximum Energy Shield → Damage +3.2% · EHP +1.8% · Max Hit +1.8% · Mana +1.8%" in technical
