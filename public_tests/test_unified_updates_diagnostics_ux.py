@@ -209,7 +209,7 @@ def test_newer_release_without_manifest_is_rejected(monkeypatch) -> None:
 
     installed = ExileLensVersion.parse(__version__)
     assert installed is not None
-    newer = f"{installed.major}.{installed.minor}.{installed.patch}b{installed.beta + 1}"
+    newer = f"{installed.major}.{installed.minor}.{installed.patch + 1}b1"
     settings = AppSettings()
 
     class _Client:

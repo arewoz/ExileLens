@@ -143,8 +143,8 @@ def test_notification_is_once_per_newer_version(monkeypatch) -> None:
     # "Newer" is relative to the currently installed __version__, not a fixed
     # literal -- these must stay ahead of it across future version bumps.
     installed = update_check.ExileLensVersion.parse(update_check.__version__)
-    newer_version = f"{installed.major}.{installed.minor}.{installed.patch}b{installed.beta + 1}"
-    later_version = f"{installed.major}.{installed.minor}.{installed.patch}b{installed.beta + 2}"
+    newer_version = f"{installed.major}.{installed.minor}.{installed.patch + 1}b1"
+    later_version = f"{installed.major}.{installed.minor}.{installed.patch + 1}b2"
 
     settings = AppSettings()
     service = update_check.UpdateCheckService(settings)
