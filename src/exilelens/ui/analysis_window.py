@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from exilelens.analysis.catalog import ProbeCatalog
-from exilelens.analysis.view import build_analysis_view, build_slot_view, display_name, progress_text, slot_row_text
+from exilelens.analysis.view import build_analysis_view, build_slot_view, display_name, progress_text, slot_row_texts
 from exilelens.ui import theme
 from exilelens.ui.components import StatusValue, ThemedCheckBox, button_row, make_button
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
@@ -353,7 +353,7 @@ class AnalysisWindow(QWidget):
         # Row map: the priorities summary, then a heading, then one row per slot in the existing opportunity order.
         self._rows = []
         if self._has_priorities:
-            self._list.addItem(QListWidgetItem("BUILD PRIORITIES"))
+            self._list.addItem(QListWidgetItem("Overview"))  # the whole-build view
             self._rows.append(-1)
         if self._slots:
             heading = QListWidgetItem("UPGRADE OPPORTUNITIES")
@@ -365,8 +365,8 @@ class AnalysisWindow(QWidget):
             heading.setForeground(QColor(theme.TEXT_MUTED))
             self._list.addItem(heading)
             self._rows.append(-2)
-        for index, slot in enumerate(self._slots):
-            self._list.addItem(QListWidgetItem(slot_row_text(slot)))
+        for index, text in enumerate(slot_row_texts(self._slots)):
+            self._list.addItem(QListWidgetItem(text))
             self._rows.append(index)
         self._export_btn.setEnabled(True)
         if self._rows:
@@ -457,7 +457,8 @@ class AnalysisWindow(QWidget):
     def _slot_html(self, slot: dict[str, Any]) -> str:
         view = build_slot_view(self._result or {}, slot)
         base = f" <span style='color:{theme.TEXT_MUTED}'>· {_esc(view['item_base'])}</span>" if view["item_base"] else ""
-        summary = f"<p style='margin:0 0 2px 0;color:{theme.TEXT_MUTED}'>{_esc(view['slot'])} · {_esc(view['summary'])}</p>" if view["summary"] else ""
+        place = " · ".join(part for part in (view["slot"], view["summary"]) if part)
+        summary = f"<p style='margin:0 0 2px 0;color:{theme.TEXT_MUTED}'>{_esc(place)}</p>"
         out = [
             f"<p style='margin:0 0 3px 0;color:{theme.TEXT_MUTED};font-weight:700'>CURRENT ITEM</p>",
             f"<p style='margin:0 0 2px 0;color:{theme.TEXT_EMPHASIS};font-weight:700'>{_esc(view['item_name'])}{base}</p>",
@@ -468,6 +469,7 @@ class AnalysisWindow(QWidget):
             self._section("LIMITATIONS", view["limitations"], bullets=False),
         ]
         if self._details_toggle.isChecked():
+            out.append(self._section("MORE REASONS", view["why_more"], muted=True))
             out.append(self._section("MEASUREMENT DETAILS", view["details"], muted=True, bullets=False))
         return "".join(out)
 

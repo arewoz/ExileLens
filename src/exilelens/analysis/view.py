@@ -238,13 +238,84 @@ def slot_label(product_slot: Any) -> str:
     return str(product_slot or "").replace("_", " ").title()
 
 
+_STANDOUT_BANDS = ("VERY HIGH", "HIGH")
+
+
+def slot_row_texts(slots: list[Mapping[str, Any]]) -> list[str]:
+    """Rows of the UPGRADE OPPORTUNITIES list, in the given (existing) order. Never the internal number.
+
+    A row is just the slot name. A qualifier appears only when it says something exceptional: the slot could not be
+    analysed properly, or it stands out with a high band that most analysed slots do not share. A band every slot has
+    ("Medium opportunity" nine times) carries no information and is not shown."""
+    def band(slot: Mapping[str, Any]) -> str:
+        return str((slot.get("opportunity") or {}).get("band") or "").upper()
+
+    def limited(slot: Mapping[str, Any]) -> bool:
+        return bool(slot.get("analysis_limited") or (slot.get("opportunity") or {}).get("analysis_limited"))
+
+    analysed = [slot for slot in slots if not limited(slot)]
+    rows: list[str] = []
+    for slot in slots:
+        label = slot_label(slot.get("product_slot"))
+        if limited(slot):
+            rows.append(f"{label} — Limited analysis")
+        elif band(slot) in _STANDOUT_BANDS and 2 * sum(band(other) == band(slot) for other in analysed) < len(analysed):
+            rows.append(f"{label} — {_BAND_WORDS[band(slot)]}")
+        else:
+            rows.append(label)
+    return rows
+
+
 def slot_row_text(slot: Mapping[str, Any]) -> str:
-    """One row of the UPGRADE OPPORTUNITIES list: the slot and its band in words. Never the internal number."""
-    opportunity = slot.get("opportunity") or {}
-    if slot.get("analysis_limited") or opportunity.get("analysis_limited"):
-        return f"{slot_label(slot.get('product_slot'))} — Limited analysis"
-    band = _BAND_WORDS.get(str(opportunity.get("band") or "").upper(), "")
-    return f"{slot_label(slot.get('product_slot'))} — {band}" if band else slot_label(slot.get("product_slot"))
+    return slot_row_texts([slot])[0]
+
+
+MAX_SLOT_REASONS = 4
+# Reading priority of a reason, by the kind of evidence behind it (no number is computed): a build need first, then a
+# stat the measured priorities back on damage, then one they back on defence, then what the current item lacks, then
+# stats that are only profile-valued, then the "nothing to improve" note.
+_REASON_NEED, _REASON_OFFENSE, _REASON_DEFENCE, _REASON_ITEM, _REASON_VALUED, _REASON_NOTE = range(6)
+
+
+def _reason_rank(driver: Mapping[str, Any], priorities: Mapping[str, Any]) -> tuple[int, int, str]:
+    """(priority, position within the measured lane, distinctness group) for one driver."""
+    kind = str(driver.get("kind") or "")
+    if kind in {"critical", "high", "breakpoint"}:
+        return (_REASON_NEED, 0 if kind == "critical" else 1, f"need:{driver.get('text')}")
+    if kind == "marginal":
+        label = str(driver.get("text") or "").replace(" has high marginal value", "")
+        for lanes, priority, group in ((("offense",), _REASON_OFFENSE, "offense"), (("ehp", "max_hit", "mobility"), _REASON_DEFENCE, "defence")):
+            for lane in lanes:
+                if lane == "offense" and priorities.get("offense_limited_confidence"):
+                    continue
+                for position, row in enumerate(priorities.get(lane) or []):
+                    if row.get("label") == label and float(row.get("response_percent") or 0.0) >= MEANINGFUL_PERCENT:
+                        return (priority, position, group)
+        return (_REASON_VALUED, 0, "valued")
+    if kind == "contribution":
+        return (_REASON_ITEM, 0, "item")
+    return (_REASON_NOTE, 0, "note")
+
+
+def _slot_reasons(drivers: list[Mapping[str, Any]], priorities: Mapping[str, Any]) -> tuple[list[str], list[str]]:
+    """(default reasons, every reason). Default: at most four, the most important first, one per kind of idea before
+    a second of the same kind. Ordering uses only existing evidence: driver kind, lane order, then driver order."""
+    ranked: list[tuple[tuple[int, int, int], str, str]] = []
+    for index, driver in enumerate(drivers):
+        text = _driver_text(driver, priorities)
+        if text and text not in [row[1] for row in ranked]:
+            priority, position, group = _reason_rank(driver, priorities)
+            ranked.append(((priority, position, index), text, group))
+    ranked.sort(key=lambda row: row[0])
+    chosen: list[tuple[tuple[int, int, int], str, str]] = []
+    for row in ranked:  # breadth first: one reason per group
+        if len(chosen) < MAX_SLOT_REASONS and row[2] not in {picked[2] for picked in chosen}:
+            chosen.append(row)
+    for row in ranked:  # then fill what is left by importance
+        if len(chosen) < MAX_SLOT_REASONS and row not in chosen:
+            chosen.append(row)
+    chosen.sort(key=lambda row: row[0])
+    return [row[1] for row in chosen], [row[1] for row in ranked]
 
 
 def _strong_axes(priorities: Mapping[str, Any], label: str) -> list[str]:
@@ -333,11 +404,7 @@ def build_slot_view(result: Mapping[str, Any], slot: Mapping[str, Any]) -> dict[
     intent = slot.get("search_intent") or {}
     item = slot.get("current_item") or {}
     limited = bool(slot.get("analysis_limited") or opportunity.get("analysis_limited"))
-    why: list[str] = []
-    for driver in opportunity.get("drivers") or []:
-        text = "" if limited else _driver_text(driver, priorities)
-        if text and text not in why:
-            why.append(text)
+    why, why_all = ([], []) if limited else _slot_reasons(list(opportunity.get("drivers") or []), priorities)
     useful: list[str] = []
     for tier in ("required", "high_value", "useful"):
         for row in intent.get(tier) or []:
@@ -349,8 +416,10 @@ def build_slot_view(result: Mapping[str, Any], slot: Mapping[str, Any]) -> dict[
         "slot": slot_label(slot.get("product_slot")),
         "item_name": str(item.get("name") or "") or "Unnamed item",
         "item_base": str(item.get("base_name") or ""),
-        "summary": "Limited analysis" if limited else _BAND_WORDS.get(str(opportunity.get("band") or "").upper(), ""),
+        # The band is an ordering detail (measurement details); only the exceptional state is said up front.
+        "summary": "Limited analysis" if limited else "",
         "why": why,
+        "why_more": [text for text in why_all if text not in why],
         "useful_stats": useful[:_MAX_SLOT_STATS],
         "measured": measured[:_MAX_SLOT_STATS],
         "limitations": [_LIMITED] if limited else [],

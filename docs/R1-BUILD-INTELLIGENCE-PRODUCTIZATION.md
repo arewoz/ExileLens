@@ -281,7 +281,7 @@ Rules now applied by `items/build_context.py`:
 
 | Was (internal) | Now (default view) |
 |---|---|
-| `BUILD PRIORITIES` list with rows like `GLOVES MEDIUM 57` | `BUILD PRIORITIES` summary row, then heading `UPGRADE OPPORTUNITIES` with rows like `Gloves — Medium opportunity`, `Weapon 1 — Limited analysis` |
+| `BUILD PRIORITIES` list with rows like `GLOVES MEDIUM 57` | Selectable `Overview` row (the whole-build view), then heading `UPGRADE OPPORTUNITIES` with one row per slot: `Gloves`, `Belt`, … `Weapon 1 — Limited analysis` |
 | `addresses LOW_CHAOS_RES` | `Can help cap Chaos Resistance` |
 | `can repair missing fire res +17 to cap` | `Can cap Fire Resistance (+17% needed)` |
 | `Life has high marginal value` | `Life is among this build's strongest measured EHP / Max Hit responses` when Build Priorities back it, otherwise `Life is valuable for this build` |
@@ -293,14 +293,20 @@ Rules now applied by `items/build_context.py`:
 | `+1 to Level of all Spell Skills` / `Tied with +1 to Level of all Projectile Skills` on cards | `+1 Spell Skill Level` / `Tied: +1 Projectile Skill Level` (exact tested line in the card tooltip and in the lanes) |
 | Multi-impact `—` / `No measurable response` | `No multi-impact stat measured` |
 
+A slot row is just the slot name. A qualifier appears only when it is exceptional: `Limited analysis`, or a High / Very
+high band that fewer than half of the analysed slots share. A band nearly every slot has is not repeated.
+
 The selected slot reads: CURRENT ITEM, WHY THIS SLOT MATTERS, USEFUL STATS, MEASURED ON THIS SLOT, and LIMITATIONS only
-when there is one. Every line is a translation of data the analysis already produced; no reason is invented and nothing
+when there is one. WHY THIS SLOT MATTERS shows at most four reasons, chosen by the kind of evidence (no new score): a build
+need / Fix First relation, then a stat the measured priorities back on damage, then one they back on defence, then what
+the current item lacks, then stats that are only profile-valued. One reason per kind is taken before a second of the same
+kind; ties keep lane order, then the engine's driver order. The rest appear as MORE REASONS under measurement details. Every line is a translation of data the analysis already produced; no reason is invented and nothing
 claims an item is an upgrade.
 
 **Why the opportunity number is hidden.** The slot order and its 0–100 value come from the existing opportunity heuristic
 (need bumps + the best profile-scored test on the slot + how little the current item contributes). It orders slots; it is
 not a measurement, not a market ranking and not a claim that a slot is the best upgrade, and it depends on the value
-profile. The order is unchanged; the default view shows the band in words. The number, Build Value, driver texts, the full
+profile. The order is unchanged; the default view shows no band unless it is exceptional. The band, the number, Build Value, driver texts, the full
 test table and the Search Intent tiers are all still there under **Show measurement details**, which also reveals
 **Copy Search Intent** and **Export JSON**. Neither list nor detail pane uses a horizontal scrollbar.
 

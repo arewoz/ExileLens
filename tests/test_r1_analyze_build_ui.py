@@ -272,7 +272,7 @@ def test_slot_entries_search_intent_and_indexing_are_unchanged() -> None:
     window, _controller = _window()
     window.show_result(_analysis())
     assert [window._list.item(i).text() for i in range(window._list.count())] == [
-        "BUILD PRIORITIES", "UPGRADE OPPORTUNITIES", "Ring — Low opportunity"]
+        "Overview", "UPGRADE OPPORTUNITIES", "Ring"]
     assert window._list.currentRow() == 0 and window._current_intent() == {} and not window._copy_btn.isEnabled()
     window._list.setCurrentRow(1)  # the heading is not an entry
     assert window._current_intent() == {}
@@ -428,7 +428,11 @@ def test_slot_list_is_framed_as_upgrade_opportunities_in_the_same_order() -> Non
     window, _controller = _window()
     window.show_result(realistic_analysis())
     assert [window._list.item(i).text() for i in range(window._list.count())] == [
-        "BUILD PRIORITIES", "UPGRADE OPPORTUNITIES", "Gloves — Medium opportunity", "Belt — Low opportunity", "Weapon 1 — Limited analysis"]
+        "Overview", "UPGRADE OPPORTUNITIES", "Gloves", "Belt", "Weapon 1 — Limited analysis"]
+    assert window._list.currentRow() == 0 and "WHAT EXILELENS MEASURED" in window._detail.toPlainText()  # Overview = whole build
+    window._list.setCurrentRow(2)
+    window._list.setCurrentRow(0)
+    assert "DAMAGE" in window._detail.toPlainText() and "CURRENT ITEM" not in window._detail.toPlainText()
 
 
 def test_selected_slot_reads_as_guidance_built_from_existing_data() -> None:
@@ -495,3 +499,69 @@ def test_page_never_needs_a_horizontal_scrollbar() -> None:
     window._details_toggle.setChecked(True)
     window._list.setCurrentRow(2)
     assert window._detail.document().idealWidth() <= max(window._detail.viewport().width(), 1) + 1
+
+
+# ------------------------------------------------------------ final polish: navigation
+
+
+def _slot(name, band, drivers=(), limited=False):
+    return {"product_slot": name, "pob_slot": name.title(), "current_item": {"name": name, "base_name": ""}, "probes": [],
+            "analysis_limited": limited, "search_intent": {"slot": name},
+            "opportunity": {"band": band, "score": None if limited else 50, "analysis_limited": limited, "drivers": list(drivers)}}
+
+
+def test_slot_rows_drop_a_band_everyone_shares_and_keep_only_exceptional_qualifiers() -> None:
+    from exilelens.analysis.view import slot_row_texts
+
+    slots = [_slot(name, "MEDIUM") for name in ("GLOVES", "BELT", "BODY_ARMOUR", "BOOTS", "AMULET", "RING_2", "HELMET", "RING_1")]
+    slots.append(_slot("WEAPON_1", "ANALYSIS LIMITED", limited=True))
+    rows = slot_row_texts(slots)
+    assert rows == ["Gloves", "Belt", "Body Armour", "Boots", "Amulet", "Ring 2", "Helmet", "Ring 1", "Weapon 1 — Limited analysis"]
+    assert not any(ch.isdigit() for row in rows for ch in row.replace("Ring 2", "").replace("Ring 1", "").replace("Weapon 1", ""))
+    # A high band only a minority has is a real difference and stays; one most slots share is noise again.
+    standout = slot_row_texts([_slot("AMULET", "HIGH"), _slot("BELT", "MEDIUM"), _slot("BOOTS", "LOW")])
+    assert standout == ["Amulet — High opportunity", "Belt", "Boots"]
+    assert slot_row_texts([_slot("AMULET", "HIGH"), _slot("BELT", "HIGH"), _slot("BOOTS", "LOW")]) == ["Amulet", "Belt", "Boots"]
+
+
+def _marginal(name):
+    return {"text": f"{name} has high marginal value", "kind": "marginal", "probe_id": name.upper()}
+
+
+AMULET_DRIVERS = [
+    _marginal("Mana"), _marginal("Life"), _marginal("Energy Shield"), _marginal("Strength"), _marginal("Intelligence"),
+    _marginal("Cast Speed"), _marginal("Spell Skill Levels"), {"text": "addresses LOW_CHAOS_RES", "kind": "high", "code": "LOW_CHAOS_RES"},
+    {"text": "current item contributes little offense", "kind": "contribution"},
+]
+
+
+def test_why_this_slot_matters_shows_at_most_four_distinct_reasons_by_importance() -> None:
+    from exilelens.analysis.view import MAX_SLOT_REASONS, build_slot_view
+
+    result = _analysis(needs=[CHAOS_NEED], slots=(_slot("AMULET", "MEDIUM", AMULET_DRIVERS),))
+    view = build_slot_view(result, result["slots"][0])
+    assert view["why"] == [
+        "Can help cap Chaos Resistance",                                                     # build need / Fix First
+        "Spell Skill Levels is among this build's strongest measured damage responses",     # strongest offensive response
+        "Energy Shield is among this build's strongest measured EHP / Max Hit responses",   # strongest defensive response
+        "Your current item adds little damage",                                             # a distinct further reason
+    ]
+    assert len(view["why"]) == MAX_SLOT_REASONS == 4
+    assert not any("is valuable for this build" in text for text in view["why"])  # near-duplicates do not fill the slots
+    assert len(view["why_more"]) == 5 and "Cast Speed is among this build's strongest measured damage responses" in view["why_more"]
+    assert build_slot_view(result, result["slots"][0]) == view  # deterministic
+    few = build_slot_view(result, _slot("BELT", "LOW", [_marginal("Mana"), _marginal("Strength")]))
+    assert few["why"] == ["Mana is valuable for this build", "Strength is valuable for this build"] and few["why_more"] == []
+
+
+def test_remaining_reasons_and_the_full_driver_set_are_in_measurement_details() -> None:
+    window, _controller = _window()
+    window.show_result(_analysis(needs=[CHAOS_NEED], slots=(_slot("AMULET", "MEDIUM", AMULET_DRIVERS),)))
+    window._list.setCurrentRow(2)
+    default = window._detail.toPlainText()
+    assert default.count("•") == 4 and "MORE REASONS" not in default and "Mana is valuable" not in default
+    window._details_toggle.setChecked(True)
+    detail = window._detail.toPlainText()
+    assert "MORE REASONS" in detail and "Mana is valuable for this build" in detail
+    assert "Cast Speed is among this build's strongest measured damage responses" in detail
+    assert detail.count("Driver: ") == len(AMULET_DRIVERS)  # the complete underlying set
