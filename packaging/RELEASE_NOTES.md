@@ -1,4 +1,4 @@
-# ExileLens 0.5.0b1
+# ExileLens 0.6.0b1
 
 Early beta for Windows. Item Check uses your selected Path of Building for Path of Exile 2 and shows upgrade / downgrade guidance in an overlay.
 
@@ -26,7 +26,7 @@ Early beta for Windows. Item Check uses your selected Path of Building for Path 
 
 ## Installation
 
-1. Download **ExileLens-v0.5.0b1-win64.zip** from the GitHub Release (after publish approval).
+1. Download **ExileLens-v0.6.0b1-win64.zip** from the GitHub Release (after publish approval).
 2. Extract the full folder and run **ExileLens.exe**.
 3. On first launch, connect your **Path of Building Community (PoE2)** installation and select a saved build XML.
 
