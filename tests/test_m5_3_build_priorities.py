@@ -196,8 +196,9 @@ def test_analysis_window_shows_priorities_first_and_keeps_slot_view() -> None:
         "opportunity": {"band": "LOW", "score": 12.0, "drivers": []}, "search_intent": {"slot": "RING"},
     }]
     window.show_result(result)
-    assert window._list.count() == 2 and window._list.item(0).text() == "BUILD PRIORITIES"
+    # R1: row 0 is the whole-build "Overview", row 1 the "UPGRADE OPPORTUNITIES" heading, slots follow.
+    assert window._list.count() == 3 and window._list.item(0).text() == "Overview"
     assert window._list.currentRow() == 0 and "FIX FIRST" not in window._detail.toPlainText()
     assert "+1 to Level of all Spell Skills" in window._detail.toPlainText()
-    window._list.setCurrentRow(1)
+    window._list.setCurrentRow(2)
     assert "CURRENT ITEM" in window._detail.toPlainText() and window._current_intent() == {"slot": "RING"}

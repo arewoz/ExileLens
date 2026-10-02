@@ -702,6 +702,12 @@ class ItemOverlayPanel(QWidget):
                     why = why[:3]
             else:
                 why = []
+        if compact_surface:
+            # R1: build context reads as part of the explanation, after the measured reasons.
+            context_lines = list(model.get("build_context_lines") or [])
+            if context_lines and not why:
+                reasons_title = "BUILD CONTEXT"
+            why = why + [{**line, "context": True} for line in context_lines]
         self._populate_why(why)
         self._why_host.setVisible(bool(why))
         self._reasons_title.setText(reasons_title)
@@ -1139,11 +1145,14 @@ class ItemOverlayPanel(QWidget):
             text = reason.get("explanation") or reason.get("text") or ""
             if not text:
                 continue
-            lbl = QLabel(f"• {text}")
+            # Build context explains why a stat matters; it reads quieter than the measured reasons above it.
+            lbl = QLabel(f"{'◦' if reason.get('context') else '•'} {text}")
             lbl.setObjectName("whyLabel")
             lbl.setWordWrap(True)
             severity = str(reason.get("severity") or "")
-            if severity in {"critical", "high"}:
+            if reason.get("context"):
+                lbl.setStyleSheet("color: #9c9a95;")
+            elif severity in {"critical", "high"}:
                 lbl.setStyleSheet("color: #e8d7b0;")
             else:
                 lbl.setStyleSheet("color: #c9bea8;")

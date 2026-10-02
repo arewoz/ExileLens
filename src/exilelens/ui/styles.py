@@ -459,6 +459,7 @@ QWidget#settingsPage,
 /* UIUX-01 containers. Without these a Windows light palette paints them white,
    exactly as it did for the scroll viewport before this block existed. */
 QWidget#overviewPage,
+QWidget#analysisPage,
 QWidget#diagnosticsPage,
 QWidget#contentPane,
 QWidget#diagnosticsScrollViewport,
@@ -754,6 +755,59 @@ QFrame#sectionDivider {{
     border: none;
     max-height: 1px;
     min-height: 1px;
+}}
+
+/* --- R1 Analyze Build ----------------------------------------------------- */
+QFrame#responseTile {{
+    background: {_V2_SURFACE};
+    border: none;
+    border-radius: 8px;
+}}
+QLabel#tileCaption {{
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.1px;
+    color: {DASHBOARD_MUTED_FG};
+}}
+QLabel#tileValue {{
+    font-size: 16px;
+    font-weight: 700;
+    color: {_V2_OK};
+}}
+QLabel#tileValueSmall {{
+    font-size: 13px;
+    font-weight: 700;
+    color: {_V2_OK};
+}}
+QLabel#tileValueEmpty {{
+    font-size: 16px;
+    font-weight: 700;
+    color: {DASHBOARD_DISABLED_FG};
+}}
+QLabel#tileChange {{
+    font-size: 12px;
+    color: {DASHBOARD_WINDOW_FG};
+}}
+QLabel#tileNote {{
+    font-size: 11px;
+    color: {DASHBOARD_MUTED_FG};
+}}
+QFrame#fixFirstPanel {{
+    background: rgba(224,160,64,20);
+    border: none;
+    border-left: 3px solid {DASHBOARD_WARNING_FG};
+    border-radius: 4px;
+}}
+QLabel#fixFirstTitle {{
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.1px;
+    color: {DASHBOARD_WARNING_FG};
+}}
+QLabel#fixFirstRow {{
+    font-size: 13px;
+    font-weight: 600;
+    color: {DASHBOARD_TEXT_EMPHASIS};
 }}
 
 /* --- focus visibility on standard controls ------------------------------- */

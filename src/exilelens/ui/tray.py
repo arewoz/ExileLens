@@ -94,6 +94,12 @@ class TrayManager(QSystemTrayIcon):
         # otherwise a default build shows two adjacent separators with nothing
         # between them.
         gameplay_controls_start = len(menu.actions())
+        if is_enabled(FeatureModule.BUILD_ANALYSIS):
+            # Opens the page; the analysis itself only starts from its Analyze Build button.
+            analyze_action = QAction("Analyze Build", self)
+            analyze_action.triggered.connect(self._open_build_analysis)
+            menu.addAction(analyze_action)
+
         if is_enabled(FeatureModule.MARKET):
             market_action = QAction("Market Search", self)
             market_action.triggered.connect(self._open_market)
@@ -284,6 +290,10 @@ class TrayManager(QSystemTrayIcon):
 
     def _open_build_page(self) -> None:
         self.dashboard.navigate("build")
+        self.dashboard.show_dashboard()
+
+    def _open_build_analysis(self) -> None:
+        self.dashboard.navigate("build_analysis")
         self.dashboard.show_dashboard()
 
     def _open_market(self) -> None:

@@ -30,6 +30,7 @@ MORE_INFO_SECTION_ORDER = (
     "defense",
     "resists",
     "why_verdict",
+    "build_context",
     "unmodeled",
     "build_source",
     "flexibility",
@@ -455,6 +456,19 @@ def _why_verdict(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, An
     return {"id": "why_verdict", "title": "WHY THIS VERDICT", "lines": lines, "reasons": why["reasons"]}
 
 
+def _build_context_section(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
+    """R1: why the stats this item changes matter to this build. Below the measured Why; never a second verdict and
+    never a second set of deltas -- KEY IMPACT and the tables above own the numbers."""
+    from exilelens.items.build_context import detail_lines
+
+    changed = [
+        _text(delta.get("key")) for delta in outcome.get("all_deltas") or []
+        if float(delta.get("absolute_delta") or 0.0) != 0.0 or float(delta.get("percent_delta") or 0.0) != 0.0
+    ]
+    lines = detail_lines(model.get("build_context"), _text(outcome.get("replacement_slot")), claimed=changed)
+    return {"id": "build_context", "title": "BUILD CONTEXT", "lines": lines} if lines else None
+
+
 def _build_source_section(model: dict[str, Any]) -> dict[str, Any] | None:
     """Source context only (TRUST-01B); absent for an ordinary current build."""
     freshness = model.get("build_freshness") or {}
@@ -498,6 +512,7 @@ _BUILDERS = {
     "resists": lambda model, outcome: _resists_section(outcome),
     "flexibility": lambda model, outcome: _flexibility_section(outcome),
     "why_verdict": _why_verdict,
+    "build_context": _build_context_section,
     "unmodeled": lambda model, outcome: _unmodeled(outcome),
     "build_source": lambda model, outcome: _build_source_section(model),
 }

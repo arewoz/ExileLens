@@ -16,7 +16,9 @@ class FeatureModule(str, Enum):
     LIVE_TREE_OVERLAY = "LIVE_TREE_OVERLAY"
 
 
-SUPPORTED_MODULES = frozenset({FeatureModule.ITEM_CHECK})
+# R1: Build Analysis (Analyze Build: strongest measured responses, FIX FIRST, Build Priorities) is a supported module.
+# It only ever runs on the explicit Analyze Build action; Item Check reads its cached result and never starts it.
+SUPPORTED_MODULES = frozenset({FeatureModule.ITEM_CHECK, FeatureModule.BUILD_ANALYSIS})
 PARKED_MODULES = frozenset(set(FeatureModule) - set(SUPPORTED_MODULES))
 
 
