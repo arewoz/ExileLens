@@ -254,6 +254,28 @@ def test_compact_tooltip_puts_build_context_below_the_measured_why_and_caps_it()
     assert bare["build_context_lines"] == [] and bare["primary_reasons"] == model["primary_reasons"]
 
 
+def test_tooltip_panel_paints_build_context_after_the_measured_reasons() -> None:
+    from PySide6.QtWidgets import QApplication
+
+    from exilelens.ui.overlay_presentation import ItemOverlayPanel
+
+    QApplication.instance() or QApplication([])
+    model = _model(UPGRADE, _context(_item_result(UPGRADE), _snapshot()))
+    apply_compact_tooltip(model)
+    panel = ItemOverlayPanel()
+    panel.render_presentation(model)
+    painted = [widget.text() for widget in panel._why_widgets]
+    assert painted[0].startswith("• Damage improves by 7.2%")  # the measured result is read first
+    assert painted[1:] == [
+        "• Adds Spell Skill Levels (+2) — your build's strongest measured damage response.",
+        "• Adds Cast Speed (24%) — one of your build's strongest measured damage responses.",
+    ]
+    plain = _model(UPGRADE, {})
+    apply_compact_tooltip(plain)
+    panel.render_presentation(plain)
+    assert [widget.text() for widget in panel._why_widgets] == painted[:1]  # no analysis: the tooltip is exactly as before
+
+
 def test_compact_tooltip_does_not_repeat_cap_breaks_or_blockers_it_already_states() -> None:
     outcome = _outcome("SIDEGRADE", [_delta("primary_offense", 9.0)], resistances=[_res_row("fire", "CAP_LOST", 75.0, 58.0)])
     context = _context(_item_result(outcome, candidate=PLAIN_RING, replaced=PLAIN_RING), _snapshot())

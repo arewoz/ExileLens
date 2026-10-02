@@ -23,3 +23,5 @@ Thumbs.db
 
 # M5.4/M5.5 generated validation output (regenerate with scripts/m5_4_priorities_validation.py --out ...)
 artifacts/m5_*_priorities_validation.json
+# R1 generated validation output (regenerate with scripts/r1_product_validation.py)
+artifacts/r1_*.json

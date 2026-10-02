@@ -774,6 +774,11 @@ QLabel#tileValue {{
     font-weight: 700;
     color: {_V2_OK};
 }}
+QLabel#tileValueSmall {{
+    font-size: 13px;
+    font-weight: 700;
+    color: {_V2_OK};
+}}
 QLabel#tileValueEmpty {{
     font-size: 16px;
     font-weight: 700;

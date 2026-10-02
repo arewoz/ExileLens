@@ -109,6 +109,16 @@ def test_empty_lanes_make_no_section_and_empty_tiles_say_why() -> None:
     assert build_analysis_view({"slots": []})["tiles"] == []  # a single-slot analysis has no priorities to show
 
 
+def test_capped_resistance_is_explained_as_capped_not_as_a_useless_stat() -> None:
+    probes = [*PROBES, _probe("FIRE_RES", "Fire Resistance", "+20% to Fire Resistance", 20.0, family="resistance", status="NO_SIGNAL")]
+    capped = {"defense": {"resistances": {"fire": {"state": {"value": "CAPPED", "evidence": "DERIVED"}}}}}
+    coverage = build_analysis_view(_analysis(probes, fingerprint_extra=capped))["coverage"]
+    assert "Already at cap, so more does nothing: Fire Resistance." in coverage
+    assert "No measurable response: Crit Chance." in coverage
+    uncapped = build_analysis_view(_analysis(probes))["coverage"]
+    assert "No measurable response: Crit Chance, Fire Resistance." in uncapped
+
+
 def test_progress_is_spoken_in_stat_names_not_identifiers() -> None:
     assert progress_text({"stage": "probe", "probe_id": "CAST_SPEED"}, {"CAST_SPEED": "Cast Speed"}) == "Testing Cast Speed"
     assert progress_text({"stage": "slot", "slot": "BODY_ARMOUR"}) == "Checking Body Armour"

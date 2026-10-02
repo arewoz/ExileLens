@@ -108,17 +108,30 @@ def _coverage(result: Mapping[str, Any], priorities: Mapping[str, Any]) -> list[
     lines: list[str] = []
     measured = int(coverage.get("signals_considered") or 0)
     lines.append(f"{STATUS_LABELS[MEASURED]}: {measured} tested stat change{'s' if measured != 1 else ''} moved this build.")
-    if coverage.get("no_signal"):
-        lines.append(f"{STATUS_LABELS['NO_MEASURABLE_RESPONSE']}: {_names(coverage['no_signal'])}.")
+    # A capped resistance shows no response to more of it. That is a different message from "this stat does nothing".
+    resistances = ((result.get("build_fingerprint") or {}).get("defense") or {}).get("resistances") or {}
+    capped = {
+        f"{str(element).title()} Resistance"
+        for element, row in resistances.items()
+        if ((row or {}).get("state") or {}).get("value") in {"CAPPED", "OVER_CAPPED"}
+    }
+    pinned_names = [str(name).title() for name in coverage.get("resistance_pinned") or []]
+    pinned_labels = {f"{name} Resistance" for name in pinned_names}
+    at_cap = [label for label in coverage.get("no_signal") or [] if label in capped]
+    flat = [label for label in coverage.get("no_signal") or [] if label not in capped and label not in pinned_labels]
+    if flat:
+        lines.append(f"{STATUS_LABELS['NO_MEASURABLE_RESPONSE']}: {_names(flat)}.")
+    if at_cap:
+        lines.append(f"Already at cap, so more does nothing: {_join([str(label) for label in at_cap])}.")
     if coverage.get("not_established"):
         reasons = {str(row.get("reason")) for row in result.get("skipped") or [] if isinstance(row, Mapping)}
         why = " Path of Building does not apply test stats added to this build's equipped items." if "carrier_ignores_probe_mods" in reasons else ""
         lines.append(f"{STATUS_LABELS['COULD_NOT_ESTABLISH']}: {_names(coverage['not_established'])}.{why}")
     elif not measured and not coverage.get("no_signal"):
         lines.append(f"{STATUS_LABELS['COULD_NOT_ESTABLISH']}: no equipped ring, amulet, belt or armour piece could carry the test stats.")
-    if coverage.get("resistance_pinned"):
-        pinned = _join([str(name).title() for name in coverage["resistance_pinned"]])
-        lines.append(f"{pinned} Resistance is fixed by an equipped item, so gear cannot raise it.")
+    if pinned_names:
+        verb, it = ("are", "them") if len(pinned_names) > 1 else ("is", "it")
+        lines.append(f"{_join(pinned_names)} Resistance {verb} fixed by an equipped item, so gear cannot raise {it}.")
     unsupported = [_NOT_SUPPORTED.get(str(name), str(name).replace("_", " ")) for name in coverage.get("axes_not_captured") or []]
     if unsupported:
         lines.append(f"{STATUS_LABELS['NOT_SUPPORTED']}: {_join(unsupported)} responses.")

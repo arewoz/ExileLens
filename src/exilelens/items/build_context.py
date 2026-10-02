@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any, Iterable, Mapping
 
 from exilelens.analysis.identity import AnalysisBaseline
-from exilelens.analysis.priorities import is_priorities_stale
+from exilelens.analysis.priorities import MEANINGFUL_PERCENT, is_priorities_stale
 from exilelens.analysis.strongest import strongest_responses
 from exilelens.items.item_impact import IMPACT_THRESHOLDS
 from exilelens.items.requirement_gates import attribute_requirement_warnings
@@ -218,6 +218,8 @@ def _response_index(priorities: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
         if lane == "offense" and priorities.get("offense_limited_confidence"):
             continue  # a low-confidence damage number is not used to characterise an item
         for position, row in enumerate(priorities.get(lane) or []):
+            if float(row.get("response_percent") or 0.0) < MEANINGFUL_PERCENT:
+                continue  # a lane row can be a weak response; only a meaningful one is called "one of your strongest"
             entry = index.setdefault(str(row.get("label")), {"lanes": [], "tested": str(row.get("tested_change") or ""), "measured": []})
             entry["lanes"].append((word, position))
             entry["measured"].append(f"{word[:1].upper()}{word[1:]} {float(row['response_percent']):+.1f}%")

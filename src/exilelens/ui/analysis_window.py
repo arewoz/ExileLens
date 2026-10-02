@@ -79,7 +79,11 @@ class _ResponseTile(QFrame):
     def set_tile(self, tile: dict[str, Any]) -> None:
         self.caption.setText(str(tile.get("caption") or ""))
         self.value.setText(str(tile.get("value") or ""))
-        self.value.setObjectName("tileValue" if tile.get("measured") else "tileValueEmpty")
+        if not tile.get("measured"):
+            name = "tileValueEmpty"
+        else:  # several axes on one tile read as a line of text, not as one headline number
+            name = "tileValueSmall" if "·" in str(tile.get("value") or "") and tile.get("key") == "multi_impact" else "tileValue"
+        self.value.setObjectName(name)
         self.value.style().unpolish(self.value)
         self.value.style().polish(self.value)
         change = str(tile.get("change") or "")
@@ -139,6 +143,7 @@ class AnalysisWindow(QWidget):
         self._header = QLabel("")
         self._header.setObjectName("cardTitle")
         self._status = StatusValue("Not analyzed yet", "neutral")
+        self._status.set_word_wrap(False)
         self._progress = QLabel(_INTRO)
         self._progress.setObjectName("helperText")
         self._progress.setWordWrap(True)
@@ -183,7 +188,7 @@ class AnalysisWindow(QWidget):
 
         self._copy_btn = make_button("Copy Search Intent", "secondary")
         self._copy_btn.clicked.connect(self._copy_intent)
-        self._copy_btn.setEnabled(False)
+        self._set_copy_available(False)
         self._export_btn = make_button("Export JSON", "tertiary")
         self._export_btn.clicked.connect(self._export_json)
         self._export_btn.setEnabled(False)
@@ -196,14 +201,29 @@ class AnalysisWindow(QWidget):
         margin = 0 if embedded else theme.PAGE_GUTTER
         layout.setContentsMargins(margin, margin, margin, margin)
         layout.setSpacing(theme.SPACE_SM)
+        identity = QHBoxLayout()
+        identity.setContentsMargins(0, 0, 0, 0)
+        identity.setSpacing(theme.SPACE_LG)
+        identity.addWidget(self._header)
+        identity.addWidget(self._status)
+        identity.addStretch(1)
+
+        # Nothing to browse before the first analysis: no empty list, no empty detail pane.
+        self._body = QWidget()
+        body = QVBoxLayout(self._body)
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(theme.SPACE_SM)
+        body.addWidget(splitter, 1)
+        body.addLayout(footer)
+        self._body.setVisible(False)
+
         layout.addLayout(head)
-        layout.addWidget(self._header)
-        layout.addWidget(self._status)
+        layout.addLayout(identity)
         layout.addWidget(self._progress)
         layout.addWidget(self._strongest_host)
         layout.addWidget(self._fix_first_panel)
-        layout.addWidget(splitter, 1)
-        layout.addLayout(footer)
+        layout.addWidget(self._body, 100)
+        layout.addStretch(1)  # keeps the header at the top while there is no result to show
 
         self._list.currentRowChanged.connect(self._show_slot)
         started = getattr(controller, "build_analysis_started", None) or controller.analysis_started
@@ -260,7 +280,7 @@ class AnalysisWindow(QWidget):
             self._analyze_btn.setText("Re-analyze")
             when = time.strftime("%H:%M", time.localtime(self._analyzed_at)) if self._analyzed_at else ""
             self._status.set_value(f"Up to date · analyzed at {when}" if when else "Up to date", "ok")
-            self._progress.setText(detail or "Re-analyze after you change the build in Path of Building.")
+            self._progress.setText(detail)
         elif state == STALE:
             self._analyze_btn.setText("Re-analyze")
             self._status.set_value("Out of date — your build changed after this analysis", "warn")
@@ -273,6 +293,8 @@ class AnalysisWindow(QWidget):
             self._analyze_btn.setText("Analyze Build")
             self._status.set_value("Not analyzed yet" if ready else "No build loaded", "neutral")
             self._progress.setText(_INTRO if ready else "Choose a build on the Overview page first.")
+        self._progress.setVisible(bool(self._progress.text()))
+        self._body.setVisible(self._result is not None)
 
     def _rerun(self) -> None:
         self.controller.submit_analyze_build()
@@ -403,15 +425,15 @@ class AnalysisWindow(QWidget):
 
     def _show_slot(self, row: int) -> None:
         if self._has_priorities and row == 0:
-            self._copy_btn.setEnabled(False)
+            self._set_copy_available(False)
             self._detail.setHtml(self._priorities_html())
             return
         row = self._slot_index(row)
         if row < 0 or row >= len(self._slots):
-            self._copy_btn.setEnabled(False)
+            self._set_copy_available(False)
             self._detail.clear()
             return
-        self._copy_btn.setEnabled(True)
+        self._set_copy_available(True)
         slot = self._slots[row]
         item = slot.get("current_item") or {}
         opp = slot.get("opportunity") or {}
@@ -468,13 +490,21 @@ class AnalysisWindow(QWidget):
             return {}
         return self._slots[row].get("search_intent") or {}
 
+    def _notify(self, text: str) -> None:
+        self._progress.setText(text)
+        self._progress.setVisible(True)
+
+    def _set_copy_available(self, available: bool) -> None:
+        self._copy_btn.setEnabled(available)
+        self._copy_btn.setVisible(available)  # Search Intent belongs to a slot; it is not offered on the priorities row
+
     def _copy_intent(self) -> None:
         intent = self._current_intent()
         QApplication.clipboard().setText(json.dumps(intent, indent=2))
-        self._progress.setText("Search Intent copied to the clipboard.")
+        self._notify("Search Intent copied to the clipboard.")
 
     def _export_json(self) -> None:
         if self._result is None:
             return
         QApplication.clipboard().setText(json.dumps(self._result, indent=2, default=str))
-        self._progress.setText("Full analysis copied to the clipboard as JSON.")
+        self._notify("Full analysis copied to the clipboard as JSON.")
