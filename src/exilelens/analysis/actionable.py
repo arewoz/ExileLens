@@ -84,6 +84,10 @@ def _pct(value: Any) -> str:
     return f"{float(value):+.1f}%"
 
 
+def _join(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
 # ------------------------------------------------------------------------- ladders
 
 
@@ -286,16 +290,16 @@ def _build_health(priorities: Mapping[str, Any], ladders: Mapping[str, list], br
     below = [b["title"] for b in resistances if b["status"] == "BELOW_CAP"]
     pinned = [b["title"] for b in resistances if b["status"] == "PINNED"]
     if below:
-        rows.append({"key": "resistances", "title": "Resistances", "state": NEEDS_ATTENTION, "reason": f"{' and '.join(below)} below cap."})
+        rows.append({"key": "resistances", "title": "Resistances", "state": NEEDS_ATTENTION, "reason": f"{_join(below)} below cap."})
     elif resistances:
-        note = f" {' and '.join(pinned)} fixed by an equipped item." if pinned else ""
+        note = f" {_join(pinned)} fixed by an equipped item." if pinned else ""
         rows.append({"key": "resistances", "title": "Resistances", "state": NO_URGENT_ISSUE,
                      "reason": ("Other measured resistances are at cap." if pinned else "Measured resistances are at cap.") + note})
     else:
         rows.append({"key": "resistances", "title": "Resistances", "state": LIMITED, "reason": "Resistance values were not available."})
     deficits = [b["title"] for b in breakpoints if b["kind"] == "ATTRIBUTE_REQUIREMENT"]
     if deficits:
-        rows.append({"key": "requirements", "title": "Requirements", "state": NEEDS_ATTENTION, "reason": f"{' and '.join(deficits)} below requirement."})
+        rows.append({"key": "requirements", "title": "Requirements", "state": NEEDS_ATTENTION, "reason": f"{_join(deficits)} below requirement."})
     resource = next((b for b in breakpoints if b["kind"] == "RESOURCE"), None)
     if resource is not None:
         unaffordable = resource["status"] == "UNAFFORDABLE"
