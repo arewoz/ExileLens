@@ -62,13 +62,15 @@ MAX_COMPACT_LINES = 2
 MAX_DETAIL_LINES = 4
 
 # Reading order inside the context block: Build Intelligence context, then breakages, then the trade-off reading.
+# Current-priority context (the item acts on something in the build's action plan) leads the broader context.
 _ORDER = (
-    HIGH_RESPONSE_GAIN, MULTI_AXIS_GAIN, FIX_FIRST_RESOLVED, RESISTANCE_CAP_RESTORED, ATTRIBUTE_REQUIREMENT_RESTORED,
-    RESOURCE_USE_RESTORED, FIX_FIRST_PROGRESS, HIGH_RESPONSE_LOSS, MULTI_AXIS_LOSS, RESISTANCE_CAP_BROKEN,
+    FIX_FIRST_RESOLVED, FIX_FIRST_PROGRESS, HIGH_RESPONSE_GAIN, MULTI_AXIS_GAIN, RESISTANCE_CAP_RESTORED,
+    ATTRIBUTE_REQUIREMENT_RESTORED, RESOURCE_USE_RESTORED, HIGH_RESPONSE_LOSS, MULTI_AXIS_LOSS, RESISTANCE_CAP_BROKEN,
     ATTRIBUTE_REQUIREMENT_BROKEN, RESOURCE_USE_BLOCKED, MAX_HIT_TRADEOFF,
 )
 _LOSS_CODES = (HIGH_RESPONSE_LOSS, MULTI_AXIS_LOSS)
-_ORDER_LOSS_FIRST = _LOSS_CODES + tuple(code for code in _ORDER if code not in _LOSS_CODES)
+_PRIORITY_CODES = (FIX_FIRST_RESOLVED, FIX_FIRST_PROGRESS)
+_ORDER_LOSS_FIRST = _PRIORITY_CODES + _LOSS_CODES + tuple(code for code in _ORDER if code not in _LOSS_CODES + _PRIORITY_CODES)
 _CURRENT_WINS = frozenset({"MEANINGFUL_DOWNGRADE", "MINOR_DOWNGRADE", "POTENTIAL_DOWNGRADE", "NOT_VIABLE"})
 # The tooltip and More Info already state cap breaks and requirement blockers themselves (warning notes, blocker
 # reasons, RESISTS & REQUIREMENTS). Those direct notes stay in the structured payload and are not rendered again.
@@ -103,6 +105,8 @@ class ContextNote:
     directed: str = ""
     #: Response notes only: the modifier amounts written on the two items. Diagnostic; never rendered by default.
     item_line: str = ""
+    #: Priority notes only: the same statement without values, for when the direct explanation already gives them.
+    short: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -119,6 +123,8 @@ def snapshot_intelligence(analysis: Mapping[str, Any] | None) -> dict[str, Any] 
     return {
         "priorities": priorities,
         "strongest": (analysis or {}).get("strongest_responses") or strongest_responses(priorities),
+        # R1.5: the current action plan, so an item can be tied to "your current #1 priority".
+        "actionable": (analysis or {}).get("actionable") or {},
     }
 
 
@@ -313,6 +319,15 @@ def _fix_first(priorities: Mapping[str, Any] | None, kind: str) -> set[str]:
     return {str(row.get("title") or "") for row in (priorities or {}).get("fix_first") or [] if row.get("kind") == kind}
 
 
+def _priority(priorities: Mapping[str, Any] | None, kind: str, title: str = "") -> str:
+    """How the build's action plan ranks this issue. The plan lists hard problems in FIX FIRST order, so the first
+    FIX FIRST row is the build's current #1 priority."""
+    rows = (priorities or {}).get("fix_first") or []
+    first = rows[0] if rows else {}
+    top = first.get("kind") == kind and (not title or first.get("title") == title)
+    return "your current #1 priority" if top else "a current priority"
+
+
 def _resistance_notes(outcome: Mapping[str, Any], priorities: Mapping[str, Any] | None) -> list[ContextNote]:
     listed = _fix_first(priorities, "RESISTANCE_CAP")
     notes: list[ContextNote] = []
@@ -335,15 +350,19 @@ def _resistance_notes(outcome: Mapping[str, Any], priorities: Mapping[str, Any] 
         elif state == "CAP_REACHED":
             reach = f"{name} reaches the cap" + (f" ({values})" if values else "")
             if in_fix_first:
-                notes.append(ContextNote(FIX_FIRST_RESOLVED, KIND_FIX, SOURCE_INTELLIGENCE, f"Fixes a Fix First issue: {reach}.", f"{element}_res"))
+                rank = _priority(priorities, "RESISTANCE_CAP", name)
+                notes.append(ContextNote(FIX_FIRST_RESOLVED, KIND_FIX, SOURCE_INTELLIGENCE, f"Fixes {rank}: {reach}.", f"{element}_res",
+                                         short=f"Fixes {rank}: {name}."))
             else:
                 notes.append(ContextNote(RESISTANCE_CAP_RESTORED, KIND_FIX, SOURCE_DIRECT, f"{reach}.", f"{element}_res"))
         elif state == "BELOW_CAP_IMPROVED" and in_fix_first:
             deficit_before, deficit_after = _num(row.get("deficit_current")), _num(row.get("deficit_candidate"))
             moved = abs((deficit_before or 0.0) - (deficit_after or 0.0))
             if moved >= IMPACT_THRESHOLDS.resistance_deficit_points:
-                closer = f"Moves {name} closer to the cap" + (f" ({values})" if values else "")
-                notes.append(ContextNote(FIX_FIRST_PROGRESS, KIND_FIX, SOURCE_INTELLIGENCE, f"{closer} — a Fix First issue for your build.", f"{element}_res"))
+                rank = _priority(priorities, "RESISTANCE_CAP", name)
+                toward = f"Moves toward {rank}: {name}"
+                notes.append(ContextNote(FIX_FIRST_PROGRESS, KIND_FIX, SOURCE_INTELLIGENCE, f"{toward}" + (f" ({values})." if values else "."),
+                                         f"{element}_res", short=f"{toward}."))
     return notes
 
 
@@ -361,7 +380,8 @@ def _attribute_notes(outcome: Mapping[str, Any], priorities: Mapping[str, Any] |
             notes.append(ContextNote(ATTRIBUTE_REQUIREMENT_BROKEN, KIND_BREAKAGE, SOURCE_DIRECT, text, metric))
         elif warning.get("code") == "ATTRIBUTE_REQUIREMENT_REACHED":
             if name in listed:
-                notes.append(ContextNote(FIX_FIRST_RESOLVED, KIND_FIX, SOURCE_INTELLIGENCE, f"Fixes a Fix First issue: your {name} requirement is met.", metric))
+                rank = _priority(priorities, "ATTRIBUTE_REQUIREMENT", name)
+                notes.append(ContextNote(FIX_FIRST_RESOLVED, KIND_FIX, SOURCE_INTELLIGENCE, f"Fixes {rank}: your {name} requirement is met.", metric))
             else:
                 notes.append(ContextNote(ATTRIBUTE_REQUIREMENT_RESTORED, KIND_FIX, SOURCE_DIRECT, f"Your {name} requirement is met again.", metric))
     return notes
@@ -385,7 +405,8 @@ def _resource_notes(outcome: Mapping[str, Any], priorities: Mapping[str, Any] | 
         return [ContextNote(RESOURCE_USE_BLOCKED, KIND_BREAKAGE, SOURCE_DIRECT, text, "mana")]
     text = f"Unreserved Mana ({pool:.0f}) now covers one use of your main skill ({cost:.0f})."
     if _fix_first(priorities, "RESOURCE"):
-        return [ContextNote(FIX_FIRST_RESOLVED, KIND_FIX, SOURCE_INTELLIGENCE, f"Fixes a Fix First issue: {text[:1].lower()}{text[1:]}", "mana")]
+        rank = _priority(priorities, "RESOURCE")
+        return [ContextNote(FIX_FIRST_RESOLVED, KIND_FIX, SOURCE_INTELLIGENCE, f"Fixes {rank}: {text[:1].lower()}{text[1:]}", "mana")]
     return [ContextNote(RESOURCE_USE_RESTORED, KIND_FIX, SOURCE_DIRECT, text, "mana")]
 
 
@@ -481,8 +502,12 @@ def _shown(context: Mapping[str, Any] | None, slot: str, metrics: Iterable[str],
             stated = stat_is_stated(subject, metrics, texts)
             shown.append((note, str(note["text"] if stated else note.get("directed") or note["text"])))
         elif note.get("source") == SOURCE_INTELLIGENCE or code in _SHOWN_DIRECT:
-            if subject not in metrics:  # e.g. the measured Why already names this resistance cap
+            if subject not in metrics:
                 shown.append((note, str(note["text"])))
+            elif note.get("short"):
+                # The direct explanation already gives the cap and its values; what it cannot say is that this was the
+                # build's current priority. That link is kept, without repeating the numbers.
+                shown.append((note, str(note["short"])))
     return shown
 
 

@@ -130,7 +130,7 @@ def test_04_resistance_cap_restoration_resolves_a_fix_first_issue_when_analysis_
     result = _item_result(outcome, candidate=PLAIN_RING, replaced=PLAIN_RING)
     with_analysis = _context(result, _snapshot(needs=[FIRE_NEED]))
     assert _codes(with_analysis) == ["FIX_FIRST_RESOLVED"]
-    assert _texts(with_analysis) == ["Fixes a Fix First issue: Fire Resistance reaches the cap (58% → 75%)."]
+    assert _texts(with_analysis) == ["Fixes your current #1 priority: Fire Resistance reaches the cap (58% → 75%)."]
     without = _context(result, None)
     assert _codes(without) == ["RESISTANCE_CAP_RESTORED"] and _texts(without) == ["Fire Resistance reaches the cap (58% → 75%)."]
     closer = _outcome("MINOR_UPGRADE", [_delta("ehp", 2.0)], resistances=[_res_row("fire", "BELOW_CAP_IMPROVED", 58.0, 70.0)])
@@ -243,14 +243,17 @@ def test_compact_tooltip_puts_build_context_below_the_measured_why_and_caps_it()
     # The direct measured result leads and is unchanged; context never takes one of its slots.
     assert {line["metric"] for line in model["primary_reasons"]} == {"fire_res", "primary_offense"}
     assert len(model["primary_reasons"]) <= MAX_REASONS
-    assert [line["code"] for line in model["build_context_lines"]] == ["HIGH_RESPONSE_GAIN", "HIGH_RESPONSE_GAIN"]
+    # R1.5: the link to the build's current priority leads the context; the cap values the Why already gives are not repeated.
+    assert [line["code"] for line in model["build_context_lines"]] == ["FIX_FIRST_RESOLVED", "HIGH_RESPONSE_GAIN"]
+    assert model["build_context_lines"][0]["text"] == "Fixes your current #1 priority: Fire Resistance."
     assert len(model["build_context_lines"]) == bc.MAX_COMPACT_LINES < len(context["slots"][SLOT])
-    # The cap the measured Why already names is not repeated as a context line.
-    assert bc.note_codes(context["slots"][SLOT])[-1] == "FIX_FIRST_RESOLVED"
-    assert all("Fire Resistance" not in line["text"] for line in model["build_context_lines"])
+    assert bc.note_codes(context["slots"][SLOT])[0] == "FIX_FIRST_RESOLVED"
     only_fix = _context(_item_result(outcome, candidate=PLAIN_RING, replaced=PLAIN_RING), _snapshot(needs=[FIRE_NEED]))
-    assert [line["code"] for line in compact_lines(only_fix, SLOT)] == ["FIX_FIRST_RESOLVED"]
-    assert compact_lines(only_fix, SLOT, claimed=["fire_res"]) == []
+    assert [line["text"] for line in compact_lines(only_fix, SLOT)] == ["Fixes your current #1 priority: Fire Resistance reaches the cap (58% → 75%)."]
+    assert [line["text"] for line in compact_lines(only_fix, SLOT, claimed=["fire_res"])] == ["Fixes your current #1 priority: Fire Resistance."]
+    second = _context(_item_result(outcome, candidate=PLAIN_RING, replaced=PLAIN_RING),
+                      _snapshot(needs=[{"code": "RES_CAP_MISSING", "severity": "critical", "metric": "cold_res", "deficit": 9.0}, FIRE_NEED]))
+    assert compact_lines(second, SLOT)[0]["text"].startswith("Fixes a current priority: Fire Resistance")
     bare = _model(outcome, {})
     apply_compact_tooltip(bare)
     assert bare["build_context_lines"] == [] and bare["primary_reasons"] == model["primary_reasons"]
