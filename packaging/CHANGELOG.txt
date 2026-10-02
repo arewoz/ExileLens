@@ -7,9 +7,10 @@ EXILELENS CHANGELOG
 
 - **Can't-equip warning:** Item Check marks items whose level or attribute requirements you cannot meet as NOT VIABLE.
 - **Build freshness:** the Overview warns when the PoB build file changed or is old.
-- **PoB auto-detect:** finds Path of Building via the registry, shortcuts and common folders.
+- **PoB auto-detect:** finds Path of Building via the registry, shortcuts and common folders; Detect button in Overview, Settings and Setup.
 - **Update awareness:** in-app update notice; checks when the dashboard opens.
 - **Build Intelligence:** Analyze Build now opens with BUILD PRIORITIES, measured from your own build.
+- **Fix:** clicking outside the tooltip dismisses it even when an ExileLens window sits behind the game.
 
 0.5.0b1
 -------

@@ -2,7 +2,9 @@
 
 Early beta for Windows. Item Check uses your selected Path of Building for Path of Exile 2 and shows upgrade / downgrade guidance in an overlay.
 
-## What's new in 0.6.0
+## Highlights
+
+### New in 0.6.0
 
 - **Can't-equip warning:** items whose level or attribute requirements you cannot meet are shown as NOT VIABLE.
 - **Build freshness:** the Overview warns when your PoB build file changed on disk or is old.
@@ -10,8 +12,6 @@ Early beta for Windows. Item Check uses your selected Path of Building for Path 
 - **Update awareness:** in-app update notice and a check when the dashboard opens.
 - **Build Intelligence:** Analyze Build opens with BUILD PRIORITIES measured from your own build.
 - **Fix:** clicking outside the tooltip now dismisses it even when an ExileLens window sits behind the game.
-
-## Highlights
 
 ### Diagnostics and support
 
