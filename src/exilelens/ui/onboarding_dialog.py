@@ -45,6 +45,8 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
         self._build_card, self._build_status, self._build_detail, self._build_action = self._card("Current Build", "Choose build")
         self._item_card, self._item_status, self._item_detail, _ = self._card("Item Check", "")
         root.addWidget(self._pob_card); root.addWidget(self._build_card); root.addWidget(self._item_card)
+        self._pob_detect = make_button("Detect", "secondary"); self._pob_card.layout().insertWidget(1, self._pob_detect, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._pob_detect.clicked.connect(self._detect_pob)
         self._pob_action.clicked.connect(self._choose_pob); self._build_action.clicked.connect(self._choose_build)
         footer = QHBoxLayout(); self._diagnostics = make_button("Diagnostics", "tertiary"); self._diagnostics.clicked.connect(self._open_diagnostics)
         footer.addWidget(self._diagnostics); footer.addStretch(1)
@@ -81,7 +83,7 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
         self._overall.set_value("Ready" if status.ready else ("Needs attention" if tone == "error" else "Setup required" if tone == "warn" else "Initializing"), tone)
         pob_bad = status.state is AppReadiness.POB_NOT_FOUND
         self._pob_status.set_value("Not found" if pob_bad else ("Needs attention" if status.state is AppReadiness.RUNTIME_ERROR else "Detected"), "error" if pob_bad or status.state is AppReadiness.RUNTIME_ERROR else "ok")
-        self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure" if pob_bad else "Change")
+        self._pob_detail.setText(self._pob_text()); self._pob_action.setText("Configure" if pob_bad else "Change"); self._pob_detect.setVisible(pob_bad)
         build_text = "Ready" if status.ready else "Loading…" if status.state is AppReadiness.BUILD_LOADING else "Couldn’t be loaded" if status.state is AppReadiness.BUILD_ERROR else "Build required"
         self._build_status.set_value(build_text, "ok" if status.ready else tone)
         self._build_detail.setText(status.detail if status.state in {AppReadiness.BUILD_ERROR, AppReadiness.BUILD_LOADING} else (getattr(self.controller.build_info, "name", "") or "Choose the PoB build you play."))
@@ -97,6 +99,10 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
         else:
             self._subtitle.setText("Get ExileLens ready for item checks")
             self._item_card.setStyleSheet("")
+
+    def _detect_pob(self) -> None:
+        from exilelens.ui.pob_detect import detect_pob_path
+        if path := detect_pob_path(self): self.settings.pob_path = path; save_settings(self.settings); self.controller.restart_engine(); self.refresh()
 
     def _choose_pob(self) -> None:
         from exilelens.ui.setup_dialog import pick_pob_directory
