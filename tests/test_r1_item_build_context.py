@@ -99,8 +99,9 @@ def test_01_strong_relevant_stat_gain_is_explained_after_the_measured_result() -
     context = _context(_item_result(UPGRADE), _snapshot())
     assert context["status"] == AVAILABLE and context["uses_build_intelligence"] is True
     assert _codes(context) == ["HIGH_RESPONSE_GAIN", "HIGH_RESPONSE_GAIN"]
-    assert _texts(context)[0] == "Adds Spell Skill Levels (+2) — your build's strongest measured damage response."
-    assert _texts(context)[1] == "Adds Cast Speed (24%) — one of your build's strongest measured damage responses."
+    assert _texts(context)[0] == "Spell Skill Levels is your strongest measured damage response."
+    assert _texts(context)[1] == "Cast Speed is among your strongest measured damage responses."
+    assert context["slots"][SLOT][0]["directed"] == "More Spell Skill Levels — your strongest measured damage response."
     assert context["slots"][SLOT][0]["detail"] == "Tested +1 to Level of all Spell Skills → Damage +8.7%."
     for text in _texts(context):  # sensitivity describes the stat; it never claims the item's value
         assert "best" not in text.lower() and "upgrade" not in text.lower()
@@ -110,9 +111,10 @@ def test_02_strong_relevant_stat_loss() -> None:
     downgrade = _outcome("MINOR_DOWNGRADE", [_delta("primary_offense", -6.0)])
     context = _context(_item_result(downgrade, candidate=PLAIN_RING, replaced=CASTER_RING), _snapshot())
     assert _codes(context) == ["HIGH_RESPONSE_LOSS", "HIGH_RESPONSE_LOSS"]
-    assert _texts(context)[0] == "Loses Spell Skill Levels (+2) — your build's strongest measured damage response."
+    assert context["slots"][SLOT][0]["directed"] == "Less Spell Skill Levels — your strongest measured damage response."
     less = _context(_item_result(downgrade, candidate=CASTER_RING.replace("24%", "8%"), replaced=CASTER_RING), _snapshot())
-    assert _texts(less) == ["Less Cast Speed than your current item (8% vs 24%) — one of your build's strongest measured damage responses."]
+    assert [note["directed"] for note in less["slots"][SLOT]] == ["Less Cast Speed — among your strongest measured damage responses."]
+    assert less["slots"][SLOT][0]["item_line"] == "8% on this item, 24% on the current one"  # diagnostic only, never rendered
 
 
 def test_03_resistance_cap_break_states_the_actual_values() -> None:
@@ -162,7 +164,7 @@ def test_07_multi_axis_gain_keeps_every_measured_axis() -> None:
     context = _context(_item_result(UPGRADE, candidate=ring, replaced=PLAIN_RING), _snapshot())
     assert "MULTI_AXIS_GAIN" in _codes(context)
     note = next(n for n in context["slots"][SLOT] if n["code"] == "MULTI_AXIS_GAIN")
-    assert note["text"] == "Adds Intelligence (+25) — a multi-impact stat for your build."
+    assert note["text"] == "Intelligence is a multi-impact stat for this build."
     assert note["detail"] == "Tested +20 to Intelligence → Damage +2.1% · ES +4.3% · Mana +3.0%."
 
 
@@ -172,7 +174,7 @@ def test_08_no_build_intelligence_keeps_the_direct_explanation_and_adds_no_sensi
     assert context["status"] == NOT_ANALYZED and context["uses_build_intelligence"] is False
     assert _codes(context) == [] and context["hint"] and not context["basis"]
     assert compact_lines(context, SLOT) == []
-    assert detail_lines(context, SLOT) == [bc.HINT_NOT_ANALYZED]  # More Info only says how to get build context
+    assert detail_lines(context, SLOT) == []  # no analysis: More Info gets no build-context section at all
 
 
 def test_09_stale_build_intelligence_is_never_used() -> None:
@@ -267,8 +269,8 @@ def test_tooltip_panel_paints_build_context_after_the_measured_reasons() -> None
     painted = [widget.text() for widget in panel._why_widgets]
     assert painted[0].startswith("• Damage improves by 7.2%")  # the measured result is read first
     assert painted[1:] == [
-        "• Adds Spell Skill Levels (+2) — your build's strongest measured damage response.",
-        "• Adds Cast Speed (24%) — one of your build's strongest measured damage responses.",
+        "◦ More Spell Skill Levels — your strongest measured damage response.",
+        "◦ More Cast Speed — among your strongest measured damage responses.",
     ]
     plain = _model(UPGRADE, {})
     apply_compact_tooltip(plain)
@@ -279,18 +281,19 @@ def test_tooltip_panel_paints_build_context_after_the_measured_reasons() -> None
 def test_compact_tooltip_does_not_repeat_cap_breaks_or_blockers_it_already_states() -> None:
     outcome = _outcome("SIDEGRADE", [_delta("primary_offense", 9.0)], resistances=[_res_row("fire", "CAP_LOST", 75.0, 58.0)])
     context = _context(_item_result(outcome, candidate=PLAIN_RING, replaced=PLAIN_RING), _snapshot())
-    assert compact_lines(context, SLOT) == []
-    assert detail_lines(context, SLOT) == ["Fire Resistance falls from 75% to 58%, below the 75% cap."]
+    assert compact_lines(context, SLOT) == [] and detail_lines(context, SLOT) == []
+    assert _codes(context) == ["RESISTANCE_CAP_BROKEN"]  # still in the structured payload
 
 
-def test_more_info_adds_a_for_your_build_section_after_why_and_states_the_source() -> None:
+def test_more_info_adds_a_build_context_section_after_why_and_states_the_source() -> None:
     context = _context(_item_result(UPGRADE), _snapshot())
     info = build_more_info(_model(UPGRADE, context))
     ids = info["section_ids"]
     assert ids.index("build_context") == ids.index("why_verdict") + 1
     section = next(s for s in info["sections"] if s["id"] == "build_context")
-    assert section["title"] == "FOR YOUR BUILD"
-    assert section["lines"][0].endswith("Tested +1 to Level of all Spell Skills → Damage +8.7%.")
+    assert section["title"] == "BUILD CONTEXT"
+    assert section["lines"][0] == ("More Spell Skill Levels — your strongest measured damage response. "
+                                   "Tested +1 to Level of all Spell Skills → Damage +8.7%.")
     assert section["lines"][-1] == bc.BASIS and "testing this exact item" in bc.BASIS
     assert "build_context" not in build_more_info(_model(UPGRADE, {}))["section_ids"]
 
@@ -321,3 +324,93 @@ def test_explanation_enrichment_needs_no_engine_and_player_text_has_no_internal_
     text = " ".join(detail_lines(context, SLOT) + [line["text"] for line in compact_lines(context, SLOT)])
     for internal in ("SPELL_SKILL_LEVELS", "CAST_SPEED", "probe", "hash1", "Build Value", "NO_SIGNAL", "MEASURED"):
         assert internal not in text
+
+
+# ------------------------------------------- polish: direct evidence vs build context
+#
+# The direct explanation owns every item delta. Build context says why a stat matters and never prints a second,
+# differently measured number for the same stat (the item's modifier line vs the build-level change).
+
+LIFE_RING = "Rarity: RARE\nOld Loop\nRuby Ring\n--------\n+89 to maximum Life\n+70 to maximum Energy Shield\n"
+WEAK_RING = "Rarity: RARE\nNew Loop\nRuby Ring\n--------\n+46 to maximum Energy Shield\n"
+KEEP = _outcome("MEANINGFUL_DOWNGRADE", [_delta("ehp", -9.0)])
+
+
+def _edge_model(outcome, context, lines, rows=()):
+    model = _model(outcome, context)
+    model["current_edge"] = {"title": "WHY CURRENT WINS", "lines": [{"text": line} for line in lines]}
+    model["rows"] = list(rows)
+    return model
+
+
+def _no_item_delta(text: str) -> bool:
+    return not any(ch.isdigit() for ch in text) and not text.startswith(("Loses", "Less", "More", "Adds")) and " vs " not in text
+
+
+def test_direct_life_reason_and_life_context_do_not_make_two_conflicting_life_lines() -> None:
+    context = _context(_item_result(KEEP, candidate=WEAK_RING, replaced=LIFE_RING), _snapshot())
+    model = _edge_model(KEEP, context, ["+96 Maximum Life", "+458 Energy Shield"])
+    apply_compact_tooltip(model)
+    assert [line["text"] for line in model["primary_reasons"]] == ["+96 Maximum Life", "+458 Energy Shield"]  # direct evidence, untouched
+    texts = [line["text"] for line in model["build_context_lines"]]
+    assert texts == ["Energy Shield is your strongest measured EHP / Max Hit response.", "Life is among your strongest measured EHP responses."]
+    assert all(_no_item_delta(text) for text in texts)
+    everything = " ".join([line["text"] for line in model["primary_reasons"]] + texts)
+    assert "+89" not in everything and "+46" not in everything and "+70" not in everything  # one measure of the delta, not two
+
+
+def test_movement_speed_named_by_the_direct_why_gets_importance_only() -> None:
+    boots_old = "Rarity: RARE\nOld Step\nBoots\n--------\n30% increased Movement Speed\n"
+    boots_new = "Rarity: RARE\nNew Step\nBoots\n--------\n20% increased Movement Speed\n"
+    outcome = _outcome("MINOR_DOWNGRADE", [_delta("movement_speed", -7.0)])
+    context = _context(_item_result(outcome, candidate=boots_new, replaced=boots_old, slot="Boots"), _snapshot())
+    model = {"evaluation_outcome": {**outcome, "replacement_slot": "Boots"}, "rows": [], "warning_groups": [], "build_context": context}
+    apply_compact_tooltip(model)
+    assert any(line.get("metric") == "movement_speed" for line in model["primary_reasons"])
+    assert [line["text"] for line in model["build_context_lines"]] == ["Movement Speed is your strongest measured movement response."]
+
+
+def test_a_stat_the_direct_why_does_not_name_gets_its_direction_but_never_an_amount() -> None:
+    context = _context(_item_result(KEEP, candidate=PLAIN_RING, replaced=CASTER_RING), _snapshot())
+    model = _edge_model(KEEP, context, ["+96 Maximum Life"])
+    apply_compact_tooltip(model)
+    texts = [line["text"] for line in model["build_context_lines"]]
+    assert texts == ["Less Spell Skill Levels — your strongest measured damage response.",
+                     "Less Cast Speed — among your strongest measured damage responses."]
+    assert not any(ch.isdigit() for text in texts for ch in text)
+
+
+def test_cap_warning_stays_visible_and_context_stays_within_its_budget() -> None:
+    outcome = _outcome("MEANINGFUL_DOWNGRADE", [_delta("ehp", -9.0)], resistances=[_res_row("fire", "CAP_LOST", 75.0, 58.0)])
+    ring = CASTER_RING + "+25 to Intelligence\n10% increased Movement Speed\n"
+    context = _context(_item_result(outcome, candidate=WEAK_RING, replaced=ring + "+89 to maximum Life\n"), _snapshot())
+    rows = [{"key": "fire_res", "cap_state": "CAP_LOST", "label": "Fire Res"}]
+    model = _edge_model(outcome, context, ["+17 Fire Resistance", "+96 Maximum Life"], rows)
+    apply_compact_tooltip(model)
+    assert "⚠ Breaks Fire Resistance cap" in model["critical_notes"]
+    assert len(model["build_context_lines"]) <= bc.MAX_COMPACT_LINES == 2
+    assert len(context["slots"][SLOT]) > bc.MAX_COMPACT_LINES  # there was more to say; the tooltip stays compact
+    assert all("Fire" not in line["text"] for line in model["build_context_lines"])
+
+
+def test_a_result_that_favours_the_current_item_leads_with_what_the_candidate_gives_up() -> None:
+    mixed = "Rarity: RARE\nMixed Loop\nRuby Ring\n--------\n+2 to Level of all Spell Skills\n"
+    context = _context(_item_result(KEEP, candidate=mixed, replaced=LIFE_RING), _snapshot())
+    assert _codes(context)[0] == "HIGH_RESPONSE_LOSS" and "HIGH_RESPONSE_GAIN" in _codes(context)
+    upgrade = _context(_item_result(UPGRADE, candidate=mixed, replaced=LIFE_RING), _snapshot())
+    assert _codes(upgrade)[0] == "HIGH_RESPONSE_GAIN"
+
+
+def test_more_info_build_context_does_not_repeat_key_impact_numbers() -> None:
+    outcome = _outcome("MEANINGFUL_DOWNGRADE", [_delta("ehp", -9.0), _delta("life", -4.0), _delta("energy_shield", -6.0)])
+    context = _context(_item_result(outcome, candidate=WEAK_RING, replaced=LIFE_RING), _snapshot())
+    info = build_more_info(_model(outcome, context))
+    section = next(s for s in info["sections"] if s["id"] == "build_context")
+    assert section["title"] == "BUILD CONTEXT"
+    assert section["lines"][0] == ("Energy Shield is your strongest measured EHP / Max Hit response. "
+                                   "Tested +50 to maximum Energy Shield → EHP +3.1% · Max Hit +2.0%.")
+    assert section["lines"][1].startswith("Life is among your strongest measured EHP responses.")
+    joined = " ".join(section["lines"])
+    for repeated in ("+89", "+46", "+70", " vs ", "-9.0", "9.0%", "Loses", "than your current item"):
+        assert repeated not in joined
+    assert len(section["lines"]) <= bc.MAX_DETAIL_LINES + 1

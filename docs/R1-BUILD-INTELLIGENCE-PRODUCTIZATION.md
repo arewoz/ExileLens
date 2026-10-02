@@ -16,7 +16,7 @@ After R1 a player can answer, without knowing any ExileLens internals:
 | Which tested stats give the strongest measured response? | Analyze Build → **STRONGEST MEASURED RESPONSES** |
 | What helps my damage / my survivability? | Analyze Build → DAMAGE, EHP, MAX HIT lanes |
 | Which stats help several things at once? | Analyze Build → MULTI-IMPACT |
-| Why is this item good for my build? What does it break? | Item Check tooltip and More Info → **FOR YOUR BUILD** |
+| Why is this item good for my build? What does it break? | Item Check tooltip and More Info → **BUILD CONTEXT** |
 
 The product rule is unchanged: **the direct candidate-vs-equipped PoB evaluation decides whether an item is better.**
 Build Intelligence only explains. It is not a second verdict.
@@ -132,7 +132,7 @@ build load made an Analyze Build that yielded to Item Check report "cancelled" i
 The tooltip hierarchy is: verdict → measured gains and losses (the existing deterministic Why) → build context → critical
 notes. Build context is appended below the measured reasons (at most two lines in the compact tooltip, never replacing one),
 and facts the tooltip already states (a cap break, a requirement blocker, a metric the Why already explains) are not
-repeated. More Info gets a **FOR YOUR BUILD** section directly after **WHY THIS VERDICT**, with the evidence for each note
+repeated. More Info gets a **BUILD CONTEXT** section directly after **WHY THIS VERDICT**, with the evidence for each note
 (`Tested +1 to Level of all Spell Skills → Damage +8.7%.`) and the line: "Build context comes from your last Analyze Build.
 The verdict comes from testing this exact item in Path of Building."
 
@@ -238,6 +238,71 @@ Not currently supported: Life regeneration, Energy Shield regeneration and Mana 
 `tests/test_r1_strongest_responses.py` (10), `tests/test_r1_item_build_context.py` (20: the twelve required fixtures,
 resource semantics, tooltip / More Info wiring, unchanged verdict and Why), `tests/test_r1_analyze_build_ui.py` (17: view
 wording, page states, slot / Search Intent / indexing, controller cache and no-analysis-on-Item-Check).
+
+## Final UX polish: direct evidence vs build context
+
+This section supersedes the wording examples above where they differ.
+
+### Two kinds of statement, never mixed
+
+| | Direct evidence | Build context |
+|---|---|---|
+| Source | The candidate-vs-equipped PoB evaluation of this exact item | The last Analyze Build of this build |
+| Says | What changes: verdict, BUILD IMPACT rows, Why / "Why current wins" lines, cap and requirement warnings | Why a changed stat matters to this build |
+| Numbers | Owns every item delta | None about the item. Only the tested change and its measured response, in More Info |
+
+Build context explains importance; direct Item Check explains the actual candidate delta.
+
+**Why the two numbers disagreed.** A line such as `+96 Maximum Life` in "Why current wins" is the build-level difference PoB
+reports between the two items (baseline `Life` minus candidate `Life`), so it includes everything that scales the modifier:
+increased Life, attributes, other gear. The `+89` the first R1 cut printed beside it was the flat `+89 to maximum Life` line
+written on the item. Likewise `+458 Energy Shield` is the build's total Energy Shield difference (local base Energy Shield
+and its increases included) while `+46 vs +70` compared only the flat "to maximum Energy Shield" lines. Both were correct
+and neither was a bug, but they measure different things, and unlabelled they read as a contradiction. The modifier-line
+amounts are still recorded in the structured note (`item_line`) and are not rendered.
+
+Rules now applied by `items/build_context.py`:
+
+* A response note is an importance sentence with no amount: `Life is among your strongest measured EHP responses.`,
+  `Movement Speed is your strongest measured movement response.`
+* If the direct explanation already names the stat (an impact row, a Why line, a "Why current wins" line), only that
+  sentence is shown. If it does not, the direction is added, still without an amount: `Less Cast Speed — among your
+  strongest measured damage responses.`
+* Cap breaks and requirement blockers are stated once, by the direct surfaces. The matching direct notes stay in the
+  structured payload and are not rendered a second time.
+* A result that favours the current item lists what the candidate gives up first.
+* Compact tooltip: at most two context lines, painted quieter (`◦`) under the measured reasons; warnings such as
+  `⚠ Breaks Fire Resistance cap` are unaffected and stay above everything contextual in priority.
+* More Info: section **BUILD CONTEXT** after WHY THIS VERDICT, at most four lines plus the source line, each with its
+  evidence (`Tested +50 to maximum Life → EHP +2.4%.`). It is omitted when there is nothing to say; without an analysis
+  there is no section (the earlier one-line hint was removed).
+
+### Analyze Build wording
+
+| Was (internal) | Now (default view) |
+|---|---|
+| `BUILD PRIORITIES` list with rows like `GLOVES MEDIUM 57` | `BUILD PRIORITIES` summary row, then heading `UPGRADE OPPORTUNITIES` with rows like `Gloves — Medium opportunity`, `Weapon 1 — Limited analysis` |
+| `addresses LOW_CHAOS_RES` | `Can help cap Chaos Resistance` |
+| `can repair missing fire res +17 to cap` | `Can cap Fire Resistance (+17% needed)` |
+| `Life has high marginal value` | `Life is among this build's strongest measured EHP / Max Hit responses` when Build Priorities back it, otherwise `Life is valuable for this build` |
+| `current item contributes little offense` | `Your current item adds little damage` |
+| `ANALYSIS LIMITED` / `Weapon / offhand probing is not trustworthy in Phase 5A` | `Limited analysis` / `Weapon analysis is currently limited.` |
+| Every tested stat incl. `+0.0%` rows, with Build Value | `MEASURED ON THIS SLOT`: only tests that moved Damage or EHP by 1% or more, or reach a cap |
+| Raw Search Intent tiers, `Required: chaos_res` | `USEFUL STATS`: the stat names from the required / high value / useful tiers |
+| Full `C:\...\Builds\name.xml` in the header | `Name · Skill · Loadout · Context`; the path is the header tooltip and a details line |
+| `+1 to Level of all Spell Skills` / `Tied with +1 to Level of all Projectile Skills` on cards | `+1 Spell Skill Level` / `Tied: +1 Projectile Skill Level` (exact tested line in the card tooltip and in the lanes) |
+| Multi-impact `—` / `No measurable response` | `No multi-impact stat measured` |
+
+The selected slot reads: CURRENT ITEM, WHY THIS SLOT MATTERS, USEFUL STATS, MEASURED ON THIS SLOT, and LIMITATIONS only
+when there is one. Every line is a translation of data the analysis already produced; no reason is invented and nothing
+claims an item is an upgrade.
+
+**Why the opportunity number is hidden.** The slot order and its 0–100 value come from the existing opportunity heuristic
+(need bumps + the best profile-scored test on the slot + how little the current item contributes). It orders slots; it is
+not a measurement, not a market ranking and not a claim that a slot is the best upgrade, and it depends on the value
+profile. The order is unchanged; the default view shows the band in words. The number, Build Value, driver texts, the full
+test table and the Search Intent tiers are all still there under **Show measurement details**, which also reveals
+**Copy Search Intent** and **Export JSON**. Neither list nor detail pane uses a horizontal scrollbar.
 
 ## Known limitations
 

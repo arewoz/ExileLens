@@ -8,8 +8,10 @@ ones in `strongest.STATUS_LABELS`.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Mapping
 
+from exilelens.analysis.priorities import MEANINGFUL_PERCENT
 from exilelens.analysis.strongest import MEASURED, NOT_PER_POINT, STATUS_LABELS, strongest_responses
 
 _MAX_LISTED = 8
@@ -37,8 +39,39 @@ def _join(names: list[str]) -> str:
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
+_SHORT_FORMS = (
+    (re.compile(r"^\+1 to Level of all (.+) Skills$"), r"+1 \1 Skill Level"),
+    (re.compile(r"^\+(\d+) to Level of all (.+) Skills$"), r"+\1 \2 Skill Levels"),
+    (re.compile(r"^Minions have (\d+)% increased (.+)$"), r"\1% Minion \2"),
+    (re.compile(r"^(\d+(?:\.\d+)?)% increased (.+)$"), r"\1% \2"),
+    (re.compile(r"^\+(\d+) to maximum (.+)$"), r"+\1 \2"),
+    (re.compile(r"^\+(\d+)(%?) to (.+)$"), r"+\1\2 \3"),
+)
+
+
+def short_change(tested_change: Any) -> str:
+    """The tested change in card length: same stat, same increment, fewer words (`+1 Spell Skill Level`)."""
+    text = str(tested_change or "").strip()
+    for pattern, form in _SHORT_FORMS:
+        if pattern.match(text):
+            return pattern.sub(form, text)
+    return text
+
+
+def display_name(name: Any) -> str:
+    """A build name fit for a header: a file path collapses to its file name without the extension."""
+    text = str(name or "").strip()
+    if "\\" in text or "/" in text or text.lower().endswith(".xml"):
+        text = re.split(r"[\\/]", text)[-1]
+        text = re.sub(r"\.xml$", "", text, flags=re.I)
+    return text
+
+
 def _tile(key: str, caption: str, entry: Mapping[str, Any]) -> dict[str, Any]:
     if entry.get("status") != MEASURED:
+        # An axis nothing moved is a finding, not a failure; a multi-impact stat simply may not exist for a build.
+        if key == "multi_impact" and entry.get("status") == "NO_MEASURABLE_RESPONSE":
+            return {"key": key, "caption": caption, "value": "", "change": "No multi-impact stat measured", "measured": False}
         return {"key": key, "caption": caption, "value": "—", "change": STATUS_LABELS.get(str(entry.get("status")), ""), "measured": False}
     if "responses" in entry:
         value = " · ".join(f"{name} {percent(amount)}" for name, amount in entry["responses"].items())
@@ -48,8 +81,9 @@ def _tile(key: str, caption: str, entry: Mapping[str, Any]) -> dict[str, Any]:
     if entry.get("limited_confidence"):
         note = "Limited confidence"
     elif entry.get("tied_with"):
-        note = "Tied with " + _join([str(name) for name in entry["tied_with"]])
-    return {"key": key, "caption": caption, "value": value, "change": str(entry.get("tested_change") or ""), "note": note, "measured": True}
+        note = "Tied: " + ", ".join(short_change(name) for name in entry["tied_with"])
+    full = str(entry.get("tested_change") or "")
+    return {"key": key, "caption": caption, "value": value, "change": short_change(full), "tested_change": full, "note": note, "measured": True}
 
 
 def _tiles(strongest: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -165,7 +199,8 @@ def build_analysis_view(result: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "has_priorities": bool(priorities),
         "build": {
-            "name": str(baseline.get("build_name") or "") or "Loaded build",
+            "name": display_name(baseline.get("build_name")) or display_name(baseline.get("build_path")) or "Loaded build",
+            "source_path": str(baseline.get("build_path") or ""),
             "main_skill": str(skill or ""),
             "loadout": str(baseline.get("loadout") or ""),
             "context": str(baseline.get("context") or ""),
@@ -181,6 +216,145 @@ def build_analysis_view(result: Mapping[str, Any]) -> dict[str, Any]:
         "coverage": _coverage(result, priorities) if priorities else [],
         "coverage_basis": str((priorities.get("coverage") or {}).get("basis") or ""),
         "details": _details(result, priorities) if priorities else [],
+    }
+
+
+# ----------------------------------------------------------------------- slot view
+#
+# The slot ordering and its 0-100 number are the existing opportunity heuristic (`analysis.opportunity`): a sum of
+# need bumps, the best profile-scored test on the slot and how little the current item contributes. It is an ordering
+# aid, not a measurement and not a claim that the slot is the best upgrade, so the page shows its band in words and
+# keeps the number, Build Value, reason codes and the Search Intent tiers for the measurement details.
+
+_ELEMENTS = {"fire": "Fire", "cold": "Cold", "lightning": "Lightning", "chaos": "Chaos"}
+_BAND_WORDS = {"VERY HIGH": "Very high opportunity", "HIGH": "High opportunity", "MEDIUM": "Medium opportunity", "LOW": "Low opportunity"}
+_LIMITED = "Weapon analysis is currently limited."
+_MAX_SLOT_STATS = 6
+_REPAIR = re.compile(r"missing (\w+) res(?: \+([\d.]+) to cap)?")
+_AXIS_WORDS = (("offense", "damage"), ("ehp", "EHP"), ("max_hit", "Max Hit"), ("mobility", "movement"))
+
+
+def slot_label(product_slot: Any) -> str:
+    return str(product_slot or "").replace("_", " ").title()
+
+
+def slot_row_text(slot: Mapping[str, Any]) -> str:
+    """One row of the UPGRADE OPPORTUNITIES list: the slot and its band in words. Never the internal number."""
+    opportunity = slot.get("opportunity") or {}
+    if slot.get("analysis_limited") or opportunity.get("analysis_limited"):
+        return f"{slot_label(slot.get('product_slot'))} — Limited analysis"
+    band = _BAND_WORDS.get(str(opportunity.get("band") or "").upper(), "")
+    return f"{slot_label(slot.get('product_slot'))} — {band}" if band else slot_label(slot.get("product_slot"))
+
+
+def _strong_axes(priorities: Mapping[str, Any], label: str) -> list[str]:
+    return [
+        word for lane, word in _AXIS_WORDS
+        if any(row.get("label") == label and float(row.get("response_percent") or 0.0) >= MEANINGFUL_PERCENT for row in priorities.get(lane) or [])
+        and not (lane == "offense" and priorities.get("offense_limited_confidence"))
+    ]
+
+
+def _driver_text(driver: Mapping[str, Any], priorities: Mapping[str, Any]) -> str:
+    """One opportunity driver in player words. Only what the driver itself establishes is said."""
+    kind, text = str(driver.get("kind") or ""), str(driver.get("text") or "")
+    if kind == "critical":
+        match = _REPAIR.search(text)
+        if match:
+            needed = f" (+{float(match.group(2)):g}% needed)" if match.group(2) else ""
+            return f"Can cap {_ELEMENTS.get(match.group(1), match.group(1).title())} Resistance{needed}"
+        return "Can fix an urgent build problem"
+    if kind == "high":
+        return "Can help cap Chaos Resistance" if driver.get("code") == "LOW_CHAOS_RES" else "Can help with a build problem"
+    if kind == "marginal":
+        label = text.replace(" has high marginal value", "")
+        axes = _strong_axes(priorities, label)
+        if axes:
+            return f"{label} is among this build's strongest measured {' / '.join(axes)} responses"
+        return f"{label} is valuable for this build"
+    if kind == "breakpoint":
+        return f"More {text.replace(' crosses a breakpoint', '')} reaches its cap"
+    if kind == "contribution":
+        return "Your current item adds little damage" if "little" in text else "Your current item adds only modest damage"
+    if kind == "note":
+        return "This slot already performs well"
+    return ""
+
+
+def _intent_stat(row: Mapping[str, Any]) -> str:
+    name = str(row.get("display_name") or "")
+    if name:
+        return name
+    stat = str(row.get("stat") or "")
+    if stat.endswith("_res"):
+        return f"{_ELEMENTS.get(stat[:-4], stat[:-4].title())} Resistance"
+    return stat.replace("_", " ").title()
+
+
+def _measured_line(probe: Mapping[str, Any]) -> str:
+    """A tested stat worth showing by default: it moved damage or EHP meaningfully, or it reaches a cap."""
+    change = short_change(probe.get("line") or probe.get("display_name"))
+    parts = [
+        f"{name} {percent(value)}"
+        for name, value in (("Damage", probe.get("offense_percent")), ("EHP", probe.get("ehp_percent")))
+        if value is not None and abs(float(value)) >= MEANINGFUL_PERCENT
+    ]
+    if any(event.get("code") == "CAP_REACHED" for event in probe.get("breakpoints") or []):
+        parts.append("reaches the resistance cap")
+    return f"{change} → {' · '.join(parts)}" if parts else ""
+
+
+def _slot_details(result: Mapping[str, Any], slot: Mapping[str, Any]) -> list[str]:
+    """Everything technical about one slot, for the measurement details toggle. Nothing here is removed, only moved."""
+    opportunity = slot.get("opportunity") or {}
+    intent = slot.get("search_intent") or {}
+    lines = [f"Opportunity ordering: {opportunity.get('band')} {opportunity.get('score') if opportunity.get('score') is not None else '—'} "
+             "(internal 0-100 heuristic used to order slots; not a measurement)"]
+    lines += [f"Driver: {driver.get('text')}" for driver in opportunity.get("drivers") or []]
+    for probe in slot.get("probes") or []:
+        if probe.get("status") in {"ok", "NO_SIGNAL"} and probe.get("slot_compatible"):
+            lines.append(
+                f"{probe.get('line') or probe.get('display_name')} → Damage {float(probe.get('offense_percent') or 0):+.1f}%"
+                f" · EHP {float(probe.get('ehp_percent') or 0):+.1f}% · Build Value {float(probe.get('score_delta') or 0):+.1f}"
+            )
+    for tier in ("required", "high_value", "useful", "low_value", "avoid"):
+        names = ", ".join(str(row.get("display_name") or row.get("stat") or "?") for row in intent.get(tier) or []) or "—"
+        lines.append(f"Search Intent {tier}: {names}")
+    source = str((result.get("baseline") or {}).get("build_path") or "")
+    if source:
+        lines.append(f"Build file: {source}")
+    return lines
+
+
+def build_slot_view(result: Mapping[str, Any], slot: Mapping[str, Any]) -> dict[str, Any]:
+    """Product guidance for one equipped slot from the existing analysis data. Pure; invents no reason."""
+    priorities = result.get("build_priorities") or {}
+    opportunity = slot.get("opportunity") or {}
+    intent = slot.get("search_intent") or {}
+    item = slot.get("current_item") or {}
+    limited = bool(slot.get("analysis_limited") or opportunity.get("analysis_limited"))
+    why: list[str] = []
+    for driver in opportunity.get("drivers") or []:
+        text = "" if limited else _driver_text(driver, priorities)
+        if text and text not in why:
+            why.append(text)
+    useful: list[str] = []
+    for tier in ("required", "high_value", "useful"):
+        for row in intent.get(tier) or []:
+            name = _intent_stat(row)
+            if name and name not in useful:
+                useful.append(name)
+    measured = [line for line in (_measured_line(p) for p in slot.get("probes") or [] if p.get("status") == "ok" and p.get("slot_compatible")) if line]
+    return {
+        "slot": slot_label(slot.get("product_slot")),
+        "item_name": str(item.get("name") or "") or "Unnamed item",
+        "item_base": str(item.get("base_name") or ""),
+        "summary": "Limited analysis" if limited else _BAND_WORDS.get(str(opportunity.get("band") or "").upper(), ""),
+        "why": why,
+        "useful_stats": useful[:_MAX_SLOT_STATS],
+        "measured": measured[:_MAX_SLOT_STATS],
+        "limitations": [_LIMITED] if limited else [],
+        "details": _slot_details(result, slot),
     }
 
 

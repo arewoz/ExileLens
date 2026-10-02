@@ -12,6 +12,8 @@ import json
 import time
 from typing import Any, Callable
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -26,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from exilelens.analysis.catalog import ProbeCatalog
-from exilelens.analysis.view import build_analysis_view, progress_text
+from exilelens.analysis.view import build_analysis_view, build_slot_view, display_name, progress_text, slot_row_text
 from exilelens.ui import theme
 from exilelens.ui.components import StatusValue, ThemedCheckBox, button_row, make_button
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
@@ -39,15 +41,6 @@ _INTRO = (
     "It takes a few seconds, runs in the background and never runs during Item Check."
 )
 _MAX_FIX_FIRST = 4
-_RES_NAMES = {"fire_res": "Fire", "cold_res": "Cold", "lightning_res": "Lightning", "chaos_res": "Chaos"}
-
-
-def _fmt_need(need: dict[str, Any]) -> str:
-    element = _RES_NAMES.get(str(need.get("metric") or ""))
-    deficit = need.get("deficit")
-    if element and deficit is not None:
-        return f"{element} Resistance: +{float(deficit):g}% reaches cap"
-    return str(need.get("explanation") or "").rstrip(".") or str(need.get("metric") or "")
 
 
 def _esc(text: Any) -> str:
@@ -73,7 +66,11 @@ class _ResponseTile(QFrame):
         column.setSpacing(2)
         column.addWidget(self.caption)
         column.addWidget(self.value)
+        self.note = QLabel("")
+        self.note.setObjectName("tileNote")
+        self.note.setWordWrap(True)
         column.addWidget(self.change)
+        column.addWidget(self.note)
         column.addStretch(1)
 
     def set_tile(self, tile: dict[str, Any]) -> None:
@@ -86,12 +83,14 @@ class _ResponseTile(QFrame):
         self.value.setObjectName(name)
         self.value.style().unpolish(self.value)
         self.value.style().polish(self.value)
-        change = str(tile.get("change") or "")
-        note = str(tile.get("note") or "")
-        self.change.setText(f"{change}\n{note}" if note else change)
+        self.value.setVisible(bool(self.value.text()))
+        self.change.setText(str(tile.get("change") or ""))
+        self.note.setText(str(tile.get("note") or ""))
+        self.note.setVisible(bool(self.note.text()))
+        self.setToolTip(str(tile.get("tested_change") or ""))  # the exact tested line behind the short form
 
     def text(self) -> str:
-        return " ".join(part for part in (self.caption.text(), self.value.text(), self.change.text()) if part)
+        return " ".join(part for part in (self.caption.text(), self.value.text(), self.change.text(), self.note.text()) if part)
 
 
 class AnalysisWindow(QWidget):
@@ -117,6 +116,7 @@ class AnalysisWindow(QWidget):
         self._result: dict[str, Any] | None = None
         self._view: dict[str, Any] = {}
         self._slots: list[dict[str, Any]] = []
+        self._rows: list[int] = []
         # M5.3: row 0 is the Build Priorities summary when present; slot rows follow.
         self._has_priorities = False
         self._state = IDLE
@@ -178,24 +178,39 @@ class AnalysisWindow(QWidget):
 
         # --- priorities and slots ----------------------------------------------------
         self._list = QListWidget()
+        self._list.setWordWrap(True)
+        self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._list.setMinimumWidth(190)
         self._detail = QTextEdit()
         self._detail.setReadOnly(True)
+        # Text wraps to the pane; the page never needs a horizontal scrollbar.
+        self._detail.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self._detail.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         splitter = QSplitter()
         splitter.addWidget(self._list)
         splitter.addWidget(self._detail)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
+        splitter.setChildrenCollapsible(False)
 
-        self._copy_btn = make_button("Copy Search Intent", "secondary")
+        # Advanced actions: quiet by default, and the two exports only appear with the measurement details.
+        self._slot_selected = False
+        self._details_toggle = ThemedCheckBox("Show measurement details")
+        self._details_toggle.setObjectName("advancedToggle")
+        self._details_toggle.toggled.connect(self._on_details_toggled)
+        self._copy_btn = make_button("Copy Search Intent", "tertiary")
         self._copy_btn.clicked.connect(self._copy_intent)
-        self._set_copy_available(False)
         self._export_btn = make_button("Export JSON", "tertiary")
         self._export_btn.clicked.connect(self._export_json)
         self._export_btn.setEnabled(False)
-        self._details_toggle = ThemedCheckBox("Show measurement details")
-        self._details_toggle.toggled.connect(lambda _checked: self._show_slot(self._list.currentRow()))
-        footer = button_row([self._copy_btn, self._export_btn])
+        footer = QHBoxLayout()
+        footer.setContentsMargins(0, 0, 0, 0)
+        footer.setSpacing(theme.SPACE_SM)
         footer.addWidget(self._details_toggle)
+        footer.addStretch(1)
+        footer.addWidget(self._copy_btn)
+        footer.addWidget(self._export_btn)
+        self._set_copy_available(False)
 
         layout = QVBoxLayout(self)
         margin = 0 if embedded else theme.PAGE_GUTTER
@@ -257,7 +272,7 @@ class AnalysisWindow(QWidget):
     def _build_name(self) -> str:
         if self._view:
             return str(self._view["build"]["name"])
-        return str(getattr(getattr(self.controller, "build_info", None), "name", "") or "")
+        return display_name(getattr(getattr(self.controller, "build_info", None), "name", ""))
 
     def _set_state(self, state: str, detail: str = "") -> None:
         self._state = state
@@ -268,6 +283,7 @@ class AnalysisWindow(QWidget):
         build = self._view.get("build") or {}
         parts = [self._build_name() or "No build loaded", build.get("main_skill"), build.get("loadout"), build.get("context")]
         self._header.setText(" · ".join(str(part) for part in parts if part))
+        self._header.setToolTip(str(build.get("source_path") or ""))  # the file path is one hover away, not in the header
         ready = self._build_ready()
         state = self._state
         self._diagnostics_btn.setVisible(state == ERROR and self._navigate is not None)
@@ -334,21 +350,27 @@ class AnalysisWindow(QWidget):
         self._render_fix_first()
         self._list.clear()
         self._has_priorities = bool(self._view["has_priorities"])
+        # Row map: the priorities summary, then a heading, then one row per slot in the existing opportunity order.
+        self._rows = []
         if self._has_priorities:
             self._list.addItem(QListWidgetItem("BUILD PRIORITIES"))
-        for slot in self._slots:
-            opp = slot.get("opportunity") or {}
-            score = opp.get("score")
-            band = opp.get("band") or ""
-            label = slot.get("product_slot")
-            if score is None:
-                text = f"{label}    {band}"
-            else:
-                text = f"{label}    {band}    {score}"
-            self._list.addItem(QListWidgetItem(text))
+            self._rows.append(-1)
+        if self._slots:
+            heading = QListWidgetItem("UPGRADE OPPORTUNITIES")
+            heading.setFlags(Qt.ItemFlag.NoItemFlags)
+            font = heading.font()
+            font.setPointSizeF(max(font.pointSizeF() - 1.5, 6.0))
+            font.setBold(True)
+            heading.setFont(font)
+            heading.setForeground(QColor(theme.TEXT_MUTED))
+            self._list.addItem(heading)
+            self._rows.append(-2)
+        for index, slot in enumerate(self._slots):
+            self._list.addItem(QListWidgetItem(slot_row_text(slot)))
+            self._rows.append(index)
         self._export_btn.setEnabled(True)
-        if self._has_priorities or self._slots:
-            self._list.setCurrentRow(0)  # priorities first, then the existing slot entries
+        if self._rows:
+            self._list.setCurrentRow(0 if self._has_priorities else 1)  # priorities first, else the first slot
         self._set_state(CURRENT)
 
     def _render_strongest(self) -> None:
@@ -421,82 +443,69 @@ class AnalysisWindow(QWidget):
         return "".join(out)
 
     def _slot_index(self, row: int) -> int:
-        return row - 1 if self._has_priorities else row
+        """Slot index for a list row, or -1 for the priorities summary, the heading, or no row."""
+        return self._rows[row] if 0 <= row < len(self._rows) and self._rows[row] >= 0 else -1
+
+    def _section(self, title: str, lines: list[str], *, muted: bool = False, bullets: bool = True) -> str:
+        if not lines:
+            return ""
+        colour = theme.TEXT_MUTED if muted else theme.TEXT
+        mark = "• " if bullets else ""
+        body = "".join(f"<p style='margin:0 0 3px 0;color:{colour}'>{mark}{_esc(line)}</p>" for line in lines)
+        return f"<p style='margin:12px 0 3px 0;color:{theme.TEXT_MUTED};font-weight:700'>{_esc(title)}</p>{body}"
+
+    def _slot_html(self, slot: dict[str, Any]) -> str:
+        view = build_slot_view(self._result or {}, slot)
+        base = f" <span style='color:{theme.TEXT_MUTED}'>· {_esc(view['item_base'])}</span>" if view["item_base"] else ""
+        summary = f"<p style='margin:0 0 2px 0;color:{theme.TEXT_MUTED}'>{_esc(view['slot'])} · {_esc(view['summary'])}</p>" if view["summary"] else ""
+        out = [
+            f"<p style='margin:0 0 3px 0;color:{theme.TEXT_MUTED};font-weight:700'>CURRENT ITEM</p>",
+            f"<p style='margin:0 0 2px 0;color:{theme.TEXT_EMPHASIS};font-weight:700'>{_esc(view['item_name'])}{base}</p>",
+            summary,
+            self._section("WHY THIS SLOT MATTERS", view["why"]),
+            self._section("USEFUL STATS", [" · ".join(view["useful_stats"])] if view["useful_stats"] else [], bullets=False),
+            self._section("MEASURED ON THIS SLOT", view["measured"]),
+            self._section("LIMITATIONS", view["limitations"], bullets=False),
+        ]
+        if self._details_toggle.isChecked():
+            out.append(self._section("MEASUREMENT DETAILS", view["details"], muted=True, bullets=False))
+        return "".join(out)
 
     def _show_slot(self, row: int) -> None:
-        if self._has_priorities and row == 0:
+        if 0 <= row < len(self._rows) and self._rows[row] == -1:
             self._set_copy_available(False)
             self._detail.setHtml(self._priorities_html())
             return
-        row = self._slot_index(row)
-        if row < 0 or row >= len(self._slots):
+        index = self._slot_index(row)
+        if index < 0:
             self._set_copy_available(False)
             self._detail.clear()
             return
         self._set_copy_available(True)
-        slot = self._slots[row]
-        item = slot.get("current_item") or {}
-        opp = slot.get("opportunity") or {}
-        intent = slot.get("search_intent") or {}
-        lines = [
-            "CURRENT ITEM",
-            f"{item.get('name') or '(unnamed)'}  ({item.get('base_name') or ''})",
-            "",
-            "UPGRADE OPPORTUNITY",
-            f"{opp.get('band')}  {opp.get('score') if opp.get('score') is not None else '—'}",
-        ]
-        for driver in opp.get("drivers") or []:
-            lines.append(f"  · {driver.get('text')}")
-        lines.append("")
-        lines.append("BUILD NEEDS THIS SLOT CAN ADDRESS")
-        urgent = [need for need in (self._result or {}).get("needs") or [] if need.get("severity") in {"critical", "high"}]
-        if not urgent:
-            lines.append("  (none)")
-        for need in urgent:
-            lines.append(f"  · {_fmt_need(need)}")
-        lines.append("")
-        lines.append("TESTED STATS ON THIS SLOT")
-        shown = 0
-        for probe in slot.get("probes") or []:
-            if probe.get("status") not in {"ok", "NO_SIGNAL"}:
-                continue
-            if not probe.get("slot_compatible"):
-                continue
-            bp = probe.get("breakpoints") or []
-            cap = " → reaches cap" if any(event.get("code") == "CAP_REACHED" for event in bp) else ""
-            lines.append(
-                f"  {probe.get('line') or probe.get('display_name')}"
-                f" → Damage {probe.get('offense_percent') or 0:+.1f}%"
-                f" · Build Value {probe.get('score_delta') or 0:+.1f}{cap}"
-            )
-            shown += 1
-            if shown >= 12:
-                break
-        if shown == 0 and slot.get("analysis_limited"):
-            lines.append("  Weapon slots are not analyzed yet.")
-        lines.append("")
-        lines.append("SEARCH INTENT")
-        for tier in ("required", "high_value", "useful", "low_value", "avoid"):
-            rows = intent.get(tier) or []
-            names = ", ".join(r.get("display_name") or r.get("stat") or "?" for r in rows) or "—"
-            lines.append(f"  {tier.replace('_', ' ').title()}: {names}")
-        lines.append("")
-        lines.append("Not a market price. Not a trade URL.")
-        self._detail.setPlainText("\n".join(lines))
+        self._detail.setHtml(self._slot_html(self._slots[index]))
 
     def _current_intent(self) -> dict[str, Any]:
-        row = self._slot_index(self._list.currentRow())
-        if row < 0 or row >= len(self._slots):
-            return {}
-        return self._slots[row].get("search_intent") or {}
+        index = self._slot_index(self._list.currentRow())
+        return (self._slots[index].get("search_intent") or {}) if index >= 0 else {}
 
     def _notify(self, text: str) -> None:
         self._progress.setText(text)
         self._progress.setVisible(True)
 
+    def _on_details_toggled(self, _checked: bool) -> None:
+        self._refresh_advanced()
+        self._show_slot(self._list.currentRow())
+
+    def _refresh_advanced(self) -> None:
+        """Copy Search Intent and Export JSON are advanced: offered only alongside the measurement details."""
+        advanced = self._details_toggle.isChecked()
+        self._copy_btn.setVisible(advanced and self._slot_selected)
+        self._export_btn.setVisible(advanced)
+
     def _set_copy_available(self, available: bool) -> None:
+        self._slot_selected = available  # Search Intent belongs to a slot, not to the priorities row
         self._copy_btn.setEnabled(available)
-        self._copy_btn.setVisible(available)  # Search Intent belongs to a slot; it is not offered on the priorities row
+        self._refresh_advanced()
 
     def _copy_intent(self) -> None:
         intent = self._current_intent()

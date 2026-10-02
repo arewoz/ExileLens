@@ -457,11 +457,16 @@ def _why_verdict(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, An
 
 
 def _build_context_section(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
-    """R1: what this item means for this build. Below the measured Why; never a second verdict."""
+    """R1: why the stats this item changes matter to this build. Below the measured Why; never a second verdict and
+    never a second set of deltas -- KEY IMPACT and the tables above own the numbers."""
     from exilelens.items.build_context import detail_lines
 
-    lines = detail_lines(model.get("build_context"), _text(outcome.get("replacement_slot")))
-    return {"id": "build_context", "title": "FOR YOUR BUILD", "lines": lines} if lines else None
+    changed = [
+        _text(delta.get("key")) for delta in outcome.get("all_deltas") or []
+        if float(delta.get("absolute_delta") or 0.0) != 0.0 or float(delta.get("percent_delta") or 0.0) != 0.0
+    ]
+    lines = detail_lines(model.get("build_context"), _text(outcome.get("replacement_slot")), claimed=changed)
+    return {"id": "build_context", "title": "BUILD CONTEXT", "lines": lines} if lines else None
 
 
 def _build_source_section(model: dict[str, Any]) -> dict[str, Any] | None:

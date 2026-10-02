@@ -59,7 +59,7 @@ HINT_NOT_ANALYZED = "Run Analyze Build to see how items match your build's stron
 
 MAX_RESPONSE_NOTES = 2  # per direction (gained / lost stats)
 MAX_COMPACT_LINES = 2
-MAX_DETAIL_LINES = 6
+MAX_DETAIL_LINES = 4
 
 # Reading order inside the context block: Build Intelligence context, then breakages, then the trade-off reading.
 _ORDER = (
@@ -67,8 +67,25 @@ _ORDER = (
     RESOURCE_USE_RESTORED, FIX_FIRST_PROGRESS, HIGH_RESPONSE_LOSS, MULTI_AXIS_LOSS, RESISTANCE_CAP_BROKEN,
     ATTRIBUTE_REQUIREMENT_BROKEN, RESOURCE_USE_BLOCKED, MAX_HIT_TRADEOFF,
 )
-# The compact tooltip already states cap breaks and requirement blockers itself (notes / blocker reasons).
-_COMPACT_DIRECT = frozenset({RESOURCE_USE_BLOCKED, RESOURCE_USE_RESTORED, MAX_HIT_TRADEOFF})
+_LOSS_CODES = (HIGH_RESPONSE_LOSS, MULTI_AXIS_LOSS)
+_ORDER_LOSS_FIRST = _LOSS_CODES + tuple(code for code in _ORDER if code not in _LOSS_CODES)
+_CURRENT_WINS = frozenset({"MEANINGFUL_DOWNGRADE", "MINOR_DOWNGRADE", "POTENTIAL_DOWNGRADE", "NOT_VIABLE"})
+# The tooltip and More Info already state cap breaks and requirement blockers themselves (warning notes, blocker
+# reasons, RESISTS & REQUIREMENTS). Those direct notes stay in the structured payload and are not rendered again.
+_SHOWN_DIRECT = frozenset({RESOURCE_USE_BLOCKED, RESOURCE_USE_RESTORED, MAX_HIT_TRADEOFF})
+_RESPONSE_CODES = frozenset({HIGH_RESPONSE_GAIN, HIGH_RESPONSE_LOSS, MULTI_AXIS_GAIN, MULTI_AXIS_LOSS})
+
+# Stat label -> (metric keys, words) by which the direct explanation refers to the same stat.
+_DIRECT_ALIASES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "Life": (("life",), ("life",)),
+    "Energy Shield": (("energy_shield",), ("energy shield",)),
+    "Mana": (("mana",), ("mana",)),
+    "Movement Speed": (("movement_speed",), ("movement",)),
+    "Cast Speed": (("cast_attack_speed",), ("cast speed", "cast/attack speed")),
+    "Attack Speed": (("cast_attack_speed",), ("attack speed", "cast/attack speed")),
+    "Armour": (("armour",), ("armour",)),
+    "Evasion": (("evasion",), ("evasion",)),
+}
 
 
 @dataclass(frozen=True)
@@ -81,6 +98,11 @@ class ContextNote:
     subject: str = ""
     #: Evidence shown in More Info only (tested change and measured response, actual values).
     detail: str = ""
+    #: Response notes only: the same importance with its direction ("More Cast Speed — ..."), used when the direct
+    #: explanation does not already say the stat changed.
+    directed: str = ""
+    #: Response notes only: the modifier amounts written on the two items. Diagnostic; never rendered by default.
+    item_line: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -236,14 +258,19 @@ def _join(words: list[str]) -> str:
 def _response_phrase(entry: Mapping[str, Any]) -> str:
     lanes = entry.get("lanes") or []
     if not lanes:
-        return "a multi-impact stat for your build"
-    axes = _join([word for word, _position in lanes])
+        return "a multi-impact stat for this build"
+    axes = " / ".join(word for word, _position in lanes)
     if all(position == 0 for _word, position in lanes):
-        return f"your build's strongest measured {axes} response"
-    return f"one of your build's strongest measured {axes} responses"
+        return f"your strongest measured {axes} response"
+    return f"among your strongest measured {axes} responses"
 
 
 def _response_notes(candidate: Mapping[str, float], replaced: Mapping[str, float], priorities: Mapping[str, Any]) -> list[ContextNote]:
+    """Why a stat that differs between the two items matters to this build.
+
+    Build context explains importance only. It never states a second item delta: the amount written on the item (a
+    flat modifier line) is a different quantity from the build-level change the direct comparison reports, so showing
+    both unlabelled reads as two conflicting numbers. The item-line amounts stay in `item_line` for inspection."""
     index = _response_index(priorities)
     gains: list[ContextNote] = []
     losses: list[ContextNote] = []
@@ -254,18 +281,16 @@ def _response_notes(candidate: Mapping[str, float], replaced: Mapping[str, float
         gained = new > old
         multi = not entry.get("lanes")
         phrase = _response_phrase(entry)
-        if gained:
-            lead = f"Adds {label} ({_amount(label, new)})" if old == 0 else f"More {label} than your current item ({_amount(label, new)} vs {_amount(label, old)})"
-        else:
-            lead = f"Loses {label} ({_amount(label, old)})" if new == 0 else f"Less {label} than your current item ({_amount(label, new)} vs {_amount(label, old)})"
         measured = entry.get("multi") if multi else " · ".join(entry.get("measured") or [])
         note = ContextNote(
             code=(MULTI_AXIS_GAIN if gained else MULTI_AXIS_LOSS) if multi else (HIGH_RESPONSE_GAIN if gained else HIGH_RESPONSE_LOSS),
             kind=KIND_GAIN if gained else KIND_LOSS,
             source=SOURCE_INTELLIGENCE,
-            text=f"{lead} — {phrase}.",
+            text=f"{label} is {phrase}.",
             subject=label,
             detail=f"Tested {entry['tested']} → {measured}." if measured else "",
+            directed=f"{'More' if gained else 'Less'} {label} — {phrase}.",
+            item_line=f"{_amount(label, new)} on this item, {_amount(label, old)} on the current one",
         )
         (gains if gained else losses).append(note)
     return gains[:MAX_RESPONSE_NOTES] + losses[:MAX_RESPONSE_NOTES]
@@ -406,7 +431,9 @@ def _slot_notes(comparison: Mapping[str, Any], candidate_stats: Mapping[str, flo
     notes.extend(_attribute_notes(outcome, priorities))
     notes.extend(_resource_notes(outcome, priorities))
     notes.extend(_tradeoff_notes(outcome))
-    return sorted(notes, key=lambda note: _ORDER.index(note.code))  # stable: equal codes keep measurement order
+    # A result that favours the current item is explained by what the candidate gives up first.
+    order = _ORDER_LOSS_FIRST if str(outcome.get("verdict") or "") in _CURRENT_WINS else _ORDER
+    return sorted(notes, key=lambda note: order.index(note.code))  # stable: equal codes keep measurement order
 
 
 def build_item_context(result: Mapping[str, Any], snapshot: Mapping[str, Any] | None, *, status: str) -> dict[str, Any]:
@@ -435,27 +462,47 @@ def _notes_for(context: Mapping[str, Any] | None, slot: str) -> list[Mapping[str
     return list(next(iter(slots.values()))) if len(slots) == 1 else []
 
 
-def compact_lines(context: Mapping[str, Any] | None, slot: str, claimed: Iterable[str] = ()) -> list[dict[str, Any]]:
+def stat_is_stated(label: str, metrics: Iterable[str] = (), texts: Iterable[str] = ()) -> bool:
+    """True when the direct explanation already says this stat changed (by metric key or by name)."""
+    keys, words = _DIRECT_ALIASES.get(label, ((), (label.lower(),)))
+    if set(keys) & {str(metric) for metric in metrics if metric}:
+        return True
+    return any(word in str(text).lower() for text in texts for word in words)
+
+
+def _shown(context: Mapping[str, Any] | None, slot: str, metrics: Iterable[str], texts: Iterable[str]) -> list[tuple[Mapping[str, Any], str]]:
+    """(note, text) pairs to render. Direct evidence owns the item delta; a response note only says why the stat
+    matters, and names the direction (never an amount) when the direct explanation has not."""
+    metrics, texts = [str(m) for m in metrics if m], [str(t) for t in texts if t]
+    shown: list[tuple[Mapping[str, Any], str]] = []
+    for note in _notes_for(context, slot):
+        code, subject = str(note.get("code")), str(note.get("subject") or "")
+        if code in _RESPONSE_CODES:
+            stated = stat_is_stated(subject, metrics, texts)
+            shown.append((note, str(note["text"] if stated else note.get("directed") or note["text"])))
+        elif note.get("source") == SOURCE_INTELLIGENCE or code in _SHOWN_DIRECT:
+            if subject not in metrics:  # e.g. the measured Why already names this resistance cap
+                shown.append((note, str(note["text"])))
+    return shown
+
+
+def compact_lines(context: Mapping[str, Any] | None, slot: str, claimed: Iterable[str] = (), texts: Iterable[str] = ()) -> list[dict[str, Any]]:
     """Up to two short context lines for the compact tooltip.
 
-    `claimed` are the metrics the measured Why already explains; a fact the tooltip states is not said a second time."""
-    stated = {str(metric) for metric in claimed if metric}
-    notes = [
-        note for note in _notes_for(context, slot)
-        if (note.get("source") == SOURCE_INTELLIGENCE or note.get("code") in _COMPACT_DIRECT) and note.get("subject") not in stated
+    `claimed` (metric keys) and `texts` (lines already on the tooltip) are the direct explanation."""
+    return [
+        {"text": text, "kind": note["kind"], "code": note["code"]}
+        for note, text in _shown(context, slot, claimed, texts)[:MAX_COMPACT_LINES]
     ]
-    return [{"text": note["text"], "kind": note["kind"], "code": note["code"]} for note in notes[:MAX_COMPACT_LINES]]
 
 
-def detail_lines(context: Mapping[str, Any] | None, slot: str) -> list[str]:
-    """More Info lines: every note with its evidence, then where the context comes from."""
-    notes = _notes_for(context, slot)[:MAX_DETAIL_LINES]
-    lines = [f"{note['text']} {note['detail']}".strip() for note in notes]
-    context = context or {}
-    if lines and context.get("basis") and any(note.get("source") == SOURCE_INTELLIGENCE for note in notes):
-        lines.append(str(context["basis"]))
-    if context.get("hint"):
-        lines.append(str(context["hint"]))
+def detail_lines(context: Mapping[str, Any] | None, slot: str, claimed: Iterable[str] = (), texts: Iterable[str] = ()) -> list[str]:
+    """More Info lines: each context note with its evidence, then where the context comes from."""
+    shown = _shown(context, slot, claimed, texts)[:MAX_DETAIL_LINES]
+    lines = [f"{text} {note.get('detail') or ''}".strip() for note, text in shown]
+    basis = str((context or {}).get("basis") or "")
+    if basis and any(note.get("source") == SOURCE_INTELLIGENCE for note, _text in shown):
+        lines.append(basis)
     return lines
 
 

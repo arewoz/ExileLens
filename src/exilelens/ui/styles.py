@@ -788,6 +788,10 @@ QLabel#tileChange {{
     font-size: 12px;
     color: {DASHBOARD_WINDOW_FG};
 }}
+QLabel#tileNote {{
+    font-size: 11px;
+    color: {DASHBOARD_MUTED_FG};
+}}
 QFrame#fixFirstPanel {{
     background: rgba(224,160,64,20);
     border: none;

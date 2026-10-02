@@ -895,9 +895,13 @@ def apply_compact_tooltip(model: dict[str, Any]) -> None:
     model["primary_reasons_title"] = reasons_title
     model["primary_reasons"] = reasons
     # R1: build context sits below the measured reasons and never replaces one of them.
+    # The impact rows and reasons are the direct evidence: they own every item delta. Context only says why a stat
+    # matters, so a stat they already cover gets no second, differently measured number.
     explained = [str(reason.get(key) or "") for reason in reasons for key in ("metric", "counter_metric")]
+    explained += [str(row.get("key") or "") for row in impact_rows]
     model["build_context_lines"] = build_context_lines(
-        model.get("build_context"), str(outcome.get("replacement_slot") or ""), claimed=explained
+        model.get("build_context"), str(outcome.get("replacement_slot") or ""),
+        claimed=explained, texts=[str(reason.get("text") or "") for reason in reasons],
     )
     model["critical_notes"] = notes
     model["replacing_line"] = replace_line
