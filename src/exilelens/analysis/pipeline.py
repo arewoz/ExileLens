@@ -6,7 +6,9 @@ from typing import Any, Callable
 from exilelens.analysis.audit import BuildNeed, BuildStateAudit, build_state_audit
 from exilelens.analysis.cache import ProbeCache
 from exilelens.analysis.fingerprint import build_fingerprint, with_probe_signals
+from exilelens.analysis.actionable import build_actionable
 from exilelens.analysis.catalog import ProbeCatalog
+from exilelens.analysis.curves import measure_response_curves
 from exilelens.analysis.identity import AnalysisBaseline
 from exilelens.analysis.priorities import build_priorities
 from exilelens.analysis.sensitivity import build_sensitivity
@@ -587,6 +589,27 @@ def analyze_build(
         result["build_priorities"] = build_priorities(result)
         # R1: the head of each priorities lane (no PoB, no profile, no new ranking).
         result["strongest_responses"] = strongest_responses(result["build_priorities"])
+        # R1.5: one follow-up measurement (twice the tested change) for at most MAX_CURVES top stats. This is the only
+        # R1.5 step that calls PoB; it runs here, inside the explicit analysis, and reuses the probe cache.
+        if carrier:
+            result["response_curves"] = measure_response_curves(
+                probes, catalog, global_probes, result["build_priorities"],
+                run_probe=lambda probe_id, magnitude: probes.run_probe(
+                    slot=carrier[0], item_raw=carrier[1], probe_id=probe_id, magnitude=magnitude, baseline=baseline,
+                    profile=selected, primary_field=audit.primary_field, primary_confidence=audit.primary_confidence,
+                    context=context,
+                ),
+                before_probe=lambda: check_yield({"stage": "curves", "global_probes": global_probes}),
+            )
+            progress("curves")
+            result["performance"].update(
+                elapsed_ms=(time.perf_counter() - started) * 1000,
+                pob_recalcs=probes.pob_recalcs,
+                probe_count=len(probes.probe_times_ms),
+                cache=cache.stats(),
+            )
+        # R1.5: the actionable layer is pure derivation over everything above.
+        result["actionable"] = build_actionable(result)
     return result
 
 
@@ -682,4 +705,9 @@ def rescore_analysis(result: dict[str, Any], profile: str | ValueProfile) -> dic
         updated["build_sensitivity"] = build_sensitivity(updated)  # pure: measured response unchanged, scores refreshed
         updated["build_priorities"] = build_priorities(updated)  # profile independent: identical after any rescore
         updated["strongest_responses"] = strongest_responses(updated["build_priorities"])
+        # Response curves are measurement evidence bound to the baseline: carried over, never re-measured here.
+        updated["actionable"] = build_actionable(updated)
+        previous_changes = (result.get("actionable") or {}).get("changes")
+        if previous_changes:
+            updated["actionable"]["changes"] = previous_changes
     return updated

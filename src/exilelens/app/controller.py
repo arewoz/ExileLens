@@ -76,6 +76,7 @@ from exilelens.app.modules.registry import FeatureModule, is_enabled
 from exilelens.app.progress import OperationProgressHub, OperationStatus
 from exilelens.platform.windows.clipboard_identity import is_duplicate_clipboard_event
 from exilelens.platform.windows.cursor import get_cursor_pos_physical
+from exilelens.analysis.actionable import diff_actionable
 from exilelens.analysis.cache import ProbeCache
 from exilelens.analysis.identity import AnalysisBaseline
 from exilelens.items.build_context import build_item_context, intelligence_status, snapshot_intelligence
@@ -1064,6 +1065,9 @@ class EvaluationController(QObject):
         self._last_analysis: dict[str, Any] | None = None
         # R1: Build Intelligence from the last explicit Analyze Build, read (never produced) by Item Check.
         self._build_intelligence: dict[str, Any] | None = None
+        # R1.5: the last successful actionable analysis, kept across baseline changes only to describe what changed.
+        # Item Check never reads it.
+        self._previous_actionable: dict[str, Any] | None = None
         self._last_market_result: dict[str, Any] | None = None
         self._last_gear_result: dict[str, Any] | None = None
         self.pool_registry = CandidatePoolRegistry()
@@ -2635,6 +2639,10 @@ class EvaluationController(QObject):
         self._last_analysis = payload
         self._analysis_generation = self._baseline_generation
         self._analysis_resume = None
+        if payload.get("actionable"):
+            # R1.5 What Changed: compare with the previous successful analysis of the same build (session-local).
+            payload["actionable"]["changes"] = diff_actionable(self._previous_actionable, payload["actionable"])
+            self._previous_actionable = payload["actionable"]
         intelligence = snapshot_intelligence(payload)
         if intelligence is not None:
             # Only a full Analyze Build carries priorities; tree and single-slot analyses leave the cached one alone.

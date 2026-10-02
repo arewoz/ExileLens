@@ -792,6 +792,21 @@ QLabel#tileNote {{
     font-size: 11px;
     color: {DASHBOARD_MUTED_FG};
 }}
+QFrame#focusCard {{
+    background: {_V2_SURFACE};
+    border: none;
+    border-left: 3px solid {DASHBOARD_BORDER};
+    border-radius: 8px;
+}}
+QFrame#focusCard[issue="true"] {{
+    background: rgba(224,160,64,20);
+    border-left: 3px solid {DASHBOARD_WARNING_FG};
+}}
+QLabel#focusHeadline {{
+    font-size: 14px;
+    font-weight: 700;
+    color: {DASHBOARD_TEXT_EMPHASIS};
+}}
 QFrame#fixFirstPanel {{
     background: rgba(224,160,64,20);
     border: none;

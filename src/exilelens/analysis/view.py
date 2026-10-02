@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from typing import Any, Mapping
 
+from exilelens.analysis.actionable import HEALTH_LABELS, build_actionable
+from exilelens.analysis.curves import STATE_LABELS as CURVE_STATE_LABELS
 from exilelens.analysis.priorities import MEANINGFUL_PERCENT
 from exilelens.analysis.strongest import MEASURED, NOT_PER_POINT, STATUS_LABELS, strongest_responses
 
@@ -22,7 +24,7 @@ _NOT_SUPPORTED = {
     "mana_sustain_numbers": "Mana sustain",
 }
 _LANES = (("offense", "DAMAGE", "Damage"), ("ehp", "EHP", "EHP"), ("max_hit", "MAX HIT", "Max Hit"), ("mobility", "MOVEMENT", "Movement"))
-_STAGES = {"audit": "Reading your build", "starting": "Starting"}
+_STAGES = {"audit": "Reading your build", "starting": "Starting", "curves": "Checking how your top stats scale"}
 
 
 def percent(value: Any) -> str:
@@ -190,6 +192,93 @@ def _details(result: Mapping[str, Any], priorities: Mapping[str, Any]) -> list[s
     return lines
 
 
+# ------------------------------------------------------------------ R1.5 overview
+#
+# Wording for the actionable layer (`analysis.actionable`). Nothing is decided here: order, states and limits all come
+# from that layer; this only chooses the words and the short forms.
+
+_LADDER_TITLES = (("damage", "DAMAGE"), ("ehp", "EHP"), ("max_hit", "MAX HIT"), ("movement", "MOVEMENT"))
+_HEALTH_TONE = {"NEEDS_ATTENTION": "warn", "NEARLY_CAPPED": "neutral", "OPPORTUNITY": "ok", "NO_URGENT_ISSUE": "neutral", "LIMITED": "muted"}
+
+
+def _action_summary(action: Mapping[str, Any], ladders: Mapping[str, Any]) -> str:
+    if action.get("kind") != "IMPROVE":
+        return str(action.get("detail") or "")
+    row = next(iter(ladders.get(str(action.get("axis"))) or []), None)
+    if row is None:
+        return str(action.get("detail") or "")
+    return f"{row['label']} · {short_change(row['tested_change'])} → {percent(row['response_percent'])}"
+
+
+def _curve_note(curve: Mapping[str, Any] | None) -> str:
+    """`next step +9.6% · Response remains similar`: the second step in the same unit as the first, then its state."""
+    if curve is None:
+        return ""
+    if curve.get("status") != MEASURED:
+        return "more of it: could not establish"
+    return f"next step {percent(curve['second_percent'])} · {CURVE_STATE_LABELS[str(curve['state'])]}"
+
+
+def _curve_detail(curve: Mapping[str, Any]) -> str:
+    if curve.get("status") != MEASURED:
+        return f"{curve.get('label')} ({curve.get('axis_label')}): follow-up not established — {curve.get('reason')}."
+    return (f"{curve['label']} ({curve['axis_label']}): {curve['tested_change']} → {percent(curve['first_percent'])}; "
+            f"{curve['doubled_change']} → {percent(curve['total_percent'])}; second step {percent(curve['second_percent'])} "
+            f"= {float(curve['ratio']):.2f} of the first step.")
+
+
+def _actionable_view(actionable: Mapping[str, Any]) -> dict[str, Any]:
+    if not actionable:
+        return {"has_actionable": False}
+    ladders = actionable.get("ladders") or {}
+    curves = {(str(c.get("label")), str(c.get("axis"))): c for c in actionable.get("response_curves") or []}
+    axis_of = {"damage": "offense", "ehp": "ehp", "max_hit": "max_hit"}
+    focus = actionable.get("current_focus") or {}
+    best = actionable.get("best_response") or {}
+    coverage = actionable.get("coverage") or {}
+    return {
+        "has_actionable": True,
+        "focus": {"title": str(focus.get("title") or "CURRENT FOCUS"), "headline": str(focus.get("headline") or ""),
+                  "detail": str(focus.get("detail") or ""), "issue": focus.get("kind") == "ISSUE"},
+        "actions": [
+            {"number": action["number"], "title": str(action["title"]), "summary": _action_summary(action, ladders),
+             # Only a critical or material problem is emphasised; a nearly capped resistance reads like any other line.
+             "fix": action["kind"] == "FIX" and action.get("severity") != "MINOR"}
+            for action in actionable.get("action_plan") or []
+        ],
+        "best": ({"measured": True, "value": percent(best["response_percent"]), "change": short_change(best["tested_change"]),
+                  "tested_change": str(best["tested_change"])}
+                 if best.get("status") == MEASURED else {"measured": False, "value": "—", "change": str(best.get("reason") or "Could not establish")}),
+        "health": [
+            {"title": str(row["title"]), "state": HEALTH_LABELS[str(row["state"])], "tone": _HEALTH_TONE[str(row["state"])], "reason": str(row["reason"])}
+            for row in actionable.get("build_health") or []
+        ],
+        "ladders": [
+            {"key": key, "title": title, "rows": [
+                {"position": row["position"], "change": str(row["tested_change"]), "response": percent(row["response_percent"]),
+                 "curve": _curve_note(curves.get((str(row["label"]), axis_of.get(key, ""))))}
+                for row in ladders.get(key) or []]}
+            for key, title in _LADDER_TITLES if ladders.get(key)
+        ],
+        "packages": [
+            {"title": str(package["title"]), "stats": [
+                {"change": str(stat["tested_change"]),
+                 "evidence": str(stat["evidence"]) + (f" · also moves {_join([str(axis) for axis in stat['also']])}" if stat.get("also") else "")}
+                for stat in package["stats"]]}
+            for package in actionable.get("stat_packages") or [] if package["stats"]  # an emptied Hybrid is not shown
+        ],
+        "package_details": [
+            f"{package['title'].title()} (all multi-impact stats): " + "; ".join(f"{stat['tested_change']} → {stat['evidence']}" for stat in package["all_stats"])
+            for package in actionable.get("stat_packages") or [] if package.get("all_stats")
+        ],
+        "changes": [str(item["text"]) for item in (actionable.get("changes") or {}).get("items") or []],
+        "coverage_summary": {"label": str(coverage.get("label") or ""), "summary": str(coverage.get("summary") or ""),
+                             "notes": [str(note) for note in coverage.get("notes") or []]},
+        "curve_details": [_curve_detail(curve) for curve in actionable.get("response_curves") or []],
+        "breakpoint_details": [f"{row['title']}: {row['text']}" for row in actionable.get("breakpoints") or []],
+    }
+
+
 def build_analysis_view(result: Mapping[str, Any]) -> dict[str, Any]:
     """Everything the Analyze Build page renders for one result. Pure; safe on partial results."""
     priorities = result.get("build_priorities") or {}
@@ -214,6 +303,8 @@ def build_analysis_view(result: Mapping[str, Any]) -> dict[str, Any]:
         ],
         "lanes": _lanes(priorities),
         "coverage": _coverage(result, priorities) if priorities else [],
+        # R1.5: the actionable layer is pure, so a result that predates it (or a test fixture) is completed here.
+        **_actionable_view(result.get("actionable") or build_actionable(result)),
         "coverage_basis": str((priorities.get("coverage") or {}).get("basis") or ""),
         "details": _details(result, priorities) if priorities else [],
     }
