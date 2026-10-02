@@ -171,3 +171,23 @@ Re-classified GOOD (11): E1, E2, E3, M1, M2, X1 to X5, and P5 (Brutus now has St
 * Life/ES/mana regeneration response is still not captured (known unsupported).
 * Life-paid costs (Blood Mage 3,812 life/s) are not interpreted; only the mana resource was reviewed.
 * Gating of crit/minion/ailment probes uses observed PoB output; a build with an unobserved fact never gets those probes in the global stage.
+
+## Performance review
+
+Where it runs: global sensitivity (and the canary) execute only inside `analyze_build`, i.e. the explicit **Analyze Build** action, asynchronously on the analysis scheduler
+(yielding to gameplay checks), with results kept in the shared `ProbeCache` until the baseline changes. Normal Shift+C Item Check never calls it (`items/` imports only the
+catalog/ProbeEngine, unchanged). Rescoring (`rescore_analysis`) is pure and runs no PoB. Single-slot callers (`analyze_slot`: market search, SearchIntent) now pass `build_intelligence=False` and keep the
+original 11-probe global stage, so M5.5 adds nothing to them.
+
+Benchmark (full `analyze_build`, real PoB, 6 builds incl. the Kalandra's Touch Spark; cold then repeat with the same cache):
+
+| | main | M5.5 before reuse | M5.5 final |
+|---|---|---|---|
+| Cold recalcs, 6 builds | 223 | 272 (+22%) | about +8 per build (+22%) |
+| Repeat-run recalcs per build | 8 | 16 | 8 |
+| Item Check warm median (16 runs, alternating) | 0.87 to 0.94 s | n/a | 0.93 to 0.96 s (within noise) |
+
+The full-analysis increase is far below the corpus +82% because the slot stage already ran every catalog probe per slot and reuses default-magnitude global results; the new global
+probes mostly replace slot-stage runs. The remaining +8 cold recalcs are the new global families and the canary. Optimizations: carrier validity is cached in `ProbeCache` by baseline identity
+(fingerprint, build, loadout, item set, context, generation) + slot + item text, cleared on invalidation, never cached for engine errors or restore failures (repeat analysis +8 to +0); single-slot
+callers skip Build Intelligence. Probe gating was not loosened.

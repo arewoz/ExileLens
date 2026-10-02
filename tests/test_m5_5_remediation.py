@@ -207,3 +207,33 @@ def test_mana_sustain_noise_is_context_not_fix_first_but_a_pool_below_one_use_is
     assert build_priorities(_result([], resources=stable))["resource_context"] == {}
     free = _mana({"ManaPerSecondCost": 0.0, "ManaCost": 0.0})
     assert build_priorities(_result([], resources=free))["fix_first"] == []
+
+
+def test_carrier_validity_is_reused_for_the_same_baseline_and_dropped_on_invalidation() -> None:
+    from exilelens.analysis.cache import ProbeCache
+
+    engine = FakeEngine({"Ring 1": KALANDRA, "Ring 2": RING})
+    cache = ProbeCache()
+    first = analyze_build(engine, build_path="b.xml", slot_filter="__none__", cache=cache)
+    canaries = len(engine.evaluations)
+    second = analyze_build(engine, build_path="b.xml", slot_filter="__none__", cache=cache)
+    assert second["performance"]["pob_recalcs"] == 0 and len(engine.evaluations) == canaries  # probes and canaries both reused
+    assert second["build_sensitivity"]["signals"] == first["build_sensitivity"]["signals"]
+    cache.invalidate()  # baseline changed: validity may differ, so it is measured again
+    analyze_build(engine, build_path="b.xml", slot_filter="__none__", cache=cache)
+    assert len(engine.evaluations) > canaries
+    # a different loadout/context is a different identity
+    other = analyze_build(engine, build_path="b.xml", slot_filter="__none__", cache=cache, loadout="other")
+    assert other["baseline"]["loadout"] == "other"
+
+
+def test_single_slot_analysis_keeps_the_original_probe_set_and_skips_build_intelligence() -> None:
+    from exilelens.analysis.pipeline import analyze_slot
+
+    engine = FakeEngine({"Ring 1": RING})
+    result = analyze_slot(engine, slot="Ring 1", build_path="b.xml")
+    ids = {p["probe_id"] for p in result["global_probes"] if not p.get("nonlinear_sample") and not p.get("breakpoint_exact")}
+    assert ids == set(ProbeCatalog().stage2_ids())
+    assert "build_sensitivity" not in result and "build_priorities" not in result
+    full = analyze_build(FakeEngine({"Ring 1": RING}), build_path="b.xml", slot_filter="__none__")
+    assert "build_priorities" in full and len(full["global_probes"]) > len(result["global_probes"])
