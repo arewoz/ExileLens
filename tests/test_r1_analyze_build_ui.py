@@ -129,7 +129,7 @@ def _window() -> tuple[AnalysisWindow, Controller]:
 
 def _page_text(window: AnalysisWindow) -> str:
     return "\n".join([window._header.text(), window._status.text(), window._progress.text(), *window.strongest_text(),
-                      *window.fix_first_text(), window._detail.toPlainText()])
+                      *window.focus_text(), *window.actions_text(), window._detail.toPlainText()])
 
 
 # ------------------------------------------------------------------------ view model
@@ -200,12 +200,14 @@ def test_page_renders_strongest_responses_fix_first_and_priorities() -> None:
     assert strongest[0] == "DAMAGE +8.7% +1 Spell Skill Level"
     assert any(line.startswith("MULTI-IMPACT Damage +2.1%") for line in strongest)
     assert "not a per-point comparison" in window._strongest_note.text()
-    assert window.fix_first_text() == ["FIX FIRST", "▲ Fire Resistance — +17% reaches cap  ·  Critical"]
+    # R1.5: the urgent problem is the current focus and action #1, ahead of any optimisation.
+    assert window.focus_text()[:2] == ["BIGGEST CURRENT ISSUE", "Fire Resistance is below cap."]
+    assert window.actions_text()[0] == "1. Cap Fire Resistance — +17% reaches cap"
     detail = window._detail.toPlainText()
-    for expected in ("DAMAGE", "10% increased Cast Speed", "+6.1%", "MULTI-IMPACT", "WHAT EXILELENS MEASURED",
-                     "No measurable response: Crit Chance.", "Based on stats ExileLens tested against this PoB build."):
+    for expected in ("BUILD HEALTH", "STAT PRIORITIES", "DAMAGE", "10% increased Cast Speed", "+6.1%", "STAT FOCUS", "HYBRID FOCUS",
+                     "ANALYSIS COVERAGE", "No measurable response: Crit Chance.", "Based on stats ExileLens tested against this PoB build."):
         assert expected in detail
-    assert "FIX FIRST" not in detail  # urgent problems have their own panel, apart from optimisation
+    assert "FIX FIRST" not in detail
     assert "T · L · MAP" in window._header.text()
     for internal in ("hash1", "SPELL_SKILL_LEVELS", "probe", "NO_SIGNAL", "cache", "b.xml"):
         assert internal not in _page_text(window)
@@ -214,7 +216,8 @@ def test_page_renders_strongest_responses_fix_first_and_priorities() -> None:
 def test_fix_first_panel_and_empty_lanes_leave_no_empty_shells() -> None:
     window, _controller = _window()
     window.show_result(_analysis([_probe("LIFE", "Life", "+50 to maximum Life", 50.0, family="defense", ehp=2.4)]))
-    assert window._fix_first_panel.isHidden() and window.fix_first_text() == []
+    assert window.focus_text()[:2] == ["CURRENT FOCUS", "No critical issue detected."]
+    assert window.actions_text() == ["1. Improve EHP — Life · +50 Life → +2.4%"]
     detail = window._detail.toPlainText()
     assert "EHP" in detail and "DAMAGE" not in detail and "MOVEMENT" not in detail and "MAX HIT" not in detail
     window.show_result(_analysis([]))
@@ -404,7 +407,7 @@ INTERNAL = ("LOW_CHAOS_RES", "marginal", "Build Value", "Search Intent", "Search
 
 
 def _all_default_text(window: AnalysisWindow) -> str:
-    parts = [window._header.text(), *window.strongest_text(), *window.fix_first_text()]
+    parts = [window._header.text(), *window.strongest_text(), *window.focus_text(), *window.actions_text()]
     for row in range(window._list.count()):
         parts.append(window._list.item(row).text())
         window._list.setCurrentRow(row)
@@ -429,7 +432,7 @@ def test_slot_list_is_framed_as_upgrade_opportunities_in_the_same_order() -> Non
     window.show_result(realistic_analysis())
     assert [window._list.item(i).text() for i in range(window._list.count())] == [
         "Overview", "UPGRADE OPPORTUNITIES", "Gloves", "Belt", "Weapon 1 — Limited analysis"]
-    assert window._list.currentRow() == 0 and "WHAT EXILELENS MEASURED" in window._detail.toPlainText()  # Overview = whole build
+    assert window._list.currentRow() == 0 and "ANALYSIS COVERAGE" in window._detail.toPlainText()  # Overview = whole build
     window._list.setCurrentRow(2)
     window._list.setCurrentRow(0)
     assert "DAMAGE" in window._detail.toPlainText() and "CURRENT ITEM" not in window._detail.toPlainText()
@@ -565,3 +568,70 @@ def test_remaining_reasons_and_the_full_driver_set_are_in_measurement_details() 
     assert "MORE REASONS" in detail and "Mana is valuable for this build" in detail
     assert "Cast Speed is among this build's strongest measured damage responses" in detail
     assert detail.count("Driver: ") == len(AMULET_DRIVERS)  # the complete underlying set
+
+
+# ------------------------------------------------------------------ R1.5 overview
+
+
+def test_overview_answers_what_is_wrong_what_to_do_and_what_matters() -> None:
+    from tests.test_r1_5_actionable import CHAOS_NEED as CHAOS, _analysis as actionable_analysis
+
+    curves = [{"label": "Spell Skill Levels", "axis": "offense", "axis_label": "Damage", "status": "MEASURED", "state": "HOLDS",
+               "tested_change": "+1 to Level of all Spell Skills", "doubled_change": "+2 to Level of all Spell Skills",
+               "first_percent": 8.7, "total_percent": 16.5, "second_percent": 7.8, "ratio": 0.897},
+              {"label": "Cast Speed", "axis": "offense", "axis_label": "Damage", "status": "MEASURED", "state": "WEAKENS",
+               "tested_change": "10% increased Cast Speed", "doubled_change": "20% increased Cast Speed",
+               "first_percent": 6.1, "total_percent": 9.9, "second_percent": 3.8, "ratio": 0.623}]
+    result = actionable_analysis(needs=[CHAOS], chaos=42.0, curves=curves, slots=[dict(SLOT_ROW)])
+    result["performance"] = {"elapsed_ms": 1000, "pob_recalcs": 25, "cache": {}}
+    window, _controller = _window()
+    window.show_result(result)
+    assert window.focus_text() == ["BIGGEST CURRENT ISSUE", "Chaos Resistance is below cap.", "42% → 75% · 33% needed"]
+    assert window.actions_text() == [
+        "1. Cap Chaos Resistance — 42% → 75% · 33% needed",
+        "2. Improve Max Hit — Energy Shield · +50 Energy Shield → +2.0%",
+        "3. Improve Damage — Spell Skill Levels · +1 Spell Skill Level → +8.7%",
+    ]
+    assert window.strongest_text()[0] == "DAMAGE +8.7% +1 Spell Skill Level"  # best response stays visible beside the priority
+    detail = window._detail.toPlainText()
+    for expected in ("BUILD HEALTH", "Needs attention", "Chaos Resistance below cap.", "Opportunity", "No urgent issue detected",
+                     "STAT PRIORITIES", "next step +7.8% · Response remains similar", "next step +3.8% · Response weakens",
+                     "STAT FOCUS", "OFFENSE FOCUS", "DEFENCE FOCUS", "HYBRID FOCUS", "ANALYSIS COVERAGE", "Partial",
+                     "8 / 9 relevant measurements established."):
+        assert expected in detail, expected
+    assert "WHAT CHANGED" not in detail and "MEASUREMENT DETAILS" not in detail  # nothing to compare with yet; details are opt-in
+    for hidden in ("of the first step", "HOLDS", "NEEDS_ATTENTION", "HIGH", "score"):
+        assert hidden not in detail
+    window._details_toggle.setChecked(True)
+    technical = window._detail.toPlainText()
+    assert "second step +7.8% = 0.90 of the first step." in technical and "Chaos Resistance: 42% → 75% · 33% needed" in technical
+
+
+def test_what_changed_appears_only_when_a_comparable_previous_analysis_differs() -> None:
+    from exilelens.analysis.actionable import diff_actionable
+    from tests.test_r1_5_actionable import CHAOS_NEED as CHAOS, _analysis as actionable_analysis
+
+    before = actionable_analysis(needs=[CHAOS], chaos=42.0, slots=[])
+    after = actionable_analysis(baseline={"fingerprint": "hash2", "generation": 3}, slots=[])
+    after["actionable"]["changes"] = diff_actionable(before["actionable"], after["actionable"])
+    window, _controller = _window()
+    window.show_result(after)
+    detail = window._detail.toPlainText()
+    assert "WHAT CHANGED" in detail and "✓ Chaos Resistance is no longer a priority." in detail
+    assert detail.index("WHAT CHANGED") < detail.index("BUILD HEALTH")
+    assert window.focus_text()[1] == "No critical issue detected."
+
+
+def test_overview_cards_do_not_claim_a_damage_stat_the_coverage_cannot_support() -> None:
+    from tests.test_r1_5_actionable import _analysis as actionable_analysis
+
+    window, _controller = _window()
+    window.show_result(actionable_analysis(confidence="LOW", slots=[]))
+    assert all("Damage" not in line for line in window.actions_text())
+    detail = window._detail.toPlainText()
+    assert "Limited analysis" in detail and "Limited confidence in this build's damage number." in detail
+    assert "Damage could not be established reliably" in detail
+
+
+def test_progress_names_the_curve_step_in_player_words() -> None:
+    assert progress_text({"stage": "curves"}) == "Checking how your top stats scale"

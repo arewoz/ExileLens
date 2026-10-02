@@ -1,7 +1,7 @@
 """Analyze Build page: what the loaded PoB build responds to, at a glance.
 
-Reading order is the product order: which build and how fresh, the strongest measured responses, urgent problems
-(FIX FIRST), then the priorities and per-slot detail. All wording comes from `analysis.view`; this module only lays it out.
+Reading order is the product order: which build and how fresh, the current focus and the next actions, the strongest
+measured responses, then build health, stat priorities and per-slot detail. All wording comes from `analysis.view`; this module only lays it out.
 The analysis itself is explicit (the button) and asynchronous; nothing here runs on Item Check.
 """
 
@@ -162,19 +162,50 @@ class AnalysisWindow(QWidget):
         strongest = QVBoxLayout(self._strongest_host)
         strongest.setContentsMargins(0, 0, 0, 0)
         strongest.setSpacing(theme.SPACE_XS)
-        strongest.addWidget(self._strongest_title)
+        strongest_head = QHBoxLayout()
+        strongest_head.setContentsMargins(0, 0, 0, 0)
+        strongest_head.setSpacing(theme.SPACE_MD)
+        strongest_head.addWidget(self._strongest_title)
+        strongest_head.addWidget(self._strongest_note, 1)  # the caveat sits beside the heading, not on a line of its own
+        strongest.addLayout(strongest_head)
         strongest.addLayout(self._tile_row)
-        strongest.addWidget(self._strongest_note)
         self._strongest_host.setVisible(False)
 
-        # --- fix first: actionable problems, kept apart from optimisation ----------
-        self._fix_first_panel = QFrame()
-        self._fix_first_panel.setObjectName("fixFirstPanel")
-        self._fix_first_layout = QVBoxLayout(self._fix_first_panel)
-        self._fix_first_layout.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
-        self._fix_first_layout.setSpacing(2)
-        self._fix_first_labels: list[QLabel] = []
-        self._fix_first_panel.setVisible(False)
+        # --- R1.5: what is wrong and what to do next, before any optimisation number ----
+        self._focus_card = QFrame()
+        self._focus_card.setObjectName("focusCard")
+        self._focus_title = QLabel("CURRENT FOCUS")
+        self._focus_title.setObjectName("tileCaption")
+        self._focus_headline = QLabel("")
+        self._focus_headline.setObjectName("focusHeadline")
+        self._focus_headline.setWordWrap(True)
+        self._focus_detail = QLabel("")
+        self._focus_detail.setObjectName("tileChange")
+        self._focus_detail.setWordWrap(True)
+        focus = QVBoxLayout(self._focus_card)
+        focus.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
+        focus.setSpacing(2)
+        for widget in (self._focus_title, self._focus_headline, self._focus_detail):
+            focus.addWidget(widget)
+        focus.addStretch(1)
+
+        self._actions_card = QFrame()
+        self._actions_card.setObjectName("responseTile")
+        actions_title = QLabel("NEXT ACTIONS")
+        actions_title.setObjectName("tileCaption")
+        self._actions_layout = QVBoxLayout(self._actions_card)
+        self._actions_layout.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
+        self._actions_layout.setSpacing(2)
+        self._actions_layout.addWidget(actions_title)
+        self._action_labels: list[QLabel] = []
+
+        self._overview_host = QWidget()
+        overview = QHBoxLayout(self._overview_host)
+        overview.setContentsMargins(0, 0, 0, 0)
+        overview.setSpacing(theme.SPACE_SM)
+        overview.addWidget(self._focus_card, 2)
+        overview.addWidget(self._actions_card, 3)
+        self._overview_host.setVisible(False)
 
         # --- priorities and slots ----------------------------------------------------
         self._list = QListWidget()
@@ -235,8 +266,8 @@ class AnalysisWindow(QWidget):
         layout.addLayout(head)
         layout.addLayout(identity)
         layout.addWidget(self._progress)
+        layout.addWidget(self._overview_host)
         layout.addWidget(self._strongest_host)
-        layout.addWidget(self._fix_first_panel)
         layout.addWidget(self._body, 100)
         layout.addStretch(1)  # keeps the header at the top while there is no result to show
 
@@ -346,8 +377,8 @@ class AnalysisWindow(QWidget):
         self._result = result
         self._view = build_analysis_view(result)
         self._slots = list(result.get("slots") or [])
+        self._render_overview_cards()
         self._render_strongest()
-        self._render_fix_first()
         self._list.clear()
         self._has_priorities = bool(self._view["has_priorities"])
         # Row map: the priorities summary, then a heading, then one row per slot in the existing opportunity order.
@@ -384,60 +415,104 @@ class AnalysisWindow(QWidget):
             if index < len(tiles):
                 tile.set_tile(tiles[index])
                 self._tile_row.setStretch(index, 2 if tiles[index]["key"] == "multi_impact" else 1)
-        self._strongest_note.setText(f"{self._view.get('basis')} {self._view.get('caveat')}".strip())
+        self._strongest_note.setText(str(self._view.get("caveat") or ""))
+        self._strongest_note.setToolTip(f"{self._view.get('basis')} {self._view.get('caveat')}".strip())
         self._strongest_host.setVisible(bool(tiles))
 
-    def _render_fix_first(self) -> None:
-        for label in self._fix_first_labels:
-            self._fix_first_layout.removeWidget(label)
+    def _render_overview_cards(self) -> None:
+        for label in self._action_labels:
+            self._actions_layout.removeWidget(label)
             label.deleteLater()
-        self._fix_first_labels.clear()
-        rows = self._view.get("fix_first") or []
-        if rows:
-            lines = [("fixFirstTitle", "FIX FIRST")]
-            for row in rows[:_MAX_FIX_FIRST]:
-                urgency = f"  ·  {row['urgency']}" if row.get("urgency") else ""
-                lines.append(("fixFirstRow", f"▲ {row['title']} — {row['detail']}{urgency}"))
-            if len(rows) > _MAX_FIX_FIRST:
-                lines.append(("helperText", f"and {len(rows) - _MAX_FIX_FIRST} more"))
-            for object_name, text in lines:
-                label = QLabel(text)
-                label.setObjectName(object_name)
-                label.setWordWrap(True)
-                self._fix_first_layout.addWidget(label)
-                self._fix_first_labels.append(label)
-        self._fix_first_panel.setVisible(bool(rows))
+        self._action_labels.clear()
+        view = self._view
+        if not view.get("has_actionable"):
+            self._overview_host.setVisible(False)
+            return
+        focus = view["focus"]
+        self._focus_title.setText(focus["title"])
+        self._focus_headline.setText(focus["headline"])
+        self._focus_detail.setText(focus["detail"])
+        # An issue is marked; "no critical issue" is deliberately calm.
+        self._focus_card.setProperty("issue", bool(focus["issue"]))
+        self._focus_card.style().unpolish(self._focus_card)
+        self._focus_card.style().polish(self._focus_card)
+        actions = view.get("actions") or []
+        for action in actions:
+            label = QLabel(f"{action['number']}. {action['title']} — {action['summary']}")
+            label.setObjectName("fixFirstRow" if action["fix"] else "tileChange")
+            label.setWordWrap(True)
+            self._actions_layout.addWidget(label)
+            self._action_labels.append(label)
+        if not actions:
+            label = QLabel("No action could be established from this analysis.")
+            label.setObjectName("tileChange")
+            label.setWordWrap(True)
+            self._actions_layout.addWidget(label)
+            self._action_labels.append(label)
+        self._overview_host.setVisible(True)
 
     def strongest_text(self) -> list[str]:
         return [tile.text() for tile in self._tiles if not tile.isHidden()]
 
-    def fix_first_text(self) -> list[str]:
-        return [label.text() for label in self._fix_first_labels]
+    def focus_text(self) -> list[str]:
+        return [self._focus_title.text(), self._focus_headline.text(), self._focus_detail.text()] if not self._overview_host.isHidden() else []
+
+    def actions_text(self) -> list[str]:
+        return [label.text() for label in self._action_labels]
+
+    def _heading(self, title: str, note: str = "") -> str:
+        extra = f" <span style='color:{theme.TEXT_MUTED};font-weight:400'>— {_esc(note)}</span>" if note else ""
+        return f"<p style='margin:12px 0 3px 0;color:{theme.TEXT_MUTED};font-weight:700'>{_esc(title)}{extra}</p>"
 
     def _priorities_html(self) -> str:
+        """The Overview: what changed, build health, stat priorities, stat focus, coverage. Details stay behind the toggle."""
         view = self._view
-        muted, text, good = theme.TEXT_MUTED, theme.TEXT, theme.OK
+        muted, text, good, warn = theme.TEXT_MUTED, theme.TEXT, theme.OK, theme.WARN
+        tones = {"warn": warn, "ok": good, "neutral": text, "muted": muted}
         out: list[str] = []
-        for lane in view.get("lanes") or []:
-            note = f" <span style='color:{muted};font-weight:400'>— {_esc(lane['note'])}</span>" if lane.get("note") else ""
-            out.append(f"<p style='margin:10px 0 2px 0;color:{muted};font-weight:700'>{_esc(lane['title'])}{note}</p>")
+        if view.get("changes"):
+            out.append(self._heading("WHAT CHANGED", "since your previous analysis"))
+            out.extend(f"<p style='margin:0 0 3px 0;color:{text}'>{_esc(line)}</p>" for line in view["changes"])
+        if view.get("health"):
+            out.append(self._heading("BUILD HEALTH"))
             out.append("<table cellspacing='0' cellpadding='2' width='100%'>")
-            for row in lane["rows"]:
-                also = f"<span style='color:{muted}'>{_esc(row['also'])}</span>" if row.get("also") else ""
-                response = f"<b style='color:{good}'>{_esc(row['response'])}</b>" if row.get("response") else ""
+            for row in view["health"]:
                 out.append(
-                    f"<tr><td style='color:{text}'>{_esc(row['change'])}</td>"
-                    f"<td align='right' width='70'>{response}</td><td style='padding-left:10px'>{also}</td></tr>"
+                    f"<tr><td width='96' style='color:{text}'>{_esc(row['title'])}</td>"
+                    f"<td width='170'><b style='color:{tones[row['tone']]}'>{_esc(row['state'])}</b></td>"
+                    f"<td style='color:{muted}'>{_esc(row['reason'])}</td></tr>"
                 )
             out.append("</table>")
-        if not view.get("lanes"):
+        if view.get("ladders"):
+            out.append(self._heading("STAT PRIORITIES", "strongest measured responses, each at its tested amount"))
+        for ladder in view.get("ladders") or []:
+            out.append(f"<p style='margin:6px 0 1px 0;color:{muted};font-weight:700'>{_esc(ladder['title'])}</p>")
+            out.append("<table cellspacing='0' cellpadding='2' width='100%'>")
+            for row in ladder["rows"]:
+                curve = f"<span style='color:{muted}'>{_esc(row['curve'])}</span>" if row.get("curve") else ""
+                out.append(
+                    f"<tr><td width='18' style='color:{muted}'>{row['position']}.</td><td style='color:{text}'>{_esc(row['change'])}</td>"
+                    f"<td align='right' width='64'><b style='color:{good}'>{_esc(row['response'])}</b></td>"
+                    f"<td style='padding-left:10px'>{curve}</td></tr>"
+                )
+            out.append("</table>")
+        if not view.get("ladders"):
             out.append(f"<p style='color:{text}'>No measured response among the tested stats.</p>")
-        out.append(f"<p style='margin:14px 0 2px 0;color:{muted};font-weight:700'>WHAT EXILELENS MEASURED</p>")
-        for line in view.get("coverage") or []:
-            out.append(f"<p style='margin:0 0 3px 0;color:{text}'>{_esc(line)}</p>")
+        if view.get("packages"):
+            out.append(self._heading("STAT FOCUS", "each stat keeps its own measured result; they are not added together"))
+        for package in view.get("packages") or []:
+            out.append(f"<p style='margin:6px 0 1px 0;color:{muted};font-weight:700'>{_esc(package['title'])}</p>")
+            for stat in package["stats"]:
+                out.append(f"<p style='margin:0 0 2px 0;color:{text}'>{_esc(stat['change'])} "
+                           f"<span style='color:{muted}'>· {_esc(stat['evidence'])}</span></p>")
+        summary = view.get("coverage_summary") or {}
+        out.append(self._heading("ANALYSIS COVERAGE", summary.get("label", "")))
+        for line in [summary.get("summary", ""), *summary.get("notes", []), *(view.get("coverage") or [])]:
+            if line:
+                out.append(f"<p style='margin:0 0 3px 0;color:{text}'>{_esc(line)}</p>")
         if self._details_toggle.isChecked():
-            out.append(f"<p style='margin:14px 0 2px 0;color:{muted};font-weight:700'>MEASUREMENT DETAILS</p>")
-            for line in view.get("details") or []:
+            out.append(self._heading("MEASUREMENT DETAILS"))
+            for line in [*(view.get("curve_details") or []), *(view.get("breakpoint_details") or []), *(view.get("details") or [])]:
                 out.append(f"<p style='margin:0 0 3px 0;color:{muted}'>{_esc(line)}</p>")
         out.append(f"<p style='margin:14px 0 0 0;color:{muted}'>{_esc(view.get('coverage_basis'))}</p>")
         return "".join(out)
