@@ -250,7 +250,8 @@ def _action_plan(priorities: Mapping[str, Any], ladders: Mapping[str, list], bre
 
 def _current_focus(actions: list[Mapping[str, Any]], measured: int) -> dict[str, Any]:
     """The first action of the plan. Only a critical or material problem is called the biggest issue; a nearly capped
-    resistance does not headline the page while a well-supported direction exists."""
+    resistance does not headline the page while a well-supported direction exists. With no action at all, the absence
+    of a problem is the whole message."""
     if actions and actions[0]["kind"] == "FIX" and actions[0]["severity"] in _HARD_SEVERITIES:
         top = actions[0]
         return {"kind": FOCUS_ISSUE, "title": "BIGGEST CURRENT ISSUE", "headline": top["issue"], "detail": top["detail"], "action_id": top["id"]}
@@ -259,10 +260,14 @@ def _current_focus(actions: list[Mapping[str, Any]], measured: int) -> dict[str,
         return {"kind": FOCUS_MINOR, "title": "CURRENT FOCUS", "headline": top["issue"], "detail": top["detail"], "action_id": top["id"]}
     if actions:
         top = actions[0]
+        # The headline is what to focus on; "no critical issue" is context for it, not the message.
+        return {"kind": FOCUS_NO_CRITICAL, "title": "CURRENT FOCUS", "headline": top["title"],
+                "detail": f"No critical issue detected. {top['detail']}", "action_id": top["id"]}
+    if measured:
         return {"kind": FOCUS_NO_CRITICAL, "title": "CURRENT FOCUS", "headline": "No critical issue detected.",
-                "detail": top["detail"], "action_id": top["id"]}
-    reason = "No tested stat produced a measured response." if measured == 0 else "No meaningful improvement direction was measured."
-    return {"kind": FOCUS_NOT_ESTABLISHED, "title": "CURRENT FOCUS", "headline": "Could not establish a current focus.", "detail": reason, "action_id": ""}
+                "detail": "No meaningful improvement direction was measured.", "action_id": ""}
+    return {"kind": FOCUS_NOT_ESTABLISHED, "title": "CURRENT FOCUS", "headline": "Could not establish a current focus.",
+            "detail": "No tested stat produced a measured response.", "action_id": ""}
 
 
 def _best_response(ladders: Mapping[str, list], priorities: Mapping[str, Any]) -> dict[str, Any]:

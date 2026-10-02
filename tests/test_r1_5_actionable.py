@@ -222,8 +222,11 @@ def test_one_issue_then_defensive_and_damage_directions_with_their_evidence() ->
 
 def test_optimisation_only_and_nothing_established_focus() -> None:
     clean = _act()
-    assert clean["current_focus"]["kind"] == act.FOCUS_NO_CRITICAL and clean["current_focus"]["headline"] == "No critical issue detected."
-    assert clean["current_focus"]["detail"].startswith("Energy Shield gives the strongest measured Max Hit response")
+    focus = clean["current_focus"]
+    assert focus["kind"] == act.FOCUS_NO_CRITICAL and focus["headline"] == "Improve Max Hit"  # the direction is the headline
+    assert focus["detail"].startswith("No critical issue detected. Energy Shield gives the strongest measured Max Hit response")
+    weak = _act([_probe("LIFE", "Life", "+50 to maximum Life", 50.0, family="defense", ehp=0.4)])  # measured, but nothing worth an action
+    assert weak["action_plan"] == [] and weak["current_focus"]["headline"] == "No critical issue detected."
     assert [a["kind"] for a in clean["action_plan"]] == ["IMPROVE", "IMPROVE"]
     nothing = _act([_probe("LIFE", "Life", "+50 to maximum Life", 50.0, family="defense", status="REJECTED")])
     assert nothing["current_focus"]["kind"] == act.FOCUS_NOT_ESTABLISHED and nothing["action_plan"] == []
@@ -388,12 +391,12 @@ def test_a_one_point_resistance_gap_stays_actionable_but_does_not_headline_the_p
     assert [a["title"] for a in plan] == ["Improve Max Hit", "Improve Damage", "Finish capping Chaos Resistance"]
     assert (plan[2]["detail"], plan[2]["severity"], plan[2]["id"]) == ("74% → 75% · nearly capped", act.SEVERITY_MINOR, "FIX:RESISTANCE_CAP:Chaos Resistance")
     focus = actionable["current_focus"]
-    assert (focus["kind"], focus["title"], focus["headline"]) == (act.FOCUS_NO_CRITICAL, "CURRENT FOCUS", "No critical issue detected.")
-    assert focus["detail"].startswith("Energy Shield gives the strongest measured Max Hit response")
+    assert (focus["kind"], focus["title"], focus["headline"]) == (act.FOCUS_NO_CRITICAL, "CURRENT FOCUS", "Improve Max Hit")
+    assert focus["detail"].startswith("No critical issue detected. Energy Shield gives the strongest measured Max Hit response")
     health = {r["key"]: r for r in actionable["build_health"]}
     assert (health["resistances"]["state"], health["resistances"]["reason"]) == (act.NEARLY_CAPPED, "Chaos Resistance is 1% below cap.")
     for alarm in ("urgent", "critical", "biggest", "below cap."):
-        assert alarm not in " ".join([plan[2]["title"], plan[2]["detail"], plan[2]["issue"], focus["detail"]]).lower()
+        assert alarm not in " ".join([plan[2]["title"], plan[2]["detail"], plan[2]["issue"]]).lower()
 
 
 def test_a_minor_gap_keeps_a_place_when_the_plan_is_full_and_is_the_focus_only_when_nothing_else_is() -> None:

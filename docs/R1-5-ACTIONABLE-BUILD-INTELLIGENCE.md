@@ -312,7 +312,7 @@ the plan would overflow, the first minor gap takes the last place instead of an 
 material problems already fill the plan is a minor gap left to Build Health.
 
 Current focus is the plan's first action: `BIGGEST CURRENT ISSUE` only for a critical or material problem; otherwise
-`CURRENT FOCUS: No critical issue detected.` with the first direction. A minor gap is the focus
+`CURRENT FOCUS: <the first direction>` (e.g. `Improve Max Hit`) with "No critical issue detected." as the first line of its supporting text. "No critical issue detected." is the headline only when there is no action at all. A minor gap is the focus
 (`CURRENT FOCUS: Chaos Resistance is nearly capped.`) only when nothing else is actionable.
 
 Build health, Resistances: `Needs attention` for a critical or material deficit (a nearly capped one is mentioned beside

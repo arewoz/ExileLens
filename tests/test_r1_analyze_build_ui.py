@@ -216,7 +216,8 @@ def test_page_renders_strongest_responses_fix_first_and_priorities() -> None:
 def test_fix_first_panel_and_empty_lanes_leave_no_empty_shells() -> None:
     window, _controller = _window()
     window.show_result(_analysis([_probe("LIFE", "Life", "+50 to maximum Life", 50.0, family="defense", ehp=2.4)]))
-    assert window.focus_text()[:2] == ["CURRENT FOCUS", "No critical issue detected."]
+    assert window.focus_text()[:2] == ["CURRENT FOCUS", "Improve EHP"]
+    assert window.focus_text()[2].startswith("No critical issue detected. Life gives")
     assert window.actions_text() == ["1. Improve EHP — Life · +50 Life → +2.4%"]
     detail = window._detail.toPlainText()
     assert "EHP" in detail and "DAMAGE" not in detail and "MOVEMENT" not in detail and "MAX HIT" not in detail
@@ -619,7 +620,7 @@ def test_what_changed_appears_only_when_a_comparable_previous_analysis_differs()
     detail = window._detail.toPlainText()
     assert "WHAT CHANGED" in detail and "✓ Chaos Resistance is no longer a priority." in detail
     assert detail.index("WHAT CHANGED") < detail.index("BUILD HEALTH")
-    assert window.focus_text()[1] == "No critical issue detected."
+    assert window.focus_text()[1] == "Improve Max Hit" and window.focus_text()[2].startswith("No critical issue detected.")
 
 
 def test_overview_cards_do_not_claim_a_damage_stat_the_coverage_cannot_support() -> None:
@@ -645,7 +646,7 @@ def test_minor_gap_is_visible_but_quiet_on_the_overview() -> None:
 
     window, _controller = _window()
     window.show_result(actionable_analysis(needs=[NEAR_CHAOS], chaos=74.0, slots=[]))
-    assert window.focus_text()[:2] == ["CURRENT FOCUS", "No critical issue detected."]
+    assert window.focus_text()[:2] == ["CURRENT FOCUS", "Improve Max Hit"]  # the 1-point gap does not headline
     assert window._focus_card.property("issue") is False
     assert window.actions_text() == [
         "1. Improve Max Hit — Energy Shield · +50 Energy Shield → +2.0%",
