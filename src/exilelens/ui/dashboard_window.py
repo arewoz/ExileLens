@@ -18,6 +18,7 @@ from exilelens.app.settings import AppSettings, save_settings
 from exilelens.app.update_check import UpdateService
 from exilelens.app.modules.registry import FeatureModule, is_enabled
 from exilelens.ui import theme
+from exilelens.ui.analysis_window import AnalysisWindow
 from exilelens.ui.app_header import AppHeader
 from exilelens.ui.overview_page import OverviewPage
 from exilelens.ui.dashboard_pages import DiagnosticsPage, SettingsPage
@@ -111,6 +112,7 @@ class DashboardWindow(ManagedToolWindow):
         nav.setSpacing(0)
         for page_id, label in (
             ("overview", "Overview"),
+            ("build_analysis", "Analyze Build"),
             ("market", "Market"),
             ("tree", "Tree"),
             ("gear_optimizer", "Gear Optimizer"),
@@ -182,6 +184,10 @@ class DashboardWindow(ManagedToolWindow):
         self._stack = QStackedWidget()
         self._pages: dict[str, QWidget] = {}
         self._overview = OverviewPage(controller, settings, navigate=self.navigate)
+        self._analysis = (
+            AnalysisWindow(controller, embedded=True, navigate=self.navigate)
+            if is_enabled(FeatureModule.BUILD_ANALYSIS) else None
+        )
         self._market = MarketHubPage(controller, settings) if is_enabled(FeatureModule.MARKET) else None
         self._tree = TreeWorkspace(controller, embed_mode=True) if is_enabled(FeatureModule.TREE_TOOLS) else None
         self._gear = GearOptimizerPage(controller) if is_enabled(FeatureModule.GEAR_OPTIMIZER) else None
@@ -189,6 +195,7 @@ class DashboardWindow(ManagedToolWindow):
         self._diagnostics = DiagnosticsPage(controller, settings, self.update_service)
         for page_id, widget in (
             ("overview", self._overview),
+            ("build_analysis", self._analysis),
             ("market", self._market),
             ("tree", self._tree),
             ("gear_optimizer", self._gear),
@@ -330,6 +337,7 @@ class DashboardWindow(ManagedToolWindow):
     def _apply_module_nav(self) -> None:
         visible = {
             "overview": True,
+            "build_analysis": is_enabled(FeatureModule.BUILD_ANALYSIS),
             "market": is_enabled(FeatureModule.MARKET) or is_enabled(FeatureModule.MARKET_ASSISTANT),
             "tree": is_enabled(FeatureModule.TREE_TOOLS),
             "gear_optimizer": is_enabled(FeatureModule.GEAR_OPTIMIZER),

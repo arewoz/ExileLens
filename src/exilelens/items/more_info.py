@@ -30,6 +30,7 @@ MORE_INFO_SECTION_ORDER = (
     "defense",
     "resists",
     "why_verdict",
+    "build_context",
     "unmodeled",
     "build_source",
     "flexibility",
@@ -455,6 +456,14 @@ def _why_verdict(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, An
     return {"id": "why_verdict", "title": "WHY THIS VERDICT", "lines": lines, "reasons": why["reasons"]}
 
 
+def _build_context_section(model: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any] | None:
+    """R1: what this item means for this build. Below the measured Why; never a second verdict."""
+    from exilelens.items.build_context import detail_lines
+
+    lines = detail_lines(model.get("build_context"), _text(outcome.get("replacement_slot")))
+    return {"id": "build_context", "title": "FOR YOUR BUILD", "lines": lines} if lines else None
+
+
 def _build_source_section(model: dict[str, Any]) -> dict[str, Any] | None:
     """Source context only (TRUST-01B); absent for an ordinary current build."""
     freshness = model.get("build_freshness") or {}
@@ -498,6 +507,7 @@ _BUILDERS = {
     "resists": lambda model, outcome: _resists_section(outcome),
     "flexibility": lambda model, outcome: _flexibility_section(outcome),
     "why_verdict": _why_verdict,
+    "build_context": _build_context_section,
     "unmodeled": lambda model, outcome: _unmodeled(outcome),
     "build_source": lambda model, outcome: _build_source_section(model),
 }

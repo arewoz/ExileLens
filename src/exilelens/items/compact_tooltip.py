@@ -18,6 +18,7 @@ from exilelens.items.companion import build_companion_analysis, prune_companion_
 from exilelens.items.presentation_copy import fact_id_for_metric_row
 from exilelens.items.score_bands import score_band, score_text
 from exilelens.items.slots import is_jewel_socket_pob_slot
+from exilelens.items.build_context import compact_lines as build_context_lines
 from exilelens.items.why_explanation import QUALITY_FACT_ID, build_why_explanation
 
 # Ordered ids of what the compact tooltip is allowed to render. No score: it lives
@@ -893,6 +894,11 @@ def apply_compact_tooltip(model: dict[str, Any]) -> None:
     model["impact_rows"] = impact_rows
     model["primary_reasons_title"] = reasons_title
     model["primary_reasons"] = reasons
+    # R1: build context sits below the measured reasons and never replaces one of them.
+    explained = [str(reason.get(key) or "") for reason in reasons for key in ("metric", "counter_metric")]
+    model["build_context_lines"] = build_context_lines(
+        model.get("build_context"), str(outcome.get("replacement_slot") or ""), claimed=explained
+    )
     model["critical_notes"] = notes
     model["replacing_line"] = replace_line
     model["compared_with_line"] = replace_line

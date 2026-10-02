@@ -702,6 +702,12 @@ class ItemOverlayPanel(QWidget):
                     why = why[:3]
             else:
                 why = []
+        if compact_surface:
+            # R1: build context reads as part of the explanation, after the measured reasons.
+            context_lines = list(model.get("build_context_lines") or [])
+            if context_lines and not why:
+                reasons_title = "FOR YOUR BUILD"
+            why = why + context_lines
         self._populate_why(why)
         self._why_host.setVisible(bool(why))
         self._reasons_title.setText(reasons_title)

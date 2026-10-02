@@ -77,6 +77,8 @@ from exilelens.app.progress import OperationProgressHub, OperationStatus
 from exilelens.platform.windows.clipboard_identity import is_duplicate_clipboard_event
 from exilelens.platform.windows.cursor import get_cursor_pos_physical
 from exilelens.analysis.cache import ProbeCache
+from exilelens.analysis.identity import AnalysisBaseline
+from exilelens.items.build_context import build_item_context, intelligence_status, snapshot_intelligence
 from exilelens.analysis.pipeline import AnalysisYielded, analyze_build, analyze_slot, rescore_analysis
 from exilelens.market.engine import run_market_search
 from exilelens.market.eval_cache import MarketEvalCache
@@ -899,6 +901,8 @@ class EvaluationController(QObject):
     presentation_invalidated = Signal()
     last_result_rescored = Signal(object)
     analysis_started = Signal(int)
+    #: R1: an explicit Analyze Build run only (never a tree or single-slot analysis, which share `analysis_started`).
+    build_analysis_started = Signal(int)
     analysis_progress = Signal(object)
     analysis_finished = Signal(object)
     analysis_error = Signal(str)
@@ -1058,6 +1062,8 @@ class EvaluationController(QObject):
         self._active_upgrade_parent_id: int | None = None
         self._prices: dict[tuple[str, str], ManualPrice] = {}
         self._last_analysis: dict[str, Any] | None = None
+        # R1: Build Intelligence from the last explicit Analyze Build, read (never produced) by Item Check.
+        self._build_intelligence: dict[str, Any] | None = None
         self._last_market_result: dict[str, Any] | None = None
         self._last_gear_result: dict[str, Any] | None = None
         self.pool_registry = CandidatePoolRegistry()
@@ -1514,6 +1520,7 @@ class EvaluationController(QObject):
         self._refresh_pinned_overlay_stale(STALE_BUILD_CHANGED)
         self._loot_review.stop()
         self._last_analysis = None
+        self._build_intelligence = None
         self._last_result = None
         self.tree_view_model.reset_for_baseline()
         self.analysis_stale.emit()
@@ -1620,6 +1627,7 @@ class EvaluationController(QObject):
         self._offense_coverage = None
         self._offense_coverage_cache.clear()
         self._upgrade_path_cache.clear()
+        self._build_intelligence = None
         if self._last_analysis is not None:
             self._last_analysis = None
             self.analysis_stale.emit()
@@ -1676,6 +1684,33 @@ class EvaluationController(QObject):
             else:
                 self._old_file_note_surfaced = True
         return freshness
+
+    def _analysis_baseline(self, fingerprint: str = "") -> AnalysisBaseline:
+        """The baseline an analysis must have been run against to describe the build Item Check evaluates now."""
+        return AnalysisBaseline(
+            build_path=str(self.build_info.path or ""),
+            build_name=str(self.build_info.name or ""),
+            loadout=str(self._active_loadout or ""),
+            item_set=str(self._active_item_set_id or ""),
+            context=str(self.build_info.context or ""),
+            profile=str(self.settings.value_profile or ""),
+            generation=self._baseline_generation,
+            fingerprint=str(fingerprint or self.baseline_state.fingerprint or self._equipment_fingerprint or ""),
+        )
+
+    def build_intelligence_status(self, fingerprint: str = "") -> str:
+        """AVAILABLE / NOT_ANALYZED / STALE / NO_SIGNAL for the cached Analyze Build result. Runs nothing."""
+        return intelligence_status(self._build_intelligence, self._analysis_baseline(fingerprint))
+
+    def _item_check_build_context(self, result: dict[str, Any]) -> dict:
+        """Build-aware explanation context for one Item Check result. Reads the cache only: no PoB, no analysis."""
+        try:
+            baseline = (result.get("recommendation") or {}).get("baseline") or {}
+            status = self.build_intelligence_status(str(baseline.get("fingerprint_hash") or ""))
+            return build_item_context(result, self._build_intelligence, status=status)
+        except Exception:  # noqa: BLE001 - explanation context must never break Item Check
+            logger.exception("item_check build context failed")
+            return {}
 
     @property
     def build_loaded_at(self) -> float | None:
@@ -2508,7 +2543,10 @@ class EvaluationController(QObject):
             slot=slot,
         )
         self._analysis_resume = request
+        self._analysis_cancelled = False
         self.analysis_started.emit(request_id)
+        if slot is None:
+            self.build_analysis_started.emit(request_id)
         self._track_progress("analysis", module="BUILD_ANALYSIS", title="Analyze Build", request_id=request_id)
         self._scheduler.submit(request)
         return request_id
@@ -2597,6 +2635,10 @@ class EvaluationController(QObject):
         self._last_analysis = payload
         self._analysis_generation = self._baseline_generation
         self._analysis_resume = None
+        intelligence = snapshot_intelligence(payload)
+        if intelligence is not None:
+            # Only a full Analyze Build carries priorities; tree and single-slot analyses leave the cached one alone.
+            self._build_intelligence = intelligence
         if payload.get("kind") in {"tree", "tree_snapshot"} or payload.get("nodes") or payload.get("graph"):
             graph = dict(payload.get("graph") or payload)
             if payload.get("baseline") and not graph.get("baseline"):
@@ -4384,6 +4426,8 @@ class EvaluationController(QObject):
         pro = self.item_check_settings()
         # Source context only (never scoring/verdict/quality); set after the evaluation cache store.
         result["build_freshness"] = self._item_check_build_freshness()
+        # R1: explanation context only, from an already cached analysis; never starts one and never touches the outcome.
+        result["build_context"] = self._item_check_build_context(result)
         result = self._apply_optional_presentation_enrichment(result, pro, request_id=request_id)
         self._last_result = result
         from exilelens.error_catalog.integration import record_evaluation_outcome
