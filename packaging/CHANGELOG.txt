@@ -2,7 +2,7 @@ EXILELENS CHANGELOG
 ===================
 
 
-0.6.0b1
+0.6.0
 -------
 
 - **Can't-equip warning:** Item Check marks items whose level or attribute requirements you cannot meet as NOT VIABLE.

@@ -1,4 +1,4 @@
-EXILELENS 0.6.0b1 BETA
+EXILELENS 0.6.0 BETA
 =======================
 
 Build-aware item analysis for Path of Exile 2.
