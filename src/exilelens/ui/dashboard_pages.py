@@ -263,6 +263,8 @@ class SettingsPage(QWidget):
 
         self._change_pob_btn = make_button("Change PoB location", "secondary")
         self._change_pob_btn.clicked.connect(self._browse_pob)
+        self._detect_pob_btn = make_button("Detect PoB", "secondary", tooltip="Look for Path of Building automatically")
+        self._detect_pob_btn.clicked.connect(self._auto_detect_pob)
         self._change_build_btn = make_button("Change build", "secondary")
         self._change_build_btn.clicked.connect(self._browse_build)
         # Surfaces only while the integration is actually down.
@@ -270,7 +272,7 @@ class SettingsPage(QWidget):
         self._reconnect_btn.clicked.connect(self._apply_pob_path)
         self._reconnect_btn.setVisible(False)
         section.add_layout(
-            button_row([self._reconnect_btn, self._change_pob_btn, self._change_build_btn])
+            button_row([self._reconnect_btn, self._detect_pob_btn, self._change_pob_btn, self._change_build_btn])
         )
         return section
 
