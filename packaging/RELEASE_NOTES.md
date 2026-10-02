@@ -1,8 +1,17 @@
-# ExileLens 0.5.0b1
+# ExileLens 0.6.0
 
 Early beta for Windows. Item Check uses your selected Path of Building for Path of Exile 2 and shows upgrade / downgrade guidance in an overlay.
 
 ## Highlights
+
+### New in 0.6.0
+
+- **Can't-equip warning:** items whose level or attribute requirements you cannot meet are shown as NOT VIABLE.
+- **Build freshness:** the Overview warns when your PoB build file changed on disk or is old.
+- **PoB auto-detect:** Path of Building is found via the registry, shortcuts and common folders; a Detect button is available in Overview, Settings and Setup.
+- **Update awareness:** in-app update notice and a check when the dashboard opens.
+- **Build Intelligence:** Analyze Build opens with BUILD PRIORITIES measured from your own build.
+- **Fix:** clicking outside the tooltip now dismisses it even when an ExileLens window sits behind the game.
 
 ### Diagnostics and support
 
@@ -26,7 +35,7 @@ Early beta for Windows. Item Check uses your selected Path of Building for Path 
 
 ## Installation
 
-1. Download **ExileLens-v0.5.0b1-win64.zip** from the GitHub Release (after publish approval).
+1. Download **ExileLens-v0.6.0-win64.zip** from the GitHub Release (after publish approval).
 2. Extract the full folder and run **ExileLens.exe**.
 3. On first launch, connect your **Path of Building Community (PoE2)** installation and select a saved build XML.
 

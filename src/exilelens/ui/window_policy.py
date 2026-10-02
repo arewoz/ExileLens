@@ -166,6 +166,29 @@ def interactive_window_contains(x: int, y: int) -> bool:
     return False
 
 
+def _point_covered_by_other_process(x: int, y: int) -> bool:
+    """True when the topmost OS window at the screen point belongs to another process (e.g. the game).
+
+    Qt only knows our own windows' geometry, not whether the game covers them. A visible but obscured
+    ExileLens window (dashboard behind the game) must not swallow clicks aimed at the game.
+    """
+    if sys.platform != "win32":
+        return False
+    try:
+        import os
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        hwnd = user32.WindowFromPoint(wintypes.POINT(int(x), int(y)))
+        if not hwnd:
+            return False
+        pid = wintypes.DWORD(0)
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        return bool(pid.value) and int(pid.value) != os.getpid()
+    except (OSError, AttributeError, ValueError):
+        return False
+
+
 def click_blocks_item_dismiss(x: int, y: int) -> bool:
     """True when a click must not dismiss the item overlay.
 
@@ -186,6 +209,8 @@ def click_blocks_item_dismiss(x: int, y: int) -> bool:
                 if _control_under_point(widget, x, y):
                     return True
                 continue
+            if _point_covered_by_other_process(x, y):
+                continue  # our window is under the game here: this click is for the game and must dismiss the tooltip
             return True
         except RuntimeError:
             continue

@@ -263,6 +263,8 @@ class SettingsPage(QWidget):
 
         self._change_pob_btn = make_button("Change PoB location", "secondary")
         self._change_pob_btn.clicked.connect(self._browse_pob)
+        self._detect_pob_btn = make_button("Detect PoB", "secondary", tooltip="Look for Path of Building automatically")
+        self._detect_pob_btn.clicked.connect(self._auto_detect_pob)
         self._change_build_btn = make_button("Change build", "secondary")
         self._change_build_btn.clicked.connect(self._browse_build)
         # Surfaces only while the integration is actually down.
@@ -270,7 +272,7 @@ class SettingsPage(QWidget):
         self._reconnect_btn.clicked.connect(self._apply_pob_path)
         self._reconnect_btn.setVisible(False)
         section.add_layout(
-            button_row([self._reconnect_btn, self._change_pob_btn, self._change_build_btn])
+            button_row([self._reconnect_btn, self._detect_pob_btn, self._change_pob_btn, self._change_build_btn])
         )
         return section
 
@@ -622,29 +624,13 @@ class SettingsPage(QWidget):
 
     def _auto_detect_pob(self) -> None:
         """Rerun bounded local discovery: one result is applied, several are offered, none keeps the current path."""
-        from PySide6.QtWidgets import QInputDialog
+        from exilelens.ui.pob_detect import detect_pob_path
 
-        from exilelens.pob_discovery import find_pob_installation
-
-        result = find_pob_installation()
-        chosen = result.selected
-        if chosen is None and result.ambiguous:
-            labels = [candidate.display() for candidate in result.ambiguous]
-            label, accepted = QInputDialog.getItem(
-                self, "Path of Building", "Multiple Path of Building installations were found:", labels, 0, False
-            )
-            if not accepted:
-                return
-            chosen = result.ambiguous[labels.index(label)]
-        if chosen is None:
-            QMessageBox.information(
-                self,
-                "Path of Building",
-                "Path of Building could not be detected automatically. Use Browse to choose its installation folder.",
-            )
+        path = detect_pob_path(self)
+        if path is None:
             return
-        self._pob_edit.setText(str(chosen.path))
-        if str(chosen.path) != self.settings.pob_path:
+        self._pob_edit.setText(path)
+        if path != self.settings.pob_path:
             self._apply_pob_path()
 
     def _browse_pob(self) -> None:

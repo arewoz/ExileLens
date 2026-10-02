@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLay
 
 from exilelens.app.build_state import BuildState
 from exilelens.app.controller import EvaluationController
-from exilelens.app.settings import AppSettings
+from exilelens.app.settings import AppSettings, save_settings
 from exilelens.ui import theme
 from exilelens.ui.components import (
     ElidedLabel,
@@ -189,6 +189,17 @@ class OverviewPage(QWidget):
         kind = self._action_kind
         if kind == "choose_build":
             self._choose_build()
+        elif kind == "detect_pob":
+            from exilelens.ui.pob_detect import detect_pob_path
+
+            path = detect_pob_path(self)
+            if path:
+                self.settings.pob_path = path
+                save_settings(self.settings)
+                self.controller.restart_engine()
+                self.refresh()
+            elif self._navigate is not None:
+                self._navigate("settings")  # nothing detected: fall back to choosing the folder manually
         elif kind == "locate_pob":
             if self._navigate is not None:
                 self._navigate("settings")
@@ -281,10 +292,10 @@ class OverviewPage(QWidget):
 
         if pob.value == "Not found":
             self._set_action(
-                "locate_pob",
+                "detect_pob",
                 "Path of Building could not be detected",
-                pob.detail or "Choose your Path of Building installation folder.",
-                "Locate Path of Building",
+                pob.detail or "Detect it automatically, or choose its installation folder in Settings.",
+                "Detect automatically",
             )
             return
         if pob.status == "error":
