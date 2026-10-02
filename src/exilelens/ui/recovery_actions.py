@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
-PATREON_URL = "https://www.patreon.com/c/ExileLens"
+PATREON_URL = "https://www.patreon.com/ExileLens"
 
 
 def open_patreon() -> bool:

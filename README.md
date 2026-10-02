@@ -4,7 +4,7 @@
 
 Free and open-source, build-aware item analysis for Path of Exile 2.
 
-[Download releases](https://github.com/arewoz/ExileLens/releases) · [Report an issue](https://github.com/arewoz/ExileLens/issues) · [Discord](https://discord.gg/4jrhBbSwEn) · [Patreon](https://www.patreon.com/c/ExileLens)
+[Download releases](https://github.com/arewoz/ExileLens/releases) · [Report an issue](https://github.com/arewoz/ExileLens/issues) · [Discord](https://discord.gg/4jrhBbSwEn) · [Patreon](https://www.patreon.com/ExileLens)
 
 ![ExileLens demo](docs/media/exilelens-demo.jpg)
 
@@ -118,7 +118,7 @@ For security vulnerabilities, follow [`SECURITY.md`](SECURITY.md).
 
 ## Support Development
 
-ExileLens is free, open source, and independently maintained. If you would like to support its ongoing development and maintenance, you can [support ExileLens on Patreon](https://www.patreon.com/c/ExileLens). Support is entirely voluntary and is not required to access any ExileLens features.
+ExileLens is free, open source, and independently maintained. If you would like to support its ongoing development and maintenance, you can [support ExileLens on Patreon](https://www.patreon.com/ExileLens). Support is entirely voluntary and is not required to access any ExileLens features.
 
 ## Build from source
 
