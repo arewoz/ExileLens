@@ -367,5 +367,28 @@ class ProbeCatalog:
             "SPELL_SKILL_LEVELS",
         )
 
+    # M5.5: build-level probes the global (sensitivity) stage runs besides `stage2_ids()`. They already exist in the
+    # catalog with canonical increments; they previously ran only per slot, which Build Sensitivity does not read.
+    GLOBAL_GENERIC_IDS = (
+        "ATTACK_DAMAGE", "ATTACK_SPEED", "PROJECTILE_SKILL_LEVELS", "STRENGTH", "DEXTERITY", "INTELLIGENCE",
+    )
+    GLOBAL_CRIT_IDS = ("CRIT_CHANCE", "CRIT_MULTIPLIER")
+    GLOBAL_MINION_IDS = ("MINION_DAMAGE", "MINION_ATTACK_SPEED", "MINION_CAST_SPEED", "MINION_SKILL_LEVELS")
+
+    def global_ids(self, *, minion_owned: bool = False, crit_chance: float | None = None,
+                   ignite_dps: float | None = None, poison_dps: float | None = None) -> tuple[str, ...]:
+        """Probe ids for the global stage. Gating uses only observed PoB facts (offense owner, non-zero crit/ailment
+        output) to bound cost; it never decides what the build should value, and the measurement still decides the signal."""
+        ids = list(self.stage2_ids()) + list(self.GLOBAL_GENERIC_IDS)
+        if crit_chance is not None and crit_chance > 0:
+            ids.extend(self.GLOBAL_CRIT_IDS)
+        if minion_owned:
+            ids.extend(self.GLOBAL_MINION_IDS)
+        if ignite_dps and ignite_dps > 0:
+            ids.append("IGNITE_MAGNITUDE")
+        if poison_dps and poison_dps > 0:
+            ids.extend(("POISON_MAGNITUDE", "POISON_DURATION"))
+        return tuple(pid for pid in ids if pid in self._probes)
+
     def is_unsupported(self, probe_id: str) -> bool:
         return probe_id in UNSUPPORTED_PROBE_IDS or probe_id not in self._probes

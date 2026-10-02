@@ -20,3 +20,6 @@ venv/
 .DS_Store
 Thumbs.db
 .run/
+
+# M5.4/M5.5 generated validation output (regenerate with scripts/m5_4_priorities_validation.py --out ...)
+artifacts/m5_*_priorities_validation.json

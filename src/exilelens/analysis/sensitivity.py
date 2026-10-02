@@ -167,20 +167,31 @@ def build_sensitivity(result: Mapping[str, Any]) -> dict[str, Any]:
         status = _PROBE_STATUS.get(str(main.get("status")), "UNKNOWN")
         magnitude = _finite(main.get("magnitude"))
         definition = catalog.get(probe_id)
+        measured_or_flat = status in {MEASURED, "NO_SIGNAL"}
         signal: dict[str, Any] = {
             "probe_id": probe_id,
             "family": main.get("family") or (definition.family if definition else None),  # the intervention, not the response
             "label": main.get("display_name") or (definition.label if definition else probe_id),
             "probe": {"magnitude": magnitude, "unit": main.get("unit") or (definition.unit if definition else None), "line": main.get("line")},
             "status": status,
+            # True only when the experiment was established (PoB applied the probe). NO_SIGNAL then means "applied, no
+            # measured response"; REJECTED/UNSUPPORTED/RESTORE_FAILED/INVALID mean "not established".
+            "applied": measured_or_flat,
             "confidence": "UNSUPPORTED" if status != MEASURED else _confidence(main.get("confidence")),
         }
+        if status == "NO_SIGNAL" and (main.get("family") or (definition.family if definition else None)) == "resistance":
+            own = ((main.get("metric_profile") or {}).get(probe_id.lower()) or {})
+            if own.get("availability") == "available":
+                # The resistance this probe raises did not move: it is pinned (e.g. overridden by an equipped item).
+                signal["own_resistance_delta"] = _finite(own.get("absolute_delta"))
         if status == MEASURED:
             response = _response(main)
             signal["response"] = response
-            if offense_low and "offense" in response:
-                signal["confidence"] = _min_confidence(signal["confidence"], "LOW")
-                signal["response"]["offense"]["offense_confidence"] = "LOW"
+            if "offense" in response:
+                # Confidence follows the evidence of each axis: a low-confidence offense metric limits the offense axis
+                # only; independent defensive axes keep the probe's own confidence.
+                axis_confidence = _min_confidence(signal["confidence"], "LOW") if offense_low else signal["confidence"]
+                signal["response"]["offense"]["confidence"] = axis_confidence
             per_unit = _per_unit(response, magnitude)
             if per_unit:
                 signal["response_per_unit"] = per_unit

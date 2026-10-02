@@ -62,13 +62,95 @@ def _compat_sets(pob_path: str) -> dict[str, set[str]]:
     return {probe_id: set(info.get("slots") or []) for probe_id, info in table.items()}
 
 
-def _carrier(equipment: dict[str, dict[str, Any]]) -> tuple[str, str] | None:
-    for slot in ("Ring 1", "Ring 2", "Amulet", "Belt", "Helmet", "Gloves", "Boots", "Body Armour"):
+_CARRIER_SLOTS = ("Ring 1", "Ring 2", "Amulet", "Belt", "Helmet", "Gloves", "Boots", "Body Armour")
+# One experiment that must move at least one of these PoB outputs if the item accepts appended modifiers.
+_CANARY_LINES = ("+50 to maximum Life", "+50 to maximum Energy Shield", "+50 to maximum Mana")
+_CANARY_FIELDS = ("Life", "EnergyShield", "Mana")
+PROBE_NOT_APPLIED = "PROBE_NOT_APPLIED"
+
+
+def _carrier_candidates(equipment: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
+    found = []
+    for slot in _CARRIER_SLOTS:
         row = equipment.get(slot)
         raw = (row or {}).get("raw") or ""
         if row and row.get("equipped") and raw.strip():
-            return slot, raw
-    return None
+            found.append((slot, raw))
+    return found
+
+
+def _carrier(equipment: dict[str, dict[str, Any]]) -> tuple[str, str] | None:
+    candidates = _carrier_candidates(equipment)
+    return candidates[0] if candidates else None
+
+
+def item_applies_probe_mods(
+    engine: Any, slot: str, raw: str, *, context: str, probes: ProbeEngine | None = None,
+    cache: ProbeCache | None = None, identity: str = "",
+) -> bool:
+    """True only when PoB demonstrably applies modifiers appended to this item.
+
+    PoB rewrites some items itself (Kalandra's Touch copies the opposite ring), so an appended line can be silently
+    discarded. A probe on such an item would measure nothing and must never be reported as "no response". The check
+    is capability based: one canary evaluation must raise Life, Energy Shield or Mana.
+    """
+    from exilelens.analysis.probes import clone_item_with_mods
+
+    # The answer depends only on the baseline state and the item, which the cache key captures (fingerprint, build,
+    # loadout, item set, context, generation, slot, item text); a later analysis of the same state reuses it.
+    key = cache.carrier_key(identity, slot, raw) if cache is not None and identity else ""
+    if key:
+        known = cache.get_carrier(key)
+        if known is not None:
+            return known
+    try:
+        evaluation = engine.evaluate_candidate(slot, clone_item_with_mods(raw, list(_CANARY_LINES)), context=context)
+    except EngineError:
+        return False  # not cached: an engine error says nothing stable about the item
+    finally:
+        if probes is not None:
+            probes.pob_recalcs += 1
+    if not (evaluation.get("restore") or {}).get("pass"):
+        return False  # not cached: a restore failure is a state problem, not a property of the item
+    before = (evaluation.get("baseline") or {}).get("metrics") or {}
+    after = (evaluation.get("candidate") or {}).get("metrics") or {}
+    applies = any(float(after.get(f) or 0.0) > float(before.get(f) or 0.0) + 0.5 for f in _CANARY_FIELDS)
+    if key:
+        cache.put_carrier(key, applies)
+    return applies
+
+
+def _validated_carrier(
+    engine: Any, equipment: dict[str, dict[str, Any]], *, context: str, probes: ProbeEngine,
+    cache: ProbeCache | None = None, identity: str = "",
+) -> tuple[tuple[str, str] | None, bool]:
+    """(carrier, had_candidates). The first equipped item that demonstrably accepts probe modifiers."""
+    candidates = _carrier_candidates(equipment)
+    seen: set[str] = set()
+    for slot, raw in candidates:
+        if raw in seen:
+            continue
+        seen.add(raw)
+        if item_applies_probe_mods(engine, slot, raw, context=context, probes=probes, cache=cache, identity=identity):
+            return (slot, raw), True
+    return None, bool(candidates)
+
+
+def not_applied_probe(definition: Any, *, slot: str = "") -> dict[str, Any]:
+    """A probe whose experiment could not be established: REJECTED (not established), never NO_SIGNAL."""
+    return {
+        "probe_id": definition.probe_id,
+        "status": "REJECTED",
+        "error": PROBE_NOT_APPLIED,
+        "message": "the probe modifier is not applied by the carrier item",
+        "family": definition.family,
+        "display_name": definition.label,
+        "magnitude": definition.default_magnitude,
+        "unit": definition.unit,
+        "line": definition.line(definition.default_magnitude),
+        "confidence": "UNSUPPORTED",
+        "slot": slot,
+    }
 
 
 def _product_for_pob(pob_slot: str, item_type: str | None) -> str:
@@ -100,7 +182,10 @@ def analyze_build(
     on_progress: ProgressFn | None = None,
     slot_filter: str | None = None,
     resume: dict[str, Any] | None = None,
+    build_intelligence: bool = True,
 ) -> dict[str, Any]:
+    # build_intelligence=False is for single-slot callers (market search, SearchIntent): they keep the original global
+    # probe set and do not build the sensitivity profile or priorities, so their cost does not grow with M5.5.
     started = time.perf_counter()
     selected = profile if isinstance(profile, ValueProfile) else ValueProfile(str(profile).upper())
     catalog = catalog or ProbeCatalog()
@@ -146,7 +231,16 @@ def analyze_build(
     )
     # M5.1: base Build Fingerprint from the data already loaded above (no extra PoB recalculation).
     base_fingerprint = build_fingerprint(raw=raw, baseline=baseline, primary=primary, audit=audit).to_dict()
-    carrier = _carrier(equipment)
+    carrier, carrier_candidates_exist = _validated_carrier(
+        engine, equipment, context=context, probes=probes, cache=cache, identity=baseline.probe_cache_prefix()
+    )
+    primary_owner = getattr(getattr(primary, "damage_owner", None), "value", "")
+    global_ids = catalog.stage2_ids() if not build_intelligence else catalog.global_ids(
+        minion_owned=primary_owner == "MINION",
+        crit_chance=raw.get("CritChance") if primary_owner != "MINION" else None,
+        ignite_dps=raw.get("IgniteDPS"),
+        poison_dps=raw.get("PoisonDPS"),
+    )
     skipped: list[dict[str, Any]] = []
     global_probes: list[dict[str, Any]] = []
     compat_sets = _compat_sets(pob_path) if pob_path else {}
@@ -165,7 +259,7 @@ def analyze_build(
     if carrier:
         carrier_slot, carrier_raw = carrier
         # Stage 2: generic high-value families on a jewellery/armour carrier.
-        for probe_id in catalog.stage2_ids():
+        for probe_id in global_ids:
             check_yield({"stage": "stage2", "global_probes": global_probes})
             definition = catalog.get(probe_id)
             if definition is None:
@@ -243,7 +337,14 @@ def analyze_build(
                         global_probes.append({**sample, "nonlinear_sample": True})
                 global_probes.append({"probe_id": top, "status": "curve", "linearity": curve["linearity"], "samples": curve["samples"]})
     else:
-        skipped.append({"probe_id": "*", "reason": "no_safe_carrier"})
+        skipped.append({"probe_id": "*", "reason": "carrier_ignores_probe_mods" if carrier_candidates_exist else "no_safe_carrier"})
+        if carrier_candidates_exist:
+            # Candidates exist but none accepts appended modifiers: the experiment is not established, which is not
+            # the same as "no response". Report every global probe as REJECTED so coverage can say so.
+            for probe_id in global_ids:
+                definition = catalog.get(probe_id)
+                if definition is not None:
+                    global_probes.append(not_applied_probe(definition))
 
     if not carrier:
         # Attach MOVEMENT/OFFENSE needs only when probes exist.
@@ -334,6 +435,7 @@ def analyze_build(
             continue
 
         item_raw = str(row.get("raw") or "")
+        slot_accepts_mods: bool | None = True if carrier and item_raw == carrier[1] else None
         # Stage 3: slot-compatible probes (reuse cache when same carrier/global already ran).
         for definition in catalog.all():
             check_yield({"stage": "slot", "slot": product_slot, "global_probes": global_probes})
@@ -357,6 +459,15 @@ def analyze_build(
             if existing and existing.get("status") in {"ok", "NO_SIGNAL"}:
                 row_probe = {**existing, "slot_compatible": True, "measured_on": existing.get("slot")}
             else:
+                if slot_accepts_mods is None:
+                    slot_accepts_mods = item_applies_probe_mods(
+                        engine, pob_slot, item_raw, context=context, probes=probes, cache=cache, identity=baseline.probe_cache_prefix()
+                    )
+                if not slot_accepts_mods:
+                    row_probe = not_applied_probe(definition, slot=pob_slot)
+                    row_probe["slot_compatible"] = True
+                    slot_probe_rows.append(row_probe)
+                    continue
                 row_probe = probes.run_probe(
                     slot=pob_slot,
                     item_raw=item_raw,
@@ -469,14 +580,16 @@ def analyze_build(
         "network": False,
     }
     # M5.2: normalise the probes that just ran; no further PoB work.
-    result["build_sensitivity"] = build_sensitivity(result)
-    # M5.3: priorities from the measured sensitivity only (no PoB, no profile).
-    result["build_priorities"] = build_priorities(result)
+    if build_intelligence:
+        result["build_sensitivity"] = build_sensitivity(result)
+        # M5.3: priorities from the measured sensitivity only (no PoB, no profile).
+        result["build_priorities"] = build_priorities(result)
     return result
 
 
 def analyze_slot(engine: Any, **kwargs: Any) -> dict[str, Any]:
     slot = kwargs.pop("slot")
+    kwargs.setdefault("build_intelligence", False)
     result = analyze_build(engine, slot_filter=slot, **kwargs)
     matches = [row for row in result["slots"] if row["product_slot"] == slot or row["pob_slot"] == slot]
     result["slot"] = matches[0] if matches else None

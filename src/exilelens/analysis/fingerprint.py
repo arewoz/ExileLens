@@ -174,15 +174,26 @@ def _defense(raw: Mapping[str, Any], audit: BuildStateAudit) -> dict[str, Any]:
 
 def _resources(raw: Mapping[str, Any], audit: BuildStateAudit) -> dict[str, Any]:
     cost, regen = _num(raw, "ManaPerSecondCost"), _num(raw, "ManaRegenRecovery")
+    leech = _num(raw, "ManaLeechGainRate")
     if cost is None or regen is None:
         sustain = _leaf(None)
+        deficit = _leaf(None)
     else:
-        # Same rule as the existing audit's RESOURCE_PRESSURE need.
-        sustain = _leaf("PRESSURED" if any(n.code == "RESOURCE_PRESSURE" for n in audit.needs) else "SUSTAINED", DERIVED)
+        # PoB's per-second cost assumes uninterrupted use at full speed; recovery here is passive regeneration plus
+        # PoB's own leech / on-hit gain when it reports one. Leech-free fields stay UNAVAILABLE rather than assumed 0.
+        recovery = regen + (leech or 0.0)
+        gap = cost - recovery
+        sustain = _leaf("PRESSURED" if gap > 0.05 else "SUSTAINED", DERIVED)
+        deficit = _leaf(round(max(0.0, gap), 2), DERIVED)
     return {
-        "mana": {"pool": _obs(raw, "Mana"), "unreserved": _obs(raw, "ManaUnreserved"), "cost_per_second": _obs(raw, "ManaPerSecondCost"), "regen_per_second": _obs(raw, "ManaRegenRecovery"), "sustain": sustain},
+        "mana": {
+            "pool": _obs(raw, "Mana"), "unreserved": _obs(raw, "ManaUnreserved"), "cost_per_use": _obs(raw, "ManaCost"),
+            "cost_per_second": _obs(raw, "ManaPerSecondCost"), "regen_per_second": _obs(raw, "ManaRegenRecovery"),
+            "leech_gain_per_second": _obs(raw, "ManaLeechGainRate"),
+            "continuous_use_deficit_per_second": deficit, "sustain": sustain,
+        },
         "life": {"cost_per_second": _obs(raw, "LifePerSecondCost"), "regen_per_second": _obs(raw, "LifeRegenRecovery")},
-        "energy_shield": {"regen_per_second": _obs(raw, "EnergyShieldRegenRecovery")},
+        "energy_shield": {"regen_per_second": _obs(raw, "EnergyShieldRegenRecovery"), "cost_per_second": _obs(raw, "ESPerSecondCost")},
         "spirit": {"pool": _obs(raw, "Spirit"), "unreserved": _obs(raw, "SpiritUnreserved")},
     }
 

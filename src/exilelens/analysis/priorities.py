@@ -37,7 +37,10 @@ _DEFENCE_DETAILS = ("life", "energy_shield", "armour", "evasion")
 _ELEMENT_NAMES = {"fire": "Fire", "cold": "Cold", "lightning": "Lightning", "chaos": "Chaos"}
 _SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 # Baseline facts that are breakpoints/deficits. Probe-derived needs (OFFENSE_/MOVEMENT_OPPORTUNITY) are score based: excluded.
-_NEED_CODES = ("RES_CAP_MISSING", "LOW_CHAOS_RES", "RESOURCE_PRESSURE")
+# RESOURCE_PRESSURE is deliberately NOT here: PoB's cost-per-second assumes uninterrupted use at full speed against passive
+# regeneration, which most working builds exceed (M5.4: 12/18). It stays in the audit/SearchIntent untouched and is reported
+# as `resource_context`; FIX FIRST only states a hard fact (the pool cannot pay for one use).
+_NEED_CODES = ("RES_CAP_MISSING", "LOW_CHAOS_RES")
 
 
 def _percent(signal: Mapping[str, Any], axis: str) -> float | None:
@@ -64,12 +67,14 @@ def _row(signal: Mapping[str, Any], axis: str, *, also: tuple[str, ...] = ()) ->
         for name in also
         if (_percent(signal, name) or 0.0) > RESPONSE_EPSILON
     }
+    axis_row = (signal.get("response") or {}).get(axis) or {}
     row: dict[str, Any] = {
         "label": signal.get("label"),
         "tested_change": _tested_change(signal),
         "axis": axis,
         "response_percent": round(float(_percent(signal, axis)), 2),
-        "confidence": signal.get("confidence"),
+        # Confidence follows the axis' own evidence (M5.2 sets it per axis where it can differ).
+        "confidence": axis_row.get("confidence") or signal.get("confidence"),
         "evidence": MEASURED,
     }
     if details:
@@ -105,7 +110,45 @@ def _multi_axis(signals: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return rows[:MAX_ROWS_PER_LANE]
 
 
-def _fix_first(result: Mapping[str, Any], signals_all: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def _pinned_resistances(signals_all: list[Mapping[str, Any]], needs: Any) -> set[str]:
+    """Below-cap elements whose resistance PoB demonstrably did not move when the probe was applied (pinned/overridden).
+
+    A capped resistance also shows no response to more resistance, so only an element the audit reports below cap counts."""
+    below_cap = {str(n.get("metric") or "").replace("_res", "") for n in needs or [] if n.get("code") in _NEED_CODES}
+    pinned: set[str] = set()
+    for signal in signals_all:
+        probe_id = str(signal.get("probe_id") or "")
+        if probe_id.endswith("_RES") and signal.get("status") == "NO_SIGNAL" and signal.get("applied") and signal.get("own_resistance_delta") == 0:
+            element = probe_id.replace("_RES", "").lower()
+            if element in below_cap:
+                pinned.add(element)
+    return pinned
+
+
+def _resource_rows(result: Mapping[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    mana = ((result.get("build_fingerprint") or {}).get("resources") or {}).get("mana") or {}
+
+    def value(key: str) -> float | None:
+        v = (mana.get(key) or {}).get("value")
+        return None if v is None else float(v)
+
+    pool, per_use = value("unreserved"), value("cost_per_use")
+    rows: list[dict[str, Any]] = []
+    if pool is not None and per_use and per_use > 0 and pool < per_use:
+        rows.append({"kind": "RESOURCE", "title": "Mana pool", "detail": "Unreserved mana is smaller than the cost of one use of the main skill", "severity": "critical", "source": "fingerprint"})
+    context: dict[str, Any] = {}
+    deficit = value("continuous_use_deficit_per_second")
+    if deficit and pool:
+        context["mana"] = {
+            "continuous_use_deficit_per_second": deficit,
+            "seconds_to_empty_unreserved_pool": round(pool / deficit, 1),
+            "recovery_includes_leech": value("leech_gain_per_second") is not None,
+            "assumption": "PoB assumes uninterrupted use at full speed; flasks and burst/idle patterns are not modelled",
+        }
+    return rows, context
+
+
+def _fix_first(result: Mapping[str, Any], signals_all: list[Mapping[str, Any]], pinned: set[str]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     exact: dict[str, float] = {}
     for signal in signals_all:
@@ -117,10 +160,9 @@ def _fix_first(result: Mapping[str, Any], signals_all: list[Mapping[str, Any]]) 
         if code not in _NEED_CODES:
             continue
         severity = str(need.get("severity") or "medium")
-        if code == "RESOURCE_PRESSURE":
-            rows.append({"kind": "RESOURCE", "title": "Mana sustain", "detail": "Current skill costs more mana per second than regeneration", "severity": severity, "source": "audit"})
-            continue
         element = str(need.get("metric") or "").replace("_res", "")
+        if element in pinned:
+            continue  # raising it is impossible by gear (pinned/overridden); reported in coverage, not as an actionable fix
         increment = exact.get(element, need.get("deficit"))
         if increment is None:
             continue
@@ -137,6 +179,7 @@ def _fix_first(result: Mapping[str, Any], signals_all: list[Mapping[str, Any]]) 
         if (state.get("state") or {}).get("value") == "DEFICIT":
             margin = abs(float((state.get("margin") or {}).get("value") or 0.0))
             rows.append({"kind": "ATTRIBUTE_REQUIREMENT", "title": name.title(), "detail": f"{margin:g} short of the highest requirement", "severity": "critical", "source": "fingerprint"})
+    rows.extend(_resource_rows(result)[0])
     # Existing severity first, then deterministic source order (sort is stable). No numeric priority.
     rows.sort(key=lambda r: _SEVERITY_ORDER.get(r["severity"], 9))
     return rows
@@ -157,12 +200,15 @@ def build_priorities(result: Mapping[str, Any]) -> dict[str, Any]:
         "mobility": _lane(measured, "movement"),
     }
     counts = dict((sensitivity.get("coverage") or {}).get("counts") or {})
+    pinned = _pinned_resistances(signals_all, result.get("needs"))
+    resource_context = _resource_rows(result)[1]
     return {
         "schema_version": SCHEMA_VERSION,
         "identity": dict(sensitivity.get("identity") or {}),
         "offense_context": context,
         "offense_limited_confidence": limited,
-        "fix_first": _fix_first(result, signals_all),
+        "fix_first": _fix_first(result, signals_all, pinned),
+        "resource_context": resource_context,
         **lanes,
         "multi_axis": _multi_axis(measured),
         "coverage": {
@@ -171,6 +217,7 @@ def build_priorities(result: Mapping[str, Any]) -> dict[str, Any]:
             "no_signal": [s.get("label") for s in signals_all if s.get("status") == "NO_SIGNAL"],
             "not_established": [s.get("label") for s in signals_all if s.get("status") in {"REJECTED", "UNSUPPORTED", "RESTORE_FAILED", "INVALID"}],
             "lanes_without_response": [name for name, rows in lanes.items() if not rows],
+            "resistance_pinned": sorted(pinned),
             "axes_not_captured": list((sensitivity.get("coverage") or {}).get("axes_not_captured") or []),
             "basis": "Based on stats ExileLens tested against this PoB build.",
         },
