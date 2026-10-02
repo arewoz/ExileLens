@@ -1,7 +1,7 @@
 # M5.5 — Build Intelligence Remediation
 
 Remediation of the five correctness/usefulness findings and the P2 list from `docs/M5-4-BUILD-PRIORITIES-CORPUS-VALIDATION.md`, revalidated
-on the same 18 public-corpus builds. Evidence: `artifacts/m5_4_priorities_validation.json` (before), `artifacts/m5_5_priorities_validation.json`
+on the same 18 public-corpus builds. Evidence (generated locally by the harness, not tracked in Git; summarized in these reports): `artifacts/m5_4_priorities_validation.json` (before), `artifacts/m5_5_priorities_validation.json`
 (after); `scripts/m5_5_compare.py` produces the comparison. Base: `main` @ `4795f4f`. Item Check scoring, verdicts, Build Value, SearchIntent and
 `ProbeEngine` are unchanged.
 

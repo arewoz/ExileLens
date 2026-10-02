@@ -1,6 +1,6 @@
 # M5.4 — Build Priorities Corpus Validation
 
-Diagnosis only. No production code, threshold, ordering rule, probe or score was changed. Raw data:
+Diagnosis only. No production code, threshold, ordering rule, probe or score was changed. Raw data (generated locally, not tracked in Git):
 `artifacts/m5_4_priorities_validation.json`; harness: `scripts/m5_4_priorities_validation.py` (reuses the existing public corpus,
 `Engine`, `analyze_build` and `rescore_analysis`; slots are skipped because Build Priorities only read the global probe stage).
 Base: `main` @ `4795f4f`.
