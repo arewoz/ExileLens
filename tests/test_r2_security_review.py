@@ -19,7 +19,9 @@ ALLOWED_TEST_KEYS = {
     "fixtures/update_signing/test_signing_key.pem",
     "cloud/test/keys/entitlement-test-1.pkcs8.b64",
 }
-ED25519_PKCS8_B64_PREFIX = "MC4CAQAwBQYDK2VwBCIEI"
+# Real key *bodies* only (a PEM header or a bare marker string in code/docs is not key material).
+PEM_KEY_BODY = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----\s+[A-Za-z0-9+/=\r\n]{40,}")
+PKCS8_KEY_BODY = re.compile(r"MC4CAQAwBQYDK2VwBCIEI[A-Za-z0-9+/]{20,}")
 
 
 def _tracked_files() -> list[str]:
@@ -39,9 +41,8 @@ def test_no_private_key_material_is_committed_besides_the_two_test_fixtures() ->
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        if "-----BEGIN" in text and "PRIVATE KEY" in text or ED25519_PKCS8_B64_PREFIX in text:
-            if name not in ALLOWED_TEST_KEYS:
-                offenders.append(name)
+        if (PEM_KEY_BODY.search(text) or PKCS8_KEY_BODY.search(text)) and name not in ALLOWED_TEST_KEYS:
+            offenders.append(name)
     assert offenders == []
 
 
