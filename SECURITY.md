@@ -32,7 +32,7 @@ Use GitHub Issues or Discord for suspected false positives unless the report con
 
 ExileLens is a **local desktop overlay**.
 
-It runs entirely on your own Windows machine as a normal user process. It has no account system of its own and no ExileLens server component.
+It runs entirely on your own Windows machine as a normal user process. It has no account system of its own. It can optionally talk to a small ExileLens cloud service (usage statistics and error reports) only if you opt in; nothing depends on that service.
 
 Its normal job is to:
 
@@ -102,7 +102,7 @@ For market lookups, ExileLens sends structured search information derived from t
 - matched stat information
 - search ranges used to find comparable listings
 
-ExileLens does not use a proprietary ExileLens account or telemetry backend.
+ExileLens has no account system. An optional ExileLens cloud service (Cloudflare Workers + D1; contract and server code in this repository under `cloud/`) receives usage statistics and error reports only when you switch those on in Settings → Privacy. Both are **off by default**.
 
 For the precise privacy behavior of network requests, see:
 
@@ -134,8 +134,9 @@ Based on the current source code:
 - **No process injection.** ExileLens does not inject code or DLLs into the game process.
 - **No packet interception.** ExileLens does not sniff, intercept, or modify Path of Exile 2 network traffic.
 - **No gameplay automation.** ExileLens does not move your character, use skills, interact with inventory, or perform gameplay actions for you.
-- **No telemetry or analytics.** ExileLens does not send usage analytics or behavioral telemetry to the project maintainers.
-- **No automatic download-and-execute updater.** ExileLens does not silently download and execute new ExileLens versions.
+- **No telemetry unless you opt in.** Usage statistics and error reports are separate switches that are off by default. When on, they send only the categorical fields listed in the published contract (`cloud/schema/events.v1.json`), shown in-app under *See what is collected*; the service rejects anything else. No item text, builds, clipboard, paths or logs.
+- **No silent self-modification.** For everyone, ExileLens never installs or restarts into a new version without a user action: *Download & Install* then *Restart & Update*.
+  Optional **Patreon supporters** can enable *Automatically download updates* and *Install updates when ExileLens closes*. Those use exactly the same signature, hash and archive checks as the manual flow, install only when **you** close ExileLens (never during a Windows logoff or shutdown, never after a crash), and never restart the app by themselves.
 - **No administrator privilege requirement.** ExileLens is designed to run as a normal Windows user without elevation.
 
 The only synthetic game-directed input used by the normal item-capture workflow is the single `Ctrl+C` copy action described above.
@@ -188,6 +189,36 @@ Compare the resulting hash with the SHA-256 value published in the corresponding
 A matching SHA-256 value confirms that the file you downloaded is byte-for-byte identical to the file for which that checksum was published.
 
 It does **not** prove that the software itself is safe, and it does not replace code signing.
+
+### In-app updates
+
+The in-app updater ("Download & Install", then "Restart & Update") installs only
+a release whose update manifest is signed with the **production** Ed25519 key
+embedded in ExileLens.
+
+- **Test key never trusted:** the repository's public test signing key is never
+  trusted by packaged builds. The release pipeline checks this against the built
+  binary itself.
+- **Bound to the release:** the signed manifest must match the release that
+  lists it (tag, version, artifact name and official GitHub download URL). It
+  must also be strictly newer than the installed version, so downgrades and
+  replays of old manifests are refused.
+- **Package checks:** the downloaded ZIP must match the signed size and SHA-256,
+  and passes path and size safety limits. The external updater re-checks the
+  package hash and the extracted files before changing anything.
+- **Installation:** done by a separate `ExileLensUpdater.exe`, through a
+  journaled swap with rollback. It never terminates running processes; it waits
+  until ExileLens has exited.
+
+For free installs nothing is downloaded or installed without your action, and ExileLens never
+restarts itself unless you choose "Restart & Update".
+
+**Supporter automation is a convenience, not a trust root.** A Patreon link yields a signed *lease*
+that can only say "this device may automate the existing update flow". It is verified with a
+separate key set from update signing and cannot carry a URL, version, file name or hash: the file that
+is downloaded and installed is always the one named by the GitHub release's signed manifest. If the
+lease is missing, expired or tampered with, ExileLens behaves exactly like a free install. A release can
+also opt out of automation for everyone with the signed `seamless_eligible: false` field.
 
 ---
 

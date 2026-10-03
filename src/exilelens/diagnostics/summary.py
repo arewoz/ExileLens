@@ -68,6 +68,29 @@ def _update_state(settings: Any, update_service: Any | None) -> dict[str, Any]:
         "installed_version": sanitize_text(
             update_service.installed_version_text if update_service is not None else "unknown"
         ),
+        "last_install": _last_install(update_service),
+    }
+
+
+def _last_install(update_service: Any | None) -> dict[str, Any] | None:
+    """Structured result of the most recent external-updater run (enums and versions only)."""
+    result = getattr(update_service, "last_install_result", None) if update_service is not None else None
+    if result is None:
+        try:
+            from exilelens.app.updates.outcome import last_seen_result
+
+            result = last_seen_result()
+        except Exception:  # noqa: BLE001 - diagnostics must never fail on update state
+            result = None
+    if result is None:
+        return None
+    return {
+        "outcome": result.outcome.value,
+        "mode": result.mode,
+        "from_version": result.from_version or None,
+        "to_version": result.to_version or None,
+        "exit_code": result.exit_code,
+        "finished_epoch": result.finished_at,
     }
 
 
@@ -114,6 +137,28 @@ def _error_integration(controller: Any) -> dict[str, Any]:
             "structured": snapshot,
         }
     )
+
+
+def _cloud_state(settings: Any) -> dict[str, Any]:
+    """Optional cloud services: switches and queue counters only — never identifiers or queued content."""
+    try:
+        from exilelens.cloud import hooks
+
+        services = hooks.get()
+        status = services.status() if services is not None else None
+    except Exception:  # noqa: BLE001
+        status = None
+    result: dict[str, Any] = {
+        "usage_stats_enabled": bool(getattr(settings, "send_usage_stats", False)),
+        "error_reports_enabled": bool(getattr(settings, "send_error_reports", False)),
+        "endpoint_configured": bool(status and status.get("endpoint_configured")),
+    }
+    if status:
+        for key in ("usage", "errors"):
+            info = status[key]
+            result[key] = {name: info.get(name) for name in ("active", "queued", "dropped", "disabled", "backoff_failures", "last_result")}
+        result["previous_session"] = status.get("previous_session")
+    return result
 
 
 def build_extended_summary(
@@ -171,6 +216,7 @@ def build_extended_summary(
         "health": _health_extended(controller, settings),
         "updates": _update_state(settings, update_service),
         "error_codes": _error_integration(controller),
+        "cloud": _cloud_state(settings),
     }
     return sanitize_value(base)
 

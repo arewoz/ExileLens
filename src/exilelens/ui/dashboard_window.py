@@ -520,6 +520,9 @@ class DashboardWindow(ManagedToolWindow):
 
             app = QApplication.instance()
             if app is not None:
+                shell = app.property("exilelens_app_shell")
+                if shell is not None and hasattr(shell, "mark_user_exit"):
+                    shell.mark_user_exit()  # closing the only window is an explicit user exit
                 app.quit()
 
     # UIUX-01: the dashboard is user-resizable (``resizable = True``), so the size

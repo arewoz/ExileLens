@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -108,7 +108,9 @@ class SettingsPage(QWidget):
             self._build_evaluation_section(),
             self._build_overlay_section(),
             self._build_hotkey_section(),
+            self._build_privacy_section(),
             self._build_updates_section(),
+            self._build_patreon_section(),
             self._build_advanced_section(),
             self._build_reset_section(),
         ):
@@ -349,6 +351,24 @@ class SettingsPage(QWidget):
         section.add_widget(self._updates_panel)
         return section
 
+    def _build_privacy_section(self):
+        from exilelens.ui.components import Section
+        from exilelens.ui.privacy_panel import PrivacyPanel
+
+        section = Section("Privacy")
+        self._privacy_panel = PrivacyPanel(self.settings)
+        section.add_widget(self._privacy_panel)
+        return section
+
+    def _build_patreon_section(self):
+        from exilelens.ui.components import Section
+        from exilelens.ui.patreon_panel import PatreonPanel
+
+        section = Section("Patreon supporter")
+        self._patreon_panel = PatreonPanel(self.settings)
+        section.add_widget(self._patreon_panel)
+        return section
+
     def _build_advanced_section(self):
         from exilelens.ui.components import Disclosure, Section, SettingRow, button_row, make_button
 
@@ -562,6 +582,14 @@ class SettingsPage(QWidget):
         from exilelens.app.settings import reset_settings
 
         backup = reset_settings(self.settings)
+        # Reset returns both consent switches to OFF: stop collecting and delete queues/IDs right away.
+        from exilelens.cloud import hooks as cloud_hooks
+
+        if cloud_hooks.get() is not None:
+            cloud_hooks.get().apply_consent()
+        privacy_panel = getattr(self, "_privacy_panel", None)
+        if privacy_panel is not None:
+            privacy_panel.refresh()
         BuildCache().clear_active()
         self._pob_edit.setText(self.settings.pob_path)
         self._build_edit.setText("")

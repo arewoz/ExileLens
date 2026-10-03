@@ -43,3 +43,11 @@ check that verifies the signed manifest and then downloads. Nothing about verifi
 
 An automatic check failure is silent (state `failed`, no notice, no balloon); manual checks keep their existing
 feedback. Source/dev runs report `unavailable`, make no request, start no timer and show no notice.
+
+## R2 supporter cadence
+
+When a valid Patreon lease grants `seamless_updates`, `start_automatic()` uses a 6 hour cooldown instead of 24 hours
+(`SUPPORTER_CHECK_COOLDOWN_SECONDS`); free installs keep exactly the 24 hour behaviour described above. A newer verified
+release then downloads automatically (see `docs/UPDATE_RELEASE_SIGNING.md`, Supporter automation). Verification,
+release binding and the dashboard notice are unchanged; the notice's Restart & Update button still performs an explicit,
+relaunching update.

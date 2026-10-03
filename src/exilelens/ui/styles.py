@@ -687,7 +687,7 @@ QPushButton#btnDestructive:hover:enabled {{ background: rgba(211,122,122,26); }}
 QPushButton#btnDestructive:focus {{ border: 1px solid {DASHBOARD_ERROR_FG}; }}
 
 /* --- compact Patreon support section ------------------------------------ */
-QFrame#patreonSupportCard {{
+QFrame#patreonSupportCard, QFrame#consentCard {{
     background: rgba(255,255,255,6);
     border: 1px solid rgba(255,255,255,18);
     border-radius: 6px;

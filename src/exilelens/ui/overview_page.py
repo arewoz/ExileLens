@@ -57,6 +57,8 @@ class OverviewPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(theme.SECTION_GAP)
         layout.addWidget(title)
+        self._page_layout = layout
+        self._consent_card = None
         layout.addWidget(self._build_section())
         layout.addWidget(self._profile_section())
         layout.addWidget(self._action_section())
@@ -168,6 +170,23 @@ class OverviewPage(QWidget):
         if path:
             self.controller.change_build(path)
 
+    def _sync_consent_card(self) -> None:
+        """Show the one-time, non-modal privacy card after onboarding (both switches start OFF)."""
+        if self._consent_card is not None:  # shown once per session; Save / Not now resolve it for good
+            return
+        try:
+            from exilelens.app.settings import onboarding_required
+            from exilelens.cloud import consent, hooks
+            from exilelens.ui.privacy_panel import ConsentCard
+
+            cloud = hooks.get()
+            if not consent.should_show_card(self.settings, cloud, onboarding_pending=onboarding_required(self.settings)):
+                return
+            self._consent_card = ConsentCard(self.settings, cloud)
+            self._page_layout.insertWidget(1, self._consent_card)
+        except Exception:  # noqa: BLE001 - an optional card must never break the dashboard
+            self._consent_card = None
+
     def _open_patreon(self) -> None:
         from exilelens.ui.recovery_actions import open_patreon
 
@@ -227,6 +246,7 @@ class OverviewPage(QWidget):
     def refresh(self) -> None:
         from exilelens.ui.health import derive_health
 
+        self._sync_consent_card()
         health = derive_health(self.controller, self.settings)
         self._refresh_build(health)
         self._on_profile_changed(self.settings.value_profile)

@@ -11,7 +11,18 @@ a = Analysis(
     pathex=[str(src_root)],
     binaries=[],
     datas=[],
-    hiddenimports=["exilelens.updater.install", "exilelens.app.logging_setup", "cryptography.hazmat.primitives.asymmetric.ed25519"],
+    # Stdlib-only updater: it re-checks the package SHA-256 and archive CRCs but never verifies signatures
+    # (the app did that before staging), so no crypto dependency is bundled.
+    hiddenimports=[
+        "exilelens.updater.install",
+        "exilelens.updater.job",
+        "exilelens.updater.layout",
+        "exilelens.updater.result",
+        "exilelens.updater.transaction",
+        "exilelens.updater.winsys",
+        "exilelens.app.logging_setup",
+        "exilelens.app.settings",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

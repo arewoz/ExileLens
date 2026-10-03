@@ -1,0 +1,16 @@
+# Local development secrets. Copy to .dev.vars (git-ignored) and replace.
+# These values are FAKE examples only; never reuse them anywhere real.
+# Generate real ones with e.g.:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ANALYTICS_PEPPER=fake-analytics-pepper-do-not-use-0000000000000000
+DIAGNOSTIC_PEPPER=fake-diagnostic-pepper-do-not-use-111111111111111
+# Optional override of the kill switch ("false" makes ingest return 503 ingest_disabled)
+# INGEST_ENABLED=true
+
+# --- Patreon (Package B). All FAKE. Without real values the Patreon endpoints answer 503 not_configured.
+PATREON_CLIENT_SECRET=fake-patreon-client-secret-do-not-use
+PATREON_ID_PEPPER=fake-patreon-id-pepper-do-not-use-222222222222
+# 32 random bytes, base64:  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+TOKEN_ENC_KEY=AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=
+# PKCS#8 Ed25519 private key (base64 DER or PEM). Generate OFFLINE: python scripts/create_entitlement_key.py
+# ENTITLEMENT_SIGNING_KEY=
+# Set PATREON_CLIENT_ID in wrangler.toml [vars] / [env.*.vars] and campaign_id inside ENTITLEMENT_POLICY.

@@ -114,3 +114,15 @@ def test_recovery_action_present_on_definitions() -> None:
         definition = get_error_definition(code)
         assert definition is not None
         assert definition.recovery_action.strip()
+
+
+def test_updater_outcome_codes_are_registered_and_recordable(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    from exilelens.error_catalog.integration import record_generic_failure
+
+    for code in ("EL-UPD-004", "EL-UPD-005"):
+        definition = get_error_definition(code)
+        assert definition is not None and definition.recovery_action.strip()
+        store = ErrorContextStore()
+        record_generic_failure(store, "Update not installed.", el_code=code, subsystem="update", stage="install")
+        assert store.last_error is not None and store.last_error.code == code

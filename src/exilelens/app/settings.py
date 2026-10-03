@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-CURRENT_SCHEMA_VERSION = 23
+CURRENT_SCHEMA_VERSION = 24
 ONBOARDING_VERSION = 1
 DEFAULT_PRICE_CHECK_HOTKEY = "shift+c"
 DEFAULT_REFINE_PRICE_HOTKEY = "ctrl+shift+r"
@@ -171,6 +171,17 @@ class AppSettings:
     update_channel: str = "beta"
     update_last_error: str = ""
     diagnostic_verbose_until: float = 0.0
+    # R2 optional cloud services. Two independent opt-ins, both OFF by default. Neither implies the other,
+    # and neither is required for any ExileLens feature.
+    send_usage_stats: bool = False
+    send_error_reports: bool = False
+    # Contract consent_version the user last confirmed; a higher contract version re-asks (treated as OFF).
+    privacy_consent_version: int = 0
+    privacy_card_resolved: bool = False
+    # R2 supporter updates: honoured only while a verified lease grants seamless_updates. Defaults ON because
+    # they do nothing for free installs; the user can turn either off.
+    updates_auto_download: bool = True
+    updates_install_on_exit: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -270,6 +281,12 @@ class AppSettings:
             update_channel=str(data.get("update_channel") or "beta"),
             update_last_error=str(data.get("update_last_error") or ""),
             diagnostic_verbose_until=float(data.get("diagnostic_verbose_until") or 0.0),
+            send_usage_stats=data.get("send_usage_stats") is True,
+            send_error_reports=data.get("send_error_reports") is True,
+            privacy_consent_version=int(data.get("privacy_consent_version", 0) or 0),
+            privacy_card_resolved=bool(data.get("privacy_card_resolved", False)),
+            updates_auto_download=data.get("updates_auto_download", True) is not False,
+            updates_install_on_exit=data.get("updates_install_on_exit", True) is not False,
         )
 
 

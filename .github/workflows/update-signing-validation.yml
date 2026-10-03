@@ -72,5 +72,15 @@ jobs:
           $unsigned | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
           python .\scripts\sign_update_manifest.py --manifest $manifestPath --private-key $env:EXILELENS_UPDATE_SIGNING_KEY_PATH --output $signedPath
           if ($LASTEXITCODE -ne 0) { throw 'sign_update_manifest.py failed.' }
-          python .\scripts\verify_signed_update_manifest.py $signedPath
-          if ($LASTEXITCODE -ne 0) { throw 'Manifest verification failed.' }
+          if ($unsigned.signing_key_id -eq 'exilelens-test-1') {
+            # Pipeline self-check only: shipped builds never trust the public test key.
+            Write-Host '::notice::Test-key signing pipeline check only - NOT evidence of production update trust.'
+            python .\scripts\verify_signed_update_manifest.py $signedPath --trust-profile test
+            if ($LASTEXITCODE -ne 0) { throw 'Manifest verification (test profile) failed.' }
+            python .\scripts\verify_signed_update_manifest.py $signedPath --trust-profile production
+            if ($LASTEXITCODE -eq 0) { throw 'Production trust profile accepted a test-signed manifest.' }
+          }
+          else {
+            python .\scripts\verify_signed_update_manifest.py $signedPath --trust-profile production
+            if ($LASTEXITCODE -ne 0) { throw 'Manifest verification (production profile) failed.' }
+          }

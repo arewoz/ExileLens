@@ -4,8 +4,9 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from exilelens.app.updates.constants import MANIFEST_SCHEMA
+from exilelens.app.updates.constants import GITHUB_RELEASE_DOWNLOAD_URL, MANIFEST_SCHEMA
 from exilelens.app.updates.trust import PROD_SIGNING_KEY_ID, install_allowed_for_key, production_signing_configured, verify_key_for
+from exilelens.app.updates.version import ExileLensVersion
 
 
 class ManifestError(ValueError):
@@ -27,6 +28,9 @@ class VerifiedUpdateManifest:
     tag: str
     signing_key_id: str
     artifact: UpdateArtifact
+    # Signed by the release authority. False keeps this release on the manual path even for supporters.
+    # Absent in older manifests = eligible; any non-boolean value is treated as False (fail safe).
+    seamless_eligible: bool = True
 
 
 def canonical_manifest_bytes(manifest: dict[str, Any]) -> bytes:
@@ -80,7 +84,56 @@ def verify_signed_envelope(payload: object) -> VerifiedUpdateManifest:
         tag=tag,
         signing_key_id=signing_key_id,
         artifact=UpdateArtifact(filename=filename, size=size, sha256=sha256, url=url),
+        seamless_eligible=_seamless_eligible(manifest),
     )
+
+
+def _seamless_eligible(manifest: dict[str, Any]) -> bool:
+    if "seamless_eligible" not in manifest:
+        return True
+    value = manifest["seamless_eligible"]
+    return value is True
+
+
+def expected_artifact_filename(tag: str) -> str:
+    return f"ExileLens-{tag}-win64.zip"
+
+
+def expected_artifact_url(tag: str, filename: str) -> str:
+    return f"{GITHUB_RELEASE_DOWNLOAD_URL}/{tag}/{filename}"
+
+
+def bind_manifest_to_release(
+    manifest: VerifiedUpdateManifest,
+    *,
+    tag: str,
+    version: ExileLensVersion,
+    installed: ExileLensVersion | None,
+    release_zip_name: str | None = None,
+) -> ExileLensVersion:
+    """Bind a signature-verified manifest to the release that exposed it.
+
+    The GitHub release listing (tag, assets) is unsigned; only the signed manifest is authoritative.
+    Every decision must therefore agree with the signed fields, and the signed version must be strictly
+    newer than the installed one (no downgrade, no same-version reinstall).
+    """
+    signed_version = ExileLensVersion.parse(manifest.version)
+    if signed_version is None:
+        raise ManifestError("version_mismatch")
+    if manifest.tag != tag or manifest.tag != f"v{signed_version}":
+        raise ManifestError("tag_mismatch")
+    if signed_version != version:
+        raise ManifestError("version_mismatch")
+    if installed is not None and not signed_version > installed:
+        raise ManifestError("not_newer")
+    filename = manifest.artifact.filename
+    if filename != expected_artifact_filename(manifest.tag):
+        raise ManifestError("artifact_name_mismatch")
+    if release_zip_name is not None and release_zip_name != filename:
+        raise ManifestError("artifact_name_mismatch")
+    if manifest.artifact.url != expected_artifact_url(manifest.tag, filename):
+        raise ManifestError("artifact_url_mismatch")
+    return signed_version
 
 
 def _decode_signature(value: str) -> bytes:

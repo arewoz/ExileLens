@@ -10,6 +10,8 @@ readme = "packaging/README.txt"
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.6",
+    # Ed25519 verification of signed update manifests (release pin: packaging/requirements-release.txt).
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]

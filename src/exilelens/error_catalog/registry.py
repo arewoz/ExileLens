@@ -320,6 +320,26 @@ _ERROR_ENTRIES: tuple[StructuredErrorDefinition, ...] = (
         (),
     ),
     StructuredErrorDefinition(
+        "EL-UPD-004",
+        ErrorCategory.UPDATE,
+        ErrorSeverity.WARNING,
+        "Update not installed",
+        "The external updater did not install the update; the previous version is still in place.",
+        "Run Check for updates and Restart & Update again. If it keeps failing, use GitHub Releases.",
+        Retryability.USER_ACTION,
+        ("outcome", "target_version"),
+    ),
+    StructuredErrorDefinition(
+        "EL-UPD-005",
+        ErrorCategory.UPDATE,
+        ErrorSeverity.CRITICAL,
+        "Update failed and previous version not fully restored",
+        "The external updater could not finish the update and could not fully restore the previous version.",
+        "Download the latest ZIP from GitHub Releases and extract it over the ExileLens folder.",
+        Retryability.USER_ACTION,
+        ("outcome", "target_version"),
+    ),
+    StructuredErrorDefinition(
         "EL-DIAG-001",
         ErrorCategory.DIAGNOSTICS,
         ErrorSeverity.WARNING,
@@ -338,6 +358,16 @@ _ERROR_ENTRIES: tuple[StructuredErrorDefinition, ...] = (
         "Try the suggested recovery action. Copy diagnostics if it continues.",
         Retryability.USER_ACTION,
         ("exception_type",),
+    ),
+    StructuredErrorDefinition(
+        "EL-APP-100",
+        ErrorCategory.APPLICATION,
+        ErrorSeverity.INFO,
+        "Unexpected session end",
+        "The previous ExileLens session did not end normally (power loss, a forced shutdown, Task Manager or a crash).",
+        "No action needed. Copy diagnostics if ExileLens keeps closing unexpectedly.",
+        Retryability.NONE,
+        (),
     ),
 )
 

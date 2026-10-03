@@ -4,6 +4,12 @@ This document describes what ExileLens currently reads, stores, and
 transmits. It describes current behavior only — not planned features.
 See "Future features" at the end for how that's handled.
 
+**In short:** ExileLens works fully offline for item checks and build
+analysis. By default it contacts only the services it needs (GitHub for
+updates, and the official Path of Exile website for optional market
+features). Two *optional* settings — usage statistics and crash/error
+reports — are **off by default** and send nothing until you turn them on.
+
 ## What ExileLens reads
 
 - **Windows clipboard.** ExileLens's clipboard listener runs continuously
@@ -40,38 +46,125 @@ hotkey may be gone afterward.
 
 ## What is stored locally
 
-Under `%LOCALAPPDATA%\poe2-value-overlay\`:
+Under `%LOCALAPPDATA%\ExileLens\` (older installs may still have an
+unused `poe2-value-overlay` folder from before the rename; ExileLens copies
+its settings once and never deletes the old folder):
 
 - **Settings** (`settings.json`) — your configuration (hotkey, PoB path,
-  selected build, feature toggles, overlay position, and similar).
+  selected build, feature toggles, overlay position, privacy choices, and
+  similar).
 - **Build cache** — cached calculation results tied to your selected PoB
   build, to avoid recomputing on every check.
 - **Application logs** (`logs\poe2value.log`, rotated) and a crash log
   — see "Logging" below.
+- **Update files** (`updates\`) — a downloaded update package, its
+  verification record and the external updater's status files, while an
+  update is pending.
+- **Optional cloud queues** (`cloud\`) — exists only if you turned on usage
+  statistics and/or error reports: one random ID and a small bounded queue
+  of not-yet-sent items per category. Turning a category off deletes its
+  folder.
 
-None of this leaves your machine on its own; it is written and read
-locally only.
+None of this leaves your machine on its own, except the opt-in items
+described below.
 
 ## What leaves the computer
 
-The only outbound network destination in normal use is the official
-Path of Exile trade website (`www.pathofexile.com`), and only when you
-use the optional live-market-pricing feature. What is actually sent is a
-**structured, derived search query** — item category/base type, rarity,
-and the specific stat ranges the tool matched — built from the item
-after it has already been recognized and parsed.
+| Destination | What is sent | When |
+|---|---|---|
+| `api.github.com`, `github.com` (ExileLens releases) | A request for the list of ExileLens releases and, if a newer one exists, its signed update manifest. The update package is downloaded only when you choose to install it. No account, no identifier. | Packaged builds check at startup and at most about once every 24 hours. |
+| `www.pathofexile.com` (official Path of Exile site) | The structured market search derived from the item you checked (category, rarity, matched stat ranges), and the league list. Your raw clipboard/item text is not sent. | Only for the optional live-market features. |
+| ExileLens cloud service (`api` host of the project; **only if this build has it configured**) | Opt-in usage statistics / error reports (items listed below), and, if you link Patreon, the device credential and lease refresh described below. | Only for what you switched on or linked. |
 
 **Your raw clipboard/item text is not sent over the network.** Only the
 structured values derived from it are, and only for the trade-search
 feature specifically.
 
-## Telemetry
+## Optional usage statistics and error reports
 
-ExileLens does not include any telemetry, analytics, or crash-reporting
-upload. No usage data, error report, or diagnostic is sent anywhere
-automatically. (You can manually copy a diagnostics report yourself, from
-the app's "Copy diagnostics" action, to paste into a bug report — that is
-an explicit, user-initiated action, not automatic collection.)
+Two separate switches in Settings → Privacy, **both off by default**. They
+are independent: turning one on never turns on the other, and ExileLens
+behaves identically with both off. A card on the Overview page asks once
+after setup; "Not now" leaves both off. **See what is collected** in
+Settings shows the exact fields, the identifiers and a real example of
+your next upload.
+
+**Privacy-friendly usage statistics** — counts that show whether
+ExileLens works and is used: that the app started (and whether the previous
+session ended unexpectedly), setup finished, PoB started and how long
+that took in broad buckets, Item Check *result categories* with speed
+buckets (verdict, confidence, evaluation quality — grouped counts, never
+one event per item and never the item), Analyze Build outcome categories
+(coverage, number of follow-up curves, whether a hard issue exists, health
+category, duration bucket) and update outcomes. App version, release channel,
+packaged/source and Windows 10/11 are included.
+
+**Crash and error reports** — a registered ExileLens error code, its
+component, the *type* of the exception and normalised stack frames
+(module and function names, optionally a line number), how often, and when
+(rounded to the hour).
+
+**Never collected:** item text, item names or modifiers, anything from the
+clipboard, build or PoB files, character, account, skill, stat or equipment
+names, trade searches or prices, file paths, log files, settings values,
+environment variables, error messages or raw stack traces, hardware or
+Windows account identity, email, Path of Exile or Patreon identity. The
+service rejects any field that is not in the published list.
+
+**Identifiers.** Each category creates its own random ID on your PC the
+first time it has something to send (no hardware, Windows account or
+network information is used). The two IDs are different and are never
+combined. The service stores only a keyed hash of the ID, never the ID
+itself. This makes the data *pseudonymous*, not anonymous: the same install
+can be recognised across uploads, which is what makes "active
+installations" countable. Active-installation numbers describe only people
+who opted in and are not a count of players.
+
+**Turning a switch off** immediately stops collecting for that category,
+deletes its queue and ID on your PC, and sends one best-effort request
+asking the service to delete the data stored under that ID. A request that
+was already in flight at that moment may still arrive. Turning it on again
+creates a new random ID with no link to the old one. "Reset configuration"
+also turns both off.
+
+**Retention.** Raw usage events are deleted after 30 days; install activity
+after 120 days; daily summaries are kept 13 months. Error occurrences are
+grouped, error groups are kept 12 months, and the list of which anonymous
+IDs saw a group is deleted after 60 days. The service does not store IP
+addresses, user agents or request bodies in its database; the hosting
+provider (Cloudflare) necessarily sees network addresses for any web
+request and keeps its own short-lived operational logs, which are not used
+for statistics.
+
+**If the service is unreachable or over its free quota**, ExileLens keeps a
+small bounded queue (500 items, 7 days), backs off, and eventually discards
+old items. Nothing about the app depends on it.
+
+## Optional Patreon supporter link
+
+Linking Patreon is optional, independent of the two switches above, and never required for any ExileLens
+feature. There is no ExileLens account. Settings → *Patreon supporter* → **Link Patreon** opens Patreon in your
+browser; you approve ExileLens's read-only `identity` access there. The ExileLens service (not the app) completes
+the sign-in and checks only **whether your membership currently includes a paid tier** (gifted memberships and free
+trials count; free memberships do not).
+
+* **What ExileLens receives:** a random *device credential* and a short-lived signed *lease* that says whether this
+  device may automate updates. It never receives your Patreon name, email, avatar, pledge amount, tokens or any other
+  profile data, and shows none.
+* **What the service stores:** a keyed hash of your Patreon user ID (so one person is not counted twice), your Patreon
+  access/refresh tokens **encrypted at rest** (needed to re-check the membership; deleted when you disconnect, and when
+  Patreon revokes them), which paid status applies, and a record per linked device (a hash of its credential, creation
+  and last-refresh times; at most 5, idle devices are deleted after 60 days). Link attempts are kept for minutes to
+  hours. Anonymous counts of link outcomes are kept 13 months.
+* **Separation:** Patreon data lives in a different database, with different secrets, from usage statistics and error
+  reports. The two use unrelated random identifiers and nothing links a Patreon identity to telemetry.
+* **On your PC:** the credential is stored with Windows DPAPI (readable only by your Windows account); the lease and a
+  small status file sit next to it under `cloud\patreon\`. They are not in `settings.json`.
+* **Disconnect Patreon** deletes the credential and lease from your PC immediately and asks the service to delete the
+  device (and your stored tokens if it was your last device). If the service is offline the local removal still happens.
+* **When the service or Patreon is unreachable,** a still-valid lease keeps working for up to 7 days; after that, or if
+  the lease is missing or invalid, ExileLens behaves like any free install. Manual updates always work.
+* **Network:** the app contacts the ExileLens service; the service (not the app) contacts `patreon.com`.
 
 ## Logging
 
@@ -97,13 +190,18 @@ request/error details), and we don't claim no future code path could
 ever log something sensitive by mistake. If you're asked to share
 `poe2value.log` or `crash.log` for a bug report, it's still good practice
 to skim it first and redact anything you'd rather not share before
-attaching or pasting it anywhere.
+attaching or pasting it anywhere. Log files are **never** uploaded
+automatically. You can copy a diagnostics report yourself from the app's
+"Copy diagnostics" action; that is an explicit, user-initiated action.
 
 ## Third-party services
 
 | Destination | Purpose | Trigger |
 |---|---|---|
-| `www.pathofexile.com` (official PoE trade API) | Market/trade comparables | Optional live-pricing feature, one request per price check |
+| `www.pathofexile.com` (official PoE trade API) | Market/trade comparables, league list | Optional live-pricing feature |
+| `api.github.com` / `github.com` | Update check and (on your action) update download | Packaged builds, about once per 24 h |
+| ExileLens cloud service (Cloudflare Workers + D1) | Opt-in usage statistics and error reports; optional Patreon link and lease refresh | Only if configured in this build and you opted in / linked |
+| Patreon (through the ExileLens service, in your browser) | Optional supporter sign-in | Only when you click Link Patreon |
 
 No other third-party service is contacted by ExileLens's normal
 operation.
@@ -111,8 +209,9 @@ operation.
 ## Future features
 
 Planned features (such as syncing your character from your Path of Exile
-account) are **not implemented today** and this document does not cover
-them. If and when such a feature ships, this document will be updated to
-describe what it actually reads, stores, and sends at that time — this
-privacy behavior may change as features are added, and you'll be able to
-find the current behavior here rather than in release announcements.
+account) are **not implemented today** and
+this document does not cover them. If and when such a feature ships, this
+document will be updated to describe what it actually reads, stores, and
+sends at that time — this privacy behavior may change as features are
+added, and you'll be able to find the current behavior here rather than in
+release announcements.

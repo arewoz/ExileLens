@@ -27,8 +27,44 @@ def _maybe_run_updater_subprocess() -> None:
         raise SystemExit(updater_main(job_args or None))
 
 
+UPDATE_TRUST_REPORT_ARG = "--exilelens-update-trust-report"
+
+
+def _maybe_write_update_trust_report() -> None:
+    """Release evidence: ``ExileLens.exe --exilelens-update-trust-report <path>`` writes the active update
+    trust set (key ids only, no key material) of *this* binary and exits before any UI starts."""
+    if UPDATE_TRUST_REPORT_ARG not in sys.argv:
+        return
+    import json
+
+    from exilelens.app.updates.trust import trust_report
+
+    index = sys.argv.index(UPDATE_TRUST_REPORT_ARG)
+    if index + 1 >= len(sys.argv):
+        raise SystemExit(2)
+    Path(sys.argv[index + 1]).write_text(json.dumps(trust_report(), sort_keys=True), encoding="utf-8")
+    raise SystemExit(0)
+
+
+def _maybe_defer_to_updater() -> None:
+    """Packaged builds only: never start from an install that an updater is replacing or must recover."""
+    if not getattr(sys, "frozen", False):
+        return
+    try:
+        from exilelens.app.updates.startup_guard import defer_to_updater_if_needed
+
+        if defer_to_updater_if_needed():
+            raise SystemExit(0)
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 - the guard must never prevent a normal launch
+        logging.getLogger(__name__).exception("update_startup_guard_failed")
+
+
 _maybe_run_worker_subprocess()
 _maybe_run_updater_subprocess()
+_maybe_write_update_trust_report()
+_maybe_defer_to_updater()
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
@@ -84,6 +120,11 @@ class ExileLensApp:
         load_result = load_settings_result()
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
+        self._pob_autodetected = False
+        # Install-on-exit is only ever considered for a clean, user-initiated exit that is not part of a
+        # Windows logoff/shutdown. Both flags default to the safe value (no install).
+        self._clean_user_exit = False
+        self._session_ending = False
         migrate_character_build(self.settings)
         self._auto_configure_pob_path()
         if self._settings_load_error:
@@ -93,6 +134,18 @@ class ExileLensApp:
             logger.warning("settings_load_failed defaults_in_use backup=%s", backup)
         log_price_check_startup_mode(self.settings)
         self._restore_trade_penalties()
+        # Optional cloud services (opt-in usage statistics / error reports). Constructed inert: nothing is
+        # created, written or sent until the user enables a category and the build has a cloud endpoint.
+        self.cloud = None
+        try:
+            from exilelens.cloud import hooks as cloud_hooks
+            from exilelens.cloud.service import CloudServices
+
+            self.cloud = CloudServices(self.settings)
+            self.cloud.pob_autodetected = self._pob_autodetected
+            cloud_hooks.register(self.cloud)
+        except Exception:  # noqa: BLE001 - cloud services are optional and must never block startup
+            logger.exception("cloud_services_unavailable")
         self._shutdown_done = False
         self.controller: EvaluationController | None = None
         self.overlay: OverlayWindow | None = None
@@ -124,6 +177,7 @@ class ExileLensApp:
         if icon is not None:
             app.setWindowIcon(icon)
         app.aboutToQuit.connect(self._on_about_to_quit)
+        self._connect_session_end_signals(app)
         logger.info("app_start version=%s pid=%s exe=%s", __version__, os.getpid(), sys.executable)
 
         # A second copy would compete for the same global Item Check hotkey. It hands
@@ -154,6 +208,7 @@ class ExileLensApp:
         attach_controller_diagnostics(self.controller)
         attach_update_diagnostics(self.dashboard.update_service, self.controller.error_context)
         record_application_initialized()
+        self._start_cloud_services()
         if is_enabled(FeatureModule.MARKET_ASSISTANT):
             self.market_assist_overlay = MarketAssistantOverlay(self.settings)
         if is_enabled(FeatureModule.LIVE_TREE_OVERLAY):
@@ -177,6 +232,9 @@ class ExileLensApp:
 
         # Update discovery is best-effort and starts only after the tray and UI
         # exist. Source runs are rejected by the service without a request.
+        # begin_session (packaged only) surfaces the previous updater result once, restores a verified
+        # ready update and schedules post-launch cleanup of update recovery material.
+        QTimer.singleShot(0, self.dashboard.update_service.begin_session)
         QTimer.singleShot(0, self.dashboard.update_service.start_automatic)
 
         # Everything that can block (worker boot, build load, network) runs once the
@@ -187,6 +245,22 @@ class ExileLensApp:
             QTimer.singleShot(0, self._show_onboarding)
         QTimer.singleShot(0, self._start_engine)
         return app.exec()
+
+    def _start_cloud_services(self) -> None:
+        """Attach the (inert unless opted in) cloud services; failures here never affect the app."""
+        if self.cloud is None or self.controller is None or self.dashboard is None:
+            return
+        try:
+            from exilelens.cloud.wiring import attach as attach_cloud
+
+            self._cloud_wiring = attach_cloud(self.cloud, self.controller, self.dashboard.update_service)
+            # Entitlement is only a yes/no gate on automating the existing signed update flow.
+            self.dashboard.update_service.set_automation_gate(self.cloud.patreon.seamless_updates_allowed)
+            self.cloud.start(pob_configured=bool(self.settings.pob_path))
+            update_service = self.dashboard.update_service
+            QTimer.singleShot(5000, lambda: self.cloud.report_startup(update_service))
+        except Exception:  # noqa: BLE001
+            logger.exception("cloud_services_start_failed")
 
     def _compose_primary_ui(self, *, quit_callback=None) -> None:
         """Build the production Item Check UI without starting external inputs or PoB."""
@@ -202,8 +276,7 @@ class ExileLensApp:
         self.overlay.set_retry_handler(self.controller.retry_last_item_check)
         self.controller.pin_compare_changed.connect(self._on_pin_compare_changed)
         if quit_callback is None:
-            app = QApplication.instance()
-            quit_callback = app.quit if app is not None else None
+            quit_callback = self._user_quit
         self.tray = TrayManager(
             self.settings,
             self.controller,
@@ -321,6 +394,7 @@ class ExileLensApp:
             if path and path != self.settings.pob_path:
                 self.settings.pob_path = path
                 save_settings(self.settings)
+                self._pob_autodetected = True
                 logger.info("pob_autodetect_applied")
             elif result is not None and result.ambiguous:
                 logger.info("pob_autodetect_ambiguous count=%d", len(result.ambiguous))
@@ -1149,6 +1223,59 @@ class ExileLensApp:
         if self.market_assist_overlay:
             self.market_assist_overlay.flash_new_best()
 
+    def mark_user_exit(self) -> None:
+        """The user explicitly asked ExileLens to close (tray Exit, or closing the only window)."""
+        self._clean_user_exit = True
+
+    def _user_quit(self) -> None:
+        self.mark_user_exit()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
+
+    def _connect_session_end_signals(self, app) -> None:  # noqa: ANN001
+        """Windows logoff/shutdown/restart must never trigger an update install.
+
+        A tray-only app may have no native top-level Qt window, in which case Qt never sees the session
+        messages; the sentinel window guarantees one. ``system_shutting_down()`` is checked again at exit.
+        """
+        from PySide6.QtWidgets import QApplication as _QApplication
+
+        if isinstance(app, _QApplication):
+            try:
+                from exilelens.platform.windows.session_end import SessionEndSentinel
+
+                self._session_sentinel = SessionEndSentinel(app, self._on_session_ending)
+                return
+            except Exception:  # noqa: BLE001 - fall back to the plain application signals
+                logger.exception("session_sentinel_failed")
+        for name in ("commitDataRequest", "saveStateRequest"):
+            signal = getattr(app, name, None)
+            if signal is not None:
+                try:
+                    signal.connect(self._on_session_ending)
+                except Exception:  # noqa: BLE001
+                    logger.debug("session_end_signal_unavailable name=%s", name)
+
+    def _on_session_ending(self, *_args) -> None:
+        self._session_ending = True
+        logger.info("session_ending detected; install on exit disabled for this exit")
+
+    def _install_on_exit(self) -> None:
+        """Supporters only: hand an already verified and prepared update to the updater, WITHOUT relaunch.
+
+        Runs after the PoB worker and overlays are down. It never downloads or extracts; if anything is not
+        already verified and ready, or this is not a clean user-initiated exit, the update simply stays
+        pending for the next clean exit or an explicit Restart.
+        """
+        from exilelens.platform.windows.session_end import system_shutting_down
+
+        dashboard = getattr(self, "dashboard", None)
+        if dashboard is None or not self._clean_user_exit or self._session_ending or system_shutting_down():
+            return
+        if dashboard.update_service.begin_install_on_exit(parent_pid=os.getpid()):
+            logger.info("install_on_exit_started")
+
     def request_restart_for_update(self, *, parent_pid: int) -> None:
         dashboard = getattr(self, "dashboard", None)
         if dashboard is None:
@@ -1202,12 +1329,15 @@ class ExileLensApp:
             if self.controller and self.controller.build_info.path:
                 self.settings.build_path = self.controller.build_info.path
             self._shutdown_step("save_settings", lambda: save_settings(self.settings))
+        if self.cloud is not None:
+            self._shutdown_step("cloud_services", self.cloud.stop)  # bounded local writes; never the network
         # 5-6: workers, PoB subprocesses, pinned/overlay windows.
         if self.controller:
             self._shutdown_step("controller", self.controller.shutdown)
         for window in (self.overlay, getattr(self, "market_assist_overlay", None), getattr(self, "tree_overlay", None)):
             if window is not None:
                 self._shutdown_step("overlay_hide", window.hide)
+        self._shutdown_step("install_on_exit", self._install_on_exit)
         # 7-9: tray, IPC, and finally the single-instance lock.
         if getattr(self, "_tray_retry_timer", None) is not None:
             self._tray_retry_timer.stop()

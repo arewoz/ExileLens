@@ -1,0 +1,29 @@
+{
+  "comment": "Cross-language golden vector for the entitlement lease. TEST-ONLY key (cloud/test/keys/entitlement-test-1.pkcs8.b64); never a production key. Signed message = UTF-8(domain_prefix) + canonical_lease_json; canonical JSON == json.dumps(lease, sort_keys=True, separators=(\",\",\":\"), ensure_ascii=False). Ed25519 is deterministic.",
+  "public_key_b64": "7uT5nCI2848DtVlDbBEUsIM30CjxIt9H1e0eD9hBjr0=",
+  "kid": "exilelens-entitlement-test-1",
+  "device_id": "0123456789abcdef0123456789abcdef",
+  "domain_prefix": "exilelens/entitlement-lease/v1\n",
+  "canonical_lease_json": "{\"capabilities\":[\"seamless_updates\"],\"expires_at\":1790604800,\"issued_at\":1790000000,\"kid\":\"exilelens-entitlement-test-1\",\"lease_id\":\"fedcba9876543210fedcba9876543210\",\"policy_version\":1,\"refresh_after\":1790086400,\"schema\":1,\"sub\":\"0123456789abcdef0123456789abcdef\"}",
+  "lease": {
+    "schema": 1,
+    "kid": "exilelens-entitlement-test-1",
+    "lease_id": "fedcba9876543210fedcba9876543210",
+    "sub": "0123456789abcdef0123456789abcdef",
+    "capabilities": [
+      "seamless_updates"
+    ],
+    "issued_at": 1790000000,
+    "refresh_after": 1790086400,
+    "expires_at": 1790604800,
+    "policy_version": 1
+  },
+  "signature": "oJQ5C8myg9yBOl4/QVdqVVMoi1OHldn2S1UYf/zohyY6/4UT1E9B/AJWnWwINjoCqOpTxP0UZyeSJwtquPprCA==",
+  "now": {
+    "at_issue": 1790000000,
+    "at_refresh_due": 1790086400,
+    "last_valid_second": 1790604799,
+    "at_expiry": 1790604800,
+    "after_expiry": 1790604801
+  }
+}
