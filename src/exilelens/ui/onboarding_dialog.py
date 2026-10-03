@@ -116,9 +116,15 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
             self.refresh()
     def _open_diagnostics(self) -> None:
         if self._on_diagnostics: self._on_diagnostics()
+    def _report_outcome(self, outcome: str) -> None:
+        # Opt-in usage statistics only (no-op unless enabled); never blocks or raises.
+        from exilelens.cloud import hooks
+
+        hooks.onboarding_completed(outcome=outcome)
+
     def _finish_onboarding(self) -> None:
-        if derive_readiness(self.settings, self.controller).ready: complete_onboarding(self.settings); self.accept()
-    def _skip_onboarding(self) -> None: complete_onboarding(self.settings); self.reject()
+        if derive_readiness(self.settings, self.controller).ready: self._report_outcome("finished"); complete_onboarding(self.settings); self.accept()
+    def _skip_onboarding(self) -> None: self._report_outcome("skipped"); complete_onboarding(self.settings); self.reject()
     def closeEvent(self, event) -> None:  # noqa: N802
-        if onboarding_required(self.settings): complete_onboarding(self.settings)
+        if onboarding_required(self.settings): self._report_outcome("skipped"); complete_onboarding(self.settings)
         super().closeEvent(event)

@@ -29,9 +29,14 @@ def _emit_diagnostic_event(report: StructuredErrorReport) -> None:
     )
 
 
-def record_structured_error(store: ErrorContextStore, report: StructuredErrorReport) -> StructuredErrorReport:
+def record_structured_error(store: ErrorContextStore, report: StructuredErrorReport, exc: BaseException | None = None) -> StructuredErrorReport:
     store.record_error(report)
     _emit_diagnostic_event(report)
+    # Optional, opt-in structured error reporting (a no-op unless the user enabled it). Only the registered
+    # code and the exception object's type/frames are forwarded; the message is never read.
+    from exilelens.cloud import hooks
+
+    hooks.error_recorded(report.code, exc)
     return report
 
 
@@ -46,7 +51,7 @@ def record_engine_error(
     if stage:
         details["stage"] = stage
     report = resolve_from_engine_code(exc.code, exc.message, subsystem=subsystem, details=details)
-    return record_structured_error(store, report)
+    return record_structured_error(store, report, exc)
 
 
 def record_generic_failure(
@@ -80,7 +85,7 @@ def record_exception(
     stage: str = "",
 ) -> StructuredErrorReport:
     report = resolve_exception(exc, subsystem=subsystem, stage=stage)
-    return record_structured_error(store, report)
+    return record_structured_error(store, report, exc)
 
 
 def record_update_state(store: ErrorContextStore, state: str, version: str = "") -> None:

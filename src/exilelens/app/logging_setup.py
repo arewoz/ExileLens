@@ -155,6 +155,9 @@ def install_crash_handlers() -> None:
             sys.__excepthook__(exc_type, exc, tb)
             return
         crash_logger.critical("unhandled_exception", exc_info=(exc_type, exc, tb))
+        from exilelens.cloud import hooks
+
+        hooks.unhandled_exception(exc_type, exc, tb)  # opt-in structured report; no-op otherwise
 
     def _thread_excepthook(args) -> None:  # noqa: ANN001
         if args.exc_type is SystemExit:
@@ -164,6 +167,9 @@ def install_crash_handlers() -> None:
             getattr(args.thread, "name", "?"),
             exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
         )
+        from exilelens.cloud import hooks
+
+        hooks.unhandled_exception(args.exc_type, args.exc_value, args.exc_traceback)
 
     sys.excepthook = _excepthook
     threading.excepthook = _thread_excepthook

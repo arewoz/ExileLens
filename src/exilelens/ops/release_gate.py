@@ -305,6 +305,44 @@ def _update_trust_set(root: Path) -> CheckResult:
     return CheckResult("update_trust_set", GateVerdict.PASS, detail="frozen builds trust only exilelens-prod-1")
 
 
+def _cloud_config(root: Path) -> CheckResult:
+    """The optional cloud service must be explicitly configured for a release, never by accident.
+
+    * ``release_config.json`` may be empty (cloud features stay off) or hold a strict https URL that is not a
+      ``*.workers.dev`` development host.
+    * The packaged contract must be byte-identical to the canonical ``cloud/schema/events.v1.json``.
+    """
+    import json
+
+    from exilelens.cloud.endpoint import normalize_base_url
+
+    package = root / "src" / "exilelens" / "cloud"
+    config_path = package / "release_config.json"
+    if config_path.is_file():
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeError) as exc:
+            return CheckResult("cloud_config", GateVerdict.BLOCKED, Severity.P0, f"release_config.json unreadable: {exc}")
+    else:
+        config = {"schema": 1, "api_base_url": ""}  # generated per release; absent = cloud features off
+    url = config.get("api_base_url") if isinstance(config, dict) else None
+    if not isinstance(config, dict) or config.get("schema") != 1 or not isinstance(url, str):
+        return CheckResult("cloud_config", GateVerdict.BLOCKED, Severity.P0, "release_config.json has an unexpected shape")
+    if url.strip() and normalize_base_url(url) is None:
+        return CheckResult(
+            "cloud_config",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            "api_base_url must be an https origin and not a *.workers.dev development host",
+        )
+    canonical = root / "cloud" / "schema" / "events.v1.json"
+    packaged = package / "events.v1.json"
+    if canonical.is_file() and (not packaged.is_file() or canonical.read_bytes() != packaged.read_bytes()):
+        return CheckResult("cloud_config", GateVerdict.BLOCKED, Severity.P0, "packaged events.v1.json differs from cloud/schema/events.v1.json")
+    state = "configured" if url.strip() else "not configured (cloud features stay off)"
+    return CheckResult("cloud_config", GateVerdict.PASS, detail=f"cloud endpoint {state}; contract in sync")
+
+
 def _packaged_update_trust(root: Path, *, required: bool = False) -> CheckResult:
     """Ask the packaged binary itself which update keys it trusts (proves no test-key fallback shipped)."""
     if not required:
@@ -353,6 +391,7 @@ def evaluate_release_gate(
         _packaging(base),
         _debug_deps(base),
         _update_trust_set(base),
+        _cloud_config(base),
         _expected_artifact(base, required=require_artifact),
         _artifact_provenance(base, required=require_artifact),
         _packaged_update_trust(base, required=require_artifact),

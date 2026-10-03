@@ -359,6 +359,16 @@ _ERROR_ENTRIES: tuple[StructuredErrorDefinition, ...] = (
         Retryability.USER_ACTION,
         ("exception_type",),
     ),
+    StructuredErrorDefinition(
+        "EL-APP-100",
+        ErrorCategory.APPLICATION,
+        ErrorSeverity.INFO,
+        "Unexpected session end",
+        "The previous ExileLens session did not end normally (power loss, a forced shutdown, Task Manager or a crash).",
+        "No action needed. Copy diagnostics if ExileLens keeps closing unexpectedly.",
+        Retryability.NONE,
+        (),
+    ),
 )
 
 ERROR_REGISTRY: dict[str, StructuredErrorDefinition] = {row.code: row for row in _ERROR_ENTRIES}

@@ -120,6 +120,7 @@ class ExileLensApp:
         load_result = load_settings_result()
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
+        self._pob_autodetected = False
         migrate_character_build(self.settings)
         self._auto_configure_pob_path()
         if self._settings_load_error:
@@ -129,6 +130,18 @@ class ExileLensApp:
             logger.warning("settings_load_failed defaults_in_use backup=%s", backup)
         log_price_check_startup_mode(self.settings)
         self._restore_trade_penalties()
+        # Optional cloud services (opt-in usage statistics / error reports). Constructed inert: nothing is
+        # created, written or sent until the user enables a category and the build has a cloud endpoint.
+        self.cloud = None
+        try:
+            from exilelens.cloud import hooks as cloud_hooks
+            from exilelens.cloud.service import CloudServices
+
+            self.cloud = CloudServices(self.settings)
+            self.cloud.pob_autodetected = self._pob_autodetected
+            cloud_hooks.register(self.cloud)
+        except Exception:  # noqa: BLE001 - cloud services are optional and must never block startup
+            logger.exception("cloud_services_unavailable")
         self._shutdown_done = False
         self.controller: EvaluationController | None = None
         self.overlay: OverlayWindow | None = None
@@ -190,6 +203,7 @@ class ExileLensApp:
         attach_controller_diagnostics(self.controller)
         attach_update_diagnostics(self.dashboard.update_service, self.controller.error_context)
         record_application_initialized()
+        self._start_cloud_services()
         if is_enabled(FeatureModule.MARKET_ASSISTANT):
             self.market_assist_overlay = MarketAssistantOverlay(self.settings)
         if is_enabled(FeatureModule.LIVE_TREE_OVERLAY):
@@ -226,6 +240,20 @@ class ExileLensApp:
             QTimer.singleShot(0, self._show_onboarding)
         QTimer.singleShot(0, self._start_engine)
         return app.exec()
+
+    def _start_cloud_services(self) -> None:
+        """Attach the (inert unless opted in) cloud services; failures here never affect the app."""
+        if self.cloud is None or self.controller is None or self.dashboard is None:
+            return
+        try:
+            from exilelens.cloud.wiring import attach as attach_cloud
+
+            self._cloud_wiring = attach_cloud(self.cloud, self.controller, self.dashboard.update_service)
+            self.cloud.start(pob_configured=bool(self.settings.pob_path))
+            update_service = self.dashboard.update_service
+            QTimer.singleShot(5000, lambda: self.cloud.report_startup(update_service))
+        except Exception:  # noqa: BLE001
+            logger.exception("cloud_services_start_failed")
 
     def _compose_primary_ui(self, *, quit_callback=None) -> None:
         """Build the production Item Check UI without starting external inputs or PoB."""
@@ -360,6 +388,7 @@ class ExileLensApp:
             if path and path != self.settings.pob_path:
                 self.settings.pob_path = path
                 save_settings(self.settings)
+                self._pob_autodetected = True
                 logger.info("pob_autodetect_applied")
             elif result is not None and result.ambiguous:
                 logger.info("pob_autodetect_ambiguous count=%d", len(result.ambiguous))
@@ -1241,6 +1270,8 @@ class ExileLensApp:
             if self.controller and self.controller.build_info.path:
                 self.settings.build_path = self.controller.build_info.path
             self._shutdown_step("save_settings", lambda: save_settings(self.settings))
+        if self.cloud is not None:
+            self._shutdown_step("cloud_services", self.cloud.stop)  # bounded local writes; never the network
         # 5-6: workers, PoB subprocesses, pinned/overlay windows.
         if self.controller:
             self._shutdown_step("controller", self.controller.shutdown)

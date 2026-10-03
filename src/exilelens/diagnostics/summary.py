@@ -139,6 +139,28 @@ def _error_integration(controller: Any) -> dict[str, Any]:
     )
 
 
+def _cloud_state(settings: Any) -> dict[str, Any]:
+    """Optional cloud services: switches and queue counters only — never identifiers or queued content."""
+    try:
+        from exilelens.cloud import hooks
+
+        services = hooks.get()
+        status = services.status() if services is not None else None
+    except Exception:  # noqa: BLE001
+        status = None
+    result: dict[str, Any] = {
+        "usage_stats_enabled": bool(getattr(settings, "send_usage_stats", False)),
+        "error_reports_enabled": bool(getattr(settings, "send_error_reports", False)),
+        "endpoint_configured": bool(status and status.get("endpoint_configured")),
+    }
+    if status:
+        for key in ("usage", "errors"):
+            info = status[key]
+            result[key] = {name: info.get(name) for name in ("active", "queued", "dropped", "disabled", "backoff_failures", "last_result")}
+        result["previous_session"] = status.get("previous_session")
+    return result
+
+
 def build_extended_summary(
     controller: Any,
     settings: Any,
@@ -194,6 +216,7 @@ def build_extended_summary(
         "health": _health_extended(controller, settings),
         "updates": _update_state(settings, update_service),
         "error_codes": _error_integration(controller),
+        "cloud": _cloud_state(settings),
     }
     return sanitize_value(base)
 
