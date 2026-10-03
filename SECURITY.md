@@ -32,7 +32,7 @@ Use GitHub Issues or Discord for suspected false positives unless the report con
 
 ExileLens is a **local desktop overlay**.
 
-It runs entirely on your own Windows machine as a normal user process. It has no account system of its own and no ExileLens server component.
+It runs entirely on your own Windows machine as a normal user process. It has no account system of its own. It can optionally talk to a small ExileLens cloud service (usage statistics and error reports) only if you opt in; nothing depends on that service.
 
 Its normal job is to:
 
@@ -102,7 +102,7 @@ For market lookups, ExileLens sends structured search information derived from t
 - matched stat information
 - search ranges used to find comparable listings
 
-ExileLens does not use a proprietary ExileLens account or telemetry backend.
+ExileLens has no account system. An optional ExileLens cloud service (Cloudflare Workers + D1; contract and server code in this repository under `cloud/`) receives usage statistics and error reports only when you switch those on in Settings → Privacy. Both are **off by default**.
 
 For the precise privacy behavior of network requests, see:
 
@@ -134,7 +134,7 @@ Based on the current source code:
 - **No process injection.** ExileLens does not inject code or DLLs into the game process.
 - **No packet interception.** ExileLens does not sniff, intercept, or modify Path of Exile 2 network traffic.
 - **No gameplay automation.** ExileLens does not move your character, use skills, interact with inventory, or perform gameplay actions for you.
-- **No telemetry or analytics.** ExileLens does not send usage analytics or behavioral telemetry to the project maintainers.
+- **No telemetry unless you opt in.** Usage statistics and error reports are separate switches that are off by default. When on, they send only the categorical fields listed in the published contract (`cloud/schema/events.v1.json`), shown in-app under *See what is collected*; the service rejects anything else. No item text, builds, clipboard, paths or logs.
 - **No automatic download-and-execute updater.** ExileLens does not silently download and execute new ExileLens versions.
 - **No administrator privilege requirement.** ExileLens is designed to run as a normal Windows user without elevation.
 

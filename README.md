@@ -66,7 +66,7 @@ It currently provides:
 - Overlay results without manually moving every candidate item into PoB
 - Optional live market pricing using Path of Exile trade data
 - Detailed reasoning for supported evaluations
-- Local operation without an ExileLens account or telemetry system
+- Local operation without an ExileLens account; optional, off-by-default usage statistics and error reports (see [PRIVACY.md](PRIVACY.md))
 
 ## Current limitations
 
