@@ -1,12 +1,16 @@
 #!/usr/bin/env node
-// Run a named read-only report against the TELEMETRY_DB D1 database and print a table.
+// Run a named read-only report against ONE D1 database and print a table.
 //
-//   node scripts/report.mjs <name> [--local | --remote] [--env <staging|production>]
-//                                  [--min-cohort <n>] [--json]
-//   node scripts/report.mjs --list
+//   node scripts/report.mjs <name> [--db telemetry|patreon] [--local | --remote]
+//                                  [--env <staging|production>] [--min-cohort <n>] [--json]
+//   node scripts/report.mjs --list [--db telemetry|patreon]
 //
-// All reports count opted-in active INSTALLATIONS, not users. Reports are plain SELECT
-// files in cloud/reports/*.sql; this script only substitutes {{MIN_COHORT}} and shells out
+// --db telemetry (default): reports/*.sql against TELEMETRY_DB; they count opted-in active
+//   INSTALLATIONS, not users.
+// --db patreon: reports/patreon/*.sql against PATREON_DB; ANONYMOUS counters / counts only.
+// The two databases are NEVER queried together: one invocation = one database, no joins.
+// Reports are plain SELECT files (cloud/reports/*.sql, cloud/reports/patreon/*.sql); this script only
+// substitutes {{MIN_COHORT}} and shells out
 // to `wrangler d1 execute`. No credentials are handled here: --remote uses whatever
 // `wrangler login` / CLOUDFLARE_API_TOKEN the owner already has.
 import { spawnSync } from "node:child_process";
@@ -17,24 +21,32 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const reportsDir = join(root, "reports");
+const DATABASES = {
+  telemetry: { dir: join(root, "reports"), binding: "TELEMETRY_DB", label: "opted-in installations, not users" },
+  patreon: { dir: join(root, "reports", "patreon"), binding: "PATREON_DB", label: "anonymous counts, not users" },
+};
 
-export function listReports() {
-  return readdirSync(reportsDir)
+function dbInfo(db) {
+  if (!Object.prototype.hasOwnProperty.call(DATABASES, db)) throw new Error("--db must be telemetry or patreon");
+  return DATABASES[db];
+}
+
+export function listReports(db = "telemetry") {
+  return readdirSync(dbInfo(db).dir)
     .filter((f) => f.endsWith(".sql"))
     .map((f) => f.slice(0, -4))
     .sort();
 }
 
 /** Read a report and substitute {{MIN_COHORT}} with a validated non-negative integer. */
-export function renderReport(name, minCohort) {
-  if (!/^[a-z0-9_]+$/.test(name) || !listReports().includes(name)) {
-    throw new Error(`Unknown report "${name}". Available: ${listReports().join(", ")}`);
+export function renderReport(name, minCohort, db = "telemetry") {
+  if (!/^[a-z0-9_]+$/.test(name) || !listReports(db).includes(name)) {
+    throw new Error(`Unknown report "${name}" for --db ${db}. Available: ${listReports(db).join(", ")}`);
   }
   if (!Number.isInteger(minCohort) || minCohort < 0) {
     throw new Error("--min-cohort must be a non-negative integer");
   }
-  return readFileSync(join(reportsDir, `${name}.sql`), "utf8").replaceAll("{{MIN_COHORT}}", String(minCohort));
+  return readFileSync(join(dbInfo(db).dir, `${name}.sql`), "utf8").replaceAll("{{MIN_COHORT}}", String(minCohort));
 }
 
 export function formatTable(rows) {
@@ -47,7 +59,7 @@ export function formatTable(rows) {
 }
 
 function parseArgs(argv) {
-  const opts = { name: null, remote: false, env: null, minCohort: null, json: false, list: false };
+  const opts = { name: null, db: "telemetry", remote: false, env: null, minCohort: null, json: false, list: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--local") opts.remote = false;
@@ -55,6 +67,7 @@ function parseArgs(argv) {
     else if (a === "--json") opts.json = true;
     else if (a === "--list") opts.list = true;
     else if (a === "--env") opts.env = argv[++i];
+    else if (a === "--db") opts.db = argv[++i];
     else if (a === "--min-cohort") opts.minCohort = Number(argv[++i]);
     else if (a.startsWith("--")) throw new Error(`Unknown flag ${a}`);
     else if (opts.name === null) opts.name = a;
@@ -65,15 +78,16 @@ function parseArgs(argv) {
 
 function main() {
   const opts = parseArgs(process.argv.slice(2));
+  const info = dbInfo(opts.db);
   if (opts.list || !opts.name) {
-    console.log(`Reports (opted-in active installations, not users):\n  ${listReports().join("\n  ")}`);
+    console.log(`Reports for --db ${opts.db} (${info.label}):\n  ${listReports(opts.db).join("\n  ")}`);
     return opts.list ? 0 : 1;
   }
   if (opts.remote && !opts.env) throw new Error("--remote requires --env <staging|production>");
   if (opts.env && !/^(staging|production)$/.test(opts.env)) throw new Error("--env must be staging or production");
   // Small-cohort suppression defaults to ON (20) only for remote data.
   const minCohort = opts.minCohort ?? (opts.remote ? 20 : 0);
-  const sql = renderReport(opts.name, minCohort);
+  const sql = renderReport(opts.name, minCohort, opts.db);
 
   const require = createRequire(import.meta.url);
   const wranglerJs = join(dirname(require.resolve("wrangler/package.json")), "bin", "wrangler.js");
@@ -81,7 +95,7 @@ function main() {
   const file = join(dir, `${opts.name}.sql`);
   writeFileSync(file, sql);
   try {
-    const args = [wranglerJs, "d1", "execute", "TELEMETRY_DB"];
+    const args = [wranglerJs, "d1", "execute", info.binding];
     if (opts.env) args.push("--env", opts.env);
     args.push(opts.remote ? "--remote" : "--local", "--json", "--file", file);
     const res = spawnSync(process.execPath, args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -94,7 +108,7 @@ function main() {
     const rows = parsed.flatMap((entry) => entry.results ?? []);
     if (opts.json) console.log(JSON.stringify(rows, null, 2));
     else {
-      console.log(`${opts.name} (${opts.remote ? `remote:${opts.env}` : "local"}) - opted-in installations, not users`);
+      console.log(`${opts.name} [${opts.db}] (${opts.remote ? `remote:${opts.env}` : "local"}) - ${info.label}`);
       console.log(formatTable(rows));
     }
     return 0;
