@@ -515,5 +515,12 @@ class OverviewPage(ColumnPage):
         except Exception:  # noqa: BLE001 - an optional teaser must never break Overview
             headline = ""
         self._fix_headline.setText(headline)
-        ready = bool(self._status and self._status.key in (status_model.READY, status_model.ATTENTION))
-        self._fix_block.setVisible(bool(headline) and ready)
+        status = self._status
+        # Only for a build that is loaded: a failed or missing build must not show the previous build's advice.
+        usable = bool(
+            status
+            and status.key in (status_model.READY, status_model.ATTENTION)
+            and status.health.build.status != "error"
+            and status.build_selected
+        )
+        self._fix_block.setVisible(bool(headline) and usable)

@@ -245,6 +245,7 @@ class Harness:
 
     def update(self, state: str, version: str = "", *, download: str | None = None, percent: int | None = None) -> None:
         service = self.window.update_service
+        service.download_state_changed.emit("")  # every update state starts without a download in flight
         service.state_changed.emit(state, version)
         if download is not None:
             service.download_state_changed.emit(download)

@@ -33,7 +33,7 @@ from exilelens.ui import theme
 import re
 
 from exilelens.ui.components import StatusValue, ThemedCheckBox, make_button
-from exilelens.ui.dashboard_widgets import ColumnPage, MeasureRow, SettingsGroup, set_property
+from exilelens.ui.dashboard_widgets import ColumnPage, MeasureRow, SettingsGroup, WrapLabel, set_property
 from exilelens.ui.redesign_style import REDESIGN_STYLESHEET
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
 from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style, apply_window_interaction_policy
@@ -155,10 +155,10 @@ class AnalysisWindow(ColumnPage):
         self.header.actions.addSpacing(6)
         self.header.actions.addWidget(self._diagnostics_btn)
         self.header.actions.addWidget(self._analyze_btn)
-        self._progress = QLabel(_INTRO)
+        self._progress = WrapLabel(_INTRO)
         self._progress.setObjectName("bodyText")
-        self._progress.setWordWrap(True)
         self._progress.setMaximumWidth(620)
+        self._progress.setContentsMargins(0, 0, 0, 14)  # breathing room above the first section
         self.column.addWidget(self._progress)
         self.column.setSpacing(0)
 

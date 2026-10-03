@@ -206,3 +206,19 @@ def test_every_destination_is_a_tab_stop_and_exactly_one_is_checked(harness) -> 
     for page in ("settings", "diagnostics", "overview"):
         window.navigate(page)
         assert [key for key, b in buttons.items() if b.isChecked()] == [page]
+
+
+def test_fix_first_teaser_is_hidden_when_the_build_failed_to_load(harness) -> None:
+    from tests.test_r1_analyze_build_ui import realistic_analysis
+
+    result = realistic_analysis()
+    harness.controller.last_analysis = lambda: result  # type: ignore[method-assign]
+    harness.states["overview-ready"](harness)
+    _settle(harness)
+    overview = harness.window._overview
+    assert not overview._fix_block.isHidden()  # a loaded build with a cached analysis shows the teaser
+    harness.states["overview-build-failed"](harness)
+    harness.controller.last_analysis = lambda: result  # type: ignore[method-assign]
+    overview.refresh()
+    _settle(harness)
+    assert overview._fix_block.isHidden()
