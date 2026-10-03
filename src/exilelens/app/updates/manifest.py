@@ -28,6 +28,9 @@ class VerifiedUpdateManifest:
     tag: str
     signing_key_id: str
     artifact: UpdateArtifact
+    # Signed by the release authority. False keeps this release on the manual path even for supporters.
+    # Absent in older manifests = eligible; any non-boolean value is treated as False (fail safe).
+    seamless_eligible: bool = True
 
 
 def canonical_manifest_bytes(manifest: dict[str, Any]) -> bytes:
@@ -81,7 +84,15 @@ def verify_signed_envelope(payload: object) -> VerifiedUpdateManifest:
         tag=tag,
         signing_key_id=signing_key_id,
         artifact=UpdateArtifact(filename=filename, size=size, sha256=sha256, url=url),
+        seamless_eligible=_seamless_eligible(manifest),
     )
+
+
+def _seamless_eligible(manifest: dict[str, Any]) -> bool:
+    if "seamless_eligible" not in manifest:
+        return True
+    value = manifest["seamless_eligible"]
+    return value is True
 
 
 def expected_artifact_filename(tag: str) -> str:

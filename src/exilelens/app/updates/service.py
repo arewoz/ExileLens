@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import threading
 import time
 import uuid
 from dataclasses import dataclass
+from typing import Callable
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -19,7 +21,12 @@ from exilelens.app.updates.bootstrap import (
     updater_matches_bundled,
 )
 from exilelens.app.updates.channels import UpdateChannel
-from exilelens.app.updates.constants import CHECK_COOLDOWN_SECONDS, GITHUB_RELEASES_URL
+from exilelens.app.updates.constants import (
+    AUTO_DOWNLOAD_DISK_FACTOR,
+    CHECK_COOLDOWN_SECONDS,
+    GITHUB_RELEASES_URL,
+    SUPPORTER_CHECK_COOLDOWN_SECONDS,
+)
 from exilelens.app.updates.download import DownloadError, DownloadManager
 from exilelens.app.updates.github import GitHubReleaseClient, installed_version
 from exilelens.app.updates.manifest import (
@@ -72,10 +79,13 @@ class UpdateService(QObject):
     action_error = Signal(str)
     # One-time UpdateOutcomeNotice describing the previous external-updater run (consumed on launch).
     install_outcome = Signal(object)
+    #: A supporter's automatic download finished and verified (argument: version).
+    auto_update_ready = Signal(str)
 
     _check_finished = Signal(object, bool)
     _download_finished = Signal(object)
     _ready_restored = Signal(object)
+    _prestage_finished = Signal(object)
 
     def __init__(
         self,
@@ -98,6 +108,14 @@ class UpdateService(QObject):
         self.last_install_result: UpdateResult | None = None
         self.last_install_notice: UpdateOutcomeNotice | None = None
         self._download_when_verified = False
+        # Entitlement is only ever a yes/no gate on automating THIS existing, signature-verified flow.
+        # It cannot supply a URL, version, file name, hash or manifest: there is no parameter for them.
+        self._automation_gate: Callable[[], bool] = lambda: False
+        self.last_download_mode = "manual"
+        self._auto_download_attempted: set[str] = set()
+        self._download_state = ""
+        self._prestaged: str | None = None
+        self._prestage_in_flight = False
         self._verification_failed = False  # newest release failed signed-manifest verification this session
         # TRUST-01D: one single-shot timer that wakes locally when the 24h cooldown elapses. It never polls;
         # the network request itself is still gated by `start_automatic`.
@@ -107,6 +125,34 @@ class UpdateService(QObject):
         self._check_finished.connect(self._finish_check)
         self._download_finished.connect(self._finish_download)
         self._ready_restored.connect(self._on_ready_restored)
+        self._prestage_finished.connect(self._on_prestage_finished)
+        self.download_state_changed.connect(self._remember_download_state)
+
+    # -- supporter automation (gate only) ----------------------------------------------------
+    def set_automation_gate(self, gate: Callable[[], bool]) -> None:
+        self._automation_gate = gate
+
+    def _supporter(self) -> bool:
+        try:
+            return self._automation_gate() is True  # only a real boolean True; nothing else is ever interpreted
+        except Exception:  # noqa: BLE001 - a broken gate means free behaviour
+            return False
+
+    def automation_permitted(self, manifest: VerifiedUpdateManifest | None = None) -> bool:
+        manifest = manifest or self._verified_manifest
+        return manifest is not None and manifest.seamless_eligible and self._supporter()
+
+    def auto_download_enabled(self, manifest: VerifiedUpdateManifest | None = None) -> bool:
+        return self.automation_permitted(manifest) and bool(getattr(self.settings, "updates_auto_download", True))
+
+    def install_on_exit_enabled(self, manifest: VerifiedUpdateManifest | None = None) -> bool:
+        return self.automation_permitted(manifest) and bool(getattr(self.settings, "updates_install_on_exit", True))
+
+    def _cooldown_seconds(self) -> int:
+        return SUPPORTER_CHECK_COOLDOWN_SECONDS if self._supporter() else CHECK_COOLDOWN_SECONDS
+
+    def _remember_download_state(self, state: str) -> None:
+        self._download_state = state
 
     @property
     def installed_version_text(self) -> str:
@@ -188,7 +234,7 @@ class UpdateService(QObject):
             return False
         now = float(self.clock())
         previous = float(getattr(self.settings, "update_last_check_at", 0.0) or 0.0)
-        if previous > 0 and now - previous < CHECK_COOLDOWN_SECONDS:
+        if previous > 0 and now - previous < self._cooldown_seconds():
             self._emit_known_state()
             self._schedule_next_automatic()
             return False
@@ -202,7 +248,7 @@ class UpdateService(QObject):
         """Milliseconds until the next automatic check becomes eligible (last check + cooldown)."""
         now = float(self.clock())
         previous = float(getattr(self.settings, "update_last_check_at", 0.0) or 0.0)
-        due = (previous + CHECK_COOLDOWN_SECONDS) if previous > 0 else now
+        due = (previous + self._cooldown_seconds()) if previous > 0 else now
         # +1s tolerance so the wake-up lands just after the cooldown; never faster than every 60s.
         return int(max(60.0, due - now + 1.0) * 1000)
 
@@ -235,7 +281,8 @@ class UpdateService(QObject):
         installed = installed_version()
         return remote is not None and installed is not None and remote > installed
 
-    def start_download(self) -> bool:
+    def start_download(self, *, mode: str = "manual") -> bool:
+        self.last_download_mode = mode if mode in ("manual", "auto") else "manual"
         if (
             (self._availability is None or self._verified_manifest is None)
             and is_packaged()
@@ -277,6 +324,9 @@ class UpdateService(QObject):
         if manifest is None:
             self.action_error.emit("Update is not verified.")
             return False
+        if self._prestage_in_flight:
+            self.action_error.emit("The update is still being prepared; try again in a moment.")
+            return False
         if updater_active():
             self.action_error.emit("An update is already being installed.")
             return False
@@ -288,9 +338,12 @@ class UpdateService(QObject):
             self.action_error.emit("Downloaded update package is missing.")
             return False
         try:
-            validate_zip_archive(archive_path)
-            clear_staging()
-            staged_root = extract_zip_to_staging(archive_path, staging_dir())
+            staged_root = staging_dir() / "ExileLens"
+            if self._prestaged != manifest.artifact.filename or not staged_root.is_dir():
+                validate_zip_archive(archive_path)
+                clear_staging()
+                staged_root = extract_zip_to_staging(archive_path, staging_dir())
+            # The updater re-verifies the prepared tree against the package and the signed hash either way.
         except Exception:
             logger.exception("update_prepare_failed")
             self.action_error.emit("Downloaded update package failed safety checks.")
@@ -321,8 +374,91 @@ class UpdateService(QObject):
             logger.exception("update_launch_failed")
             self.action_error.emit("Could not start the external updater.")
             return False
+        self._prestaged = None
         self.download_state_changed.emit("installing")
         return True
+
+    # -- supporter: automatic download, pre-staging, install on exit ---------------------------
+    def _maybe_auto_download(self) -> None:
+        manifest, availability = self._verified_manifest, self._availability
+        if manifest is None or availability is None or not availability.remote.version > availability.installed:
+            return
+        if not self.auto_download_enabled(manifest):
+            return
+        if self._ready is not None and self._ready.manifest == manifest:
+            self._maybe_prestage()
+            return
+        if manifest.version in self._auto_download_attempted or self.downloader.is_active():
+            return
+        if not self._enough_disk(manifest):
+            logger.info("update_auto_download_skipped reason=disk_space")
+            return
+        self._auto_download_attempted.add(manifest.version)
+        self.start_download(mode="auto")
+
+    def _enough_disk(self, manifest: VerifiedUpdateManifest) -> bool:
+        probe = download_cache_dir()
+        while not probe.exists() and probe.parent != probe:
+            probe = probe.parent
+        try:
+            return shutil.disk_usage(probe).free >= AUTO_DOWNLOAD_DISK_FACTOR * manifest.artifact.size
+        except OSError:
+            return False
+
+    def _maybe_prestage(self) -> None:
+        """Extract the verified package in the background so an install on exit is instant and bounded."""
+        manifest = self._verified_manifest
+        if manifest is None or self._prestage_in_flight or self._prestaged == manifest.artifact.filename:
+            return
+        if not self.install_on_exit_enabled(manifest):
+            return
+        archive = download_cache_dir() / manifest.artifact.filename
+        if not archive.is_file():
+            return
+        filename = manifest.artifact.filename
+        self._prestage_in_flight = True
+
+        def run() -> None:
+            try:
+                validate_zip_archive(archive)
+                clear_staging()
+                extract_zip_to_staging(archive, staging_dir())
+                ok = True
+            except Exception:  # noqa: BLE001
+                logger.exception("update_prestage_failed")
+                ok = False
+            self._prestage_finished.emit((filename, ok))
+
+        threading.Thread(target=run, name="exilelens-update-prestage", daemon=True).start()
+
+    def _on_prestage_finished(self, payload: object) -> None:
+        filename, ok = payload  # type: ignore[misc]
+        self._prestage_in_flight = False
+        self._prestaged = filename if ok else None
+
+    def install_on_exit_ready(self) -> bool:
+        """Everything needed for an unattended install at clean exit is verified and prepared."""
+        manifest = self._verified_manifest
+        installed = installed_version()
+        return bool(
+            manifest is not None
+            and installed is not None
+            and self._download_state == "ready"
+            and ExileLensVersion.parse(manifest.version) is not None
+            and ExileLensVersion.parse(manifest.version) > installed
+            and self.install_on_exit_enabled(manifest)
+            and self._prestaged == manifest.artifact.filename
+            and not self._prestage_in_flight
+            and not updater_active()
+            and updater_matches_bundled()
+        )
+
+    def begin_install_on_exit(self, *, parent_pid: int) -> bool:
+        """Hand the prepared update to the updater WITHOUT relaunching. Never extracts or downloads: if
+        anything is not already verified and prepared it does nothing and the update stays pending."""
+        if not self.install_on_exit_ready():
+            return False
+        return self.begin_restart_and_update(parent_pid=parent_pid, restart_after_update=False)
 
     def _start_check(self, *, manual: bool) -> bool:
         if self._check_in_flight:
@@ -434,11 +570,13 @@ class UpdateService(QObject):
                 # Superseded by a newer verified release, or already installed.
                 self._drop_ready()
                 self.download_state_changed.emit("")
+        self._maybe_auto_download()
 
     def _drop_ready(self) -> None:
         if self._ready is None:
             return
         self._ready = None
+        self._prestaged = None
         try:
             discard_ready_record(delete_archive=True)
         except OSError:
@@ -471,6 +609,7 @@ class UpdateService(QObject):
         self.state_changed.emit("available", remote)
         self.download_state_changed.emit("ready")
         logger.info("update_ready_restored version=%s", remote)
+        self._maybe_prestage()
 
     def _finish_download(self, result: object) -> None:
         if isinstance(result, DownloadError):
@@ -494,6 +633,9 @@ class UpdateService(QObject):
             except OSError:
                 logger.exception("update_ready_record_write_failed")
         self.download_state_changed.emit("ready")
+        if self.last_download_mode == "auto" and manifest is not None:
+            self.auto_update_ready.emit(manifest.version)
+        self._maybe_prestage()
 
     def _emit_known_state(self) -> None:
         remote = ExileLensVersion.parse(getattr(self.settings, "update_latest_version", ""))

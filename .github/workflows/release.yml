@@ -7,6 +7,11 @@ on:
         description: "Release tag (for example: v0.2.0b2)"
         required: true
         type: string
+      seamless_eligible:
+        description: "Signed in the update manifest. Set false to keep THIS release on the manual path even for supporters (e.g. a risky layout change). Never gates security fixes for free users."
+        required: false
+        type: boolean
+        default: true
 
 # Keep the repository default token read-only.  This workflow needs write access
 # only to create the new tag and its published release after all checks succeed.
@@ -139,6 +144,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ inputs.version }}
+          SEAMLESS_ELIGIBLE: ${{ inputs.seamless_eligible }}
           PYTHONPATH: ${{ github.workspace }}\src
         run: |
           $ErrorActionPreference = 'Stop'
@@ -202,6 +208,7 @@ jobs:
             version = $expectedSourceVersion
             tag = $env:RELEASE_VERSION
             signing_key_id = 'exilelens-prod-1'
+            seamless_eligible = ($env:SEAMLESS_ELIGIBLE -ne 'false')
             artifact = @{
               filename = $archiveName
               size = (Get-Item -LiteralPath $archivePath).Length
