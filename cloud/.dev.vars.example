@@ -1,0 +1,7 @@
+# Local development secrets. Copy to .dev.vars (git-ignored) and replace.
+# These values are FAKE examples only; never reuse them anywhere real.
+# Generate real ones with e.g.:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ANALYTICS_PEPPER=fake-analytics-pepper-do-not-use-0000000000000000
+DIAGNOSTIC_PEPPER=fake-diagnostic-pepper-do-not-use-111111111111111
+# Optional override of the kill switch ("false" makes ingest return 503 ingest_disabled)
+# INGEST_ENABLED=true

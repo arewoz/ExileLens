@@ -1,0 +1,47 @@
+name: Cloud Worker CI
+
+# Typecheck + test the optional ExileLens cloud Worker (cloud/). Local D1 only; no Cloudflare credentials.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "cloud/**"
+      - "src/exilelens/cloud/**"
+      - ".github/workflows/cloud-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cloud/**"
+      - "src/exilelens/cloud/**"
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    name: Worker typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cloud
+    steps:
+      - name: Check out
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Show runner Node.js
+        run: node --version && npm --version
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Worker tests (local D1, shared contract fixtures)
+        run: npm test
+
+      - name: Contract copy is identical to the packaged copy
+        working-directory: .
+        run: cmp cloud/schema/events.v1.json src/exilelens/cloud/events.v1.json

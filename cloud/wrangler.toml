@@ -1,0 +1,98 @@
+# ExileLens API Worker (Package A: opt-in usage statistics + error reports).
+#
+# Everything must fit Cloudflare Workers FREE + D1 FREE. No KV / Queues / Durable
+# Objects / R2 / paid-only features are used.
+#
+# Top level = LOCAL DEVELOPMENT ONLY (`npm run dev`, `npm run migrate:local`, tests).
+# [env.staging] and [env.production] redeclare every non-inheritable binding.
+# Secrets (never in this file):  ANALYTICS_PEPPER, DIAGNOSTIC_PEPPER
+#   local:   copy .dev.vars.example to .dev.vars
+#   remote:  wrangler secret put <NAME> --env <staging|production>
+
+name = "exilelens-api"
+main = "src/index.ts"
+# Must not be newer than the workerd bundled with the installed wrangler.
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[triggers]
+# Hourly. The heavy job (aggregate yesterday + retention) runs at 03:xx UTC;
+# the other hours only run a small, bounded retention pass.
+crons = ["17 * * * *"]
+
+[vars]
+# Global kill switch. "false" makes ingest endpoints return 503 ingest_disabled.
+INGEST_ENABLED = "true"
+
+[[d1_databases]]
+binding = "TELEMETRY_DB"
+database_name = "exilelens-telemetry-local"
+database_id = "00000000-0000-0000-0000-000000000000" # unused in local mode
+migrations_dir = "migrations/telemetry"
+
+# --- OPTIONAL coarse outer abuse guard (Workers Rate Limiting binding) ---------
+# Code uses `env.RL_INGEST?.limit({ key: CF-Connecting-IP })` only if the binding
+# exists; the key is never stored. Per-install accounting in D1 is the real limiter.
+# The owner MUST verify that the Rate Limiting binding is available on the
+# Workers Free plan before uncommenting. Uncomment per environment below.
+
+# ==================== STAGING ====================
+[env.staging]
+name = "exilelens-api-staging"
+workers_dev = true # staging may use the workers.dev subdomain
+observability = { enabled = true }
+
+[env.staging.triggers]
+crons = ["17 * * * *"]
+
+[env.staging.vars]
+INGEST_ENABLED = "true"
+
+[[env.staging.d1_databases]]
+binding = "TELEMETRY_DB"
+database_name = "exilelens-telemetry-staging"
+# PLACEHOLDER: owner replaces with the id printed by
+#   npx wrangler d1 create exilelens-telemetry-staging
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations/telemetry"
+
+# OPTIONAL (verify Free-plan availability first):
+# [[env.staging.ratelimits]]
+# name = "RL_INGEST"
+# namespace_id = "1001"          # any unique integer-like string per account
+# simple = { limit = 300, period = 60 }   # coarse per-IP guard; period must be 10 or 60
+
+# ==================== PRODUCTION ====================
+[env.production]
+name = "exilelens-api"
+workers_dev = false
+observability = { enabled = true }
+
+# Custom domain is not decided yet. When it is, uncomment and adjust:
+# routes = [{ pattern = "api.example.invalid", custom_domain = true }]
+
+[env.production.triggers]
+crons = ["17 * * * *"]
+
+[env.production.vars]
+INGEST_ENABLED = "true"
+
+[[env.production.d1_databases]]
+binding = "TELEMETRY_DB"
+database_name = "exilelens-telemetry-production"
+# PLACEHOLDER: owner replaces with the id printed by
+#   npx wrangler d1 create exilelens-telemetry-production
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations/telemetry"
+
+# OPTIONAL (verify Free-plan availability first):
+# [[env.production.ratelimits]]
+# name = "RL_INGEST"
+# namespace_id = "2001"
+# simple = { limit = 300, period = 60 }
+
+# Package B will add a SEPARATE PATREON_DB binding (own database, own migrations_dir,
+# own secrets). It is intentionally absent here.

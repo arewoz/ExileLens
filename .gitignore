@@ -25,3 +25,12 @@ Thumbs.db
 artifacts/m5_*_priorities_validation.json
 # R1 generated validation output (regenerate with scripts/r1_product_validation.py)
 artifacts/r1_*.json
+
+# ExileLens cloud Worker (cloud/)
+cloud/node_modules/
+cloud/.wrangler/
+cloud/.dev.vars*
+!cloud/.dev.vars.example
+
+# R2: generated per release from an explicit repository variable (absent = cloud features off)
+src/exilelens/cloud/release_config.json

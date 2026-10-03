@@ -1,0 +1,275 @@
+{
+  "now": "2026-10-03T12:30:00Z",
+  "usage": [
+    {
+      "name": "minimal app_started is accepted",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } }
+        ]
+      },
+      "expect": { "batch": "ok", "accepted": [0], "rejected": [] }
+    },
+    {
+      "name": "every approved event is accepted",
+      "body": {
+        "schema": 1,
+        "batch_id": "11111111-2222-4333-8444-555555555555",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "queue_dropped": 3,
+        "app": { "version": "0.7.0b2", "channel": "beta", "packaged": true, "os": "win10" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T11:00Z", "props": { "launch": "after_update", "previous_session": "unexpected", "pob_configured": false } },
+          { "name": "onboarding_completed", "t": "2026-10-03T11:00Z", "props": { "outcome": "finished", "pob_autodetected": true } },
+          { "name": "pob_connected", "t": "2026-10-03T11:00Z", "props": { "outcome": "failed", "error_code": "EL-POB-002", "boot": "ge_60s" } },
+          {
+            "name": "item_checks_summary",
+            "t": "2026-10-03T12:00Z",
+            "props": {
+              "buckets": [
+                { "verdict": "sidegrade", "confidence": "high", "quality": "full", "latency": "lt_500ms", "outcome": "ok", "n": 7 },
+                { "verdict": "unsupported", "confidence": "none", "quality": "unsupported", "latency": "lt_1s", "outcome": "ok", "n": 2 }
+              ]
+            }
+          },
+          { "name": "analyze_build_completed", "t": "2026-10-03T12:00Z", "props": { "outcome": "ok", "coverage": "partial", "curve_count": 3, "hard_issue_present": true, "health": "needs_attention", "duration": "lt_15s" } },
+          { "name": "update_detected", "t": "2026-10-03T12:00Z", "props": { "to_version": "0.7.1", "verified": true } },
+          { "name": "update_download_completed", "t": "2026-10-03T12:00Z", "props": { "to_version": "0.7.1", "mode": "auto", "outcome": "ok", "duration": "lt_60s" } },
+          { "name": "update_install_completed", "t": "2026-10-03T12:00Z", "props": { "from_version": "0.7.0", "to_version": "0.7.1", "mode": "no_restart", "outcome": "success" } }
+        ]
+      },
+      "expect": { "batch": "ok", "accepted": [0, 1, 2, 3, 4, 5, 6, 7], "rejected": [] }
+    },
+    {
+      "name": "invalid events are rejected individually, valid ones kept",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } },
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true, "item_text": "Rarity: Rare" } },
+          { "name": "clickstream_click", "t": "2026-10-03T12:00Z", "props": {} },
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "whenever", "previous_session": "clean", "pob_configured": true } },
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean" } },
+          { "name": "app_started", "t": "2026-09-01T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } },
+          { "name": "app_started", "t": "2026-10-04T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } },
+          { "name": "app_started", "t": "2026-10-03T12:07Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } },
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": 1 } },
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": "launch=normal" },
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true }, "metadata": { "x": 1 } }
+        ]
+      },
+      "expect": {
+        "batch": "ok",
+        "accepted": [0],
+        "rejected": [
+          { "index": 1, "code": "unknown_prop" },
+          { "index": 2, "code": "unknown_event" },
+          { "index": 3, "code": "invalid_value" },
+          { "index": 4, "code": "missing_prop" },
+          { "index": 5, "code": "stale_event" },
+          { "index": 6, "code": "future_event" },
+          { "index": 7, "code": "invalid_value" },
+          { "index": 8, "code": "invalid_value" },
+          { "index": 9, "code": "invalid_event" },
+          { "index": 10, "code": "invalid_event" }
+        ]
+      }
+    },
+    {
+      "name": "item check bucket cannot carry item data or free text",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": [
+          { "name": "item_checks_summary", "t": "2026-10-03T12:00Z", "props": { "buckets": [ { "verdict": "sidegrade", "confidence": "high", "quality": "full", "latency": "lt_500ms", "outcome": "ok", "n": 1, "item_name": "Doom Bringer" } ] } },
+          { "name": "item_checks_summary", "t": "2026-10-03T12:00Z", "props": { "buckets": [ { "verdict": "Rarity: Rare", "confidence": "high", "quality": "full", "latency": "lt_500ms", "outcome": "ok", "n": 1 } ] } },
+          { "name": "item_checks_summary", "t": "2026-10-03T12:00Z", "props": { "buckets": [ { "verdict": "sidegrade", "confidence": "high", "quality": "full", "latency": "lt_500ms", "outcome": "ok", "n": 0 } ] } },
+          { "name": "item_checks_summary", "t": "2026-10-03T12:00Z", "props": { "buckets": "many" } },
+          { "name": "item_checks_summary", "t": "2026-10-03T12:00Z", "props": { "clipboard": "Item Class: Rings", "buckets": [] } }
+        ]
+      },
+      "expect": {
+        "batch": "ok",
+        "accepted": [],
+        "rejected": [
+          { "index": 0, "code": "unknown_prop" },
+          { "index": 1, "code": "invalid_value" },
+          { "index": 2, "code": "invalid_value" },
+          { "index": 3, "code": "invalid_value" },
+          { "index": 4, "code": "unknown_prop" }
+        ]
+      }
+    },
+    {
+      "name": "analyze build rejects measured build values",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": [
+          { "name": "analyze_build_completed", "t": "2026-10-03T12:00Z", "props": { "outcome": "ok", "coverage": "high", "curve_count": 4, "hard_issue_present": false, "health": "opportunity", "duration": "lt_5s" } },
+          { "name": "analyze_build_completed", "t": "2026-10-03T12:00Z", "props": { "outcome": "ok", "coverage": "high", "curve_count": 2, "hard_issue_present": false, "health": "opportunity", "duration": "lt_5s", "skill": "Spark" } },
+          { "name": "analyze_build_completed", "t": "2026-10-03T12:00Z", "props": { "outcome": "ok", "coverage": "high", "curve_count": 2, "hard_issue_present": false, "health": "opportunity", "duration": "lt_5s", "error_code": "boom: C:\\Users\\me" } }
+        ]
+      },
+      "expect": {
+        "batch": "ok",
+        "accepted": [],
+        "rejected": [
+          { "index": 0, "code": "invalid_value" },
+          { "index": 1, "code": "unknown_prop" },
+          { "index": 2, "code": "invalid_value" }
+        ]
+      }
+    },
+    {
+      "name": "unknown top-level field rejects the whole batch",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "custom_metadata": { "anything": "goes" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } }
+        ]
+      },
+      "expect": { "batch": "unknown_field", "accepted": [], "rejected": [] }
+    },
+    {
+      "name": "unsupported schema version",
+      "body": {
+        "schema": 2,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } }
+        ]
+      },
+      "expect": { "batch": "schema_unsupported", "accepted": [], "rejected": [] }
+    },
+    {
+      "name": "analytics id must be a random uuid4, not a machine name",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "DESKTOP-ARKADIUSZ",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } }
+        ]
+      },
+      "expect": { "batch": "invalid_envelope", "accepted": [], "rejected": [] }
+    },
+    {
+      "name": "app block with an extra or invalid field",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11", "machine": "DESKTOP-1" },
+        "events": [
+          { "name": "app_started", "t": "2026-10-03T12:00Z", "props": { "launch": "normal", "previous_session": "clean", "pob_configured": true } }
+        ]
+      },
+      "expect": { "batch": "invalid_app", "accepted": [], "rejected": [] }
+    },
+    {
+      "name": "empty and non-list event arrays",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "events": []
+      },
+      "expect": { "batch": "invalid_envelope", "accepted": [], "rejected": [] }
+    },
+    {
+      "name": "a body that is not an object",
+      "body": [ 1, 2, 3 ],
+      "expect": { "batch": "invalid_envelope", "accepted": [], "rejected": [] }
+    }
+  ],
+  "errors": [
+    {
+      "name": "structured report is accepted",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "diagnostic_id": "9a0b7c8d-1a2b-4c3d-8e5f-0b9d6a405c3e",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "reports": [
+          {
+            "error_code": "EL-WRK-002",
+            "component": "WRK",
+            "exception_type": "TimeoutError",
+            "frames": [
+              { "module": "exilelens.app.engine", "function": "PobWorker.call", "line": 412 },
+              { "module": "lib.PySide6" },
+              { "module": "stdlib.threading", "function": "run" }
+            ],
+            "count": 3,
+            "first_t": "2026-10-03T10:00Z",
+            "last_t": "2026-10-03T12:00Z",
+            "pob_version": "0.12.1"
+          }
+        ]
+      },
+      "expect": { "batch": "ok", "accepted": [0], "rejected": [] }
+    },
+    {
+      "name": "paths, messages and free text cannot be smuggled into reports",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "diagnostic_id": "9a0b7c8d-1a2b-4c3d-8e5f-0b9d6a405c3e",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "reports": [
+          { "error_code": "EL-WRK-002", "component": "WRK", "exception_type": "TimeoutError", "message": "timed out reading C:\\Users\\me\\build.xml", "frames": [ { "module": "exilelens.app.engine" } ], "count": 1, "first_t": "2026-10-03T12:00Z", "last_t": "2026-10-03T12:00Z" },
+          { "error_code": "EL-WRK-002", "component": "WRK", "exception_type": "TimeoutError", "frames": [ { "module": "C:\\Users\\me\\app\\engine.py" } ], "count": 1, "first_t": "2026-10-03T12:00Z", "last_t": "2026-10-03T12:00Z" },
+          { "error_code": "EL-WRK-002", "component": "WRK", "exception_type": "TimeoutError", "frames": [ { "module": "exilelens.app.engine", "filename": "C:\\x.py" } ], "count": 1, "first_t": "2026-10-03T12:00Z", "last_t": "2026-10-03T12:00Z" },
+          { "error_code": "something bad happened", "component": "WRK", "exception_type": "TimeoutError", "frames": [], "count": 1, "first_t": "2026-10-03T12:00Z", "last_t": "2026-10-03T12:00Z" },
+          { "error_code": "EL-WRK-002", "component": "WRK", "exception_type": "Timeout Error: bad", "frames": [], "count": 1, "first_t": "2026-10-03T12:00Z", "last_t": "2026-10-03T12:00Z" },
+          { "error_code": "EL-WRK-002", "component": "WRK", "exception_type": "TimeoutError", "frames": [], "count": 1, "first_t": "2026-10-03T13:00Z", "last_t": "2026-10-03T12:00Z" },
+          { "error_code": "EL-WRK-002", "component": "WRK", "exception_type": "TimeoutError", "frames": [], "count": 0, "first_t": "2026-10-03T12:00Z", "last_t": "2026-10-03T12:00Z" }
+        ]
+      },
+      "expect": {
+        "batch": "ok",
+        "accepted": [],
+        "rejected": [
+          { "index": 0, "code": "unknown_prop" },
+          { "index": 1, "code": "invalid_value" },
+          { "index": 2, "code": "unknown_prop" },
+          { "index": 3, "code": "invalid_value" },
+          { "index": 4, "code": "invalid_value" },
+          { "index": 5, "code": "invalid_value" },
+          { "index": 6, "code": "invalid_value" }
+        ]
+      }
+    },
+    {
+      "name": "the diagnostic id field is separate from analytics id",
+      "body": {
+        "schema": 1,
+        "batch_id": "6f1c1f0e-2b6a-4b7e-8c0e-1a2b3c4d5e6f",
+        "analytics_id": "0b9d6a40-5c3e-4f1a-9a0b-7c8d9e0f1a2b",
+        "app": { "version": "0.7.0", "channel": "stable", "packaged": true, "os": "win11" },
+        "reports": []
+      },
+      "expect": { "batch": "unknown_field", "accepted": [], "rejected": [] }
+    }
+  ]
+}
