@@ -7,6 +7,11 @@ on:
         description: "Release tag (for example: v0.2.0b2)"
         required: true
         type: string
+      dry_run:
+        description: "Run EVERYTHING (gates, build, production signing, verification under the production trust profile, release-notes check) but publish nothing: no tag, no release, no assets, no Discord post, no uploaded artifacts. Use on the exact release commit as a pre-flight; the real release is the same dispatch with this off."
+        required: false
+        type: boolean
+        default: false
       seamless_eligible:
         description: "Signed in the update manifest. Set false to keep THIS release on the manual path even for supporters (e.g. a risky layout change). Never gates security fixes for free users."
         required: false
@@ -257,7 +262,19 @@ jobs:
           }
           "RELEASE_NOTES_PATH=$notesPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+      - name: Dry run summary (nothing is published)
+        if: ${{ inputs.dry_run }}
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Host "::notice::DRY RUN for $env:RELEASE_VERSION - nothing was published; the production-signed manifest below verified under the production trust profile."
+          Get-Content -LiteralPath $env:SUMS_PATH
+          Get-Content -LiteralPath $env:UPDATE_MANIFEST_PATH -Raw
+
       - name: Create published release
+        if: ${{ !inputs.dry_run }}
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -274,6 +291,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the release.' }
 
       - name: Build Discord release announcement
+        if: ${{ !inputs.dry_run }}
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -293,6 +311,7 @@ jobs:
           }
 
       - name: Announce published release on Discord
+        if: ${{ !inputs.dry_run }}
         shell: pwsh
         env:
           DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
