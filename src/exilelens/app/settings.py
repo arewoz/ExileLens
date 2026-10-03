@@ -178,6 +178,10 @@ class AppSettings:
     # Contract consent_version the user last confirmed; a higher contract version re-asks (treated as OFF).
     privacy_consent_version: int = 0
     privacy_card_resolved: bool = False
+    # R2 supporter updates: honoured only while a verified lease grants seamless_updates. Defaults ON because
+    # they do nothing for free installs; the user can turn either off.
+    updates_auto_download: bool = True
+    updates_install_on_exit: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -281,6 +285,8 @@ class AppSettings:
             send_error_reports=data.get("send_error_reports") is True,
             privacy_consent_version=int(data.get("privacy_consent_version", 0) or 0),
             privacy_card_resolved=bool(data.get("privacy_card_resolved", False)),
+            updates_auto_download=data.get("updates_auto_download", True) is not False,
+            updates_install_on_exit=data.get("updates_install_on_exit", True) is not False,
         )
 
 

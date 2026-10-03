@@ -108,8 +108,9 @@ class SettingsPage(QWidget):
             self._build_evaluation_section(),
             self._build_overlay_section(),
             self._build_hotkey_section(),
-            self._build_updates_section(),
             self._build_privacy_section(),
+            self._build_updates_section(),
+            self._build_patreon_section(),
             self._build_advanced_section(),
             self._build_reset_section(),
         ):
@@ -357,6 +358,15 @@ class SettingsPage(QWidget):
         section = Section("Privacy")
         self._privacy_panel = PrivacyPanel(self.settings)
         section.add_widget(self._privacy_panel)
+        return section
+
+    def _build_patreon_section(self):
+        from exilelens.ui.components import Section
+        from exilelens.ui.patreon_panel import PatreonPanel
+
+        section = Section("Patreon supporter")
+        self._patreon_panel = PatreonPanel(self.settings)
+        section.add_widget(self._patreon_panel)
         return section
 
     def _build_advanced_section(self):

@@ -27,6 +27,7 @@ from exilelens._version import __version__, is_packaged
 from exilelens.cloud import contract
 from exilelens.cloud.endpoint import cloud_base_url
 from exilelens.cloud.errors import ErrorReporter
+from exilelens.cloud.patreon import PatreonLink, PatreonStore
 from exilelens.cloud.sink import FIRST_FLUSH_DELAY_SECONDS, FLUSH_INTERVAL_SECONDS, NullSink, Sink
 from exilelens.cloud.store import CategoryStore, cloud_dir
 from exilelens.cloud.telemetry import UsageTelemetry
@@ -84,6 +85,8 @@ class CloudServices:
         self._lock = threading.RLock()
         self.usage = UsageTelemetry(NullSink(), clock)
         self.errors = ErrorReporter(NullSink(), clock)
+        # Optional Patreon link (independent of both consent switches and of telemetry data/IDs).
+        self.patreon = PatreonLink(PatreonStore(self._dir() / "patreon"), base_url=base_url, http_factory=http_factory, clock=clock)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._started = False
@@ -223,6 +226,7 @@ class CloudServices:
     def tick(self, now: float | None = None) -> None:
         """One flusher iteration (also called directly by tests). At most one request per category."""
         now = self._clock() if now is None else now
+        self.patreon.tick(now)
         for holder in (self.usage, self.errors):
             sink = holder.sink
             if not sink.time_ready(now):

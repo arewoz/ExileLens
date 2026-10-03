@@ -98,6 +98,25 @@ class CloudHttp:
         except (urllib.error.URLError, TimeoutError, OSError, ValueError):
             return PostResult(status=0, code="network")
 
+    def delete_json(self, path: str, *, headers: dict[str, str] | None = None) -> PostResult:
+        request_headers = {
+            "Accept": "application/json",
+            "User-Agent": f"ExileLens/{__version__}",
+            "X-ExileLens-Client": __version__,
+            **(headers or {}),
+        }
+        request = urllib.request.Request(self.base_url + path, headers=request_headers, method="DELETE")
+        try:
+            with self._opener(request, timeout=self._timeout) as response:
+                return self._result(int(getattr(response, "status", 204) or 204), response)
+        except urllib.error.HTTPError as exc:
+            try:
+                return self._result(int(exc.code), exc)
+            finally:
+                exc.close()
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            return PostResult(status=0, code="network")
+
     @staticmethod
     def _result(status: int, response: Any) -> PostResult:
         body: dict[str, Any] = {}
