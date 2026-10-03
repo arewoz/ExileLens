@@ -15,6 +15,8 @@ Rules the tokens encode:
 
 from __future__ import annotations
 
+import re
+
 # --- colour tokens ---------------------------------------------------------------
 
 BG = "#17181b"            # window
@@ -127,3 +129,76 @@ UI_FONT_FAMILY = '"Segoe UI Variable Text", "Segoe UI", sans-serif'
 #: face is not present.
 BUILD_NAME_FONT_FAMILY = '"Spectral", "Georgia", serif'
 MONO_FONT_FAMILY = '"Cascadia Mono", "Consolas", monospace'
+
+
+# --- Windows Text Size ------------------------------------------------------------
+#
+# Qt does not follow Settings > Accessibility > Text size (it keeps reporting the 9pt system
+# font), and every size in the dashboard stylesheet is a pixel value, so by default the
+# dashboard ignores that setting. ``apply_text_scale`` is the one place that fixes it: it
+# scales the tokens that hold text (control heights, label columns, the rail width) and
+# ``scale_stylesheet`` scales the pixel font sizes. At 100% nothing changes.
+
+_BASE_TOKENS = {
+    "CONTROL_HEIGHT": CONTROL_HEIGHT,
+    "CONTROL_HEIGHT_COMPACT": CONTROL_HEIGHT_COMPACT,
+    "SEGMENT_HEIGHT": SEGMENT_HEIGHT,
+    "NAV_ITEM_HEIGHT": NAV_ITEM_HEIGHT,
+    "ROW_MIN_HEIGHT": ROW_MIN_HEIGHT,
+    "SETTINGS_SELECT_WIDTH": SETTINGS_SELECT_WIDTH,
+}
+_BASE_RAIL_WIDTH = RAIL_WIDTH
+_MAX_RAIL_SCALE = 1.5   # a very large text size must not let the rail take over the window
+TEXT_SCALE = 1.0
+
+
+def system_text_scale() -> float:
+    """The Windows Text size factor (1.0 to 2.25); 1.0 elsewhere or when it cannot be read.
+
+    Settings > Accessibility > Text size stores a percentage in
+    ``HKCU\\Software\\Microsoft\\Accessibility\\TextScaleFactor`` (absent means 100).
+    """
+    try:
+        import sys
+
+        if sys.platform != "win32":
+            return 1.0
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Accessibility") as key:
+            value, _kind = winreg.QueryValueEx(key, "TextScaleFactor")
+        return max(1.0, min(2.25, int(value) / 100.0))
+    except Exception:  # noqa: BLE001 - a missing key or value just means 100%
+        return 1.0
+
+
+def scaled_px(value: float) -> int:
+    """A pixel size that holds text, scaled by the current text size."""
+    return max(1, int(round(value * TEXT_SCALE)))
+
+
+def apply_text_scale(factor: float) -> float:
+    """Set the text scale and rescale the text-bearing size tokens from their 100% values."""
+    global TEXT_SCALE, RAIL_WIDTH, SIDEBAR_WIDTH
+    TEXT_SCALE = max(1.0, min(2.25, float(factor)))
+    for name, base in _BASE_TOKENS.items():
+        globals()[name] = int(round(base * TEXT_SCALE))
+    RAIL_WIDTH = SIDEBAR_WIDTH = int(round(_BASE_RAIL_WIDTH * min(TEXT_SCALE, _MAX_RAIL_SCALE)))
+    return TEXT_SCALE
+
+
+_TEXT_BASE_RULE = (
+    "QLabel, QAbstractButton, QComboBox, QLineEdit, QTextEdit, QPlainTextEdit, QAbstractItemView { font-size: 12px; }\n"
+)
+_FONT_PX = re.compile(r"font-size:\s*(\d+(?:\.\d+)?)px")
+
+
+def scale_stylesheet(css: str) -> str:
+    """Scale every ``font-size: Npx`` in a stylesheet by the current text scale."""
+    if TEXT_SCALE == 1.0:
+        return css
+    # Qt resolves a widget that a style sheet gives a font rule (say a weight) against the application
+    # font, not its parent's, so text with no explicit size would stay at the unscaled 9pt (12px).
+    # A lowest-specificity base rule gives every such widget the default size, which then scales.
+    css = _TEXT_BASE_RULE + css
+    return _FONT_PX.sub(lambda m: f"font-size: {scaled_px(float(m.group(1)))}px", css)

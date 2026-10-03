@@ -22,7 +22,7 @@ from exilelens.app.controller import EvaluationController
 from exilelens.app.settings import AppSettings, save_settings
 from exilelens.ui import status_model, theme
 from exilelens.ui.components import SegmentedControl, StatusValue, make_button, make_link_button
-from exilelens.ui.dashboard_widgets import ColumnPage, Hairline, keycaps, make_label
+from exilelens.ui.dashboard_widgets import StackingRow, ColumnPage, Hairline, keycaps, make_label
 from exilelens.ui.health import hotkey_display
 from exilelens.ui.profile_catalog import PROFILE_CARDS
 from exilelens.ui.setup_dialog import pick_build_file
@@ -145,13 +145,9 @@ class OverviewPage(ColumnPage):
         self.column.addWidget(self._key_block)
 
         # --- evaluation profile ----------------------------------------------------------------
-        self._profile_block = QWidget()
-        profile_layout = QHBoxLayout(self._profile_block)
-        profile_layout.setContentsMargins(0, 20, 0, 0)
-        profile_layout.setSpacing(16)
         label = QLabel("Evaluate items for")
         label.setObjectName("fieldLabel")
-        label.setFixedWidth(_LABEL_COLUMN)
+        label.setFixedWidth(theme.scaled_px(_LABEL_COLUMN))
         label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._segments = SegmentedControl([(card.profile.value, card.title) for card in PROFILE_CARDS])
         self._segments.changed.connect(self._set_profile)
@@ -163,8 +159,7 @@ class OverviewPage(ColumnPage):
         right.setSpacing(6)
         right.addWidget(self._segments, 0, Qt.AlignmentFlag.AlignLeft)
         right.addWidget(self._profile_description)
-        profile_layout.addWidget(label, 0, Qt.AlignmentFlag.AlignTop)
-        profile_layout.addLayout(right, 1)
+        self._profile_block = StackingRow(label, right, top=20)
         self._profile_label = label
         self.column.addWidget(self._profile_block)
 
@@ -175,7 +170,7 @@ class OverviewPage(ColumnPage):
         fix_layout.setSpacing(16)
         fix_label = QLabel("Fix first")
         fix_label.setObjectName("fieldLabel")
-        fix_label.setFixedWidth(_LABEL_COLUMN)
+        fix_label.setFixedWidth(theme.scaled_px(_LABEL_COLUMN))
         fix_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         fix_text = QVBoxLayout()
         fix_text.setContentsMargins(0, 0, 0, 0)

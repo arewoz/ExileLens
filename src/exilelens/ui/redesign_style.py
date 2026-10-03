@@ -87,7 +87,7 @@ _TEMPLATE = """
 @ROOT@ QLabel#leadText { font-size: 14px; color: @TEXT_BODY@; }
 @ROOT@ QLabel#keycap {
     background: @SURFACE_3@; color: @TEXT@; border: 1px solid @HAIRLINE_STRONG@; border-bottom: 2px solid @HAIRLINE_STRONG@;
-    border-radius: @R4@px; padding: 0 9px; font-size: 12px; font-weight: 600; min-height: 24px;
+    border-radius: @R4@px; padding: 0 9px; font-size: 12px; font-weight: 600; min-height: @KEY_H@px;
 }
 @ROOT@ QFrame#hairline { background: @HAIRLINE@; border: 0; min-height: 1px; max-height: 1px; }
 
@@ -213,7 +213,7 @@ def build_stylesheet() -> str:
         "WARN_TINT": theme.WARN_TINT, "WARN_LINE": theme.WARN_LINE, "ERROR_TINT": theme.ERROR_TINT,
         "ERROR_LINE": theme.ERROR_LINE, "INFO_TINT": theme.INFO_TINT, "INFO_LINE": theme.INFO_LINE,
         "R4": str(theme.RADIUS_SM), "R6": str(theme.RADIUS_MD),
-        "CONTROL_H": str(theme.CONTROL_HEIGHT), "CONTROL_HC": str(theme.CONTROL_HEIGHT_COMPACT),
+        "KEY_H": str(theme.scaled_px(24)), "CONTROL_H": str(theme.CONTROL_HEIGHT), "CONTROL_HC": str(theme.CONTROL_HEIGHT_COMPACT),
         "UI_FONT": theme.UI_FONT_FAMILY, "BUILD_FONT": theme.BUILD_NAME_FONT_FAMILY, "MONO_FONT": theme.MONO_FONT_FAMILY,
     }
     out = _TEMPLATE
@@ -223,4 +223,4 @@ def build_stylesheet() -> str:
     return out
 
 
-REDESIGN_STYLESHEET = build_stylesheet()
+REDESIGN_STYLESHEET = build_stylesheet()  # 100% text; the window rebuilds it for the current Windows Text size

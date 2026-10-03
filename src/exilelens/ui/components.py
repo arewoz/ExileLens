@@ -303,7 +303,7 @@ class SegmentedControl(QWidget):
         from PySide6.QtGui import QFont
 
         bold = QFont(self.font())
-        bold.setPixelSize(self._SEGMENT_FONT_PX)
+        bold.setPixelSize(theme.scaled_px(self._SEGMENT_FONT_PX))
         bold.setWeight(QFont.Weight.Bold)
         metrics = QFontMetrics(bold)
         widest = max(
@@ -422,7 +422,7 @@ class HealthRow(QWidget):
         row.setSpacing(theme.SPACE_MD)
         # Fixed label column, then the value. A stretch between them would push the
         # value to the far window edge and break the association at wide sizes.
-        self._label.setFixedWidth(170)
+        self._label.setFixedWidth(theme.scaled_px(170))
         row.addWidget(self._label, 0)
         row.addWidget(self._value, 0)
         row.addStretch(1)

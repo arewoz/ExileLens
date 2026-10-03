@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -82,6 +83,101 @@ class Hairline(QFrame):
         self.setFixedHeight(1)
 
 
+class FlowLayout(QLayout):
+    """Left-to-right layout that wraps onto further lines when the row is too narrow (button rows)."""
+
+    def __init__(self, parent: QWidget | None = None, *, spacing: int = 10) -> None:
+        super().__init__(parent)
+        self._items: list = []
+        self._gap = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item) -> None:  # noqa: N802
+        self._items.append(item)
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, index: int):  # noqa: N802
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index: int):  # noqa: N802
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        return self._layout(QRect(0, 0, width, 0), apply=False)
+
+    def setGeometry(self, rect: QRect) -> None:  # noqa: N802
+        super().setGeometry(rect)
+        self._layout(rect, apply=True)
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:  # noqa: N802
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+
+    def _layout(self, rect: QRect, *, apply: bool) -> int:
+        margins = self.contentsMargins()
+        area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
+        x, y, line_h = area.x(), area.y(), 0
+        for item in self._items:
+            hint = item.sizeHint()
+            if x + hint.width() > area.right() + 1 and line_h > 0:
+                x, y, line_h = area.x(), y + line_h + self._gap, 0
+            if apply:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+            x += hint.width() + self._gap
+            line_h = max(line_h, hint.height())
+        return y + line_h - rect.y() + margins.bottom()
+
+
+class StackingRow(QWidget):
+    """A fixed label column with a control beside it that drops *under* the label when the page is narrow.
+
+    Larger Windows text sizes widen both parts; without this the row would force the whole page wider than its
+    viewport. The minimum width is the stacked one, so the page can always shrink to the window.
+    """
+
+    def __init__(self, label: QWidget, right: QLayout, *, top: int = 0, spacing: int = 16, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._label = label
+        self._right_layout = right
+        self._spacing = spacing
+        self._outer = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
+        self._outer.setContentsMargins(0, top, 0, 0)
+        self._outer.setSpacing(spacing)
+        self._outer.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
+        self._outer.addWidget(label, 0, Qt.AlignmentFlag.AlignTop)
+        self._outer.addLayout(right, 1)
+        self._stacked = False
+
+    def _right_min(self) -> int:
+        return self._right_layout.minimumSize().width()
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        base = self._outer.minimumSize()
+        return QSize(max(self._label.sizeHint().width(), self._right_min()), base.height())
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        needed = self._label.width() + self._spacing + self._right_min()
+        stacked = self.width() < needed
+        if stacked != self._stacked:
+            self._stacked = stacked
+            self._outer.setDirection(QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight)
+            self._outer.setSpacing(6 if stacked else self._spacing)
+            self._outer.invalidate()
+            self.updateGeometry()
+
+
 class ThemedSwitch(QCheckBox):
     """38x20 switch followed by the word On or Off, so state never rides on colour alone.
 
@@ -102,7 +198,7 @@ class ThemedSwitch(QCheckBox):
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
     def sizeHint(self) -> QSize:
-        return QSize(self.TRACK_W + 10 + 24, max(self.TRACK_H, theme.CONTROL_HEIGHT_COMPACT))
+        return QSize(self.TRACK_W + 10 + theme.scaled_px(24), max(self.TRACK_H, theme.CONTROL_HEIGHT_COMPACT))
 
     def minimumSizeHint(self) -> QSize:
         return self.sizeHint()
@@ -135,7 +231,7 @@ class ThemedSwitch(QCheckBox):
             painter.drawRoundedRect(track.adjusted(-2, -2, 2, 2), track.height() / 2 + 2, track.height() / 2 + 2)
         painter.setPen(QColor(theme.TEXT_BODY if enabled else theme.TEXT_MUTED))
         font = self.font()
-        font.setPixelSize(13)
+        font.setPixelSize(theme.scaled_px(13))
         font.setWeight(font.Weight.DemiBold)
         painter.setFont(font)
         text_x = int(track.right() + 10)
@@ -590,7 +686,7 @@ class HealthGridRow(QWidget):
         self._glyph = StatusGlyph()
         self._label = QLabel(label)
         self._label.setObjectName("healthLabel")
-        self._label.setFixedWidth(self.LABEL_WIDTH)
+        self._label.setFixedWidth(theme.scaled_px(self.LABEL_WIDTH))
         self._label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._value = QLabel("")
         self._value.setObjectName("healthValue")
@@ -663,7 +759,11 @@ class HealthGridRow(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        stacked = self.width() < self.NARROW
+        # The action drops under the value below NARROW, or sooner when larger text makes the label column,
+        # the fix button and a readable value no longer fit side by side.
+        # A fixed estimate of the widest fix button, so every row in the grid flips together.
+        needed = theme.scaled_px(self.LABEL_WIDTH) + 16 + 28 + theme.scaled_px(110) + 220
+        stacked = self.width() < max(self.NARROW, needed)
         if stacked != self._stacked:
             self._stacked = stacked
             self._outer.setDirection(QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight)
@@ -687,7 +787,7 @@ class MeasureRow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.lead = QLabel(lead)
         self.lead.setObjectName("measureLead")
-        self.lead.setFixedWidth(lead_width)
+        self.lead.setFixedWidth(theme.scaled_px(lead_width))
         self.lead.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.title = QLabel(title)
         self.title.setObjectName(title_name)
@@ -698,7 +798,7 @@ class MeasureRow(QWidget):
         self.sub.setVisible(bool(sub))
         self.value = QLabel(value)
         self.value.setObjectName("measureValue")
-        self.value.setFixedWidth(value_width)
+        self.value.setFixedWidth(theme.scaled_px(value_width))
         self.value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         self.value.setProperty("tone", tone)
         text = QVBoxLayout()

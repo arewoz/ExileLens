@@ -25,7 +25,7 @@ from exilelens.ui.gear_optimizer_page import GearOptimizerPage
 from exilelens.ui.managed_window import ManagedToolWindow, recover_window_geometry
 from exilelens.ui.market_hub_page import MarketHubPage
 from exilelens.ui.overview_page import OverviewPage
-from exilelens.ui.redesign_style import REDESIGN_STYLESHEET
+from exilelens.ui.redesign_style import build_stylesheet
 from exilelens.ui.status_rail import StatusRail
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
 from exilelens.ui.tree_window import TreeWorkspace
@@ -98,6 +98,7 @@ class DashboardWindow(ManagedToolWindow):
             parent=parent,
         )
         DashboardWindow._instance = self
+        theme.apply_text_scale(theme.system_text_scale())  # Windows Text size, before any widget is built
         self.settings = settings
         self.controller = controller
         self.update_service = UpdateService(settings)
@@ -112,7 +113,11 @@ class DashboardWindow(ManagedToolWindow):
         # Legacy sheet first (the parked Market / Tree / Gear pages still use it), then the
         # redesign sheet, whose rules are scoped under #dashboardRoot and out-rank it.
         register_bundled_fonts()
-        self.setStyleSheet(DASHBOARD_STYLESHEET + REDESIGN_STYLESHEET)
+        self.setStyleSheet(theme.scale_stylesheet(DASHBOARD_STYLESHEET + build_stylesheet()))
+        if theme.TEXT_SCALE != 1.0:  # widgets without an explicit size follow the scaled system font
+            scaled = self.font()
+            scaled.setPointSizeF(scaled.pointSizeF() * theme.TEXT_SCALE)
+            self.setFont(scaled)
         apply_exile_lens_chrome(self)
         target = self._resolve_window_size(settings)
         self.restore_geometry(

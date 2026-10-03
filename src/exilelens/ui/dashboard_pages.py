@@ -27,6 +27,7 @@ from exilelens.ui import theme
 from exilelens.ui.components import Disclosure, StatusValue, make_button
 from exilelens.ui.dashboard_widgets import (
     ChevronComboBox,
+    FlowLayout,
     ColumnPage,
     Hairline,
     HealthGridRow,
@@ -875,12 +876,9 @@ class DiagnosticsPage(ColumnPage):
         self._report_issue_btn = make_button("Report an issue", "tertiary", icon="github")
         self._report_issue_btn.setToolTip("Open the ExileLens issue tracker on GitHub.")
         self._report_issue_btn.clicked.connect(self._open_github_issues)
-        actions = QHBoxLayout()
-        actions.setContentsMargins(0, 0, 0, 0)
-        actions.setSpacing(10)
+        actions = FlowLayout(spacing=10)  # wraps at larger Windows text sizes instead of widening the page
         for button in (self._copy_btn, self._export_bundle_btn, self._report_issue_btn):
             actions.addWidget(button)
-        actions.addStretch(1)
         report_layout.addLayout(actions)
         self._report_status = QLabel("")
         self._report_status.setObjectName("helperText")

@@ -222,3 +222,117 @@ def test_fix_first_teaser_is_hidden_when_the_build_failed_to_load(harness) -> No
     overview.refresh()
     _settle(harness)
     assert overview._fix_block.isHidden()
+
+
+# ------------------------------------------------------------------------ Windows Text size
+@pytest.fixture
+def text_scale():
+    from exilelens.ui import theme
+
+    yield theme
+    theme.apply_text_scale(1.0)
+
+
+def test_text_scale_is_identity_at_100_percent(text_scale) -> None:
+    theme = text_scale
+    css = "QLabel { font-size: 13px; } QPushButton { font-size: 13.5px; min-height: 32px; }"
+    theme.apply_text_scale(1.0)
+    assert theme.scale_stylesheet(css) == css
+    assert (theme.CONTROL_HEIGHT, theme.NAV_ITEM_HEIGHT, theme.RAIL_WIDTH, theme.scaled_px(13)) == (32, 34, 208, 13)
+
+
+def test_text_scale_grows_text_and_text_bearing_sizes_only(text_scale) -> None:
+    theme = text_scale
+    theme.apply_text_scale(1.25)
+    css = theme.scale_stylesheet("QLabel { font-size: 13px; border-radius: 4px; padding: 0 14px; }")
+    assert "font-size: 16px" in css and "border-radius: 4px" in css and "padding: 0 14px" in css
+    assert theme.CONTROL_HEIGHT == 40 and theme.RAIL_WIDTH == 260
+    assert theme.COMPACT_RAIL_WIDTH == 64  # the icon rail holds no text
+    theme.apply_text_scale(1.0)  # scaling is always computed from the 100% values, never compounded
+    assert theme.CONTROL_HEIGHT == 32 and theme.RAIL_WIDTH == 208
+
+
+def test_rail_never_takes_over_the_window_at_huge_text(text_scale) -> None:
+    text_scale.apply_text_scale(2.25)
+    assert text_scale.RAIL_WIDTH == int(round(208 * 1.5))
+
+
+@pytest.mark.parametrize("stored, expected", [(None, 1.0), (100, 1.0), (125, 1.25), (225, 2.25), (500, 2.25), (50, 1.0)])
+def test_system_text_scale_reads_the_windows_setting(monkeypatch, stored, expected) -> None:
+    import types
+
+    from exilelens.ui import theme
+
+    class _Key:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def query(_key, name):
+        if stored is None:
+            raise FileNotFoundError(name)
+        return stored, 4
+
+    fake = types.SimpleNamespace(HKEY_CURRENT_USER=0, OpenKey=lambda *a: _Key(), QueryValueEx=query)
+    monkeypatch.setitem(sys.modules, "winreg", fake)
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert theme.system_text_scale() == expected
+
+
+def test_dashboard_follows_the_windows_text_size(harness, monkeypatch) -> None:
+    from PySide6.QtGui import QFontInfo
+
+    from exilelens.ui import theme
+
+    monkeypatch.setattr(theme, "system_text_scale", lambda: 1.25)
+    from exilelens.ui.dashboard_window import DashboardWindow
+
+    window = DashboardWindow(harness.settings, harness.controller)
+    try:
+        assert theme.TEXT_SCALE == 1.25
+        label = window._overview._build_name
+        label.ensurePolished()
+        assert QFontInfo(label.font()).pixelSize() == 35  # 28px build name * 1.25
+        assert window._rail.width() == 260
+        assert window._overview._primary_btn.minimumHeight() >= 40
+    finally:
+        window.close()
+        theme.apply_text_scale(1.0)
+
+
+@pytest.mark.parametrize(
+    "state", ["overview-ready", "overview-attention", "overview-consent", "settings-privacy", "settings-updates-available",
+              "settings-patreon-active", "settings-advanced", "diagnostics-degraded", "analyze-results", "analyze-error"],
+)
+def test_no_visible_text_is_left_at_the_unscaled_size_when_text_is_larger(harness, monkeypatch, state) -> None:
+    """Qt resolves widgets that a style sheet gives only a weight against the 9pt application font, so without the
+    base rule in ``theme.scale_stylesheet`` some labels would silently ignore the Windows Text size."""
+    from PySide6.QtGui import QFontInfo
+    from PySide6.QtWidgets import QAbstractButton, QComboBox, QLabel, QLineEdit, QTextEdit
+
+    from exilelens.ui import theme
+    from exilelens.ui.dashboard_window import DashboardWindow
+
+    monkeypatch.setattr(theme, "system_text_scale", lambda: 1.25)
+    window = DashboardWindow(harness.settings, harness.controller)
+    try:
+        harness.window = window
+        window.show_dashboard()
+        harness.states[state](harness)
+        window.resize(980, 720)
+        _settle(harness)
+        small = []
+        for kind in (QLabel, QAbstractButton, QComboBox, QLineEdit, QTextEdit):
+            for widget in window.findChildren(kind):
+                text = widget.text() if hasattr(widget, "text") else ""
+                if not widget.isVisibleTo(window) or not str(text).strip():
+                    continue
+                widget.ensurePolished()
+                if QFontInfo(widget.font()).pixelSize() <= 12:
+                    small.append((type(widget).__name__, widget.objectName(), str(text)[:24]))
+        assert small == []
+    finally:
+        window.close()
+        theme.apply_text_scale(1.0)
