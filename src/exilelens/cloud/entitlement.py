@@ -40,10 +40,11 @@ KNOWN_CAPABILITIES = frozenset({CAP_SEAMLESS_UPDATES})
 ENTITLEMENT_PROD_KEY_ID = "exilelens-entitlement-1"
 ENTITLEMENT_TEST_KEY_ID = "exilelens-entitlement-test-1"
 
-# Public keys only. The production entry is provisioned by the owner (scripts/create_entitlement_key.py ->
-# paste the printed public key here); until then production builds verify nothing, so supporter
-# automation stays dark and every install behaves as a free install.
-PRODUCTION_ENTITLEMENT_KEYS: Mapping[str, bytes] = MappingProxyType({})
+# Public keys only (the private half lives only in the production Worker secret and an offline backup).
+# Generated with scripts/create_entitlement_key.py during production activation.
+PRODUCTION_ENTITLEMENT_KEYS: Mapping[str, bytes] = MappingProxyType(
+    {ENTITLEMENT_PROD_KEY_ID: base64.b64decode("9k342OqZU/KVaO1woKVmGOWxxq462abJ/26aQjMhDko=")}
+)
 # Test key: used by the golden vector and tests in source runs only (never trusted by a frozen build).
 TEST_ENTITLEMENT_KEYS: Mapping[str, bytes] = MappingProxyType(
     {ENTITLEMENT_TEST_KEY_ID: base64.b64decode("7uT5nCI2848DtVlDbBEUsIM30CjxIt9H1e0eD9hBjr0=")}
