@@ -189,6 +189,29 @@ A matching SHA-256 value confirms that the file you downloaded is byte-for-byte 
 
 It does **not** prove that the software itself is safe, and it does not replace code signing.
 
+### In-app updates
+
+The in-app updater ("Download & Install", then "Restart & Update") installs only
+a release whose update manifest is signed with the **production** Ed25519 key
+embedded in ExileLens.
+
+- **Test key never trusted:** the repository's public test signing key is never
+  trusted by packaged builds. The release pipeline checks this against the built
+  binary itself.
+- **Bound to the release:** the signed manifest must match the release that
+  lists it (tag, version, artifact name and official GitHub download URL). It
+  must also be strictly newer than the installed version, so downgrades and
+  replays of old manifests are refused.
+- **Package checks:** the downloaded ZIP must match the signed size and SHA-256,
+  and passes path and size safety limits. The external updater re-checks the
+  package hash and the extracted files before changing anything.
+- **Installation:** done by a separate `ExileLensUpdater.exe`, through a
+  journaled swap with rollback. It never terminates running processes; it waits
+  until ExileLens has exited.
+
+Nothing is downloaded or installed without your action, and ExileLens never
+restarts itself unless you choose "Restart & Update".
+
 ---
 
 ## Reporting a security vulnerability

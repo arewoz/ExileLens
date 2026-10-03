@@ -30,7 +30,7 @@ jobs:
 
       - name: Install mandatory release-test dependencies
         shell: pwsh
-        run: python -m pip install --disable-pip-version-check pytest PySide6 ruff
+        run: python -m pip install --disable-pip-version-check pytest PySide6 ruff "cryptography==50.0.0"
 
       - name: Native Qt preflight
         id: preflight
@@ -71,6 +71,13 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python -m pytest -o addopts= -q tests/test_application_startup_composition.py public_tests/test_m4_3_desktop_polish.py public_tests/test_unified_updates_diagnostics_ux.py public_tests/test_support_03_failure_support_flow.py public_tests/test_m4_4_diagnostics.py public_tests/test_m4_5_structured_error_codes.py
           if ($LASTEXITCODE -ne 0) { throw 'Application startup composition regressions failed.' }
+
+      - name: Run secure update pipeline regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pytest -o addopts= -q tests/test_m4_2_update_system.py tests/test_trust_01d_update_awareness.py tests/test_r2_p0_update_trust.py tests/test_r2_p0_updater_transaction.py tests/test_r2_p0_update_state.py public_tests/test_support_05_github_release_updates.py
+          if ($LASTEXITCODE -ne 0) { throw 'Secure update pipeline regressions failed.' }
 
       - name: Run native overlay production-wiring regression
         id: native-regression

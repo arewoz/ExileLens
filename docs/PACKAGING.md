@@ -53,6 +53,32 @@ To recreate only the shortcut after a rebuild:
 
 **Not bundled:** the Path of Building application/runtime/data, build XML files, or user settings (`%LOCALAPPDATA%\ExileLens\settings.json`). A Git checkout is not required.
 
+## External updater
+
+`scripts\build_updater.ps1` builds `ExileLensUpdater.exe` (PyInstaller **onefile**,
+stdlib-only, `packaging\exilelens-updater.spec`) and stages it as
+`dist\ExileLens\_internal\ExileLensUpdater.exe`; the release gate blocks without it.
+
+**Self-refresh:** at runtime the app copies the bundled updater to
+`%LOCALAPPDATA%\ExileLens\ExileLensUpdater.exe`, and refreshes that copy
+whenever its SHA-256 differs from the bundled one (never while an updater holds
+the `Local\ExileLens.Updater` mutex). A new updater therefore reaches existing
+installs on their first launch of the new version.
+
+**Install-folder work directories:** updates swap entries through
+`.update-new\` and `.update-old\` inside the install folder, so every move is a
+same-volume rename. `.update-old\` is removed after the next healthy launch. The
+install folder must therefore be user-writable, which the portable ZIP layout
+already requires.
+
+**Trust self-report:** `ExileLens.exe --exilelens-update-trust-report <file>`
+writes the update trust set of the built binary (key ids only) and exits before
+any UI starts. The packaged-artifact release gate uses it to prove that shipping
+builds trust only `exilelens-prod-1`.
+
+The full contract, transaction and recovery are documented in
+`docs/UPDATE_RELEASE_SIGNING.md`.
+
 ## Supported PoB folders
 
 - Normal install: select `%APPDATA%\Path of Building Community (PoE2)` — the directory containing `Path of Building-PoE2.exe`, `Launch.lua`, `lua51.dll`, `Data`, and `Modules`.
