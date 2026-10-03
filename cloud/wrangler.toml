@@ -119,12 +119,12 @@ crons = ["17 * * * *", "47 */6 * * *"]
 
 [env.production.vars]
 INGEST_ENABLED = "true"
-# Patreon linking / lease issuance stay OFF until the production Patreon client is configured and validated.
+# Production Patreon client configured and validated (2026-10-03). Linking/leases are switched OFF until the public R2 release; flip both to "true" and redeploy to enable.
 PATREON_LINK_ENABLED = "false"
 LEASE_ISSUANCE_ENABLED = "false"
 PATREON_API_BASE = "https://www.patreon.com"
 # Production Patreon API client id is set once the client exists (the id is public; the secret is a Worker secret).
-PATREON_CLIENT_ID = ""
+PATREON_CLIENT_ID = "dJ88CEKMSJYYmDAo5Nr4prXHKhIMfztiPjUfNY-iD2fXi8ZHM6YvM9nzQ1OWicyJ"
 PATREON_REDIRECT_URI = "https://api.exilelens.app/v1/patreon/oauth/callback"
 ENTITLEMENT_KEY_ID = "exilelens-entitlement-1"
 ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"16794964","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'

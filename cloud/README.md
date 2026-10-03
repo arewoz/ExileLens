@@ -295,6 +295,7 @@ The implementation follows the documented Patreon API, but none of this was exer
   matching single registered redirect URI; Ed25519 import/sign on the deployed runtime, and the Python app verifies the deployed lease
   (tamper, wrong signature, unknown kid, wrong device, expiry and update-key confusion are all rejected); refresh, unlink
   (tokens deleted with the last device) and post-unlink 401; `RL_INGEST`/`RL_LINK` bindings and the second cron work on Free.
+* Production client (`https://api.exilelens.app`) repeated the same flow with the same results; production link/lease switches are OFF again.
 * Creator account: Patreon returned a `not_entitled` result (no membership in the creator's own campaign), as expected.
   The `override_user_hmacs` route was not exercised.
 * **Mocked / unit-tested only (not exercised against real Patreon):** eligible paid patron, gifted, free trial, declined, free member,
