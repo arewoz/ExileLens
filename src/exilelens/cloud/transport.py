@@ -53,8 +53,12 @@ class PostResult:
 
 
 class CloudHttp:
-    def __init__(self, base_url: str, opener: Callable = urllib.request.urlopen, timeout: float = REQUEST_TIMEOUT_SECONDS) -> None:
+    def __init__(self, base_url: str, opener: Callable | None = None, timeout: float = REQUEST_TIMEOUT_SECONDS) -> None:
         self.base_url = base_url.rstrip("/")
+        if opener is None:
+            from exilelens.cloud.tls import default_opener
+
+            opener = default_opener()
         self._opener = opener
         self._timeout = timeout
 

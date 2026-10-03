@@ -18,7 +18,7 @@ describe("Patreon report files", () => {
   it.each(REQUIRED)("%s is a single read-only SELECT labelled anonymous and selects no identifiers", (name) => {
     const sql = reports[name]!;
     const header = sql
-      .split("\n")
+      .split(/\r?\n/)
       .filter((l) => l.startsWith("--"))
       .map((l) => l.replace(/^--\s?/, ""))
       .join(" ");
@@ -26,7 +26,7 @@ describe("Patreon report files", () => {
     expect(header).toMatch(/ANONYMOUS/);
     expect(header).toMatch(/not users/i);
     const body = sql
-      .split("\n")
+      .split(/\r?\n/)
       .filter((l) => !l.startsWith("--"))
       .join("\n");
     expect(body.trim()).toMatch(/^SELECT\b/i);

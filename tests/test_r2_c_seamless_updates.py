@@ -278,6 +278,9 @@ def test_each_toggle_independently_disables_its_part(env) -> None:
     check(off_download)
     assert off_download._download_state == "" and env.served.requested == []
     assert off_download.start_download() and pump(lambda: off_download._download_state == "ready")
+    # Let the first service finish reading/extracting the cached package before a second service re-downloads over it
+    # (Windows cannot replace a file another thread still has open; this only matters for two services sharing one cache).
+    assert pump(lambda: not off_download._prestage_in_flight)
     no_exit = env.make(gate=lambda: True, settings=AppSettings(updates_install_on_exit=False))
     check(no_exit)
     assert pump(lambda: no_exit._download_state == "ready")
