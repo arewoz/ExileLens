@@ -30,7 +30,9 @@ from exilelens.ui.dashboard_widgets import SettingsGroup, SettingsRow, ThemedSwi
 USAGE_LABEL = "Send privacy-friendly usage stats"
 ERRORS_LABEL = "Send crash and error reports"
 SEE_COLLECTED = "See what is collected"
-OFF_NOTE = "Turning a switch off deletes its queued data and this PC's ID for that category."
+OFF_NOTE = "Turning either off deletes its queued data and ID."
+ERRORS_SHORT = "Error code, component, exception type and module names. Never messages, paths or item data."
+USAGE_SHORT = "App starts, setup, result categories, speed buckets and update outcomes. Never items, builds or files."
 UNAVAILABLE_NOTE = "Not available in this build — nothing is collected or sent."
 
 
@@ -125,7 +127,7 @@ def category_summary(key: str) -> str:
 class PrivacyPanel(QWidget):
     """Settings → Privacy: two independent switches, the off-note and the transparency button."""
 
-    INTRO = "Help improve ExileLens. Both switches are off by default and work independently."
+    INTRO = ""
 
     def __init__(self, settings, cloud=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -140,11 +142,13 @@ class PrivacyPanel(QWidget):
         self.see_button.clicked.connect(lambda: open_collected_dialog(self, self.cloud))
 
         self.group = SettingsGroup()
-        self.errors_row = SettingsRow(ERRORS_LABEL, category_summary("errors"))
+        self.errors_row = SettingsRow(ERRORS_LABEL, ERRORS_SHORT)
+        self.errors_row.setToolTip(category_summary("errors"))  # the contract wording, in full
         self.errors_row.add_control(self.errors_box)
-        self.usage_row = SettingsRow(USAGE_LABEL, category_summary("usage"))
+        self.usage_row = SettingsRow(USAGE_LABEL, USAGE_SHORT)
+        self.usage_row.setToolTip(category_summary("usage"))
         self.usage_row.add_control(self.usage_box)
-        self.note_row = SettingsRow("What is collected", OFF_NOTE)
+        self.note_row = SettingsRow("", OFF_NOTE)
         self.note_row.add_control(self.see_button)
         for row in (self.errors_row, self.usage_row, self.note_row):
             self.group.add_row(row)
@@ -192,8 +196,8 @@ class PrivacyPanel(QWidget):
                 elif info.get("last_attempt"):
                     text += f", last upload {time.strftime('%H:%M', time.localtime(info['last_attempt']))}"
                 parts.append(text)
-        self.status.setText(" · ".join(parts) if parts else "Nothing is collected or sent.")
-        self.status.setVisible(True)
+        self.status.setText(" · ".join(parts))
+        self.status.setVisible(bool(parts))
 
 
 def consent_value(settings, category: str) -> bool:

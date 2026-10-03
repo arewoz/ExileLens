@@ -439,6 +439,26 @@ class SettingsSection(QWidget):
     def title(self) -> str:
         return self.heading.text()
 
+    def set_heading_icon(self, name: str) -> None:
+        """Put a shipped brand mark beside the heading (native colours, never recoloured)."""
+        from exilelens.ui.ui_icons import load_icon
+
+        icon = load_icon(name)
+        if icon is None:
+            return
+        mark = QLabel()
+        mark.setPixmap(icon.pixmap(18, 18))
+        mark.setFixedSize(18, 18)
+        mark.setAccessibleName("")
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self._column.removeWidget(self.heading)
+        row.addWidget(mark, 0, Qt.AlignmentFlag.AlignVCenter)
+        row.addWidget(self.heading, 0, Qt.AlignmentFlag.AlignVCenter)
+        row.addStretch(1)
+        self._column.insertLayout(0, row)
+
     def add_row(self, row: QWidget) -> QWidget:
         return self.group.add_row(row)
 
@@ -768,6 +788,8 @@ class HealthGridRow(QWidget):
             self._stacked = stacked
             self._outer.setDirection(QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight)
             self._outer.setAlignment(self._action_host, Qt.AlignmentFlag.AlignLeft if stacked else Qt.AlignmentFlag.AlignVCenter)
+            self._outer.invalidate()  # direction changes happen inside a layout pass: ask the parent to re-measure
+            self.updateGeometry()
 
 
 class MeasureRow(QWidget):

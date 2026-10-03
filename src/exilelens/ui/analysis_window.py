@@ -41,8 +41,7 @@ from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_ext
 IDLE, RUNNING, CURRENT, STALE, ERROR = "IDLE", "RUNNING", "CURRENT", "STALE", "ERROR"
 
 _INTRO = (
-    "Analyze Build tests how your Path of Building build responds to common stats. "
-    "It takes a few seconds, runs in the background and never runs during Item Check."
+    "Tests how your build responds to common stats. Runs in the background, never during Item Check."
 )
 _MAX_FIX_FIRST = 4
 

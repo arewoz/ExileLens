@@ -109,14 +109,21 @@ class SettingsPage(ColumnPage):
         # Built first: later sections reference the widgets these create.
         self._build_shared_controls()
         self._updates_section = self._build_updates_section()
+        # Updates and Support ExileLens are one related block (supporter convenience under the update
+        # controls): tighter spacing between the two than between ordinary sections, no card.
+        supporter_block = QWidget()
+        block = QVBoxLayout(supporter_block)
+        block.setContentsMargins(0, 0, 0, 0)
+        block.setSpacing(20)
+        block.addWidget(self._updates_section)
+        block.addWidget(self._build_patreon_section())
         for section in (
             self._build_pob_section(),
+            self._build_hotkey_section(),
+            supporter_block,
             self._build_evaluation_section(),
             self._build_overlay_section(),
-            self._build_hotkey_section(),
             self._build_privacy_section(),
-            self._updates_section,
-            self._build_patreon_section(),
             self._build_advanced_section(),
             self._build_reset_section(),
         ):
@@ -305,7 +312,7 @@ class SettingsPage(ColumnPage):
         row = SettingsRow("Profile")
         row.add_control(self._profile_combo)
         section.add_row(row)
-        row = SettingsRow("Context", "How ExileLens evaluates the item in the current activity. Reloads the build.")
+        row = SettingsRow("Context", "Evaluation context. Reloads the build.")
         row.add_control(self._context)
         section.add_row(row)
         # Selector, action and resolved state read as one unit: the action sits on
@@ -317,7 +324,7 @@ class SettingsPage(ColumnPage):
         row.add_control(self._league_combo)
         row.add_control(self._refresh_leagues_btn)
         section.add_row(row)
-        row = SettingsRow("Ignore socketed Runes", "Compare items without the effects of socketed Runes.")
+        row = SettingsRow("Ignore socketed Runes")
         row.add_control(self._ignore_socketed_mods)
         section.add_row(row)
         return section
@@ -343,7 +350,7 @@ class SettingsPage(ColumnPage):
         self._test_hotkey_btn = make_button("Test", "tertiary", compact=True)
         self._test_hotkey_btn.setObjectName("testItemCheckHotkey")
         self._test_hotkey_btn.clicked.connect(self._test_hotkey)
-        row = SettingsRow("Item check", "Press this while hovering an item in Path of Exile 2.")
+        row = SettingsRow("Item check", "While hovering an item.")
         row.add_left(self._hotkey_test_status)
         row.add_left(self._hotkey_elevation_status)
         row.add_control(self._hotkey_label)
@@ -368,7 +375,7 @@ class SettingsPage(ColumnPage):
     def _build_privacy_section(self):
         from exilelens.ui.privacy_panel import PrivacyPanel
 
-        section = SettingsSection("Privacy", PrivacyPanel.INTRO, with_group=False)
+        section = SettingsSection("Privacy", with_group=False)
         self._privacy_panel = PrivacyPanel(self.settings)
         section.add_panel(self._privacy_panel)
         return section
@@ -376,8 +383,9 @@ class SettingsPage(ColumnPage):
     def _build_patreon_section(self):
         from exilelens.ui.patreon_panel import PatreonPanel
 
-        section = SettingsSection("Patreon supporter", with_group=False)
+        section = SettingsSection("Support ExileLens", with_group=False)
         self._patreon_panel = PatreonPanel(self.settings)
+        section.set_heading_icon("patreon")  # the exact shipped mark, native colour, once
         section.add_panel(self._patreon_panel)
         return section
 
@@ -418,7 +426,7 @@ class SettingsPage(ColumnPage):
         reload_btn = make_button("Reload build", "secondary", compact=True)
         reload_btn.setToolTip("Reload the active build from disk without restarting ExileLens.")
         reload_btn.clicked.connect(self._reload_build)
-        row = SettingsRow("Reload build", "Reload the active build from disk without restarting ExileLens.")
+        row = SettingsRow("Reload build")
         row.add_control(reload_btn)
         group.add_row(row)
 
@@ -437,9 +445,8 @@ class SettingsPage(ColumnPage):
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(24)
         note = QLabel(
-            "Restores ExileLens defaults and forgets your PoB folder, build and "
-            "preferences. A backup is kept. Path of Building, your builds and game "
-            "files are not touched."
+            "Restores defaults and forgets your PoB folder, build and preferences. "
+            "A backup is kept. Your builds and game files are not touched."
         )
         note.setObjectName("bodyText")
         note.setWordWrap(True)
@@ -781,7 +788,7 @@ class DiagnosticsPage(ColumnPage):
         "hotkey": "Item check hotkey",
         "market": "Market",
     }
-    INTRO = "A quick view of whether ExileLens is ready to use. Details appear when something needs attention."
+    INTRO = ""
 
     def __init__(
         self,
@@ -816,6 +823,7 @@ class DiagnosticsPage(ColumnPage):
         self._verdict = QLabel(self.INTRO)
         self._verdict.setObjectName("helperText")
         self._verdict.setWordWrap(True)
+        self._verdict.setVisible(bool(self.INTRO))
         health_layout.addWidget(heading)
         health_layout.addWidget(self._verdict)
         health_layout.addSpacing(8)
@@ -852,8 +860,7 @@ class DiagnosticsPage(ColumnPage):
         report_heading = QLabel("Report a problem")
         report_heading.setObjectName("sectionHeading")
         report_intro = QLabel(
-            "Copy diagnostics or export a support package, then open a GitHub issue if you need help. "
-            "Nothing is sent automatically."
+            "Copy diagnostics or export a support package for a GitHub issue. Nothing is sent automatically."
         )
         report_intro.setObjectName("helperText")
         report_intro.setWordWrap(True)
@@ -1104,7 +1111,7 @@ class DiagnosticsPage(ColumnPage):
             problem = item.status in ("warn", "error")
             # The value stays short; the explanation goes on its own wrapped line
             # so a long path can never set the width of the page.
-            detail = item.detail if (problem or item.key == "market") else ""
+            detail = item.detail if problem else ""
             action = self._row_action(key, item, primary=problem and not first_problem_done)
             if action is not None and problem:
                 first_problem_done = True
@@ -1116,6 +1123,7 @@ class DiagnosticsPage(ColumnPage):
 
         degraded = [getattr(health, key) for key in self.HEALTH_KEYS if getattr(health, key).status in ("warn", "error")]
         self._verdict.setText(self._verdict_text(status) if degraded else self.INTRO)
+        self._verdict.setVisible(bool(self._verdict.text()))
         if degraded:
             actions = [item.action for item in degraded if item.action]
             recovery = actions[0] if actions else "the relevant recovery action"

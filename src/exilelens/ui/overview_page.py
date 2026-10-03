@@ -402,7 +402,7 @@ class OverviewPage(ColumnPage):
             self._set_buttons(("detect_pob", "Detect automatically"), ("settings", "Open Settings"))
         elif key == status_model.SETUP:
             self._headline.setText("Choose your build")
-            self._lead.setText("Pick the Path of Building .xml you play so ExileLens can evaluate items against it.")
+            self._lead.setText("Pick the Path of Building .xml you play.")
             self._headline.setVisible(True)
             self._lead.setVisible(True)
             self._set_buttons(("choose_build", "Choose build"))
@@ -416,7 +416,7 @@ class OverviewPage(ColumnPage):
             lead = "ExileLens is not connected to Path of Building."
             if detail:
                 lead = f"{lead} {detail}"
-            self._lead.setText(f"{lead} Item checks are paused until it reconnects.")
+            self._lead.setText(f"{lead} Item checks are paused.")
             self._lead.setVisible(True)
             self._set_buttons(("reconnect", "Reconnect"), ("diagnostics", "Open Diagnostics"))
         elif key == status_model.ATTENTION and health.build.status == "error":

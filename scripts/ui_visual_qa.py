@@ -271,7 +271,7 @@ class Harness:
         else:
             for section in page.findChildren(SettingsSection):
                 if section.title() == title:
-                    bar.setValue(max(0, section.y() - 8))
+                    bar.setValue(max(0, section.mapTo(page.scroll.widget(), section.rect().topLeft()).y() - 8))
         self.app.processEvents()
 
     def refresh(self) -> None:

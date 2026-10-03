@@ -67,8 +67,11 @@ def test_settings_privacy_rows_show_the_contract_text_and_two_independent_off_by
     QApplication.instance() or QApplication([])
     panel = PrivacyPanel(AppSettings(), None)
     categories = contract.schema()["categories"]
-    assert panel.errors_row.helper.text() == categories["errors"]["summary"]
-    assert panel.usage_row.helper.text() == categories["usage"]["summary"]
+    # The row shows a short line; the contract wording is the tooltip, so it can never drift from events.v1.json.
+    assert panel.errors_row.toolTip() == categories["errors"]["summary"]
+    assert panel.usage_row.toolTip() == categories["usage"]["summary"]
+    for text in (panel.errors_row.helper.text(), panel.usage_row.helper.text()):
+        assert text.startswith(("Error code", "App starts")) and "Never" in text
     assert panel.errors_box is not panel.usage_box
     assert not panel.errors_box.isChecked() and not panel.usage_box.isChecked()
     assert panel.errors_box.accessibleName() and panel.usage_box.accessibleName()
@@ -88,8 +91,8 @@ def test_patreon_copy_is_the_agreed_wording() -> None:
         "ExileLens never receives your Patreon name or email in the desktop app. The ExileLens service keeps only "
         "what it needs to confirm supporter status, separate from usage stats and error reports."
     )
-    assert patreon_panel.FREE_LINE == "Manual updates and every core ExileLens feature remain free."
-    assert patreon_panel.SUPPORT_HELP == "Help fund continued development and get seamless automatic updates."
+    assert patreon_panel.FREE_LINE == "Manual updates and all core features stay free."
+    assert patreon_panel.SUPPORT_HELP == "Help fund development and get seamless automatic updates."
 
 
 # ---------------------------------------------------------------------------------------- status model

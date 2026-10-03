@@ -22,20 +22,11 @@ from exilelens.ui.components import make_button, make_link_button
 from exilelens.ui.dashboard_widgets import Notice, SettingsGroup, SettingsRow, WrapLabel
 
 SEAMLESS_TITLE = "Seamless automatic updates"
-SEAMLESS_FULL = (
-    "Manual updates are always free. Patreon supporters get signed updates downloaded automatically "
-    "and installed when ExileLens closes."
-)
-SEAMLESS_QUIET = "Patreon supporters can have future updates handled automatically."
-SEAMLESS_ACTIVE = (
-    "Signed updates are downloaded automatically and installed when ExileLens closes. "
-    "ExileLens never restarts by itself."
-)
-SEAMLESS_NOT_ELIGIBLE = "Your current membership doesn't include seamless updates."
-PRERELEASE_NOTE = (
-    "You are on the pre-release channel. ExileLens will offer later betas, and the final stable "
-    "release when it is published."
-)
+SEAMLESS_FULL = "Supporters can download verified updates automatically and install them when ExileLens closes."
+SEAMLESS_QUIET = "Supporters can have updates handled automatically."
+SEAMLESS_ACTIVE = "Verified updates download automatically and install when ExileLens closes."
+SEAMLESS_NOT_ELIGIBLE = SEAMLESS_FULL
+PRERELEASE_NOTE = "Beta channel · Later betas and the final release are offered automatically."
 
 #: Update-check states during which the manual flow is "in progress" and the Patreon row stays quiet.
 _BUSY_STATES = {"available", "verification_failed"}
@@ -100,7 +91,7 @@ class UpdatesPanel(QWidget):
         self._bar.setTextVisible(False)
         self._bar.setVisible(False)
         self._extra = WrapLabel("")
-        self._extra.setObjectName("bodyText")
+        self._extra.setObjectName("helperText")
         self._extra.setVisible(False)
         self._extra.setMaximumWidth(620)
         self._last_result = Notice("", "plain")
@@ -176,7 +167,7 @@ class UpdatesPanel(QWidget):
             text, link = SEAMLESS_NOT_ELIGIBLE, False
         else:
             quiet = self._check_state in _BUSY_STATES or self._download_state in {"downloading", "ready", "installing", "error"}
-            text, link = (SEAMLESS_QUIET if quiet else SEAMLESS_FULL), True
+            text, link = (SEAMLESS_QUIET if quiet else SEAMLESS_FULL), False
         self._seamless_row.set_helper(text)
         self._learn_link.setVisible(link)
 
@@ -210,27 +201,21 @@ class UpdatesPanel(QWidget):
         extra = ""
         if state == "ahead":
             if self._installed_is_prerelease():
-                text = f"Pre-release · latest public release is {version}"
+                text = f"Pre-release · Latest stable {version}"
                 extra = PRERELEASE_NOTE
             else:
-                text = f"Newer than the latest public release ({version})"
+                text = f"Newer than the latest release ({version})"
         else:
             text = {
-                "unchecked": "Check for updates to see whether a newer ExileLens release is available.",
-                "checking": "Checking for updates…",
-                "current": "You are on the latest verified release.",
-                "failed": "Could not reach GitHub to check for updates. Try again later.",
-                "unavailable": (
-                    "Automatic updates are available only in a packaged ExileLens installation "
-                    "(the downloaded installer build). Source and development runs do not self-update."
-                ),
-                "verification_failed": (
-                    f"Release {version} is listed on GitHub but could not be verified safely. "
-                    "ExileLens will not install an older release automatically."
-                ),
+                "unchecked": "Not checked yet.",
+                "checking": "Checking…",
+                "current": "Up to date.",
+                "failed": "Couldn't reach GitHub. Try again later.",
+                "unavailable": "Self-update works only in the installed (packaged) build.",
+                "verification_failed": f"Release {version} could not be verified safely and won't be installed.",
             }.get(state, "")
         if state == "available":
-            self._status.setText(f"Update available: {version}. Download installs the signed package after verification.")
+            self._status.setText(f"Update available: {version}")
         else:
             self._status.setText(text)
         self._row.label.setText(label)
@@ -295,10 +280,10 @@ class UpdatesPanel(QWidget):
             on_exit = getattr(self.update_service, "install_on_exit_enabled", None)
             if callable(on_exit) and on_exit():
                 self._progress.setText(
-                    "Update downloaded and verified. It installs when ExileLens closes — or restart now."
+                    "Downloaded and verified. Installs when ExileLens closes, or restart now."
                 )
             else:
-                self._progress.setText("Update downloaded and verified. Restart to install.")
+                self._progress.setText("Downloaded and verified. Restart to install.")
             self._progress.setVisible(True)
             self._restart_btn.setVisible(True)
         elif state == "installing":

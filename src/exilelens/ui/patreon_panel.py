@@ -31,9 +31,9 @@ PRIVACY_LINE = (
     "ExileLens never receives your Patreon name or email in the desktop app. The ExileLens service "
     "keeps only what it needs to confirm supporter status, separate from usage stats and error reports."
 )
-FREE_LINE = "Manual updates and every core ExileLens feature remain free."
+FREE_LINE = "Manual updates and all core features stay free."
 SUPPORT_HEADLINE = "Support ExileLens"
-SUPPORT_HELP = "Help fund continued development and get seamless automatic updates."
+SUPPORT_HELP = "Help fund development and get seamless automatic updates."
 THANKS_LINE = "Thanks for supporting ExileLens."
 
 
@@ -43,18 +43,18 @@ def describe_view(view: PatreonView, *, available: bool) -> str:
     if state is PatreonState.NOT_CONNECTED:
         if not available:
             return "Patreon linking is not available in this build."
-        return "Support ExileLens and enable seamless automatic updates."
+        return SUPPORT_HELP
     if state is PatreonState.LINKING:
-        return "Finish connecting in your browser… (this can take a few minutes)"
+        return "Finish connecting in your browser…"
     if state is PatreonState.ACTIVE:
-        return "Connected. Seamless automatic updates are active."
+        return "Connected · Seamless updates active"
     if state is PatreonState.NOT_ELIGIBLE:
-        return f"Connected. Your current membership doesn't include seamless updates. {MANUAL_NOTE}"
+        return f"Connected · Seamless updates unavailable\nYour current membership doesn't include seamless updates. {MANUAL_NOTE}"
     if state is PatreonState.OFFLINE_GRACE:
         until = time.strftime("%d %b %Y", time.localtime(view.expires_at)) if view.expires_at else "the lease expires"
-        return f"Connected. Couldn't reach the ExileLens service; seamless updates stay active until {until}. {MANUAL_NOTE}"
+        return f"Connected · Seamless updates stay active until {until}. Service unreachable. {MANUAL_NOTE}"
     if state is PatreonState.EXPIRED:
-        return f"Seamless updates are paused — your membership couldn't be confirmed. {MANUAL_NOTE}"
+        return f"Seamless updates paused · Membership couldn't be confirmed. {MANUAL_NOTE}"
     if state is PatreonState.RECONNECT_REQUIRED:
         return f"Please reconnect Patreon. {MANUAL_NOTE}"
     if state is PatreonState.SERVICE_UNAVAILABLE:
@@ -115,8 +115,8 @@ class PatreonPanel(QWidget):
         layout.setSpacing(0)
 
         # Buttons are attributes: Settings, the tray and tests read them.
-        self.support_button = make_button("Support on Patreon", "branded", compact=True, icon="patreon")
-        self.link_button = make_button("Link Patreon", "tertiary", compact=True)
+        self.support_button = make_button("Support on Patreon", "secondary", compact=True)  # the mark is in the heading, once
+        self.link_button = make_button("Link Patreon", "tertiary", compact=True, tooltip=PRIVACY_LINE)
         self.cancel_button = make_button("Cancel", "tertiary", compact=True)
         self.reconnect_button = make_button("Reconnect", "secondary", compact=True)
         self.retry_button = make_button("Retry", "tertiary", compact=True)
@@ -214,7 +214,7 @@ class PatreonPanel(QWidget):
         tone = _STATE_TONE.get(state, "neutral")
         self._dot.set_status(tone)
         self._dot.setVisible(tone != "neutral" and not entry)
-        self._status_row.label.setVisible(entry)
+        self._status_row.label.setVisible(False)  # the section heading already says Support ExileLens
         self._status_row.set_helper(SUPPORT_HELP if entry else "")
 
         note = link_failure_note(view.detail) if state in (PatreonState.NOT_CONNECTED, PatreonState.SERVICE_UNAVAILABLE) else ""
@@ -235,7 +235,7 @@ class PatreonPanel(QWidget):
         self.retry_button.setVisible(state is PatreonState.EXPIRED)
         self.disconnect_button.setVisible(connected)
         self.free_line.setVisible(entry)
-        self.privacy_line.setVisible(entry or state is PatreonState.ACTIVE)
+        self.privacy_line.setVisible(False)  # said once, in the Link Patreon tooltip
         self.thanks_line.setVisible(state is PatreonState.ACTIVE)
 
         # The switches are always shown; they are only usable while a supporter lease is valid.
