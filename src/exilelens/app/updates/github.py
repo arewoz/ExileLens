@@ -46,6 +46,17 @@ class GitHubReleaseClient:
     def best_newest_release(self) -> Release | None:
         return select_newest_official_release(self.list_releases())
 
+    def best_newest_release_for_channel(self, channel: UpdateChannel) -> Release | None:
+        """The newest release a user on ``channel`` may be offered.
+
+        * ``STABLE``: only final, non-prerelease versions.
+        * ``BETA``: every release, newest first. A final release sorts above every beta of
+          the same version (``0.7.0 > 0.7.0b3``), so a beta user is offered later betas and
+          then moves on to the final release naturally.
+        """
+        candidates = [row for row in self.list_releases() if release_matches_channel(row, channel)]
+        return select_newest_official_release(candidates)
+
     def best_release_for_channel(self, channel: UpdateChannel) -> Release | None:
         """Legacy channel filter; unified updates use :meth:`best_newest_release`."""
         candidates = [row for row in self.list_releases() if release_matches_channel(row, channel)]

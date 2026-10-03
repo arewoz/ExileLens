@@ -460,6 +460,17 @@ class UpdateService(QObject):
             return False
         return self.begin_restart_and_update(parent_pid=parent_pid, restart_after_update=False)
 
+    def _newest_release_for_channel(self) -> Release | None:
+        """Newest release offered to this install's update channel (stable users never see betas).
+
+        Falls back to the unfiltered newest release for clients that predate channel
+        filtering (test doubles); the real GitHub client always filters.
+        """
+        selector = getattr(self.client, "best_newest_release_for_channel", None)
+        if callable(selector):
+            return selector(self.channel())
+        return self.client.best_newest_release()
+
     def _start_check(self, *, manual: bool) -> bool:
         if self._check_in_flight:
             return False
@@ -468,7 +479,7 @@ class UpdateService(QObject):
 
         def run() -> None:
             try:
-                release = self.client.best_newest_release()
+                release = self._newest_release_for_channel()
                 if release is None:
                     result: object = None
                 else:
@@ -559,6 +570,10 @@ class UpdateService(QObject):
             if self.settings.update_notified_version != remote:
                 self.settings.update_notified_version = remote
                 self.update_available.emit(remote, str(installed))
+        elif release.version < installed:
+            # This build is newer than anything released to its channel (an unpublished
+            # candidate or a development build). Not "up to date", and not an error.
+            self.state_changed.emit("ahead", remote)
         else:
             self.state_changed.emit("current", remote)
         save_settings(self.settings)
@@ -641,7 +656,8 @@ class UpdateService(QObject):
         remote = ExileLensVersion.parse(getattr(self.settings, "update_latest_version", ""))
         installed = installed_version()
         if remote is not None and installed is not None:
-            self.state_changed.emit("available" if remote > installed else "current", str(remote))
+            state = "available" if remote > installed else ("ahead" if remote < installed else "current")
+            self.state_changed.emit(state, str(remote))
         else:
             self.state_changed.emit("unchecked", "")
 
