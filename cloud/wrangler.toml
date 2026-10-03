@@ -72,41 +72,39 @@ crons = ["17 * * * *", "47 */6 * * *"]
 
 [env.staging.vars]
 INGEST_ENABLED = "true"
+# Enabled for the controlled staging OAuth validation (client id is public; the secret is a Worker secret).
 PATREON_LINK_ENABLED = "true"
 LEASE_ISSUANCE_ENABLED = "true"
 PATREON_API_BASE = "https://www.patreon.com"
 # PLACEHOLDERS: use a SEPARATE Patreon API client for staging (see README runbook).
-PATREON_CLIENT_ID = ""
-PATREON_REDIRECT_URI = "https://exilelens-api-staging.example.invalid/v1/patreon/oauth/callback"
-ENTITLEMENT_KEY_ID = "exilelens-entitlement-1"
-ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'
+PATREON_CLIENT_ID = "0BPPyah9RPQEsg0n9Kxy9C1YzzCd39lRUgrgpTZCbs1XD2bTKfnEr2AS52zb8x_n"
+PATREON_REDIRECT_URI = "https://exilelens-api-staging.exilelens-cloud.workers.dev/v1/patreon/oauth/callback"
+ENTITLEMENT_KEY_ID = "exilelens-entitlement-staging-1"
+ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"16794964","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'
 
 [[env.staging.d1_databases]]
 binding = "TELEMETRY_DB"
 database_name = "exilelens-telemetry-staging"
-# PLACEHOLDER: owner replaces with the id printed by
-#   npx wrangler d1 create exilelens-telemetry-staging
-database_id = "00000000-0000-0000-0000-000000000000"
+# Created on the Free account during activation (identifier, not a secret).
+database_id = "397de737-5811-446d-acf2-b236241ed37a"
 migrations_dir = "migrations/telemetry"
 
 [[env.staging.d1_databases]]
 binding = "PATREON_DB"
 database_name = "exilelens-patreon-staging"
-# PLACEHOLDER: owner replaces with the id printed by
-#   npx wrangler d1 create exilelens-patreon-staging
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "8e9b0d8e-1e89-4ecc-b159-97817fc17c4d"
 migrations_dir = "migrations/patreon"
 
-# OPTIONAL (verify Free-plan availability first):
-# [[env.staging.ratelimits]]
-# name = "RL_INGEST"
-# namespace_id = "1001"          # any unique integer-like string per account
-# simple = { limit = 300, period = 60 }   # coarse per-IP guard; period must be 10 or 60
-#
-# [[env.staging.ratelimits]]
-# name = "RL_LINK"                # coarse per-IP guard for POST /v1/patreon/link/start
-# namespace_id = "1002"
-# simple = { limit = 20, period = 60 }
+# Coarse per-IP outer guards (Workers Rate Limiting binding).
+[[env.staging.ratelimits]]
+name = "RL_INGEST"
+namespace_id = "1001"          # any unique integer-like string per account
+simple = { limit = 300, period = 60 }   # coarse per-IP guard; period must be 10 or 60
+
+[[env.staging.ratelimits]]
+name = "RL_LINK"                # coarse per-IP guard for POST /v1/patreon/link/start
+namespace_id = "1002"
+simple = { limit = 20, period = 60 }
 
 # ==================== PRODUCTION ====================
 [env.production]
@@ -114,47 +112,42 @@ name = "exilelens-api"
 workers_dev = false
 observability = { enabled = true }
 
-# Custom domain is not decided yet. When it is, uncomment and adjust:
-# routes = [{ pattern = "api.example.invalid", custom_domain = true }]
+routes = [{ pattern = "api.exilelens.app", custom_domain = true }]
 
 [env.production.triggers]
 crons = ["17 * * * *", "47 */6 * * *"]
 
 [env.production.vars]
 INGEST_ENABLED = "true"
-PATREON_LINK_ENABLED = "true"
-LEASE_ISSUANCE_ENABLED = "true"
+# Patreon linking / lease issuance stay OFF until the production Patreon client is configured and validated.
+PATREON_LINK_ENABLED = "false"
+LEASE_ISSUANCE_ENABLED = "false"
 PATREON_API_BASE = "https://www.patreon.com"
-# PLACEHOLDERS: production Patreon API client, set after the custom domain is decided.
+# Production Patreon API client id is set once the client exists (the id is public; the secret is a Worker secret).
 PATREON_CLIENT_ID = ""
-PATREON_REDIRECT_URI = "https://api.example.invalid/v1/patreon/oauth/callback"
+PATREON_REDIRECT_URI = "https://api.exilelens.app/v1/patreon/oauth/callback"
 ENTITLEMENT_KEY_ID = "exilelens-entitlement-1"
-ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'
+ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"16794964","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'
 
 [[env.production.d1_databases]]
 binding = "TELEMETRY_DB"
 database_name = "exilelens-telemetry-production"
-# PLACEHOLDER: owner replaces with the id printed by
-#   npx wrangler d1 create exilelens-telemetry-production
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "f3385ccd-2acc-4f11-a845-5c448b3da113"
 migrations_dir = "migrations/telemetry"
 
 [[env.production.d1_databases]]
 binding = "PATREON_DB"
 database_name = "exilelens-patreon-production"
-# PLACEHOLDER: owner replaces with the id printed by
-#   npx wrangler d1 create exilelens-patreon-production
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "b01ea040-11cc-4869-a89d-3b12ed91dd39"
 migrations_dir = "migrations/patreon"
 
-# OPTIONAL (verify Free-plan availability first):
-# [[env.production.ratelimits]]
-# name = "RL_INGEST"
-# namespace_id = "2001"
-# simple = { limit = 300, period = 60 }
-#
-# [[env.production.ratelimits]]
-# name = "RL_LINK"
-# namespace_id = "2002"
-# simple = { limit = 20, period = 60 }
+# Coarse per-IP outer guards (verified available on the Free plan during staging activation).
+[[env.production.ratelimits]]
+name = "RL_INGEST"
+namespace_id = "2001"
+simple = { limit = 300, period = 60 }
 
+[[env.production.ratelimits]]
+name = "RL_LINK"
+namespace_id = "2002"
+simple = { limit = 20, period = 60 }

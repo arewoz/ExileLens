@@ -289,6 +289,19 @@ The implementation follows the documented Patreon API, but none of this was exer
       more than 2,000 4xx in 10 minutes triggers a 30-minute block, which is why the Worker never loops on failures).
 * [ ] **Free-plan availability** of the optional `RL_LINK` Rate Limiting binding and of the second cron trigger.
 
+**Activation result (staging, 2026-10-03, Cloudflare Free):**
+
+* Verified live: authorize→callback→code exchange→identity→encrypted tokens→device→signed lease works without PKCE with an exactly
+  matching single registered redirect URI; Ed25519 import/sign on the deployed runtime, and the Python app verifies the deployed lease
+  (tamper, wrong signature, unknown kid, wrong device, expiry and update-key confusion are all rejected); refresh, unlink
+  (tokens deleted with the last device) and post-unlink 401; `RL_INGEST`/`RL_LINK` bindings and the second cron work on Free.
+* Creator account: Patreon returned a `not_entitled` result (no membership in the creator's own campaign), as expected.
+  The `override_user_hmacs` route was not exercised.
+* **Mocked / unit-tested only (not exercised against real Patreon):** eligible paid patron, gifted, free trial, declined, free member,
+  former member, member of another campaign. Accepted by the owner as non-blocking for activation.
+* Not observable from outside (no token/response logging by design): real `expires_in`, refresh-token rotation, whether the empty
+  `fields[user]=` or its fallback was used. Still unverified; Patreon developer terms still need an owner read.
+
 ## Reports (no web dashboard)
 
 `reports/*.sql` are read-only SELECTs; each starts with a comment stating that it counts
