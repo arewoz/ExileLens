@@ -33,7 +33,7 @@ def _load_public_key_b64(path: Path) -> str:
 
 def install_public_key(public_key_b64: str) -> None:
     source = TRUST_PATH.read_text(encoding="utf-8")
-    line = f'    PROD_SIGNING_KEY_ID: base64.b64decode("{public_key_b64}"),\n'
+    line = f'        PROD_SIGNING_KEY_ID: base64.b64decode("{public_key_b64}"),\n'
     pattern = re.compile(
         r'^[ \t]*(?:PROD_SIGNING_KEY_ID|["\']exilelens-prod-1["\']):\s*base64\.b64decode\("[^"]+"\),?\s*\n',
         re.MULTILINE,
@@ -41,10 +41,11 @@ def install_public_key(public_key_b64: str) -> None:
     if pattern.search(source):
         TRUST_PATH.write_text(pattern.sub(line, source, count=1), encoding="utf-8")
         return
-    marker = "EMBEDDED_VERIFY_KEYS: Mapping[str, bytes] = {"
+    # Only the production trust set may receive the production key; the test set is never edited.
+    marker = "PRODUCTION_VERIFY_KEYS: Mapping[str, bytes] = MappingProxyType(\n    {"
     idx = source.find(marker)
     if idx < 0:
-        raise SystemExit(f"Could not find EMBEDDED_VERIFY_KEYS in {TRUST_PATH}")
+        raise SystemExit(f"Could not find PRODUCTION_VERIFY_KEYS in {TRUST_PATH}")
     insert_at = source.find("}", idx)
     if insert_at < 0:
         raise SystemExit("Malformed trust.py")

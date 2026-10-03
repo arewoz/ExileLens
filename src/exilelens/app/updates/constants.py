@@ -5,6 +5,7 @@ GITHUB_REPO = "ExileLens"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases"
 GITHUB_LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
 GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases"
+GITHUB_RELEASE_DOWNLOAD_URL = f"{GITHUB_RELEASES_URL}/download"
 GITHUB_ISSUES_URL = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/issues"
 DISCORD_INVITE_URL = "https://discord.gg/4jrhBbSwEn"
 

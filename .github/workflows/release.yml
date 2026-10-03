@@ -203,6 +203,11 @@ jobs:
             --private-key $signingKeyPath `
             --output $signedManifestPath
           if ($LASTEXITCODE -ne 0) { throw 'Signed update manifest generation failed.' }
+          # Verify exactly as a shipped client would: production trust profile only, plus tag/version/URL binding.
+          & .\.release-venv\Scripts\python.exe .\scripts\verify_signed_update_manifest.py $signedManifestPath `
+            --trust-profile production `
+            --expect-tag $env:RELEASE_VERSION
+          if ($LASTEXITCODE -ne 0) { throw 'Signed update manifest does not verify under the production trust profile.' }
           "UPDATE_MANIFEST_PATH=$signedManifestPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Validate official release notes

@@ -282,6 +282,60 @@ def _artifact_provenance(root: Path, *, required: bool = False) -> CheckResult:
     return CheckResult("artifact_provenance", GateVerdict.PASS, detail=f"stamp matches HEAD and v{__version__}")
 
 
+EXPECTED_SHIPPING_UPDATE_KEYS = ["exilelens-prod-1"]
+
+
+def _update_trust_set(root: Path) -> CheckResult:
+    """Shipping builds must trust only production update keys; the test key's private half is public."""
+    from exilelens.app.updates import trust
+
+    shipping = trust.trust_report(frozen=True)
+    if shipping.get("key_ids") != EXPECTED_SHIPPING_UPDATE_KEYS or shipping.get("profile") != trust.PRODUCTION_PROFILE:
+        return CheckResult(
+            "update_trust_set",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            f"frozen builds would trust {shipping.get('key_ids')!r}; expected {EXPECTED_SHIPPING_UPDATE_KEYS!r}",
+        )
+    production_material = set(trust.PRODUCTION_VERIFY_KEYS.values())
+    if set(trust.PRODUCTION_VERIFY_KEYS) & set(trust.TEST_VERIFY_KEYS) or production_material & set(
+        trust.TEST_VERIFY_KEYS.values()
+    ):
+        return CheckResult("update_trust_set", GateVerdict.BLOCKED, Severity.P0, "test key present in production trust set")
+    return CheckResult("update_trust_set", GateVerdict.PASS, detail="frozen builds trust only exilelens-prod-1")
+
+
+def _packaged_update_trust(root: Path, *, required: bool = False) -> CheckResult:
+    """Ask the packaged binary itself which update keys it trusts (proves no test-key fallback shipped)."""
+    if not required:
+        return CheckResult("packaged_update_trust", GateVerdict.PASS, detail="not required pre-build")
+    import json
+    import tempfile
+
+    exe = root / "dist" / "ExileLens" / "ExileLens.exe"
+    if not exe.is_file():
+        return CheckResult("packaged_update_trust", GateVerdict.BLOCKED, Severity.P0, "packaged ExileLens.exe missing")
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "trust.json"
+        try:
+            completed = subprocess.run(
+                [str(exe), "--exilelens-update-trust-report", str(report_path)],
+                timeout=120,
+                check=False,
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            return CheckResult("packaged_update_trust", GateVerdict.BLOCKED, Severity.P0, f"trust report failed: {exc}")
+    if completed.returncode != 0 or not report.get("frozen") or report.get("key_ids") != EXPECTED_SHIPPING_UPDATE_KEYS:
+        return CheckResult(
+            "packaged_update_trust",
+            GateVerdict.BLOCKED,
+            Severity.P0,
+            f"packaged binary trusts {report.get('key_ids')!r} (frozen={report.get('frozen')!r})",
+        )
+    return CheckResult("packaged_update_trust", GateVerdict.PASS, detail="packaged binary trusts only exilelens-prod-1")
+
+
 def evaluate_release_gate(
     *,
     root: Path | None = None,
@@ -298,8 +352,10 @@ def evaluate_release_gate(
         _dirty_tree(base, allow_dirty=allow_dirty),
         _packaging(base),
         _debug_deps(base),
+        _update_trust_set(base),
         _expected_artifact(base, required=require_artifact),
         _artifact_provenance(base, required=require_artifact),
+        _packaged_update_trust(base, required=require_artifact),
     ]
     if smoke_result is not None:
         checks.append(smoke_result)
