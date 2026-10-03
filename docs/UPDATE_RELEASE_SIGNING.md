@@ -404,3 +404,12 @@ a journal exists or an updater runs.
   older than 14 days.
 - **Kept:** the ready package.
 - **Kept after `restore_failed`:** `.update-old` and the backup.
+
+## Pre-flight without publishing (`dry_run`)
+
+`release.yml` has a `dry_run` input (default **false**). With it on, the workflow runs every gate, the packaged build, the packaged-artifact
+gate, production signing in the protected `production-release` environment, verification of the signed manifest under the *production* trust
+profile with tag/version/URL binding, and the release-notes check, then stops: no tag, no GitHub Release, no assets, no Discord post and no
+uploaded artifacts (the log shows the SHA-256 and the signed manifest). Dispatch it from `main` on the exact commit and tag you intend to release;
+if it is green, the real release is the same dispatch with `dry_run` off. It cannot replace the first real N -> N+1 field update, which
+additionally exercises GitHub release discovery and asset download.
