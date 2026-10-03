@@ -72,15 +72,15 @@ crons = ["17 * * * *", "47 */6 * * *"]
 
 [env.staging.vars]
 INGEST_ENABLED = "true"
-# Activation starts with Patreon linking and lease issuance OFF; they are switched on after configuration is validated.
-PATREON_LINK_ENABLED = "false"
-LEASE_ISSUANCE_ENABLED = "false"
+# Enabled for the controlled staging OAuth validation (client id is public; the secret is a Worker secret).
+PATREON_LINK_ENABLED = "true"
+LEASE_ISSUANCE_ENABLED = "true"
 PATREON_API_BASE = "https://www.patreon.com"
 # PLACEHOLDERS: use a SEPARATE Patreon API client for staging (see README runbook).
-PATREON_CLIENT_ID = ""
-PATREON_REDIRECT_URI = "https://exilelens-api-staging.example.invalid/v1/patreon/oauth/callback"
-ENTITLEMENT_KEY_ID = "exilelens-entitlement-1"
-ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'
+PATREON_CLIENT_ID = "0BPPyah9RPQEsg0n9Kxy9C1YzzCd39lRUgrgpTZCbs1XD2bTKfnEr2AS52zb8x_n"
+PATREON_REDIRECT_URI = "https://exilelens-api-staging.exilelens-cloud.workers.dev/v1/patreon/oauth/callback"
+ENTITLEMENT_KEY_ID = "exilelens-entitlement-staging-1"
+ENTITLEMENT_POLICY = '{"policy_version":1,"campaign_id":"16794964","rules":[{"when":"any_active_paid_tier","capabilities":["seamless_updates"]}],"allow_gifted":true,"allow_free_trial":true,"override_user_hmacs":{}}'
 
 [[env.staging.d1_databases]]
 binding = "TELEMETRY_DB"
