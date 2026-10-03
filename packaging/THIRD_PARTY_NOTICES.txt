@@ -90,11 +90,12 @@ Dashboard icons (navigation, status, refresh, chevrons)
     Copyright (c) Tailwind Labs, Inc.
     License: MIT
 
-Spectral (build name on the Overview page; included only when the font files
-are present in assets/fonts, otherwise Georgia is used)
-  https://github.com/productiontype/Spectral
+Spectral SemiBold (the build name on the Overview page, and nothing else)
+  File: assets/fonts/Spectral-SemiBold.ttf, unmodified, from
+    https://github.com/productiontype/Spectral (commit dbc06862d7030eedb1b01b60cdad8f6102f4ddfa)
   Copyright 2017 The Spectral Project Authors
-  License: SIL Open Font License 1.1 (https://openfontlicense.org)
+  License: SIL Open Font License 1.1; the full text ships as assets/fonts/OFL.txt
+  (redistribution with software is permitted; the font is not sold on its own).
 
 Source availability
 -------------------
