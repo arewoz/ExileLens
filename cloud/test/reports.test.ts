@@ -30,7 +30,7 @@ describe("report files", () => {
   it.each(REQUIRED)("%s is a single read-only SELECT that states it counts installations, not users", (name) => {
     const sql = reports[name]!;
     const header = sql
-      .split("\n")
+      .split(/\r?\n/)
       .filter((l) => l.startsWith("--"))
       .map((l) => l.replace(/^--\s?/, ""))
       .join(" ");
@@ -38,7 +38,7 @@ describe("report files", () => {
     expect(header).toMatch(/installations?\b/i);
     expect(header).toMatch(/not users/i);
     const body = sql
-      .split("\n")
+      .split(/\r?\n/)
       .filter((l) => !l.startsWith("--"))
       .join("\n");
     expect(body.trim()).toMatch(/^(SELECT|WITH)\b/i);
@@ -48,7 +48,7 @@ describe("report files", () => {
 
   it("only unexpected_session_end_rate talks about crashes, and never as 'crash-free' presented as a metric", () => {
     for (const [name, sql] of Object.entries(reports)) {
-      const body = sql.split("\n").filter((l) => !l.startsWith("--")).join("\n");
+      const body = sql.split(/\r?\n/).filter((l) => !l.startsWith("--")).join("\n");
       expect(body, name).not.toMatch(/crash/i);
     }
     expect(reports.unexpected_session_end_rate).toMatch(/unexpected session end/i);
