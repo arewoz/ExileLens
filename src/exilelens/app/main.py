@@ -27,8 +27,44 @@ def _maybe_run_updater_subprocess() -> None:
         raise SystemExit(updater_main(job_args or None))
 
 
+UPDATE_TRUST_REPORT_ARG = "--exilelens-update-trust-report"
+
+
+def _maybe_write_update_trust_report() -> None:
+    """Release evidence: ``ExileLens.exe --exilelens-update-trust-report <path>`` writes the active update
+    trust set (key ids only, no key material) of *this* binary and exits before any UI starts."""
+    if UPDATE_TRUST_REPORT_ARG not in sys.argv:
+        return
+    import json
+
+    from exilelens.app.updates.trust import trust_report
+
+    index = sys.argv.index(UPDATE_TRUST_REPORT_ARG)
+    if index + 1 >= len(sys.argv):
+        raise SystemExit(2)
+    Path(sys.argv[index + 1]).write_text(json.dumps(trust_report(), sort_keys=True), encoding="utf-8")
+    raise SystemExit(0)
+
+
+def _maybe_defer_to_updater() -> None:
+    """Packaged builds only: never start from an install that an updater is replacing or must recover."""
+    if not getattr(sys, "frozen", False):
+        return
+    try:
+        from exilelens.app.updates.startup_guard import defer_to_updater_if_needed
+
+        if defer_to_updater_if_needed():
+            raise SystemExit(0)
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 - the guard must never prevent a normal launch
+        logging.getLogger(__name__).exception("update_startup_guard_failed")
+
+
 _maybe_run_worker_subprocess()
 _maybe_run_updater_subprocess()
+_maybe_write_update_trust_report()
+_maybe_defer_to_updater()
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
@@ -177,6 +213,9 @@ class ExileLensApp:
 
         # Update discovery is best-effort and starts only after the tray and UI
         # exist. Source runs are rejected by the service without a request.
+        # begin_session (packaged only) surfaces the previous updater result once, restores a verified
+        # ready update and schedules post-launch cleanup of update recovery material.
+        QTimer.singleShot(0, self.dashboard.update_service.begin_session)
         QTimer.singleShot(0, self.dashboard.update_service.start_automatic)
 
         # Everything that can block (worker boot, build load, network) runs once the
