@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import QSignalBlocker
+from PySide6.QtCore import QSignalBlocker, Qt
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -24,7 +24,8 @@ from PySide6.QtWidgets import (
 
 from exilelens.cloud import consent, hooks, transparency
 from exilelens.ui import theme
-from exilelens.ui.components import ThemedCheckBox, button_row, make_button
+from exilelens.ui.components import ThemedCheckBox, button_row, make_button, make_link_button
+from exilelens.ui.dashboard_widgets import SettingsGroup, SettingsRow, ThemedSwitch
 
 USAGE_LABEL = "Send privacy-friendly usage stats"
 ERRORS_LABEL = "Send crash and error reports"
@@ -107,8 +108,24 @@ def open_collected_dialog(parent: QWidget | None = None, cloud=None) -> None:
     CollectedDialog(cloud if cloud is not None else hooks.get(), parent).exec()
 
 
+def category_summary(key: str) -> str:
+    """The one-line summary of a consent category, straight from the canonical contract.
+
+    ``events.v1.json`` is what the Worker validates against and what the transparency dialog
+    renders, so the Settings and consent-card text cannot drift from what is collected.
+    """
+    try:
+        from exilelens.cloud import contract
+
+        return str(contract.schema()["categories"][key]["summary"])
+    except Exception:  # noqa: BLE001 - never break Settings over a summary line
+        return ""
+
+
 class PrivacyPanel(QWidget):
-    """Settings → Privacy: two independent switches, a status line and the transparency button."""
+    """Settings → Privacy: two independent switches, the off-note and the transparency button."""
+
+    INTRO = "Help improve ExileLens. Both switches are off by default and work independently."
 
     def __init__(self, settings, cloud=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -116,19 +133,26 @@ class PrivacyPanel(QWidget):
         self.cloud = cloud if cloud is not None else hooks.get()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(theme.ROW_GAP)
-        layout.addWidget(_label("Help improve ExileLens", "fieldLabel"))
-        self.errors_box = ThemedCheckBox(ERRORS_LABEL)
-        self.usage_box = ThemedCheckBox(USAGE_LABEL)
-        layout.addWidget(self.errors_box)
-        layout.addWidget(self.usage_box)
-        self.note = _label(OFF_NOTE)
-        layout.addWidget(self.note)
-        self.status = _label("", "secondaryText")
-        layout.addWidget(self.status)
-        self.see_button = make_button(SEE_COLLECTED, "secondary")
+        layout.setSpacing(0)
+        self.errors_box = ThemedSwitch(ERRORS_LABEL)
+        self.usage_box = ThemedSwitch(USAGE_LABEL)
+        self.see_button = make_button(SEE_COLLECTED, "secondary", compact=True)
         self.see_button.clicked.connect(lambda: open_collected_dialog(self, self.cloud))
-        layout.addLayout(button_row([self.see_button]))
+
+        self.group = SettingsGroup()
+        self.errors_row = SettingsRow(ERRORS_LABEL, category_summary("errors"))
+        self.errors_row.add_control(self.errors_box)
+        self.usage_row = SettingsRow(USAGE_LABEL, category_summary("usage"))
+        self.usage_row.add_control(self.usage_box)
+        self.note_row = SettingsRow("What is collected", OFF_NOTE)
+        self.note_row.add_control(self.see_button)
+        for row in (self.errors_row, self.usage_row, self.note_row):
+            self.group.add_row(row)
+        layout.addWidget(self.group)
+        self.note = self.note_row.helper
+        self.status = _label("", "secondaryText")
+        self.status.setContentsMargins(0, 8, 0, 0)
+        layout.addWidget(self.status)
         self.errors_box.toggled.connect(lambda on: self._changed(errors=on))
         self.usage_box.toggled.connect(lambda on: self._changed(usage=on))
         self.refresh()
@@ -145,7 +169,7 @@ class PrivacyPanel(QWidget):
             with QSignalBlocker(box):
                 box.setChecked(value)
             box.setEnabled(self.available())
-        self.note.setText(OFF_NOTE if self.available() else UNAVAILABLE_NOTE)
+        self.note_row.set_helper(OFF_NOTE if self.available() else UNAVAILABLE_NOTE)
         self._update_status()
 
     def _changed(self, *, usage: bool | None = None, errors: bool | None = None) -> None:
@@ -155,6 +179,7 @@ class PrivacyPanel(QWidget):
     def _update_status(self) -> None:
         if not self.available() or self.cloud is None:
             self.status.setText("")
+            self.status.setVisible(False)
             return
         status = self.cloud.status()
         parts = []
@@ -168,6 +193,7 @@ class PrivacyPanel(QWidget):
                     text += f", last upload {time.strftime('%H:%M', time.localtime(info['last_attempt']))}"
                 parts.append(text)
         self.status.setText(" · ".join(parts) if parts else "Nothing is collected or sent.")
+        self.status.setVisible(True)
 
 
 def consent_value(settings, category: str) -> bool:
@@ -177,34 +203,53 @@ def consent_value(settings, category: str) -> bool:
 
 
 class ConsentCard(QFrame):
-    """The one-time, non-modal card shown after onboarding. Both boxes start unchecked."""
+    """The one-time, non-modal card shown after onboarding. Both boxes start unchecked.
+
+    The only card-like surface on the dashboard, because it is a temporary decision. Save is
+    a secondary button so it never competes with the page's primary action.
+    """
 
     def __init__(self, settings, cloud, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("consentCard")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.settings = settings
         self.cloud = cloud
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(theme.SPACE_SM)
+        layout.setSpacing(2)
         layout.addWidget(_label("Help improve ExileLens?", "cardTitle"))
-        layout.addWidget(
-            _label(
-                "Optional. Both are off unless you turn them on, and ExileLens works the same either way. "
-                "Nothing from your items, builds or files is ever sent."
-            )
+        body = _label(
+            "Optional. Both are off unless you turn them on, and ExileLens works the same either way. "
+            "Nothing from your items, builds or files is ever sent.",
+            "helperText",
         )
+        body.setMaximumWidth(600)
+        layout.addWidget(body)
         self.errors_box = ThemedCheckBox(ERRORS_LABEL)
         self.usage_box = ThemedCheckBox(USAGE_LABEL)
         self.errors_box.setChecked(False)
         self.usage_box.setChecked(False)
-        layout.addWidget(self.errors_box)
-        layout.addWidget(self.usage_box)
-        self.save_button = make_button("Save", "primary")
-        self.later_button = make_button("Not now", "tertiary")
-        self.see_button = make_button(SEE_COLLECTED, "secondary")
-        layout.addLayout(button_row([self.save_button, self.later_button, self.see_button]))
+        boxes = QHBoxLayout()
+        boxes.setContentsMargins(0, 12, 0, 0)
+        boxes.setSpacing(28)
+        boxes.addWidget(self.errors_box)
+        boxes.addWidget(self.usage_box)
+        boxes.addStretch(1)
+        layout.addLayout(boxes)
+        self.save_button = make_button("Save", "secondary", compact=True)
+        self.later_button = make_button("Not now", "tertiary", compact=True)
+        self.see_button = make_link_button(SEE_COLLECTED)
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 14, 0, 0)
+        actions.setSpacing(10)
+        actions.addWidget(self.save_button)
+        actions.addWidget(self.later_button)
+        actions.addSpacing(6)
+        actions.addWidget(self.see_button)
+        actions.addStretch(1)
+        layout.addLayout(actions)
         self.save_button.clicked.connect(self._save)
         self.later_button.clicked.connect(self._later)
         self.see_button.clicked.connect(lambda: open_collected_dialog(self, self.cloud))

@@ -1,23 +1,40 @@
 """Settings → Patreon supporter: link/unlink and the supporter update options.
 
 Patreon is optional and never needed for any ExileLens feature; every non-active state says that manual
-updates still work. The panel never shows a Patreon name or email because the app never receives one.
+updates still work. The panel never shows a Patreon name, email, avatar or tier because the app never
+receives one.
+
+The two supporter switches (``auto_download`` / ``install_on_exit``) are created here because this panel
+owns their persistence, but Settings places them under *Updates › Seamless automatic updates*, where they
+are always visible and simply disabled until a valid supporter lease exists.
 """
 
 from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import QObject, QSignalBlocker, QTimer, Signal
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, QSignalBlocker, Qt, QTimer, Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from exilelens.app.settings import save_settings
 from exilelens.cloud import hooks
 from exilelens.cloud.patreon import PatreonState, PatreonView
-from exilelens.ui import theme
-from exilelens.ui.components import ThemedCheckBox, button_row, make_button
+from exilelens.ui.components import StatusDot, make_button
+from exilelens.ui.dashboard_widgets import SettingsGroup, SettingsRow, ThemedSwitch
 
 MANUAL_NOTE = "Manual updates still work."
+
+#: Shown wherever linking is offered. Matches PRIVACY.md: the desktop never receives a Patreon name or
+#: email; the service stores only what it needs to confirm supporter status, in a store separate from
+#: usage stats and error reports.
+PRIVACY_LINE = (
+    "ExileLens never receives your Patreon name or email in the desktop app. The ExileLens service "
+    "keeps only what it needs to confirm supporter status, separate from usage stats and error reports."
+)
+FREE_LINE = "Manual updates and every core ExileLens feature remain free."
+SUPPORT_HEADLINE = "Support ExileLens"
+SUPPORT_HELP = "Help fund continued development and get seamless automatic updates."
+THANKS_LINE = "Thanks for supporting ExileLens."
 
 
 def describe_view(view: PatreonView, *, available: bool) -> str:
@@ -61,7 +78,33 @@ class _Bridge(QObject):
     changed = Signal(object)
 
 
+#: state -> dot tone for the status row (neutral states carry no dot)
+_STATE_TONE = {
+    PatreonState.ACTIVE: "ok",
+    PatreonState.OFFLINE_GRACE: "warn",
+    PatreonState.EXPIRED: "warn",
+    PatreonState.RECONNECT_REQUIRED: "warn",
+}
+
+
+def _open_patreon_page() -> None:
+    from exilelens.ui.recovery_actions import open_patreon
+
+    open_patreon()
+
+
+def _set_tier(button, object_name: str) -> None:
+    if button.objectName() == object_name:
+        return
+    button.setObjectName(object_name)
+    button.style().unpolish(button)
+    button.style().polish(button)
+
+
 class PatreonPanel(QWidget):
+    #: Emitted after every render with the PatreonState value, so Updates can word the seamless row.
+    view_rendered = Signal(str)
+
     def __init__(self, settings, cloud=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.settings = settings
@@ -69,27 +112,66 @@ class PatreonPanel(QWidget):
         self.link = self.cloud.patreon if self.cloud is not None else None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(theme.ROW_GAP)
+        layout.setSpacing(0)
+
+        # Buttons are attributes: Settings, the tray and tests read them.
+        self.support_button = make_button("Support on Patreon", "branded", compact=True, icon="patreon")
+        self.link_button = make_button("Link Patreon", "tertiary", compact=True)
+        self.cancel_button = make_button("Cancel", "tertiary", compact=True)
+        self.reconnect_button = make_button("Reconnect", "secondary", compact=True)
+        self.retry_button = make_button("Retry", "tertiary", compact=True)
+        self.view_button = make_button("View Patreon", "tertiary", compact=True)
+        self.disconnect_button = make_button("Disconnect Patreon", "secondary", compact=True)
+
+        # The two supporter switches. Standalone they sit at the end of this panel; Settings re-homes
+        # them under Updates with ``detach_seamless_controls``.
+        self.auto_download = ThemedSwitch("Automatically download updates")
+        self.install_on_exit = ThemedSwitch("Install updates when ExileLens closes")
+        self.seamless_host = SettingsGroup()
+        self._auto_row = SettingsRow("Automatically download updates")
+        self._auto_row.add_control(self.auto_download)
+        self._exit_row = SettingsRow("Install updates when ExileLens closes", "ExileLens never restarts by itself.")
+        self._exit_row.add_control(self.install_on_exit)
+        self.seamless_host.add_row(self._auto_row)
+        self.seamless_host.add_row(self._exit_row)
+
+        # Status row: headline + help in the not-linked entry state, a status sentence otherwise.
+        self._status_row = SettingsRow(SUPPORT_HEADLINE)
+        self._dot = StatusDot("neutral")
         self.status = QLabel("")
-        self.status.setObjectName("helperText")
+        self.status.setObjectName("bodyText")
         self.status.setWordWrap(True)
-        layout.addWidget(self.status)
+        status_left = QHBoxLayout()
+        status_left.setContentsMargins(0, 0, 0, 0)
+        status_left.setSpacing(8)
+        status_left.addWidget(self._dot, 0, Qt.AlignmentFlag.AlignTop)
+        status_left.addWidget(self.status, 1)
+        status_host = QWidget()
+        status_host.setLayout(status_left)
+        self._status_row.add_left(status_host)
+        for button in (
+            self.support_button, self.view_button, self.retry_button, self.cancel_button,
+            self.reconnect_button, self.link_button, self.disconnect_button,
+        ):
+            self._status_row.add_control(button)
+        self.group = SettingsGroup()
+        self.group.add_row(self._status_row)
+        layout.addWidget(self.group)
+
         self.note = QLabel("")
-        self.note.setObjectName("secondaryText")
-        self.note.setWordWrap(True)
-        layout.addWidget(self.note)
-        self.auto_download = ThemedCheckBox("Automatically download updates")
-        self.install_on_exit = ThemedCheckBox("Install updates when ExileLens closes")
-        layout.addWidget(self.auto_download)
-        layout.addWidget(self.install_on_exit)
-        self.link_button = make_button("Link Patreon", "primary")
-        self.cancel_button = make_button("Cancel", "tertiary")
-        self.reconnect_button = make_button("Reconnect", "primary")
-        self.retry_button = make_button("Retry", "secondary")
-        self.disconnect_button = make_button("Disconnect Patreon", "secondary")
-        layout.addLayout(
-            button_row([self.link_button, self.cancel_button, self.reconnect_button, self.retry_button, self.disconnect_button])
-        )
+        self.free_line = QLabel(FREE_LINE)
+        self.privacy_line = QLabel(PRIVACY_LINE)
+        self.thanks_line = QLabel(THANKS_LINE)
+        for widget in (self.note, self.free_line, self.privacy_line, self.thanks_line):
+            widget.setObjectName("helperText")
+            widget.setWordWrap(True)
+            widget.setContentsMargins(0, 8, 0, 0)
+            layout.addWidget(widget)
+        self.privacy_line.setMaximumWidth(640)
+        layout.addWidget(self.seamless_host)
+
+        self.support_button.clicked.connect(_open_patreon_page)
+        self.view_button.clicked.connect(_open_patreon_page)
         self.link_button.clicked.connect(self._start)
         self.reconnect_button.clicked.connect(self._start)
         self.cancel_button.clicked.connect(lambda: self.link and self.link.cancel_link())
@@ -110,28 +192,62 @@ class PatreonPanel(QWidget):
     def available(self) -> bool:
         return self.link is not None and self.link.available()
 
+    def current_state(self) -> str:
+        view = self.link.view() if self.link is not None else PatreonView(PatreonState.NOT_CONNECTED)
+        return view.state.value
+
+    def detach_seamless_controls(self) -> QWidget:
+        """Hand the two supporter switches (and their rows) to Settings › Updates."""
+        self.layout().removeWidget(self.seamless_host)
+        self.seamless_host.setParent(None)
+        return self.seamless_host
+
     def render(self) -> None:
         view = self.link.view() if self.link is not None else PatreonView(PatreonState.NOT_CONNECTED)
         state = view.state
-        self.status.setText(describe_view(view, available=self.available()))
-        self.note.setText(link_failure_note(view.detail) if state in (PatreonState.NOT_CONNECTED, PatreonState.SERVICE_UNAVAILABLE) else "")
-        self.note.setVisible(bool(self.note.text()))
+        available = self.available()
+        not_linked = state is PatreonState.NOT_CONNECTED
+        entry = not_linked and available  # the stronger "Support ExileLens" entry state
+
+        self.status.setText(describe_view(view, available=available))
+        self.status.setVisible(not entry)
+        tone = _STATE_TONE.get(state, "neutral")
+        self._dot.set_status(tone)
+        self._dot.setVisible(tone != "neutral" and not entry)
+        self._status_row.label.setVisible(entry)
+        self._status_row.set_helper(SUPPORT_HELP if entry else "")
+
+        note = link_failure_note(view.detail) if state in (PatreonState.NOT_CONNECTED, PatreonState.SERVICE_UNAVAILABLE) else ""
+        self.note.setText(note)
+        self.note.setVisible(bool(note))
         connected = state in (
             PatreonState.ACTIVE, PatreonState.NOT_ELIGIBLE, PatreonState.OFFLINE_GRACE, PatreonState.EXPIRED, PatreonState.RECONNECT_REQUIRED
         )
         supporter = state in (PatreonState.ACTIVE, PatreonState.OFFLINE_GRACE)
+
+        self.support_button.setVisible(entry)
+        self.view_button.setVisible(state is PatreonState.NOT_ELIGIBLE)
         self.link_button.setVisible(state in (PatreonState.NOT_CONNECTED, PatreonState.SERVICE_UNAVAILABLE))
-        self.link_button.setEnabled(self.available())
+        self.link_button.setEnabled(available)
+        _set_tier(self.link_button, "btnSecondary" if state is PatreonState.SERVICE_UNAVAILABLE else "btnTertiary")
         self.cancel_button.setVisible(state is PatreonState.LINKING)
         self.reconnect_button.setVisible(state in (PatreonState.RECONNECT_REQUIRED, PatreonState.EXPIRED))
         self.retry_button.setVisible(state is PatreonState.EXPIRED)
         self.disconnect_button.setVisible(connected)
+        self.free_line.setVisible(entry)
+        self.privacy_line.setVisible(entry or state is PatreonState.ACTIVE)
+        self.thanks_line.setVisible(state is PatreonState.ACTIVE)
+
+        # The switches are always shown; they are only usable while a supporter lease is valid.
         for box, name in ((self.auto_download, "updates_auto_download"), (self.install_on_exit, "updates_install_on_exit")):
             with QSignalBlocker(box):
-                box.setChecked(bool(getattr(self.settings, name, True)))
-            box.setVisible(supporter)
+                box.setChecked(bool(getattr(self.settings, name, True)) and supporter)
+            box.setEnabled(supporter)
+        self._auto_row.set_disabled_look(not supporter)
+        self._exit_row.set_disabled_look(not supporter)
+        self.view_rendered.emit(state.value)
 
-    # -- actions --------------------------------------------------------------------------------
+    # -- actions -------------------------------------------------------------------------------
     def _start(self) -> None:
         if self.link is not None:
             self.link.start_link()

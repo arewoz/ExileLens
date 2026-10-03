@@ -23,7 +23,22 @@ from PySide6.QtWidgets import (
 
 from exilelens.app.controller import EvaluationController
 from exilelens.app.settings import AppSettings, save_settings
+from exilelens.ui import theme
+from exilelens.ui.components import Disclosure, StatusValue, make_button
+from exilelens.ui.dashboard_widgets import (
+    ChevronComboBox,
+    ColumnPage,
+    Hairline,
+    HealthGridRow,
+    KeycapDisplay,
+    MonoPathLabel,
+    SettingsGroup,
+    SettingsRow,
+    SettingsSection,
+    ThemedSwitch,
+)
 from exilelens.ui.overlay import OverlayWindow
+from exilelens.ui.ui_icons import outline_icon
 from exilelens.ui.styles import apply_scroll_area_theme
 
 
@@ -73,7 +88,9 @@ class HotkeyCaptureDialog(QDialog):
         self.accept()
 
 
-class SettingsPage(QWidget):
+class SettingsPage(ColumnPage):
+    """One scrolling page of flat rows, in the shipped section order. Settings apply immediately."""
+
     def __init__(
         self,
         settings: AppSettings,
@@ -81,56 +98,32 @@ class SettingsPage(QWidget):
         update_service=None,
         parent: QWidget | None = None,
     ) -> None:
-        super().__init__(parent)
-        self.setObjectName("settingsPage")
+        super().__init__("Settings", sticky_header=True, object_name="settingsPage", parent=parent)
         self.settings = settings
         self.controller = controller
         self.update_service = update_service
-
-        from exilelens.ui import theme
-        from exilelens.ui.components import Section
-
-        title = QLabel("Settings")
-        title.setObjectName("pageTitle")
+        self._scroll_area = self.scroll
+        self.scroll.setObjectName("settingsScrollArea")
 
         # Built first: later sections reference the widgets these create.
         self._build_shared_controls()
-
-        content = QWidget()
-        content.setObjectName("settingsScrollContent")
-        content.setMinimumWidth(440)
-        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(theme.SECTION_GAP)
+        self._updates_section = self._build_updates_section()
         for section in (
             self._build_pob_section(),
             self._build_evaluation_section(),
             self._build_overlay_section(),
             self._build_hotkey_section(),
             self._build_privacy_section(),
-            self._build_updates_section(),
+            self._updates_section,
             self._build_patreon_section(),
             self._build_advanced_section(),
             self._build_reset_section(),
         ):
-            content_layout.addWidget(section)
-        content_layout.addStretch(1)
-
-        self._scroll_area = QScrollArea()
-        self._scroll_area.setObjectName("settingsScrollArea")
-        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll_area.setWidgetResizable(True)
-        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._scroll_area.setWidget(content)
-        apply_scroll_area_theme(self._scroll_area, viewport_object_name="settingsScrollViewport")
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(theme.SPACE_LG)
-        layout.addWidget(title)
-        layout.addWidget(self._scroll_area, 1)
+            self.column.addWidget(section)
+        self.finish()
+        updates_panel = getattr(self, "_updates_panel", None)
+        if updates_panel is not None:
+            updates_panel.attach_seamless_controls(self._patreon_panel)
 
         controller.value_profile_changed.connect(self._on_profile_changed_externally)
         controller.build_changed.connect(lambda _info: self.refresh_setup_status())
@@ -138,6 +131,23 @@ class SettingsPage(QWidget):
         controller.engine_ready.connect(self.refresh_setup_status)
         controller.engine_failed.connect(lambda _msg: self.refresh_setup_status())
         self.refresh_setup_status()
+
+    # --- page API ---------------------------------------------------------------------
+
+    def refresh(self) -> None:
+        """Re-sync the live panels when the page is opened."""
+        self.refresh_setup_status()
+        privacy = getattr(self, "_privacy_panel", None)
+        if privacy is not None:
+            privacy.refresh()
+        patreon = getattr(self, "_patreon_panel", None)
+        if patreon is not None:
+            patreon.render()
+
+    def focus_updates(self) -> None:
+        """Scroll the Updates section to the top (the rail's "Update available" link)."""
+        self.scroll.ensureWidgetVisible(self._updates_section, 0, 12)
+        self.scroll.verticalScrollBar().setValue(self._updates_section.y())
 
     # --- construction -----------------------------------------------------------
 
@@ -161,7 +171,7 @@ class SettingsPage(QWidget):
             label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             setattr(self, label_attr, label)
 
-        self._context = QComboBox()
+        self._context = ChevronComboBox()
         self._context.addItem("Map", "MAP")
         self._context.addItem("Boss", "BOSS")
         index = self._context.findData(settings.context)
@@ -170,14 +180,14 @@ class SettingsPage(QWidget):
 
         from exilelens.ui.profile_catalog import PROFILE_CARDS
 
-        self._profile_combo = QComboBox()
+        self._profile_combo = ChevronComboBox()
         for card in PROFILE_CARDS:
             self._profile_combo.addItem(card.title, card.profile.value)
         profile_index = self._profile_combo.findData(str(settings.value_profile or "BALANCED"))
         self._profile_combo.setCurrentIndex(max(profile_index, 0))
         self._profile_combo.currentIndexChanged.connect(self._on_profile_combo_changed)
 
-        self._ui_scale = QComboBox()
+        self._ui_scale = ChevronComboBox()
         for percent, value in (("80%", 0.8), ("100%", 1.0), ("120%", 1.2), ("140%", 1.4), ("160%", 1.6)):
             self._ui_scale.addItem(percent, value)
         current_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
@@ -187,19 +197,19 @@ class SettingsPage(QWidget):
 
         self._auto_hide = QLineEdit(str(settings.overlay_auto_hide_seconds))
         self._auto_hide.editingFinished.connect(self._persist_numeric_settings)
-        self._auto_hide.setMaximumWidth(90)
+        self._auto_hide.setFixedWidth(theme.SETTINGS_SELECT_WIDTH)
+        self._auto_hide.setAccessibleName("Auto hide (seconds)")
 
         self._dedup = QLineEdit(str(settings.dedup_window_seconds))
         self._dedup.editingFinished.connect(self._persist_numeric_settings)
-        self._dedup.setMaximumWidth(90)
+        self._dedup.setFixedWidth(theme.SETTINGS_SELECT_WIDTH)
+        self._dedup.setAccessibleName("Dedup window (seconds)")
 
-        from exilelens.ui.components import ThemedCheckBox
-
-        self._show_hints = ThemedCheckBox("Show hotkey hints")
+        self._show_hints = ThemedSwitch("Show hotkey hints")
         self._show_hints.setChecked(bool(getattr(settings, "show_hotkey_hints", True)))
         self._show_hints.toggled.connect(self._on_show_hints_changed)
 
-        self._ignore_socketed_mods = ThemedCheckBox("Ignore socketed Runes")
+        self._ignore_socketed_mods = ThemedSwitch("Ignore socketed Runes")
         self._ignore_socketed_mods.setToolTip(
             "Compare items without the effects of socketed Runes. Runes are ignored on"
             " both the equipped item and the item being checked."
@@ -211,8 +221,7 @@ class SettingsPage(QWidget):
 
         from exilelens.platform.windows.hotkey_binding import HotkeyBinding
 
-        self._hotkey_label = QLabel(HotkeyBinding.parse(settings.price_check_hotkey).display)
-        self._hotkey_label.setObjectName("cardTitle")
+        self._hotkey_label = KeycapDisplay(HotkeyBinding.parse(settings.price_check_hotkey).display)
         self._hotkey_test_status = QLabel("")
         self._hotkey_test_status.setObjectName("helperText")
         self._hotkey_elevation_status = QLabel("")
@@ -233,7 +242,7 @@ class SettingsPage(QWidget):
         from exilelens.price_check.league_resolver import MODE_PINNED
 
         self._league_catalog = LeagueCatalog.from_settings(self.settings)
-        self._league_combo = QComboBox()
+        self._league_combo = ChevronComboBox()
         self._league_combo.addItem("Auto-detect", "")
         for name in self._league_catalog.selectable_leagues():
             self._league_combo.addItem(name, name)
@@ -252,184 +261,194 @@ class SettingsPage(QWidget):
         self._league_status.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
 
     def _build_pob_section(self):
-        from exilelens.ui.components import HealthRow, Section, button_row, make_button
-
-        section = Section("Path of Building")
+        section = SettingsSection("Path of Building")
         # Named rows: "Connected" on its own does not say what is connected.
-        self._pob_state = HealthRow("Path of Building")
-        self._build_state = HealthRow("Build")
-        section.add_widget(self._pob_state)
-        section.add_widget(self._pob_status)
-        section.add_widget(self._build_state)
-        section.add_widget(self._loaded_status)
+        self._pob_state = StatusValue("", "neutral")
+        self._pob_state.set_word_wrap(False)
+        self._build_state = StatusValue("", "neutral")
+        self._build_state.set_word_wrap(False)
+        self._pob_path_label = MonoPathLabel(self._pob_edit.text())
+        self._build_path_label = MonoPathLabel(self._build_edit.text())
+        self._pob_edit.textChanged.connect(self._pob_path_label.set_full_text)
+        self._build_edit.textChanged.connect(self._build_path_label.set_full_text)
 
-        self._change_pob_btn = make_button("Change PoB location", "secondary")
+        self._change_pob_btn = make_button("Change location", "secondary", compact=True)
         self._change_pob_btn.clicked.connect(self._browse_pob)
-        self._detect_pob_btn = make_button("Detect PoB", "secondary", tooltip="Look for Path of Building automatically")
+        self._detect_pob_btn = make_button("Detect", "tertiary", compact=True, tooltip="Look for Path of Building automatically")
         self._detect_pob_btn.clicked.connect(self._auto_detect_pob)
-        self._change_build_btn = make_button("Change build", "secondary")
+        self._change_build_btn = make_button("Change build", "secondary", compact=True)
         self._change_build_btn.clicked.connect(self._browse_build)
         # Surfaces only while the integration is actually down.
-        self._reconnect_btn = make_button("Reconnect", "primary")
+        self._reconnect_btn = make_button("Reconnect", "primary", compact=True)
         self._reconnect_btn.clicked.connect(self._apply_pob_path)
         self._reconnect_btn.setVisible(False)
-        section.add_layout(
-            button_row([self._reconnect_btn, self._detect_pob_btn, self._change_pob_btn, self._change_build_btn])
-        )
+
+        install = SettingsRow("Installation")
+        install.add_left(self._pob_state)
+        install.add_left(self._pob_path_label)
+        install.add_left(self._pob_status)
+        for button in (self._reconnect_btn, self._detect_pob_btn, self._change_pob_btn):
+            install.add_control(button)
+        section.add_row(install)
+
+        build = SettingsRow("Build")
+        build.add_left(self._build_state)
+        build.add_left(self._build_path_label)
+        build.add_left(self._loaded_status)
+        build.add_control(self._change_build_btn)
+        section.add_row(build)
         return section
 
     def _build_evaluation_section(self):
-        from exilelens.ui.components import Section, SettingRow, button_row, make_button
-
-        section = Section("Item evaluation")
-        section.add_widget(SettingRow("Profile", self._profile_combo))
-        section.add_widget(
-            SettingRow(
-                "Context",
-                self._context,
-                "How ExileLens evaluates the item in the current activity. Reloads the build.",
-            )
-        )
+        section = SettingsSection("Item evaluation")
+        row = SettingsRow("Profile")
+        row.add_control(self._profile_combo)
+        section.add_row(row)
+        row = SettingsRow("Context", "How ExileLens evaluates the item in the current activity. Reloads the build.")
+        row.add_control(self._context)
+        section.add_row(row)
         # Selector, action and resolved state read as one unit: the action sits on
         # the same line as the control it refreshes, the state directly beneath.
-        self._refresh_leagues_btn = make_button("Refresh", "tertiary")
+        self._refresh_leagues_btn = make_button("Refresh", "tertiary", compact=True)
         self._refresh_leagues_btn.clicked.connect(self._refresh_leagues)
-        league_row = SettingRow("Market league", self._league_combo)
-        league_row.add_trailing(self._refresh_leagues_btn)
-        league_row.set_helper_widget(self._league_status)
-        section.add_widget(league_row)
-        section.add_widget(self._ignore_socketed_mods)
+        row = SettingsRow("Market league")
+        row.add_left(self._league_status)
+        row.add_control(self._league_combo)
+        row.add_control(self._refresh_leagues_btn)
+        section.add_row(row)
+        row = SettingsRow("Ignore socketed Runes", "Compare items without the effects of socketed Runes.")
+        row.add_control(self._ignore_socketed_mods)
+        section.add_row(row)
         return section
 
     def _build_overlay_section(self):
-        from exilelens.ui.components import Section, SettingRow
-
-        section = Section("Overlay")
-        section.add_widget(SettingRow("UI scale", self._ui_scale))
-        section.add_widget(SettingRow("Auto hide (seconds)", self._auto_hide))
-        section.add_widget(self._show_hints)
+        section = SettingsSection("Overlay")
+        row = SettingsRow("UI scale")
+        row.add_control(self._ui_scale)
+        section.add_row(row)
+        row = SettingsRow("Auto hide (seconds)")
+        row.add_control(self._auto_hide)
+        section.add_row(row)
+        row = SettingsRow("Show hotkey hints")
+        row.add_control(self._show_hints)
+        section.add_row(row)
         return section
 
     def _build_hotkey_section(self):
-        from exilelens.ui import theme
-        from exilelens.ui.components import Section, make_button
-
-        section = Section("Hotkey")
-        self._change_hotkey_btn = make_button("Change", "secondary")
+        section = SettingsSection("Hotkey")
+        self._change_hotkey_btn = make_button("Change", "secondary", compact=True)
         self._change_hotkey_btn.setObjectName("changeItemCheckHotkey")
         self._change_hotkey_btn.clicked.connect(self._change_hotkey)
-        self._test_hotkey_btn = make_button("Test", "tertiary")
+        self._test_hotkey_btn = make_button("Test", "tertiary", compact=True)
         self._test_hotkey_btn.setObjectName("testItemCheckHotkey")
         self._test_hotkey_btn.clicked.connect(self._test_hotkey)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(theme.SPACE_MD)
-        caption = QLabel("Item check")
-        caption.setObjectName("fieldLabel")
-        row.addWidget(caption)
-        row.addWidget(self._hotkey_label)
-        row.addWidget(self._change_hotkey_btn)
-        row.addWidget(self._test_hotkey_btn)
-        row.addWidget(self._hotkey_test_status, 1)
-        section.add_layout(row)
-        section.add_widget(self._hotkey_elevation_status)
+        row = SettingsRow("Item check", "Press this while hovering an item in Path of Exile 2.")
+        row.add_left(self._hotkey_test_status)
+        row.add_left(self._hotkey_elevation_status)
+        row.add_control(self._hotkey_label)
+        row.add_control(self._change_hotkey_btn)
+        row.add_control(self._test_hotkey_btn)
+        section.add_row(row)
         return section
 
     def _build_updates_section(self):
-        from exilelens.ui.components import Section
-
-        section = Section("Updates")
+        section = SettingsSection("Updates", with_group=False)
         if self.update_service is None:
             note = QLabel("Update checks are unavailable in this view.")
             note.setObjectName("helperText")
-            section.add_widget(note)
+            section.add_panel(note)
             return section
         from exilelens.ui.updates_panel import UpdatesPanel
 
         self._updates_panel = UpdatesPanel(self.settings, self.update_service)
-        section.add_widget(self._updates_panel)
+        section.add_panel(self._updates_panel)
         return section
 
     def _build_privacy_section(self):
-        from exilelens.ui.components import Section
         from exilelens.ui.privacy_panel import PrivacyPanel
 
-        section = Section("Privacy")
+        section = SettingsSection("Privacy", PrivacyPanel.INTRO, with_group=False)
         self._privacy_panel = PrivacyPanel(self.settings)
-        section.add_widget(self._privacy_panel)
+        section.add_panel(self._privacy_panel)
         return section
 
     def _build_patreon_section(self):
-        from exilelens.ui.components import Section
         from exilelens.ui.patreon_panel import PatreonPanel
 
-        section = Section("Patreon supporter")
+        section = SettingsSection("Patreon supporter", with_group=False)
         self._patreon_panel = PatreonPanel(self.settings)
-        section.add_widget(self._patreon_panel)
+        section.add_panel(self._patreon_panel)
         return section
 
     def _build_advanced_section(self):
-        from exilelens.ui.components import Disclosure, Section, SettingRow, button_row, make_button
-
-        section = Section("Advanced")
+        section = SettingsSection("Advanced", with_group=False)
         self._advanced = Disclosure("Troubleshooting & diagnostics")
+        group = SettingsGroup()
 
-        pob_row = QHBoxLayout()
-        pob_row.setContentsMargins(0, 0, 0, 0)
-        pob_row.addWidget(self._pob_edit, 1)
-        pob_browse = make_button("Browse", "tertiary")
+        row = SettingsRow("Path of Building folder")
+        row.add_left(self._pob_edit)
+        pob_browse = make_button("Browse", "tertiary", compact=True)
         pob_browse.clicked.connect(self._browse_pob)
-        pob_apply = make_button("Apply", "secondary", tooltip="Reconnect using this folder")
-        pob_apply.clicked.connect(self._apply_pob_path)
-        pob_detect = make_button("Auto-detect", "tertiary", tooltip="Look for Path of Building automatically")
+        pob_detect = make_button("Auto-detect", "tertiary", compact=True, tooltip="Look for Path of Building automatically")
         pob_detect.clicked.connect(self._auto_detect_pob)
-        pob_row.addWidget(pob_browse)
-        pob_row.addWidget(pob_detect)
-        pob_row.addWidget(pob_apply)
-        self._advanced.add_widget(QLabel("Path of Building folder"))
-        self._advanced.add_layout(pob_row)
+        pob_apply = make_button("Apply", "secondary", compact=True, tooltip="Reconnect using this folder")
+        pob_apply.clicked.connect(self._apply_pob_path)
+        for button in (pob_browse, pob_detect, pob_apply):
+            row.add_control(button)
+        group.add_row(row)
 
-        build_row = QHBoxLayout()
-        build_row.setContentsMargins(0, 0, 0, 0)
-        build_row.addWidget(self._build_edit, 1)
-        build_browse = make_button("Browse", "tertiary")
+        row = SettingsRow("Build file")
+        row.add_left(self._build_edit)
+        row.add_left(self._build_file_status)
+        build_browse = make_button("Browse", "tertiary", compact=True)
         build_browse.clicked.connect(self._browse_build)
-        build_load = make_button("Load", "secondary")
+        build_load = make_button("Load", "secondary", compact=True)
         build_load.clicked.connect(self._load_build_from_edit)
-        build_row.addWidget(build_browse)
-        build_row.addWidget(build_load)
-        self._advanced.add_widget(QLabel("Build file"))
-        self._advanced.add_layout(build_row)
-        self._advanced.add_widget(self._build_file_status)
+        row.add_control(build_browse)
+        row.add_control(build_load)
+        group.add_row(row)
 
-        self._advanced.add_widget(SettingRow("Dedup window (seconds)", self._dedup))
-        self._advanced.add_widget(SettingRow("Live market", self._live_market_label))
-
-        reload_btn = make_button("Reload build", "secondary")
+        row = SettingsRow("Dedup window (seconds)")
+        row.add_control(self._dedup)
+        group.add_row(row)
+        row = SettingsRow("Live market")
+        row.add_control(self._live_market_label)
+        group.add_row(row)
+        reload_btn = make_button("Reload build", "secondary", compact=True)
         reload_btn.setToolTip("Reload the active build from disk without restarting ExileLens.")
         reload_btn.clicked.connect(self._reload_build)
-        self._advanced.add_layout(button_row([reload_btn]))
+        row = SettingsRow("Reload build", "Reload the active build from disk without restarting ExileLens.")
+        row.add_control(reload_btn)
+        group.add_row(row)
 
-        section.add_widget(self._advanced)
+        self._advanced.add_widget(group)
+        section.add_panel(self._advanced)
         return section
 
     def _build_reset_section(self):
-        from exilelens.ui.components import Section, button_row, make_button
-
-        section = Section("Reset configuration")
+        host = QWidget()
+        host.setObjectName("resetSection")
+        column = QVBoxLayout(host)
+        column.setContentsMargins(0, 8, 0, 0)  # the column's 28px section gap plus this keeps Reset clearly apart
+        column.setSpacing(18)
+        column.addWidget(Hairline())
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(24)
         note = QLabel(
             "Restores ExileLens defaults and forgets your PoB folder, build and "
             "preferences. A backup is kept. Path of Building, your builds and game "
             "files are not touched."
         )
-        note.setObjectName("helperText")
+        note.setObjectName("bodyText")
         note.setWordWrap(True)
-        section.add_widget(note)
-        self._reset_btn = make_button("Reset configuration", "destructive")
+        note.setMaximumWidth(560)
+        self._reset_btn = make_button("Reset configuration", "destructive", compact=True)
         self._reset_btn.clicked.connect(self._reset_configuration)
-        section.add_layout(button_row([self._reset_btn]))
-        return section
+        row.addWidget(note, 1)
+        row.addWidget(self._reset_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        column.addLayout(row)
+        return host
 
     # --- setup / recovery -------------------------------------------------------
 
@@ -749,85 +768,128 @@ class SettingsPage(QWidget):
         save_settings(self.settings)
 
 
-class DiagnosticsPage(QWidget):
-    """Player-facing health summary and support actions."""
+class DiagnosticsPage(ColumnPage):
+    """A utility, not a dashboard: five health rows, a report block, and collapsed advanced tools."""
 
     #: Health rows, in the order they are shown.
     HEALTH_KEYS = ("app", "pob", "build", "hotkey", "market")
+    _LABELS = {
+        "app": "ExileLens",
+        "pob": "Path of Building",
+        "build": "Build",
+        "hotkey": "Item check hotkey",
+        "market": "Market",
+    }
+    INTRO = "A quick view of whether ExileLens is ready to use. Details appear when something needs attention."
 
-    def __init__(self, controller: EvaluationController, settings: AppSettings, update_service, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("diagnosticsPage")
+    def __init__(
+        self,
+        controller: EvaluationController,
+        settings: AppSettings,
+        update_service,
+        parent: QWidget | None = None,
+        *,
+        navigate=None,
+    ) -> None:
+        super().__init__("Diagnostics", sticky_header=True, object_name="diagnosticsPage", parent=parent)
         self.controller = controller
         self.settings = settings
         self.update_service = update_service
+        self._navigate = navigate
+        self._scroll_area = self.scroll
+        self.scroll.setObjectName("diagnosticsScrollArea")
 
-        from exilelens.ui import theme
-        from exilelens.ui.components import Disclosure, HealthRow, Section, button_row, make_button
-        from exilelens.ui.ui_icons import apply_button_icon
+        # --- header action ---------------------------------------------------------------------
+        self._refresh_btn = make_button("Refresh", "tertiary", compact=True, icon="")
+        self._refresh_btn.setIcon(outline_icon("refresh", theme.TEXT_BODY, 16))
+        self._refresh_btn.clicked.connect(self.refresh)
+        self.header.actions.addWidget(self._refresh_btn)
 
-        ui_scale = float(getattr(settings, "ui_scale", 1.0) or 1.0)
-
-        title = QLabel("Diagnostics")
-        title.setObjectName("pageTitle")
-
-        health = Section("Application health")
-        health_intro = QLabel(
-            "A quick view of whether ExileLens is ready to use. Details appear when something needs attention."
-        )
-        health_intro.setObjectName("helperText")
-        health_intro.setWordWrap(True)
-        health.add_widget(health_intro)
-        self._health_rows: dict[str, HealthRow] = {}
-        for key, label in (
-            ("app", "ExileLens"),
-            ("pob", "Path of Building"),
-            ("build", "Build"),
-            ("hotkey", "Item check hotkey"),
-            ("market", "Market"),
-        ):
-            row = HealthRow(label)
+        # --- application health ---------------------------------------------------------------------
+        health = QWidget()
+        health_layout = QVBoxLayout(health)
+        health_layout.setContentsMargins(0, 0, 0, 0)
+        health_layout.setSpacing(0)
+        heading = QLabel("Application health")
+        heading.setObjectName("sectionHeading")
+        self._verdict = QLabel(self.INTRO)
+        self._verdict.setObjectName("helperText")
+        self._verdict.setWordWrap(True)
+        health_layout.addWidget(heading)
+        health_layout.addWidget(self._verdict)
+        health_layout.addSpacing(8)
+        self._rows_group = SettingsGroup()
+        self._health_rows: dict[str, HealthGridRow] = {}
+        for key in self.HEALTH_KEYS:
+            row = HealthGridRow(self._LABELS[key])
             self._health_rows[key] = row
-            health.add_widget(row)
+            self._rows_group.add_row(row)
+        # The optional elevation row only exists when the product reports something about it.
+        self._elevation_row = HealthGridRow("Hotkey access")
+        self._elevation_row.setVisible(False)
+        self._rows_group.add_row(self._elevation_row)
+        health_layout.addWidget(self._rows_group)
         self._support_hint = QLabel("")
         self._support_hint.setObjectName("helperText")
         self._support_hint.setWordWrap(True)
         self._support_hint.setVisible(False)
-        health.add_widget(self._support_hint)
+        self._support_hint.setContentsMargins(0, 8, 0, 0)
+        health_layout.addWidget(self._support_hint)
         self._structured_error_hint = QLabel("")
         self._structured_error_hint.setObjectName("helperText")
         self._structured_error_hint.setWordWrap(True)
         self._structured_error_hint.setVisible(False)
-        health.add_widget(self._structured_error_hint)
+        self._structured_error_hint.setContentsMargins(0, 8, 0, 0)
+        health_layout.addWidget(self._structured_error_hint)
+        self.column.addWidget(health)
 
-        report = Section("Report a problem")
+        # --- report a problem --------------------------------------------------------------------------
+        report = QWidget()
+        report_layout = QVBoxLayout(report)
+        report_layout.setContentsMargins(0, 0, 0, 0)
+        report_layout.setSpacing(0)
+        report_heading = QLabel("Report a problem")
+        report_heading.setObjectName("sectionHeading")
         report_intro = QLabel(
             "Copy diagnostics or export a support package, then open a GitHub issue if you need help. "
             "Nothing is sent automatically."
         )
         report_intro.setObjectName("helperText")
         report_intro.setWordWrap(True)
-        report.add_widget(report_intro)
+        report_layout.addWidget(report_heading)
+        report_layout.addWidget(report_intro)
+        report_layout.addSpacing(10)
         self._repro_notes = QTextEdit()
         self._repro_notes.setPlaceholderText("Optional: what were you doing when the problem happened?")
-        self._repro_notes.setMaximumHeight(72)
-        report.add_widget(self._repro_notes)
-        self._copy_btn = make_button("Copy diagnostics", "primary")
+        self._repro_notes.setFixedHeight(76)
+        self._repro_notes.setAccessibleName("What were you doing when the problem happened?")
+        report_layout.addWidget(self._repro_notes)
+        report_layout.addSpacing(12)
+        self._copy_btn = make_button("Copy diagnostics", "secondary")
         self._copy_btn.setToolTip("Copies a privacy-safe diagnostic summary for GitHub issues.")
         self._copy_btn.clicked.connect(self._copy)
         self._export_bundle_btn = make_button("Export support package", "secondary")
         self._export_bundle_btn.setToolTip("Save a reviewed ZIP bundle for support (logs and diagnostics).")
         self._export_bundle_btn.clicked.connect(self._export_support_bundle)
-        self._report_issue_btn = make_button("Report an issue", "tertiary")
+        # The GitHub mark, not a generic external-link icon: it says where this goes.
+        self._report_issue_btn = make_button("Report an issue", "tertiary", icon="github")
         self._report_issue_btn.setToolTip("Open the ExileLens issue tracker on GitHub.")
         self._report_issue_btn.clicked.connect(self._open_github_issues)
-        apply_button_icon(self._report_issue_btn, "github", ui_scale=ui_scale)
-        report.add_layout(button_row([self._copy_btn, self._export_bundle_btn, self._report_issue_btn]))
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(10)
+        for button in (self._copy_btn, self._export_bundle_btn, self._report_issue_btn):
+            actions.addWidget(button)
+        actions.addStretch(1)
+        report_layout.addLayout(actions)
         self._report_status = QLabel("")
         self._report_status.setObjectName("helperText")
         self._report_status.setWordWrap(True)
-        report.add_widget(self._report_status)
+        self._report_status.setContentsMargins(0, 8, 0, 0)
+        report_layout.addWidget(self._report_status)
+        self.column.addWidget(report)
 
+        # --- advanced diagnostics (collapsed) -------------------------------------------------------------
         self._advanced = Disclosure("Advanced diagnostics")
         self._session_label = QLabel("")
         self._session_label.setObjectName("helperText")
@@ -850,16 +912,22 @@ class DiagnosticsPage(QWidget):
         self._event_history.add_widget(self._event_history_text)
         self._advanced.add_widget(self._event_history)
 
-        self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary")
+        self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary", compact=True)
         self._verbose_btn.setToolTip("Records extra diagnostic detail locally for the next 15 minutes.")
         self._verbose_btn.clicked.connect(self._enable_verbose_diagnostics)
-        self._clear_history_btn = make_button("Clear diagnostic history", "tertiary")
+        self._clear_history_btn = make_button("Clear diagnostic history", "tertiary", compact=True)
         self._clear_history_btn.setToolTip("Removes stored diagnostic events from this installation.")
         self._clear_history_btn.clicked.connect(self._clear_diagnostic_history)
-        self._logs_btn = make_button("Open logs", "secondary")
+        self._logs_btn = make_button("Open logs", "secondary", compact=True)
         self._logs_btn.setToolTip("Opens the ExileLens log folder in your file manager.")
         self._logs_btn.clicked.connect(self._open_logs)
-        self._advanced.add_layout(button_row([self._verbose_btn, self._clear_history_btn, self._logs_btn]))
+        tool_row = QHBoxLayout()
+        tool_row.setContentsMargins(0, 0, 0, 0)
+        tool_row.setSpacing(8)
+        for button in (self._verbose_btn, self._clear_history_btn, self._logs_btn):
+            tool_row.addWidget(button)
+        tool_row.addStretch(1)
+        self._advanced.add_layout(tool_row)
 
         self._technical_report = Disclosure("Technical report")
         raw_help = QLabel("Raw technical dump for deep troubleshooting (allowlisted global report).")
@@ -875,52 +943,70 @@ class DiagnosticsPage(QWidget):
         self._text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         self._text.setMinimumHeight(180)
         self._text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
-        self._refresh_btn = make_button("Refresh", "tertiary")
-        self._refresh_btn.clicked.connect(self.refresh)
         self._technical_report.add_widget(self._build_info)
         self._technical_report.add_widget(self._text)
-        self._technical_report.add_layout(button_row([self._refresh_btn]))
         self._advanced.add_widget(self._technical_report)
-
-        content = QWidget()
-        content.setObjectName("diagnosticsScrollContent")
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(theme.SECTION_GAP)
-        content_layout.addWidget(health)
-        content_layout.addWidget(report)
-        content_layout.addWidget(self._advanced)
-        content_layout.addStretch(1)
-        self._content_layout = content_layout
-
-        self._scroll_area = QScrollArea()
-        self._scroll_area.setObjectName("diagnosticsScrollArea")
-        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll_area.setWidgetResizable(True)
-        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._scroll_area.setWidget(content)
-        apply_scroll_area_theme(self._scroll_area, viewport_object_name="diagnosticsScrollViewport")
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(theme.SPACE_LG)
-        layout.addWidget(title)
-        layout.addWidget(self._scroll_area, 1)
+        self.column.addWidget(self._advanced)
+        self.finish()
+        self.column.setSpacing(30)
 
         self._advanced.toggled.connect(self._on_advanced_toggled)
         self._technical_report.toggled.connect(self._on_technical_report_toggled)
         self.refresh()
 
     def _on_advanced_toggled(self, expanded: bool) -> None:
-        self._content_layout.setStretchFactor(self._advanced, 1 if expanded else 0)
+        return None
 
     def _on_technical_report_toggled(self, expanded: bool) -> None:
-        # Only the technical dump should grow vertically inside Advanced diagnostics.
-        self._technical_report.setSizePolicy(
-            QSizePolicy.Policy.Preferred,
-            QSizePolicy.Policy.Expanding if expanded else QSizePolicy.Policy.Preferred,
-        )
+        return None
+
+    def expand_advanced(self) -> None:
+        self._advanced.set_expanded(True)
+
+    def _verdict_text(self, status) -> str:
+        """One line of consequence under the heading when something is wrong."""
+        from exilelens.ui import status_model
+
+        key = status.key
+        if key in (status_model.DISCONNECTED, status_model.CONNECTING):
+            return "Item checks are paused until Path of Building reconnects."
+        if key == status_model.SETUP:
+            return "ExileLens needs a little setup before it can evaluate items."
+        return "Something needs attention."
+
+    def _row_action(self, key: str, item, *, primary: bool):
+        """The fix button for a problem row, using only actions the product already supports."""
+        if item.status not in ("warn", "error"):
+            return None
+        label = {
+            "Reconnect": "Reconnect",
+            "Locate Path of Building": "Locate Path of Building",
+            "Choose build": "Choose build",
+            "Choose another build": "Choose another build",
+            "Refresh": "Refresh",
+        }.get(item.action)
+        if key == "hotkey":
+            label = "Open settings"  # no concrete cause or one-click fix is known; Settings is where the hotkey lives
+        if not label:
+            return None
+        button = make_button(label, "primary" if primary else "secondary", compact=True)
+        button.clicked.connect(lambda _c=False, name=label: self._run_row_action(name))
+        return button
+
+    def _run_row_action(self, label: str) -> None:
+        if label == "Reconnect":
+            self.controller.restart_engine()
+        elif label in ("Choose build", "Choose another build"):
+            from exilelens.ui.setup_dialog import pick_build_file
+
+            path = pick_build_file(self.settings.build_path)
+            if path:
+                self.controller.change_build(path)
+        elif label == "Refresh":
+            self.controller.reload_evaluation_build()
+        elif label in ("Locate Path of Building", "Open settings") and self._navigate is not None:
+            self._navigate("settings")
+        self.refresh()
 
     def health_summary(self) -> dict[str, tuple[str, str]]:
         """Test/debug helper: ``key -> (value, status)`` as currently rendered."""
@@ -1009,17 +1095,29 @@ class DiagnosticsPage(QWidget):
 
     def refresh(self) -> None:
         from exilelens.app.diagnostics import build_global_diagnostics
-        from exilelens.ui.health import derive_health
+        from exilelens.ui import status_model
 
-        health = derive_health(self.controller, self.settings)
+        status = status_model.derive_status(self.controller, self.settings)
+        health = status.health
+        self._last_status = status
+        first_problem_done = False
         for key in self.HEALTH_KEYS:
             item = getattr(health, key)
+            problem = item.status in ("warn", "error")
             # The value stays short; the explanation goes on its own wrapped line
             # so a long path can never set the width of the page.
-            detail = item.detail if item.status in ("warn", "error") else ""
-            self._health_rows[key].set_value(item.value, item.status, detail)
+            detail = item.detail if (problem or item.key == "market") else ""
+            action = self._row_action(key, item, primary=problem and not first_problem_done)
+            if action is not None and problem:
+                first_problem_done = True
+            self._health_rows[key].set_item(item.value, item.status, detail, action)
+        elevation = health.elevation
+        self._elevation_row.setVisible(elevation is not None and elevation.status in ("warn", "error"))
+        if elevation is not None and self._elevation_row.isVisibleTo(self):
+            self._elevation_row.set_item(elevation.value, elevation.status, elevation.detail)
 
         degraded = [getattr(health, key) for key in self.HEALTH_KEYS if getattr(health, key).status in ("warn", "error")]
+        self._verdict.setText(self._verdict_text(status) if degraded else self.INTRO)
         if degraded:
             actions = [item.action for item in degraded if item.action]
             recovery = actions[0] if actions else "the relevant recovery action"

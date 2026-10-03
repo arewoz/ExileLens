@@ -173,6 +173,9 @@ class ExileLensApp:
         app.setApplicationName(APP_NAME)
         app.setApplicationDisplayName(APP_NAME)
         app.setApplicationVersion(__version__)
+        from exilelens.ui.fonts import register_bundled_fonts
+
+        register_bundled_fonts()
         icon = app_icon()
         if icon is not None:
             app.setWindowIcon(icon)

@@ -84,6 +84,18 @@ UI brand icons (dashboard and tray)
     https://heroicons.com
     License: MIT
 
+Dashboard icons (navigation, status, refresh, chevrons)
+  Heroicons (outline family), drawn at runtime from the same path data
+    https://heroicons.com
+    Copyright (c) Tailwind Labs, Inc.
+    License: MIT
+
+Spectral (build name on the Overview page; included only when the font files
+are present in assets/fonts, otherwise Georgia is used)
+  https://github.com/productiontype/Spectral
+  Copyright 2017 The Spectral Project Authors
+  License: SIL Open Font License 1.1 (https://openfontlicense.org)
+
 Source availability
 -------------------
 

@@ -146,7 +146,8 @@ def test_dashboard_and_settings_share_update_service_instance(monkeypatch, tmp_p
         assert dashboard._diagnostics.update_service is dashboard.update_service
         dashboard.update_service.state_changed.emit("available", "8.8.8b8")
         assert "8.8.8b8" in dashboard._settings_page._updates_panel._status.text()
-        assert "8.8.8b8" in dashboard._update_indicator.text()
+        assert dashboard._rail.update_text() == "Update available"
+        assert "8.8.8b8" in dashboard._update_notice_title.text()
     finally:
         controller.shutdown()
         dashboard.deleteLater()

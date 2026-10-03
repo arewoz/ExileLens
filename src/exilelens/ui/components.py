@@ -59,9 +59,15 @@ class StatusDot(QWidget):
     def __init__(self, status: str = "neutral", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._status = status
-        size = theme.STATUS_DOT_SIZE
-        self.setFixedSize(size + 4, size + 4)
+        self._size = theme.STATUS_DOT_SIZE
+        self.setFixedSize(self._size + 4, self._size + 4)
         self.setObjectName("statusDot")
+
+    def set_dot_size(self, size: int) -> None:
+        """Dot diameter in px (the widget keeps 4px of breathing room around it)."""
+        self._size = int(size)
+        self.setFixedSize(self._size + 4, self._size + 4)
+        self.update()
 
     def status(self) -> str:
         return self._status
@@ -77,7 +83,7 @@ class StatusDot(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(status_color(self._status)))
-        size = theme.STATUS_DOT_SIZE
+        size = self._size
         offset = (self.width() - size) // 2
         painter.drawEllipse(offset, (self.height() - size) // 2, size, size)
         painter.end()
@@ -267,13 +273,13 @@ class SegmentedControl(QWidget):
         self._buttons: dict[str, QPushButton] = {}
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(3, 3, 3, 3)
-        row.setSpacing(3)
+        row.setContentsMargins(2, 2, 2, 2)
+        row.setSpacing(2)
         for value, label in options:
             button = QPushButton(label)
             button.setObjectName("segmentButton")
             button.setCheckable(True)
-            button.setMinimumHeight(theme.SEGMENT_HEIGHT - 6)
+            button.setMinimumHeight(theme.SEGMENT_HEIGHT - 4)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setProperty("value", value)
             button.clicked.connect(lambda _checked=False, v=value: self._on_clicked(v))
@@ -289,9 +295,9 @@ class SegmentedControl(QWidget):
         # its first character.
         self._apply_uniform_width(options)
 
-    _SEGMENT_FONT_PX = 12
+    _SEGMENT_FONT_PX = 13
     #: 14px padding each side + 1px border each side, plus slack for the bold delta.
-    _SEGMENT_CHROME = 34
+    _SEGMENT_CHROME = 30
 
     def _apply_uniform_width(self, options: Sequence[tuple[str, str]]) -> None:
         from PySide6.QtGui import QFont
@@ -518,18 +524,54 @@ class ThemedCheckBox(QCheckBox):
         return hint
 
 
-def make_button(text: str, tier: str = "secondary", *, tooltip: str = "") -> QPushButton:
-    """Create a button in one of the four explicit tiers."""
+def make_button(
+    text: str,
+    tier: str = "secondary",
+    *,
+    tooltip: str = "",
+    compact: bool = False,
+    icon: str = "",
+) -> QPushButton:
+    """Create a button in one of the explicit tiers.
+
+    ``primary`` is the single champagne action of a view region. ``branded`` is a
+    secondary button that carries an existing brand mark (``icon`` names an asset in
+    ``assets/ui``) -- used once, for "Support on Patreon". Keyboard focus is shown on Tab
+    only (``TabFocus``), so clicking a button never leaves a focus ring behind.
+    """
     object_names = {
         "primary": "btnPrimary",
         "secondary": "btnSecondary",
         "tertiary": "btnTertiary",
         "destructive": "btnDestructive",
+        "branded": "btnBranded",
     }
     button = QPushButton(text)
     button.setObjectName(object_names.get(tier, "btnSecondary"))
-    button.setMinimumHeight(theme.CONTROL_HEIGHT)
+    button.setMinimumHeight(theme.CONTROL_HEIGHT_COMPACT if compact else theme.CONTROL_HEIGHT)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+    if compact:
+        button.setProperty("compact", True)
+    if icon:
+        from exilelens.ui.ui_icons import apply_button_icon
+
+        apply_button_icon(button, icon)
+    if tooltip:
+        button.setToolTip(tooltip)
+    return button
+
+
+def make_link_button(text: str, tooltip: str = "") -> QPushButton:
+    """White underlined-on-hover link for in-app navigation ("Open analysis")."""
+    button = QPushButton(text)
+    button.setObjectName("linkButton")
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+    button.setFlat(True)
+    font = button.font()
+    font.setUnderline(True)
+    button.setFont(font)
     if tooltip:
         button.setToolTip(tooltip)
     return button

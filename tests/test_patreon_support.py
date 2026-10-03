@@ -42,7 +42,7 @@ def test_open_patreon_handles_browser_exception(monkeypatch: pytest.MonkeyPatch)
     assert recovery_actions.open_patreon() is False
 
 
-def test_overview_and_tray_expose_same_patreon_action(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+def test_rail_and_tray_expose_same_patreon_action_and_overview_has_no_promo(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     _app(monkeypatch)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
@@ -50,7 +50,7 @@ def test_overview_and_tray_expose_same_patreon_action(monkeypatch: pytest.Monkey
     from exilelens.app.settings import AppSettings
     from exilelens.ui.dashboard_window import DashboardWindow
     from exilelens.ui.tray import TrayManager
-    from PySide6.QtWidgets import QFrame, QLabel, QMenu, QPushButton
+    from PySide6.QtWidgets import QLabel, QMenu, QPushButton
 
     settings = AppSettings()
     controller = EvaluationController(settings)
@@ -68,15 +68,13 @@ def test_overview_and_tray_expose_same_patreon_action(monkeypatch: pytest.Monkey
     monkeypatch.setattr("exilelens.ui.recovery_actions.open_patreon", lambda: calls.append(True))
     try:
         overview = dashboard._overview
-        support_card = overview.findChild(QFrame, "patreonSupportCard")
-        assert support_card is not None
-        assert "Enjoying ExileLens?" in [label.text() for label in support_card.findChildren(QLabel)]
-        dashboard_button = next(
-            button
-            for button in overview.findChildren(QPushButton)
-            if button.text() == "Support on Patreon"
-        )
-        dashboard_button.click()
+        # The old "Enjoying ExileLens?" promo card is gone: Support ExileLens lives in the rail only.
+        assert overview.findChild(QPushButton, "patreonSupportCard") is None
+        assert "Enjoying ExileLens?" not in [label.text() for label in overview.findChildren(QLabel)]
+        assert not [b for b in overview.findChildren(QPushButton) if "Patreon" in b.text()]
+
+        rail_button = dashboard._rail.link_buttons()["support"]
+        rail_button.click()
 
         tray_action = next(
             action
@@ -111,12 +109,12 @@ def test_patreon_icon_uses_existing_asset_loader_and_sidebar_slot(monkeypatch: p
     controller = EvaluationController(settings)
     dashboard = DashboardWindow(settings, controller)
     try:
-        sidebar_button = next(
-            button for button in dashboard.findChildren(QPushButton)
-            if button.text() == "Support ExileLens"
-        )
+        links = dashboard._rail.link_buttons()
+        sidebar_button = links["support"]
         assert sidebar_button.text() == "Support ExileLens"
-        assert sidebar_button.objectName() == "navButtonSecondary"
+        # Stronger than the utility links, and still the exact shipped Patreon mark.
+        assert sidebar_button.objectName() == "railSupport"
+        assert links["discord"].objectName() == "railLink" and links["issues"].objectName() == "railLink"
         assert not sidebar_button.icon().isNull()
 
         labels = [button.text() for button in dashboard.findChildren(QPushButton)]
