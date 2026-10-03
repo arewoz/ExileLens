@@ -185,8 +185,11 @@ _TEMPLATE = """
 
 /* scrollbars: thin, quiet */
 @ROOT@ QScrollArea { background: transparent; border: 0; }
+/* the border carries the focus ring; suppress the style's own inner focus rectangle */
+@ROOT@ QPushButton, @ROOT@ QToolButton, @ROOT@ QComboBox, @ROOT@ QAbstractItemView { outline: none; }
 @ROOT@ QScrollBar:vertical { background: transparent; width: 10px; margin: 0; }
 @ROOT@ QScrollBar::handle:vertical { background: rgba(255,255,255,40); border-radius: 3px; min-height: 28px; margin: 0 2px; }
+@ROOT@ QScrollBar::handle:vertical:disabled { background: transparent; }
 @ROOT@ QScrollBar::handle:vertical:hover { background: rgba(255,255,255,70); }
 @ROOT@ QScrollBar::add-line:vertical, @ROOT@ QScrollBar::sub-line:vertical { height: 0; }
 @ROOT@ QScrollBar::add-page:vertical, @ROOT@ QScrollBar::sub-page:vertical { background: transparent; }

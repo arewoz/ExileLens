@@ -247,10 +247,12 @@ class AnalysisWindow(ColumnPage):
 
         # --- upgrade opportunities and details ------------------------------------------------------------
         self._list = QListWidget()
+        self._list.setAccessibleName("Upgrade opportunities")
         self._list.setWordWrap(True)
         self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._list.setMinimumWidth(190)
         self._detail = QTextEdit()
+        self._detail.setAccessibleName("Upgrade opportunity details")
         self._detail.setReadOnly(True)
         # Text wraps to the pane; the page never needs a horizontal scrollbar.
         self._detail.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
@@ -462,8 +464,11 @@ class AnalysisWindow(ColumnPage):
     def _render_coverage(self) -> None:
         while self._coverage_lines.count():
             item = self._coverage_lines.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is not None:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
         summary = self._view.get("coverage_summary") or {}
         label = str(summary.get("label") or "")
         self._coverage_host.heading.setText(f"Analysis coverage · {label}" if label else "Analysis coverage")  # type: ignore[attr-defined]

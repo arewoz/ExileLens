@@ -13,7 +13,6 @@ from typing import Callable, Sequence
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -232,8 +231,8 @@ class StatusRail(QWidget):
         column.addWidget(self._top_divider)
         column.addSpacing(8)
 
-        self._group = QButtonGroup(self)
-        self._group.setExclusive(True)
+        # No QButtonGroup: Qt treats a group of checkable buttons as one tab stop, so keyboard users could not
+        # Tab to each destination. set_current() keeps exactly one button checked instead.
         self._nav_buttons: dict[str, _NavButton] = {}
         nav = QVBoxLayout()
         nav.setContentsMargins(0, 0, 0, 0)
@@ -245,7 +244,6 @@ class StatusRail(QWidget):
             for page_id, label, icon_name in items:
                 button = _NavButton(page_id, label, icon_name)
                 button.clicked.connect(lambda _checked=False, pid=page_id: self.navigate_requested.emit(pid))
-                self._group.addButton(button)
                 self._nav_buttons[page_id] = button
                 nav.addWidget(button)
         column.addLayout(nav)
@@ -281,9 +279,9 @@ class StatusRail(QWidget):
                 links.addSpacing(5)
         column.addLayout(links)
 
-        version_row = QHBoxLayout()
+        version_row = QVBoxLayout()  # the update action sits under the version so neither ever clips
         version_row.setContentsMargins(12, 10, 0, 0)
-        version_row.setSpacing(8)
+        version_row.setSpacing(2)
         self._version = QLabel(version_text)
         self._version.setObjectName("railVersion")
         self._update_button = QPushButton("")
@@ -292,9 +290,8 @@ class StatusRail(QWidget):
         self._update_button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self._update_button.clicked.connect(self.update_action_requested.emit)
         self._update_button.hide()
-        version_row.addWidget(self._version, 0)
-        version_row.addWidget(self._update_button, 0)
-        version_row.addStretch(1)
+        version_row.addWidget(self._version, 0, Qt.AlignmentFlag.AlignLeft)
+        version_row.addWidget(self._update_button, 0, Qt.AlignmentFlag.AlignLeft)
         self._version_row_widget = QWidget()
         self._version_row_widget.setLayout(version_row)
         column.addWidget(self._version_row_widget)
@@ -340,9 +337,8 @@ class StatusRail(QWidget):
         return self._compact
 
     def set_current(self, page_id: str) -> None:
-        button = self._nav_buttons.get(page_id)
-        if button is not None:
-            button.setChecked(True)
+        for key, button in self._nav_buttons.items():
+            button.setChecked(key == page_id)
 
     def set_page_visible(self, page_id: str, visible: bool) -> None:
         button = self._nav_buttons.get(page_id)
@@ -387,6 +383,9 @@ class StatusRail(QWidget):
             button.set_compact(compact)
         for key, button in self._links.items():
             label = next(spec[1] for spec in _LINK_SPECS if spec[0] == key)
+            # Re-resolve the stylesheet first: QStyleSheetStyle rewrites min/max sizes on repolish, which would
+            # otherwise undo the fixed sizes set below.
+            set_property(button, "compact", compact)
             if compact:
                 button.setText("")
                 button.setFixedSize(44, 40 if key == "support" else 36)
@@ -397,7 +396,6 @@ class StatusRail(QWidget):
                 button.setMaximumWidth(16777215)
                 button.setFixedHeight(40 if key == "support" else 36)
                 button.setToolTip(next(spec[3] for spec in _LINK_SPECS if spec[0] == key))
-            set_property(button, "compact", compact)
         self._version_row_widget.setVisible(not compact)
         self._update_button.setVisible(bool(self._update_button.text()) and not compact)
         if self._status is not None:

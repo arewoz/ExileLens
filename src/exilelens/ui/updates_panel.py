@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from exilelens.app.settings import AppSettings
 from exilelens.ui.components import make_button, make_link_button
-from exilelens.ui.dashboard_widgets import Notice, SettingsGroup, SettingsRow
+from exilelens.ui.dashboard_widgets import Notice, SettingsGroup, SettingsRow, WrapLabel
 
 SEAMLESS_TITLE = "Seamless automatic updates"
 SEAMLESS_FULL = (
@@ -99,9 +99,8 @@ class UpdatesPanel(QWidget):
         self._bar.setRange(0, 100)
         self._bar.setTextVisible(False)
         self._bar.setVisible(False)
-        self._extra = QLabel("")
+        self._extra = WrapLabel("")
         self._extra.setObjectName("bodyText")
-        self._extra.setWordWrap(True)
         self._extra.setVisible(False)
         self._extra.setMaximumWidth(620)
         self._last_result = Notice("", "plain")
@@ -231,8 +230,6 @@ class UpdatesPanel(QWidget):
                 ),
             }.get(state, "")
         if state == "available":
-            label = f"Update available: {version}"
-            text = "Download installs the signed package after verification."
             self._status.setText(f"Update available: {version}. Download installs the signed package after verification.")
         else:
             self._status.setText(text)
@@ -253,6 +250,12 @@ class UpdatesPanel(QWidget):
     def _sync_extras(self) -> None:
         widgets = (self._progress, self._bar, self._extra, self._last_result)
         self._extras_host.setVisible(any(not widget.isHidden() for widget in widgets))
+        # Wrapped labels toggled after the first layout pass need their height-for-width re-asked.
+        for widget in widgets:
+            widget.updateGeometry()
+        self._extras.invalidate()
+        self._extras_host.updateGeometry()
+        self.updateGeometry()
 
     def _start_download(self) -> None:
         if not self.update_service.start_download():

@@ -314,6 +314,8 @@ class OverviewPage(ColumnPage):
             item = self._attention_layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.hide()  # deleteLater() alone leaves the old row painted until the event loop runs
+                widget.setParent(None)
                 widget.deleteLater()
 
     def _attention_row(self, title: str, detail: str, action: tuple[str, str] | None) -> QWidget:
@@ -434,6 +436,8 @@ class OverviewPage(ColumnPage):
             items = self._attention_items(status)
             for title, detail, action in items[:_MAX_ATTENTION_ROWS]:
                 self._attention_layout.addWidget(self._attention_row(title, detail, action))
+            if any(action and action[0] == "refresh" for _t, _d, action in items[:_MAX_ATTENTION_ROWS]):
+                self._refresh_btn.setVisible(False)  # the row below already offers Refresh
             extra = max(0, status.attention_count - len(items[:_MAX_ATTENTION_ROWS]))
             if extra:
                 more = make_link_button(f"+{extra} more in Diagnostics")

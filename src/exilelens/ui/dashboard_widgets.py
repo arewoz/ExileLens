@@ -38,6 +38,32 @@ def make_label(text: str = "", name: str = "bodyText", *, wrap: bool = True, sel
     return label
 
 
+class WrapLabel(QLabel):
+    """A word-wrapped label that keeps its own height right.
+
+    Nested layouts that are populated after the first layout pass sometimes keep the one-line height; this
+    label pins its minimum height to ``heightForWidth`` whenever its width or text changes.
+    """
+
+    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self.setWordWrap(True)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+
+    def _fit(self) -> None:
+        if self.width() > 0 and self.wordWrap():
+            self.setMinimumHeight(0)  # heightForWidth() never reports less than the current minimum
+            self.setMinimumHeight(self.heightForWidth(self.width()))
+
+    def setText(self, text: str) -> None:  # noqa: N802 - mirrors QLabel
+        super().setText(text)
+        self._fit()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._fit()
+
+
 def set_property(widget: QWidget, name: str, value) -> None:
     """Set a dynamic property and re-resolve the stylesheet so ``[name=value]`` rules apply."""
     if widget.property(name) == value:
@@ -200,7 +226,7 @@ class SettingsRow(QWidget):
     squeeze). Rows draw their own bottom hairline through the stylesheet.
     """
 
-    NARROW = 560
+    NARROW = 520
 
     def __init__(self, label: str = "", helper: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -253,7 +279,13 @@ class SettingsRow(QWidget):
         return widget
 
     def set_disabled_look(self, disabled: bool) -> None:
+        if self.property("disabledRow") == disabled:
+            return
         set_property(self, "disabledRow", disabled)
+        # Descendant selectors (QWidget#settingsRow[disabledRow] QLabel) do not re-polish children by themselves.
+        for label in self.findChildren(QLabel):
+            label.style().unpolish(label)
+            label.style().polish(label)
 
     # --- reflow ---
     def resizeEvent(self, event) -> None:  # noqa: N802
@@ -264,6 +296,9 @@ class SettingsRow(QWidget):
             self._outer.setDirection(QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight)
             self._outer.setSpacing(8 if stacked else 24)
             self._outer.setAlignment(self._right_host, Qt.AlignmentFlag.AlignLeft if stacked else Qt.AlignmentFlag.AlignVCenter)
+            # The direction change happens inside a layout pass: ask the parent to measure this row again.
+            self._outer.invalidate()
+            self.updateGeometry()
 
 
 class SettingsGroup(QWidget):
@@ -329,7 +364,7 @@ class PageHeader(QWidget):
         self.setObjectName("pageHeader")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         row = QHBoxLayout(self)
-        row.setContentsMargins(theme.PAGE_GUTTER, theme.PAGE_TOP, theme.PAGE_GUTTER, 14)
+        row.setContentsMargins(theme.PAGE_GUTTER, theme.PAGE_TOP, theme.PAGE_GUTTER + theme.SCROLLBAR_WIDTH, 14)  # right edge = the column's right axis
         row.setSpacing(16)
         self._row = row
         texts = QVBoxLayout()
@@ -352,7 +387,7 @@ class PageHeader(QWidget):
 
     def set_compact(self, compact: bool) -> None:
         gutter = theme.PAGE_GUTTER_COMPACT if compact else theme.PAGE_GUTTER
-        self._row.setContentsMargins(gutter, theme.PAGE_TOP, gutter, 14)
+        self._row.setContentsMargins(gutter, theme.PAGE_TOP, gutter + theme.SCROLLBAR_WIDTH, 14)
 
 
 class ColumnPage(QWidget):
@@ -462,8 +497,11 @@ class KeycapDisplay(QWidget):
         self._text = str(text)
         while self._layout.count():
             item = self._layout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is not None:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
         self._layout.addWidget(keycaps(self._text))
         self.setAccessibleName(f"Hotkey {self._text}")
 
@@ -614,6 +652,8 @@ class HealthGridRow(QWidget):
         self.setAccessibleName(f"{self._label.text()}: {value}")
         if self._action is not None:
             self._action_layout.removeWidget(self._action)
+            self._action.hide()
+            self._action.setParent(None)
             self._action.deleteLater()
             self._action = None
         if action is not None:

@@ -171,7 +171,7 @@ class FakeCloud:
 
 
 class Harness:
-    def __init__(self, profile: Path) -> None:
+    def __init__(self, profile: Path, text_scale: float = 1.0) -> None:
         os.environ["LOCALAPPDATA"] = str(profile)
         from PySide6.QtWidgets import QApplication
 
@@ -197,6 +197,16 @@ class Harness:
         from exilelens.ui.dashboard_window import DashboardWindow
 
         self.window = DashboardWindow(self.settings, self.controller)
+        if text_scale != 1.0:
+            # Text-only scaling (Windows "Text size"): grow every pixel font in the sheet, leave geometry alone.
+            import re
+
+            self.window.setStyleSheet(
+                re.sub(r"font-size:\s*(\d+(?:\.\d+)?)px", lambda m: f"font-size: {round(float(m.group(1)) * text_scale)}px", self.window.styleSheet())
+            )
+            font = self.app.font()
+            font.setPointSizeF(font.pointSizeF() * text_scale)
+            self.app.setFont(font)
         self.window.show_dashboard()
         self.state = "ready"
         self.set_state("ready")
@@ -277,7 +287,7 @@ class Harness:
             self.window.navigate(page)
         self.window.resize(*size)
         self.window.move(40, 40)
-        for _ in range(6):
+        for _ in range(30):  # height-for-width settles over several layout passes
             self.app.processEvents()
         out.mkdir(parents=True, exist_ok=True)
         path = out / f"{name}.png"
@@ -296,6 +306,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--no-frame", action="store_true")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--text-scale", type=float, default=1.0)
+    parser.add_argument("--suffix", default="")
     args = parser.parse_args(argv)
 
     from qa_states import STATE_REGISTRY  # type: ignore[import-not-found]
@@ -305,12 +317,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     names = sorted(STATE_REGISTRY) if args.all else args.states
     with tempfile.TemporaryDirectory(prefix="exilelens-ui-qa-") as tmp:
-        harness = Harness(Path(tmp))
+        harness = Harness(Path(tmp), args.text_scale)
         for name in names:
             builder = STATE_REGISTRY[name]
             builder(harness)
             for size_name in args.sizes:
-                path = harness.shot(f"{name}-{size_name}", SIZES[size_name], Path(args.out), frame=not args.no_frame)
+                path = harness.shot(f"{name}-{size_name}{args.suffix}", SIZES[size_name], Path(args.out), frame=not args.no_frame)
                 print(path)
         harness.controller.shutdown()
     return 0

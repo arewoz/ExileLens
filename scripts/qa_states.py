@@ -37,6 +37,11 @@ def _analysis(kind: str):
         h.set_state("ready")
         page = h.window._analysis
         controller = h.controller
+        from exilelens.ui.analysis_window import IDLE
+
+        page._result = None  # states are independent: drop whatever the previous analyze state left behind
+        page._set_state(IDLE)
+        controller.last_analysis = lambda: None  # type: ignore[method-assign]
         if kind != "empty":
             from tests.test_r1_analyze_build_ui import realistic_analysis
 

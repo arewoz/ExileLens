@@ -88,6 +88,7 @@ ROW_GAP = SPACE_SM
 LABEL_GAP = SPACE_XS
 ROW_MIN_HEIGHT = 48
 ROW_PAD = 9
+SCROLLBAR_WIDTH = 10  # always-on vertical scrollbar gutter on scrolling pages
 COLUMN_MAX_WIDTH = 716
 
 # --- radii -----------------------------------------------------------------------

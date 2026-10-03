@@ -20,7 +20,7 @@ from exilelens.app.settings import save_settings
 from exilelens.cloud import hooks
 from exilelens.cloud.patreon import PatreonState, PatreonView
 from exilelens.ui.components import StatusDot, make_button
-from exilelens.ui.dashboard_widgets import SettingsGroup, SettingsRow, ThemedSwitch
+from exilelens.ui.dashboard_widgets import SettingsGroup, SettingsRow, ThemedSwitch, WrapLabel
 
 MANUAL_NOTE = "Manual updates still work."
 
@@ -138,13 +138,13 @@ class PatreonPanel(QWidget):
         # Status row: headline + help in the not-linked entry state, a status sentence otherwise.
         self._status_row = SettingsRow(SUPPORT_HEADLINE)
         self._dot = StatusDot("neutral")
-        self.status = QLabel("")
+        self.status = WrapLabel("")
         self.status.setObjectName("bodyText")
-        self.status.setWordWrap(True)
+        self.status.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)  # centred beside the buttons
         status_left = QHBoxLayout()
         status_left.setContentsMargins(0, 0, 0, 0)
         status_left.setSpacing(8)
-        status_left.addWidget(self._dot, 0, Qt.AlignmentFlag.AlignTop)
+        status_left.addWidget(self._dot, 0, Qt.AlignmentFlag.AlignVCenter)
         status_left.addWidget(self.status, 1)
         status_host = QWidget()
         status_host.setLayout(status_left)
