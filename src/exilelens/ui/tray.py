@@ -62,6 +62,7 @@ class TrayManager(QSystemTrayIcon):
         dashboard.update_service.download_state_changed.connect(self._on_download_state)
         dashboard.update_service.download_progress.connect(self._on_download_progress)
         dashboard.update_service.install_outcome.connect(self._show_install_outcome)
+        dashboard.update_service.auto_update_ready.connect(self._show_auto_update_ready)
         controller.build_changed.connect(self._on_build_changed)
         controller.loadouts_changed.connect(self._on_loadouts_changed)
         controller.state_message.connect(self._show_message)
@@ -465,6 +466,15 @@ class TrayManager(QSystemTrayIcon):
         self.showMessage(
             APP_NAME,
             f"ExileLens {remote} is available\nYou're using {installed}",
+            QSystemTrayIcon.MessageIcon.Information,
+            8000,
+        )
+
+    def _show_auto_update_ready(self, version: str) -> None:
+        """Supporter automatic download finished: say what will happen; never restart by surprise."""
+        self.showMessage(
+            APP_NAME,
+            f"ExileLens {version} is ready\nIt installs when you close ExileLens — or restart from Settings → Updates.",
             QSystemTrayIcon.MessageIcon.Information,
             8000,
         )

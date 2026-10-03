@@ -121,6 +121,10 @@ class ExileLensApp:
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
         self._pob_autodetected = False
+        # Install-on-exit is only ever considered for a clean, user-initiated exit that is not part of a
+        # Windows logoff/shutdown. Both flags default to the safe value (no install).
+        self._clean_user_exit = False
+        self._session_ending = False
         migrate_character_build(self.settings)
         self._auto_configure_pob_path()
         if self._settings_load_error:
@@ -173,6 +177,7 @@ class ExileLensApp:
         if icon is not None:
             app.setWindowIcon(icon)
         app.aboutToQuit.connect(self._on_about_to_quit)
+        self._connect_session_end_signals(app)
         logger.info("app_start version=%s pid=%s exe=%s", __version__, os.getpid(), sys.executable)
 
         # A second copy would compete for the same global Item Check hotkey. It hands
@@ -249,6 +254,8 @@ class ExileLensApp:
             from exilelens.cloud.wiring import attach as attach_cloud
 
             self._cloud_wiring = attach_cloud(self.cloud, self.controller, self.dashboard.update_service)
+            # Entitlement is only a yes/no gate on automating the existing signed update flow.
+            self.dashboard.update_service.set_automation_gate(self.cloud.patreon.seamless_updates_allowed)
             self.cloud.start(pob_configured=bool(self.settings.pob_path))
             update_service = self.dashboard.update_service
             QTimer.singleShot(5000, lambda: self.cloud.report_startup(update_service))
@@ -269,8 +276,7 @@ class ExileLensApp:
         self.overlay.set_retry_handler(self.controller.retry_last_item_check)
         self.controller.pin_compare_changed.connect(self._on_pin_compare_changed)
         if quit_callback is None:
-            app = QApplication.instance()
-            quit_callback = app.quit if app is not None else None
+            quit_callback = self._user_quit
         self.tray = TrayManager(
             self.settings,
             self.controller,
@@ -1217,6 +1223,59 @@ class ExileLensApp:
         if self.market_assist_overlay:
             self.market_assist_overlay.flash_new_best()
 
+    def mark_user_exit(self) -> None:
+        """The user explicitly asked ExileLens to close (tray Exit, or closing the only window)."""
+        self._clean_user_exit = True
+
+    def _user_quit(self) -> None:
+        self.mark_user_exit()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
+
+    def _connect_session_end_signals(self, app) -> None:  # noqa: ANN001
+        """Windows logoff/shutdown/restart must never trigger an update install.
+
+        A tray-only app may have no native top-level Qt window, in which case Qt never sees the session
+        messages; the sentinel window guarantees one. ``system_shutting_down()`` is checked again at exit.
+        """
+        from PySide6.QtWidgets import QApplication as _QApplication
+
+        if isinstance(app, _QApplication):
+            try:
+                from exilelens.platform.windows.session_end import SessionEndSentinel
+
+                self._session_sentinel = SessionEndSentinel(app, self._on_session_ending)
+                return
+            except Exception:  # noqa: BLE001 - fall back to the plain application signals
+                logger.exception("session_sentinel_failed")
+        for name in ("commitDataRequest", "saveStateRequest"):
+            signal = getattr(app, name, None)
+            if signal is not None:
+                try:
+                    signal.connect(self._on_session_ending)
+                except Exception:  # noqa: BLE001
+                    logger.debug("session_end_signal_unavailable name=%s", name)
+
+    def _on_session_ending(self, *_args) -> None:
+        self._session_ending = True
+        logger.info("session_ending detected; install on exit disabled for this exit")
+
+    def _install_on_exit(self) -> None:
+        """Supporters only: hand an already verified and prepared update to the updater, WITHOUT relaunch.
+
+        Runs after the PoB worker and overlays are down. It never downloads or extracts; if anything is not
+        already verified and ready, or this is not a clean user-initiated exit, the update simply stays
+        pending for the next clean exit or an explicit Restart.
+        """
+        from exilelens.platform.windows.session_end import system_shutting_down
+
+        dashboard = getattr(self, "dashboard", None)
+        if dashboard is None or not self._clean_user_exit or self._session_ending or system_shutting_down():
+            return
+        if dashboard.update_service.begin_install_on_exit(parent_pid=os.getpid()):
+            logger.info("install_on_exit_started")
+
     def request_restart_for_update(self, *, parent_pid: int) -> None:
         dashboard = getattr(self, "dashboard", None)
         if dashboard is None:
@@ -1278,6 +1337,7 @@ class ExileLensApp:
         for window in (self.overlay, getattr(self, "market_assist_overlay", None), getattr(self, "tree_overlay", None)):
             if window is not None:
                 self._shutdown_step("overlay_hide", window.hide)
+        self._shutdown_step("install_on_exit", self._install_on_exit)
         # 7-9: tray, IPC, and finally the single-instance lock.
         if getattr(self, "_tray_retry_timer", None) is not None:
             self._tray_retry_timer.stop()

@@ -158,6 +158,15 @@ signature verifies, `bind_manifest_to_release()` requires all of the following:
 Any mismatch is a verification failure. For example, a valid old manifest
 attached to a newer-looking release is rejected as `tag_mismatch`.
 
+### Optional manifest field `seamless_eligible` (R2)
+
+`artifact`-level trust is unchanged. The signed manifest may carry `"seamless_eligible": false` to keep one
+release on the manual path even for supporters (for example after a risky layout change). Absent means
+eligible (older manifests); any non-boolean value is treated as `false`. It describes the *release*, never a
+person: Patreon entitlement is never encoded in a manifest. `release.yml` exposes it as the `seamless_eligible`
+dispatch input (default true). Security fixes must not be made manual-only for free users: this flag only
+removes *automation*, the manual updater always works.
+
 ### Download and archive bounds
 
 - **Downloads** never write past the signed `size`; an oversized stream is
@@ -358,6 +367,32 @@ just because the app wrote it. A worker thread re-verifies:
 Only then does it show the update as ready again, without downloading it again.
 Anything invalid, superseded or already installed is discarded together with its
 package.
+
+### Supporter automation (R2 Package C) on top of the same pipeline
+
+There is exactly one update pipeline: GitHub release → signed manifest (production key) → release binding →
+`DownloadManager` (size + SHA-256) → archive limits → persisted `ready.json` → updater v2. Entitlement is an
+optional **gate** (`UpdateService.set_automation_gate`, a `Callable[[], bool]` that must return exactly `True`),
+so no URL, hash, version or manifest can come from it, and nothing under `app/updates/` or `updater/` imports
+the cloud or entitlement modules (enforced by a test).
+
+With the gate open, `seamless_eligible` true and the matching toggles on:
+
+* **Check cadence:** every 6 hours instead of 24 (GitHub's unauthenticated limit is far above this).
+* **Automatic download** (`updates_auto_download`, default on): starts after a verified check when the disk has at
+  least 3× the package size free; at most one automatic attempt per version per session; a verified package is
+  announced once by a tray message that says when it will install.
+* **Pre-staging:** the verified package is extracted in the background so the exit step is short and bounded.
+* **Install on exit** (`updates_install_on_exit`, default on): at a *clean, user-initiated* exit (tray Exit, or
+  closing the only window) the app hands the prepared package to the updater with `restart_after_update: false`.
+  Nothing is downloaded or extracted at that point; if anything is not already verified and prepared the update
+  just stays pending. It is skipped for crashes, IPC/takeover quits, update restarts, an invalid ready state, an
+  out-of-date updater, a missing or expired lease, and whenever Windows is ending the session
+  (`commitDataRequest` through a hidden sentinel window, plus `GetSystemMetrics(SM_SHUTTINGDOWN)`).
+* The next normal launch runs the new version and shows "Updated to X"; nothing ever relaunches unasked.
+
+If the app is killed while the updater runs (for example a forced shutdown), the P0 journal recovers the install
+on the next start. Free users keep *Download & Install* / *Restart & Update* unchanged.
 
 ### Cleanup
 

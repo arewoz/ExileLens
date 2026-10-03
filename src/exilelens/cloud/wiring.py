@@ -157,7 +157,8 @@ class CloudWiring(QObject):
                 outcome = _DOWNLOAD_OUTCOMES.get(str(getattr(self._update.settings, "update_last_error", "") or ""), "other")
             else:
                 return
-            self._cloud.usage.update_download_completed(to_version=version, mode="manual", outcome=outcome, duration_seconds=elapsed)
+            mode = "auto" if getattr(self._update, "last_download_mode", "manual") == "auto" else "manual"
+            self._cloud.usage.update_download_completed(to_version=version, mode=mode, outcome=outcome, duration_seconds=elapsed)
         except Exception:  # noqa: BLE001
             logger.debug("cloud_download_slot_failed")
 

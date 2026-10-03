@@ -125,3 +125,85 @@ installations, D1/D7/D30 retention (small cohorts suppressed), active Item Check
 active installation, verdict distribution, Analyze Build adoption, top error groups with affected diagnostic
 installations, unexpected-session-end rate, update adoption and update failure rate. Every report is labelled
 *opted-in active installations — not users*.
+
+## Package B — Patreon link and entitlement lease
+
+Patreon is **not** an account system and not DRM. Linking only lets the service issue a signed statement that this
+device may automate updates (capability `seamless_updates`). Core features, the manual updater and telemetry are
+unaffected by whether Patreon is linked.
+
+### Flow (no client secret, no local server, no custom URI scheme)
+
+1. App → `POST /v1/patreon/link/start` → `session_id`, `poll_token`, `authorize_url` (TTL 10 min). The app opens the
+   URL only if it is exactly `https://www.patreon.com/oauth2/authorize` (no credentials, default port).
+2. Patreon → Worker `GET /v1/patreon/oauth/callback?code&state`: the state is single-use (atomically consumed), the code is
+   exchanged **server-side** with the client secret, `identity` is read once, the policy is evaluated, tokens are
+   stored encrypted (AES-256-GCM, AAD = link id).
+3. App polls `GET /v1/patreon/link/status` with the poll token. A wrong token and an unknown session produce an
+   identical `404`. The first poll after success atomically creates the device and returns the random device token
+   and the first lease **once**; later polls say `consumed`.
+4. Refresh: `POST /v1/patreon/entitlement/refresh` with the device token about every 24 h. Unlink:
+   `POST /v1/patreon/unlink` (idempotent). The app removes its local credential and lease first.
+
+### Data minimisation and separation
+
+Scope `identity` only (with a creator-registered client Patreon returns only the membership to the creator's campaign).
+Read: user id (stored only as an HMAC), `patron_status`, `is_gifted`, `is_free_trial`, entitled tier ids and tier
+`amount_cents`. Never requested: email, name, address, pledge history, posts. `PATREON_DB` is a different D1
+database with its own secrets; telemetry handlers cannot receive it and nothing is joined or shared.
+
+### Policy (server-side, replaceable)
+
+`ENTITLEMENT_POLICY` (Worker var): *any active paid tier* → `seamless_updates`; gifted and free-trial memberships
+are eligible; free memberships, declined/former patrons and memberships of other campaigns are not; an owner
+override list (by HMAC) covers the creator account. Changing tiers is a config deploy, not an app release.
+
+### Lease
+
+`{schema, kid, lease_id, sub, capabilities, issued_at, refresh_after, expires_at, policy_version}` signed with
+Ed25519; the signed message is `"exilelens/entitlement-lease/v1\n" + canonical JSON`. Refresh target 24 h, validity
+7 days. The key is separate from the update-signing key and its verifier set is disjoint from the update trust set
+(tests). The client's only output is a `frozenset` of known capability names; unknown capabilities and unknown fields
+cannot influence anything. A Worker-signed vector (`cloud/contract/lease_vector.json`) is verified by the Python
+client in the test suite.
+
+Outages: Cloudflare, D1 or Patreon down → `503` and no new lease, the client keeps its valid lease ("offline grace",
+at most the remainder of the 7 days) and backs off. Expired, missing, tampered or foreign-device lease → free behaviour.
+
+### Credential storage
+
+The device token is protected with per-user Windows DPAPI (`cloud\patreon\device.bin`, application-specific
+entropy, no size limit); the lease and status are non-secret files in the same folder. An unreadable credential
+shows "Please reconnect Patreon". Production leases cannot verify until the owner provisions
+`PRODUCTION_ENTITLEMENT_KEYS` (see `scripts/create_entitlement_key.py`), so supporter automation stays dark until
+activation.
+
+### Live-API assumptions that need a real account to prove
+
+Patreon's docs do not state whether PKCE is supported, how redirect URIs are matched, the real `expires_in`, whether an
+empty `fields[user]=` is accepted, or provide a token-revocation endpoint. The implementation assumes none of them;
+see *Live activation checks* in `cloud/README.md`.
+
+## Package C — Seamless updates
+
+Supporters (valid lease with `seamless_updates`, signed `seamless_eligible` not false) get: automatic background
+download, background pre-staging, install when ExileLens closes (cleanly, by the user, never during a Windows
+session end or after a crash), and an explicit **Restart now**. It is the **same** pipeline as the manual flow (see
+`docs/UPDATE_RELEASE_SIGNING.md`); entitlement is a yes/no gate with no way to supply a URL, hash, version or file.
+Free users keep *Download & Install* and *Restart & Update* unchanged, and nothing here ever restarts the app unasked.
+
+Settings → **Patreon supporter** shows the states: not connected, linking, active (with the two toggles, default on),
+connected but not eligible, offline grace, expired, reconnect required and service unavailable. Every non-active state
+says that manual updates still work.
+
+## Failure behaviour
+
+| Condition | Core app | Manual updates | Supporter automation | Cloud features |
+|---|---|---|---|---|
+| Cloudflare / D1 down, quota exhausted | works | works | valid lease keeps working (≤ 7 days) | queues stay bounded, back off, expire |
+| Patreon down | works | works | valid lease keeps working; new links fail with "temporarily unavailable" | unaffected |
+| Lease expired / tampered / wrong device | works | works | off (free behaviour) | unaffected |
+| Membership ended | works | works | off at the next lease (≤ 24 h, lease ≤ 7 d) | unaffected |
+| GitHub down | works | check fails quietly | no new updates | unaffected |
+| Bad signature / hash / manifest | works | blocked for that release | blocked | unaffected |
+| Session end (logoff/shutdown) | exits | — | install skipped, update stays pending | cloud queue saved locally |

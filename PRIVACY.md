@@ -74,7 +74,7 @@ described below.
 |---|---|---|
 | `api.github.com`, `github.com` (ExileLens releases) | A request for the list of ExileLens releases and, if a newer one exists, its signed update manifest. The update package is downloaded only when you choose to install it. No account, no identifier. | Packaged builds check at startup and at most about once every 24 hours. |
 | `www.pathofexile.com` (official Path of Exile site) | The structured market search derived from the item you checked (category, rarity, matched stat ranges), and the league list. Your raw clipboard/item text is not sent. | Only for the optional live-market features. |
-| ExileLens cloud service (`api` host of the project; **only if this build has it configured and you opted in**) | Only the items in "Optional usage statistics and error reports" below. | Only for the category you switched on. |
+| ExileLens cloud service (`api` host of the project; **only if this build has it configured**) | Opt-in usage statistics / error reports (items listed below), and, if you link Patreon, the device credential and lease refresh described below. | Only for what you switched on or linked. |
 
 **Your raw clipboard/item text is not sent over the network.** Only the
 structured values derived from it are, and only for the trade-search
@@ -140,6 +140,32 @@ for statistics.
 small bounded queue (500 items, 7 days), backs off, and eventually discards
 old items. Nothing about the app depends on it.
 
+## Optional Patreon supporter link
+
+Linking Patreon is optional, independent of the two switches above, and never required for any ExileLens
+feature. There is no ExileLens account. Settings → *Patreon supporter* → **Link Patreon** opens Patreon in your
+browser; you approve ExileLens's read-only `identity` access there. The ExileLens service (not the app) completes
+the sign-in and checks only **whether your membership currently includes a paid tier** (gifted memberships and free
+trials count; free memberships do not).
+
+* **What ExileLens receives:** a random *device credential* and a short-lived signed *lease* that says whether this
+  device may automate updates. It never receives your Patreon name, email, avatar, pledge amount, tokens or any other
+  profile data, and shows none.
+* **What the service stores:** a keyed hash of your Patreon user ID (so one person is not counted twice), your Patreon
+  access/refresh tokens **encrypted at rest** (needed to re-check the membership; deleted when you disconnect, and when
+  Patreon revokes them), which paid status applies, and a record per linked device (a hash of its credential, creation
+  and last-refresh times; at most 5, idle devices are deleted after 60 days). Link attempts are kept for minutes to
+  hours. Anonymous counts of link outcomes are kept 13 months.
+* **Separation:** Patreon data lives in a different database, with different secrets, from usage statistics and error
+  reports. The two use unrelated random identifiers and nothing links a Patreon identity to telemetry.
+* **On your PC:** the credential is stored with Windows DPAPI (readable only by your Windows account); the lease and a
+  small status file sit next to it under `cloud\patreon\`. They are not in `settings.json`.
+* **Disconnect Patreon** deletes the credential and lease from your PC immediately and asks the service to delete the
+  device (and your stored tokens if it was your last device). If the service is offline the local removal still happens.
+* **When the service or Patreon is unreachable,** a still-valid lease keeps working for up to 7 days; after that, or if
+  the lease is missing or invalid, ExileLens behaves like any free install. Manual updates always work.
+* **Network:** the app contacts the ExileLens service; the service (not the app) contacts `patreon.com`.
+
 ## Logging
 
 ExileLens writes a local, rotating application log
@@ -174,15 +200,16 @@ automatically. You can copy a diagnostics report yourself from the app's
 |---|---|---|
 | `www.pathofexile.com` (official PoE trade API) | Market/trade comparables, league list | Optional live-pricing feature |
 | `api.github.com` / `github.com` | Update check and (on your action) update download | Packaged builds, about once per 24 h |
-| ExileLens cloud service (Cloudflare Workers + D1) | Opt-in usage statistics and error reports | Only if configured in this build and switched on by you |
+| ExileLens cloud service (Cloudflare Workers + D1) | Opt-in usage statistics and error reports; optional Patreon link and lease refresh | Only if configured in this build and you opted in / linked |
+| Patreon (through the ExileLens service, in your browser) | Optional supporter sign-in | Only when you click Link Patreon |
 
 No other third-party service is contacted by ExileLens's normal
-operation. Patreon account linking is not part of this version.
+operation.
 
 ## Future features
 
 Planned features (such as syncing your character from your Path of Exile
-account, or optional Patreon linking) are **not implemented today** and
+account) are **not implemented today** and
 this document does not cover them. If and when such a feature ships, this
 document will be updated to describe what it actually reads, stores, and
 sends at that time — this privacy behavior may change as features are

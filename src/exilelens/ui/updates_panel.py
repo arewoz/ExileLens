@@ -152,7 +152,13 @@ class UpdatesPanel(QWidget):
         elif state == "ready":
             self._download_btn.setEnabled(True)
             self._cancel_btn.setVisible(False)
-            self._progress.setText("Update downloaded and verified. Restart to install.")
+            on_exit = getattr(self.update_service, "install_on_exit_enabled", None)
+            if callable(on_exit) and on_exit():
+                self._progress.setText(
+                    "Update downloaded and verified. It installs when ExileLens closes — or restart now."
+                )
+            else:
+                self._progress.setText("Update downloaded and verified. Restart to install.")
             self._progress.setVisible(True)
             self._restart_btn.setVisible(True)
         elif state == "installing":

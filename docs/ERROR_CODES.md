@@ -25,6 +25,12 @@ Authoritative definitions live in `src/exilelens/error_catalog/registry.py`.
 Each entry includes severity, user-facing title and explanation, recommended recovery action,
 retryability, and an allowlisted diagnostic metadata schema.
 
+### Application codes added by R2
+
+| Code | Meaning | Notes |
+|------|---------|-------|
+| EL-APP-100 | Unexpected session end | The previous session did not end cleanly (power loss, forced shutdown, Task Manager or a crash). Informational; only ever reported, as `exception_type = UnexpectedSessionEnd`, if the user turned on error reports. It is *not* a crash detector. |
+
 ### Update codes
 
 | Code | Meaning | Typical cause | User action |
