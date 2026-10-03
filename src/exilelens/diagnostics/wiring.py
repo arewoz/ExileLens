@@ -67,5 +67,26 @@ def attach_update_diagnostics(update_service: Any, error_store: Any | None = Non
                 stage="download",
             )
 
+    def _install_outcome(notice: Any) -> None:
+        code = getattr(notice, "error_code", None)
+        record_event(
+            "update",
+            "install_outcome",
+            detail={"kind": str(getattr(notice, "kind", "")), "version": str(getattr(notice, "version", ""))},
+        )
+        if error_store is not None and code:
+            from exilelens.error_catalog.integration import record_generic_failure
+
+            record_generic_failure(
+                error_store,
+                str(getattr(notice, "message", "") or "Update not installed."),
+                el_code=code,
+                subsystem="update",
+                stage="install",
+            )
+
     update_service.state_changed.connect(_state)
     update_service.download_state_changed.connect(_download)
+    install_outcome = getattr(update_service, "install_outcome", None)
+    if install_outcome is not None:
+        install_outcome.connect(_install_outcome)

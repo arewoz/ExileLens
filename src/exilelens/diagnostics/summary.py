@@ -68,6 +68,29 @@ def _update_state(settings: Any, update_service: Any | None) -> dict[str, Any]:
         "installed_version": sanitize_text(
             update_service.installed_version_text if update_service is not None else "unknown"
         ),
+        "last_install": _last_install(update_service),
+    }
+
+
+def _last_install(update_service: Any | None) -> dict[str, Any] | None:
+    """Structured result of the most recent external-updater run (enums and versions only)."""
+    result = getattr(update_service, "last_install_result", None) if update_service is not None else None
+    if result is None:
+        try:
+            from exilelens.app.updates.outcome import last_seen_result
+
+            result = last_seen_result()
+        except Exception:  # noqa: BLE001 - diagnostics must never fail on update state
+            result = None
+    if result is None:
+        return None
+    return {
+        "outcome": result.outcome.value,
+        "mode": result.mode,
+        "from_version": result.from_version or None,
+        "to_version": result.to_version or None,
+        "exit_code": result.exit_code,
+        "finished_epoch": result.finished_at,
     }
 
 

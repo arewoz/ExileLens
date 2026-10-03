@@ -46,11 +46,17 @@ class UpdatesPanel(QWidget):
         self._open_releases_btn = make_button("Open GitHub Releases", "secondary")
         self._open_releases_btn.clicked.connect(self._open_github_releases)
         self._open_releases_btn.setVisible(False)
+        self._last_result = QLabel("")
+        self._last_result.setObjectName("helperText")
+        self._last_result.setWordWrap(True)
+        self._last_result.setVisible(False)
+        self._recovery_needed = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._installed)
         layout.addWidget(self._latest)
+        layout.addWidget(self._last_result)
         layout.addWidget(self._status)
         layout.addLayout(
             button_row(
@@ -69,8 +75,22 @@ class UpdatesPanel(QWidget):
         self.update_service.download_progress.connect(self._on_download_progress)
         self.update_service.download_state_changed.connect(self._on_download_state)
         self.update_service.action_error.connect(self._on_action_error)
+        install_outcome = getattr(self.update_service, "install_outcome", None)
+        if install_outcome is not None:
+            install_outcome.connect(self._on_install_outcome)
         self._refresh_installed_line()
         self._on_update_state("unchecked", "")
+        previous = getattr(self.update_service, "last_install_notice", None)
+        if previous is not None:
+            self._on_install_outcome(previous)
+
+    def _on_install_outcome(self, notice) -> None:
+        message = str(getattr(notice, "message", "") or "")
+        self._last_result.setText(message)
+        self._last_result.setVisible(bool(message))
+        self._recovery_needed = getattr(notice, "kind", "") == "failed"
+        if self._recovery_needed:
+            self._open_releases_btn.setVisible(True)
 
     def _refresh_installed_line(self) -> None:
         self._installed.setText(f"Installed version: {self.update_service.installed_version_text}")
@@ -101,7 +121,7 @@ class UpdatesPanel(QWidget):
         if state == "available":
             text = f"Update available: {version}. Download installs the signed package after verification."
         self._status.setText(text)
-        self._open_releases_btn.setVisible(state in ("available", "verification_failed"))
+        self._open_releases_btn.setVisible(state in ("available", "verification_failed") or self._recovery_needed)
         self._download_btn.setVisible(state == "available")
         self._check_btn.setEnabled(state != "checking")
 
@@ -133,6 +153,7 @@ class UpdatesPanel(QWidget):
             self._download_btn.setEnabled(True)
             self._cancel_btn.setVisible(False)
             self._progress.setText("Update downloaded and verified. Restart to install.")
+            self._progress.setVisible(True)
             self._restart_btn.setVisible(True)
         elif state == "installing":
             self._progress.setText("Installing update…")

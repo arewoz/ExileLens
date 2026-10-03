@@ -40,6 +40,23 @@ def test_private_key() -> Path:
     return path
 
 
+@pytest.fixture(autouse=True)
+def _test_trust_profile():
+    # Source-run test profile: the public test key is trusted only inside this context, never when frozen.
+    from exilelens.app.updates.trust import use_test_trust_profile
+
+    with use_test_trust_profile():
+        yield
+
+
+def _fake_install(root: Path, exe: str) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "ExileLens.exe").write_text(exe, encoding="utf-8")
+    (root / "_internal").mkdir(exist_ok=True)
+    (root / "_internal" / "runtime.txt").write_text(exe, encoding="utf-8")
+    return root
+
+
 def test_channel_filters_prerelease_final_versions() -> None:
     beta = Release(
         ExileLensVersion.parse("0.4.0b2"),
@@ -116,8 +133,7 @@ def test_bad_signature_is_rejected(test_private_key: Path) -> None:
 def test_prod_manifest_blocked_until_public_key_provisioned(test_private_key: Path, monkeypatch) -> None:
     from exilelens.app.updates import trust
 
-    test_only = {trust.TEST_SIGNING_KEY_ID: trust.EMBEDDED_VERIFY_KEYS[trust.TEST_SIGNING_KEY_ID]}
-    monkeypatch.setattr(trust, "EMBEDDED_VERIFY_KEYS", test_only)
+    monkeypatch.setattr(trust, "PRODUCTION_VERIFY_KEYS", {})
     manifest = {
         "schema": 1,
         "channel": "stable",
@@ -193,34 +209,36 @@ def test_download_verifies_size_and_hash(tmp_path: Path) -> None:
         )
 
 
+def _swap_install(install_root: Path, staged: Path, backup: Path, journal: Path) -> None:
+    from exilelens.updater import transaction
+
+    entries = transaction.prepare(
+        install_root=install_root, staged_root=staged, backup_root=backup, zip_path=None, zip_sha256=None, zip_size=None
+    )
+    transaction.swap(install_root=install_root, entries=entries, journal_path=journal, job_id="")
+    journal.unlink()
+
+
 def test_install_preserves_external_user_settings(tmp_path: Path) -> None:
     user_data = tmp_path / "UserData" / "ExileLens"
     user_data.mkdir(parents=True)
     settings_path = user_data / "settings.json"
     settings_path.write_text('{"schema_version": 22, "update_channel": "beta"}', encoding="utf-8")
-    install_root = tmp_path / "install"
-    install_root.mkdir()
-    (install_root / "ExileLens.exe").write_bytes(b"old")
-    staged = tmp_path / "stage" / "ExileLens"
-    staged.mkdir(parents=True)
-    (staged / "ExileLens.exe").write_bytes(b"new")
-    backup = tmp_path / "backup"
-    updater_install.install_verified_update(install_root=install_root, staged_root=staged, backup_root=backup)
+    install_root = _fake_install(tmp_path / "install", "old")
+    staged = _fake_install(tmp_path / "stage" / "ExileLens", "new")
+    _swap_install(install_root, staged, tmp_path / "backup", tmp_path / "journal.json")
     assert settings_path.read_text(encoding="utf-8") == '{"schema_version": 22, "update_channel": "beta"}'
 
 
 def test_updater_install_and_restore_backup(tmp_path: Path) -> None:
-    install_root = tmp_path / "install"
-    install_root.mkdir()
-    (install_root / "ExileLens.exe").write_bytes(b"old")
-    staged = tmp_path / "stage" / "ExileLens"
-    staged.mkdir(parents=True)
-    (staged / "ExileLens.exe").write_bytes(b"new")
+    install_root = _fake_install(tmp_path / "install", "old")
+    staged = _fake_install(tmp_path / "stage" / "ExileLens", "new")
     backup = tmp_path / "backup"
-    updater_install.install_verified_update(install_root=install_root, staged_root=staged, backup_root=backup)
-    assert (install_root / "ExileLens.exe").read_bytes() == b"new"
+    _swap_install(install_root, staged, backup, tmp_path / "journal.json")
+    assert (install_root / "ExileLens.exe").read_text(encoding="utf-8") == "new"
     updater_install.restore_backup(install_root=install_root, backup_root=backup)
-    assert (install_root / "ExileLens.exe").read_bytes() == b"old"
+    assert (install_root / "ExileLens.exe").read_text(encoding="utf-8") == "old"
+    assert (install_root / "_internal" / "runtime.txt").read_text(encoding="utf-8") == "old"
 
 
 def test_update_service_emits_available_with_prerelease(monkeypatch) -> None:
@@ -238,18 +256,13 @@ def test_update_service_emits_available_with_prerelease(monkeypatch) -> None:
 
 
 def test_e2e_staged_zip_install(tmp_path: Path, test_private_key: Path) -> None:
-    install_root = tmp_path / "install"
-    install_root.mkdir()
-    (install_root / "ExileLens.exe").write_text("old", encoding="utf-8")
+    install_root = _fake_install(tmp_path / "install", "old")
     archive = tmp_path / "ExileLens-v9.9.9b9-win64.zip"
-    staged_payload_root = tmp_path / "payload" / "ExileLens"
-    staged_payload_root.mkdir(parents=True)
-    (staged_payload_root / "ExileLens.exe").write_text("new", encoding="utf-8")
+    staged_payload_root = _fake_install(tmp_path / "payload" / "ExileLens", "new")
     with zipfile.ZipFile(archive, "w") as zf:
         for path in staged_payload_root.rglob("*"):
             if path.is_file():
                 zf.write(path, arcname=str(Path("ExileLens") / path.relative_to(staged_payload_root)))
     extracted = extract_zip_to_staging(archive, tmp_path / "staging")
-    backup = tmp_path / "backup"
-    updater_install.install_verified_update(install_root=install_root, staged_root=extracted, backup_root=backup)
+    _swap_install(install_root, extracted, tmp_path / "backup", tmp_path / "journal.json")
     assert (install_root / "ExileLens.exe").read_text(encoding="utf-8") == "new"

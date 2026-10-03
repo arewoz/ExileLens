@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 import time
+import uuid
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -11,21 +12,39 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from exilelens._version import __version__, is_packaged
 from exilelens.app.settings import save_settings
 from exilelens.app.updates.archive import extract_zip_to_staging, validate_zip_archive
-from exilelens.app.updates.bootstrap import ensure_updater_bootstrapped, launch_updater
+from exilelens.app.updates.bootstrap import (
+    ensure_updater_bootstrapped,
+    launch_updater,
+    updater_active,
+    updater_matches_bundled,
+)
 from exilelens.app.updates.channels import UpdateChannel
-from exilelens.app.updates.constants import CHECK_COOLDOWN_SECONDS
+from exilelens.app.updates.constants import CHECK_COOLDOWN_SECONDS, GITHUB_RELEASES_URL
 from exilelens.app.updates.download import DownloadError, DownloadManager
 from exilelens.app.updates.github import GitHubReleaseClient, installed_version
-from exilelens.app.updates.manifest import ManifestError, VerifiedUpdateManifest, verify_signed_envelope
+from exilelens.app.updates.manifest import (
+    ManifestError,
+    VerifiedUpdateManifest,
+    bind_manifest_to_release,
+    verify_signed_envelope,
+)
+from exilelens.app.updates.outcome import UpdateOutcomeNotice, cleanup_after_launch, consume_update_result
 from exilelens.app.updates.paths import (
     backup_dir,
     clear_staging,
     download_cache_dir,
     install_root,
     staging_dir,
+    updates_data_dir,
     write_update_job,
 )
+from exilelens.app.updates.ready import ReadyUpdate, discard_ready_record, load_ready_update, write_ready_record
 from exilelens.app.updates.version import ExileLensVersion, Release
+from exilelens.updater.job import JOB_SCHEMA
+from exilelens.updater.result import UpdateResult
+
+# Cleanup of recovery material waits until this launch has been up for a while (healthy start).
+POST_LAUNCH_CLEANUP_DELAY_MS = 30_000
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +70,12 @@ class UpdateService(QObject):
     download_progress = Signal(int, int)
     download_state_changed = Signal(str)
     action_error = Signal(str)
+    # One-time UpdateOutcomeNotice describing the previous external-updater run (consumed on launch).
+    install_outcome = Signal(object)
 
     _check_finished = Signal(object, bool)
     _download_finished = Signal(object)
+    _ready_restored = Signal(object)
 
     def __init__(
         self,
@@ -70,6 +92,11 @@ class UpdateService(QObject):
         self._check_in_flight = False
         self._availability: UpdateAvailability | None = None
         self._verified_manifest: VerifiedUpdateManifest | None = None
+        self._verified_envelope: dict | None = None
+        self._ready: ReadyUpdate | None = None
+        self._session_started = False
+        self.last_install_result: UpdateResult | None = None
+        self.last_install_notice: UpdateOutcomeNotice | None = None
         self._download_when_verified = False
         self._verification_failed = False  # newest release failed signed-manifest verification this session
         # TRUST-01D: one single-shot timer that wakes locally when the 24h cooldown elapses. It never polls;
@@ -79,6 +106,7 @@ class UpdateService(QObject):
         self._timer.timeout.connect(self.start_automatic)
         self._check_finished.connect(self._finish_check)
         self._download_finished.connect(self._finish_download)
+        self._ready_restored.connect(self._on_ready_restored)
 
     @property
     def installed_version_text(self) -> str:
@@ -90,6 +118,65 @@ class UpdateService(QObject):
     def set_channel(self, channel: UpdateChannel) -> None:
         self.settings.update_channel = channel.value
         save_settings(self.settings)
+
+    def begin_session(self) -> None:
+        """Once per launch (packaged): surface the last updater result, restore a verified ready update,
+        and schedule cleanup of recovery material after a healthy start.
+
+        Called explicitly by application startup (never implicitly by checks), because it reads and cleans
+        the real app-data update directory.
+        """
+        if self._session_started or not is_packaged():
+            return
+        self._session_started = True
+        installed = installed_version()
+        try:
+            result, notice = consume_update_result(installed)
+        except OSError:
+            logger.exception("update_result_consume_failed")
+            result, notice = None, None
+        self.last_install_result = result
+        self.last_install_notice = notice
+        if result is not None:
+            logger.info("update_previous_result outcome=%s to=%s", result.outcome.value, result.to_version)
+        if notice is not None:
+            self.install_outcome.emit(notice)
+
+        def restore() -> None:
+            try:
+                ready = load_ready_update(installed)
+            except Exception:  # noqa: BLE001 - a broken record must never break startup
+                logger.exception("update_ready_restore_failed")
+                ready = None
+            self._ready_restored.emit(ready)
+
+        threading.Thread(target=restore, name="exilelens-update-ready-restore", daemon=True).start()
+        updates, root = updates_data_dir(), install_root()
+        self._cleanup_timer = QTimer(self)
+        self._cleanup_timer.setSingleShot(True)
+        self._cleanup_timer.timeout.connect(lambda: self._start_post_launch_cleanup(updates, root))
+        self._cleanup_timer.start(POST_LAUNCH_CLEANUP_DELAY_MS)
+
+    def _start_post_launch_cleanup(self, updates, root) -> None:
+        installed = installed_version()
+        consumed = self.last_install_result
+        keep = self._verified_manifest.artifact.filename if self._verified_manifest is not None else None
+        running = updater_active()
+
+        def run() -> None:
+            try:
+                cleanup_after_launch(
+                    installed=installed,
+                    consumed=consumed,
+                    keep_archive=keep,
+                    updater_running=running,
+                    updates_dir=updates,
+                    install_dir=root,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("update_post_launch_cleanup_failed")
+
+        threading.Thread(target=run, name="exilelens-update-cleanup", daemon=True).start()
 
     def start_automatic(self) -> bool:
         if not is_packaged():
@@ -124,6 +211,9 @@ class UpdateService(QObject):
 
     def stop_scheduler(self) -> None:
         self._timer.stop()
+        cleanup_timer = getattr(self, "_cleanup_timer", None)
+        if cleanup_timer is not None:
+            cleanup_timer.stop()
 
     def release_url(self) -> str:
         """Official GitHub release page of the verified newest release, or "" when unknown or not GitHub."""
@@ -176,10 +266,22 @@ class UpdateService(QObject):
             on_finished=self._download_finished.emit,
         )
 
-    def begin_restart_and_update(self, *, parent_pid: int) -> bool:
+    def begin_restart_and_update(self, *, parent_pid: int, restart_after_update: bool = True) -> bool:
+        """Stage the verified package and hand off to the external updater (job contract v2).
+
+        ``restart_after_update=False`` is updater infrastructure only (future install-on-exit); no
+        production path requests it yet. It is refused unless the app-data updater is byte-identical to
+        the bundled v2 updater, because a legacy updater would ignore the flag and always relaunch.
+        """
         manifest = self._verified_manifest
         if manifest is None:
             self.action_error.emit("Update is not verified.")
+            return False
+        if updater_active():
+            self.action_error.emit("An update is already being installed.")
+            return False
+        if not restart_after_update and not updater_matches_bundled():
+            self.action_error.emit("The external updater is out of date; restart ExileLens and try again.")
             return False
         archive_path = download_cache_dir() / manifest.artifact.filename
         if not archive_path.is_file():
@@ -193,15 +295,24 @@ class UpdateService(QObject):
             logger.exception("update_prepare_failed")
             self.action_error.emit("Downloaded update package failed safety checks.")
             return False
+        root = install_root()
         job_path = write_update_job(
             {
-                "schema": 1,
-                "version": manifest.version,
-                "pid": int(parent_pid),
-                "install_root": str(install_root()),
+                "schema": JOB_SCHEMA,
+                "job_id": uuid.uuid4().hex,
+                "from_version": __version__,
+                "to_version": manifest.version,
+                "restart_after_update": bool(restart_after_update),
+                "install_root": str(root),
                 "staged_root": str(staged_root),
                 "backup_root": str(backup_dir()),
-                "exe_path": str(install_root() / "ExileLens.exe"),
+                "exe_path": str(root / "ExileLens.exe"),
+                "zip_path": str(archive_path),
+                "zip_sha256": manifest.artifact.sha256,
+                "zip_size": manifest.artifact.size,
+                # Legacy keys: a not-yet-refreshed schema-1 updater can still run this restart job.
+                "pid": int(parent_pid),
+                "version": manifest.version,
             }
         )
         try:
@@ -235,11 +346,19 @@ class UpdateService(QObject):
                         try:
                             envelope = self.client.fetch_json(release.manifest_asset_url)
                             manifest = verify_signed_envelope(envelope)
+                            # The release listing is unsigned: bind every decision to the signed fields.
+                            bind_manifest_to_release(
+                                manifest,
+                                tag=release.tag,
+                                version=release.version,
+                                installed=installed,
+                                release_zip_name=release.zip_asset_name,
+                            )
                         except (ManifestError, RuntimeError) as exc:
                             logger.warning("update_manifest_unavailable tag=%s error=%s", release.tag, exc)
                             result = NewestReleaseVerificationFailed(release, "manifest_verification_failed")
                         else:
-                            result = (release, manifest)
+                            result = (release, manifest, envelope)
             except Exception:
                 result = RuntimeError("request_failed")
             self._check_finished.emit(result, manual)
@@ -271,6 +390,7 @@ class UpdateService(QObject):
             self.settings.update_latest_version = remote
             self._availability = None
             self.cancel_download()
+            self._drop_ready()
             self.download_state_changed.emit("")
             save_settings(self.settings)
             self.state_changed.emit("verification_failed", remote)
@@ -283,8 +403,9 @@ class UpdateService(QObject):
         manifest: VerifiedUpdateManifest | None = None
         release: Release | None
         if isinstance(result, tuple):
-            release, manifest = result
+            release, manifest, envelope = result
             self._verified_manifest = manifest
+            self._verified_envelope = envelope
         else:
             release = result  # type: ignore[assignment]
         if release is None:
@@ -305,6 +426,51 @@ class UpdateService(QObject):
         else:
             self.state_changed.emit("current", remote)
         save_settings(self.settings)
+        ready = self._ready
+        if ready is not None:
+            if manifest is not None and ready.manifest == manifest:
+                self.download_state_changed.emit("ready")
+            else:
+                # Superseded by a newer verified release, or already installed.
+                self._drop_ready()
+                self.download_state_changed.emit("")
+
+    def _drop_ready(self) -> None:
+        if self._ready is None:
+            return
+        self._ready = None
+        try:
+            discard_ready_record(delete_archive=True)
+        except OSError:
+            logger.exception("update_ready_discard_failed")
+
+    def _on_ready_restored(self, ready: object) -> None:
+        if not isinstance(ready, ReadyUpdate):
+            return
+        if self._check_in_flight:
+            self._ready = ready  # the in-flight check decides whether it is still current
+            return
+        current = self._availability
+        if current is not None and current.remote.version != ready.version:
+            self._ready = ready
+            self._drop_ready()
+            return
+        installed = installed_version()
+        if installed is None or not ready.version > installed:
+            self._ready = ready
+            self._drop_ready()
+            return
+        self._ready = ready
+        self._verified_manifest = ready.manifest
+        self._verified_envelope = ready.envelope
+        release = Release(ready.version, GITHUB_RELEASES_URL, ready.manifest.tag, not ready.version.final)
+        self._availability = UpdateAvailability(remote=release, installed=installed, manifest=ready.manifest)
+        remote = str(ready.version)
+        self.settings.update_latest_version = remote
+        save_settings(self.settings)
+        self.state_changed.emit("available", remote)
+        self.download_state_changed.emit("ready")
+        logger.info("update_ready_restored version=%s", remote)
 
     def _finish_download(self, result: object) -> None:
         if isinstance(result, DownloadError):
@@ -321,6 +487,12 @@ class UpdateService(QObject):
             return
         self.settings.update_last_error = ""
         save_settings(self.settings)
+        manifest, envelope = self._verified_manifest, self._verified_envelope
+        if manifest is not None and envelope is not None:
+            try:
+                write_ready_record(envelope, manifest)
+            except OSError:
+                logger.exception("update_ready_record_write_failed")
         self.download_state_changed.emit("ready")
 
     def _emit_known_state(self) -> None:
