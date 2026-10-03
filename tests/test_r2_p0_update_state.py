@@ -499,7 +499,9 @@ def test_restart_and_update_writes_v2_job_with_provenance(service, monkeypatch) 
     assert service.begin_restart_and_update(parent_pid=4321) is True
     job = json.loads(pending_job_path().read_text(encoding="utf-8"))
     assert job["schema"] == 2 and job["restart_after_update"] is True
-    assert (job["from_version"], job["to_version"]) == ("0.6.0", "0.7.0")
+    from exilelens._version import __version__
+
+    assert (job["from_version"], job["to_version"]) == (__version__, "0.7.0")
     assert job["zip_sha256"] == hashlib.sha256(data).hexdigest() and job["zip_size"] == len(data)
     assert job["pid"] == 4321 and len(job["job_id"]) == 32
     assert launched == [pending_job_path()]

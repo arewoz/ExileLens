@@ -2,6 +2,15 @@ EXILELENS CHANGELOG
 ===================
 
 
+0.7.0b1
+-------
+
+- **Optional usage statistics and error reports:** two separate switches in Settings, both **off by default**. Only a fixed list of enumerated, anonymous values is ever sent (no item text, builds, paths or account names); "See what is collected" shows the exact list and the next payload. Turning a switch off deletes the local queue and identifier and asks the server to forget it.
+- **Patreon supporter link (optional):** connect Patreon from Settings to enable seamless updates for eligible supporters. The app never receives your Patreon name or email.
+- **Seamless updates for supporters:** automatic download of verified releases and install when ExileLens closes. Everyone else keeps *Download & Install* and *Restart & Update* exactly as before.
+- **Safer updater:** production-only update signing trust, signed version/tag/URL binding, crash-safe journaled install with automatic rollback, and a result notice after restart.
+- **Everything works offline:** Item Check, Analyze Build and manual updates never depend on the cloud service.
+
 0.6.0
 -------
 
