@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from exilelens.ui import theme
+from exilelens.ui.components import StatusValue
 from exilelens.ui.ui_icons import outline_icon
 
 
@@ -54,7 +55,9 @@ class WrapLabel(QLabel):
     def _fit(self) -> None:
         if self.width() > 0 and self.wordWrap():
             self.setMinimumHeight(0)  # heightForWidth() never reports less than the current minimum
-            self.setMinimumHeight(self.heightForWidth(self.width()))
+            height = self.heightForWidth(self.width())
+            if height > 0:   # an empty label reports -1
+                self.setMinimumHeight(height)
 
     def setText(self, text: str) -> None:  # noqa: N802 - mirrors QLabel
         super().setText(text)
@@ -75,6 +78,20 @@ def set_property(widget: QWidget, name: str, value) -> None:
     widget.update()
 
 
+_TIER_NAMES = {"primary": "btnPrimary", "secondary": "btnSecondary", "tertiary": "btnTertiary", "destructive": "btnDestructive"}
+
+
+def set_button_tier(button: QPushButton, tier: str) -> None:
+    """Re-tier a button (primary / secondary / tertiary) and re-resolve its style."""
+    name = _TIER_NAMES[tier]
+    if button.objectName() == name:
+        return
+    button.setObjectName(name)
+    button.style().unpolish(button)
+    button.style().polish(button)
+    button.update()
+
+
 class Hairline(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -89,11 +106,17 @@ class FlowLayout(QLayout):
     def __init__(self, parent: QWidget | None = None, *, spacing: int = 10) -> None:
         super().__init__(parent)
         self._items: list = []
+        self._trailing: list = []   # items right-aligned on the last line (an external link after the task buttons)
         self._gap = spacing
         self.setContentsMargins(0, 0, 0, 0)
 
     def addItem(self, item) -> None:  # noqa: N802
         self._items.append(item)
+
+    def addTrailingWidget(self, widget: QWidget) -> None:  # noqa: N802
+        """Add a widget that sits at the right edge of the last line, or alone on a new line when it does not fit."""
+        self.addWidget(widget)
+        self._trailing.append(self._items[-1])
 
     def count(self) -> int:
         return len(self._items)
@@ -102,7 +125,12 @@ class FlowLayout(QLayout):
         return self._items[index] if 0 <= index < len(self._items) else None
 
     def takeAt(self, index: int):  # noqa: N802
-        return self._items.pop(index) if 0 <= index < len(self._items) else None
+        if not 0 <= index < len(self._items):
+            return None
+        item = self._items.pop(index)
+        if item in self._trailing:
+            self._trailing.remove(item)
+        return item
 
     def hasHeightForWidth(self) -> bool:  # noqa: N802
         return True
@@ -129,12 +157,26 @@ class FlowLayout(QLayout):
         area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
         x, y, line_h = area.x(), area.y(), 0
         for item in self._items:
+            if item in self._trailing:
+                continue
             hint = item.sizeHint()
             if x + hint.width() > area.right() + 1 and line_h > 0:
                 x, y, line_h = area.x(), y + line_h + self._gap, 0
             if apply:
                 item.setGeometry(QRect(QPoint(x, y), hint))
             x += hint.width() + self._gap
+            line_h = max(line_h, hint.height())
+        for item in self._trailing:
+            hint = item.sizeHint()
+            if line_h and x + hint.width() - self._gap <= area.right() + 1:
+                left = area.right() + 1 - hint.width()
+                top = y + (line_h - hint.height()) // 2
+            else:
+                if line_h:
+                    y += line_h + self._gap
+                left, top, x, line_h = area.x(), y, area.x(), 0
+            if apply:
+                item.setGeometry(QRect(QPoint(left, top), hint))
             line_h = max(line_h, hint.height())
         return y + line_h - rect.y() + margins.bottom()
 
@@ -196,6 +238,16 @@ class ThemedSwitch(QCheckBox):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._locked = False
+
+    def set_locked(self, locked: bool) -> None:
+        """Visibly unavailable (a supporter-only switch without a supporter link): dashed track, no fill."""
+        if locked != self._locked:
+            self._locked = locked
+            self.update()
+
+    def is_locked(self) -> bool:
+        return self._locked
 
     def sizeHint(self) -> QSize:
         return QSize(self.TRACK_W + 10 + theme.scaled_px(24), max(self.TRACK_H, theme.CONTROL_HEIGHT_COMPACT))
@@ -214,10 +266,16 @@ class ThemedSwitch(QCheckBox):
             fill, edge, knob = QColor(theme.ACCENT), QColor(theme.ACCENT), QColor(theme.ON_ACCENT)
         else:
             fill, edge, knob = QColor(theme.SURFACE_3), QColor(255, 255, 255, 56), QColor(theme.TEXT_BODY)
-        if not enabled:
+        locked = self._locked and not enabled
+        if locked:
+            fill, edge, knob = QColor(0, 0, 0, 0), QColor(255, 255, 255, 66), QColor(255, 255, 255, 56)
+        elif not enabled:
             for color in (fill, edge, knob):
                 color.setAlphaF(0.55)
-        painter.setPen(QPen(edge, 1))
+        pen = QPen(edge, 1)
+        if locked:
+            pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
         painter.setBrush(fill)
         painter.drawRoundedRect(track, track.height() / 2, track.height() / 2)
         knob_d = self.KNOB
@@ -324,8 +382,9 @@ class SettingsRow(QWidget):
 
     NARROW = 520
 
-    def __init__(self, label: str = "", helper: str = "", parent: QWidget | None = None) -> None:
+    def __init__(self, label: str = "", helper: str = "", parent: QWidget | None = None, *, h_pad: int = 0) -> None:
         super().__init__(parent)
+        self._pad = h_pad   # horizontal padding inside the row, so a full-bleed hairline can sit in a zone
         self.setObjectName("settingsRow")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.label = QLabel(label)
@@ -351,7 +410,7 @@ class SettingsRow(QWidget):
         self._right_host.setLayout(self._right)
         self._right_host.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         self._outer = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
-        self._outer.setContentsMargins(0, theme.ROW_PAD, 0, theme.ROW_PAD)
+        self._outer.setContentsMargins(h_pad, theme.ROW_PAD, h_pad, theme.ROW_PAD)
         self._outer.setSpacing(24)
         self._outer.addWidget(left_host, 1)
         self._outer.addWidget(self._right_host, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -623,13 +682,25 @@ class KeycapDisplay(QWidget):
 
 
 class MonoPathLabel(QLabel):
-    """One-line monospace path, middle-elided, with the full value in the tooltip."""
+    """One-line monospace path, middle-elided, selectable, with the full value in the tooltip.
 
-    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+    The visible text may be elided, so Copy (context menu, or Ctrl+C while it has focus) always puts the *full* value
+    on the clipboard. It takes keyboard focus so a keyboard user can copy it too.
+    """
+
+    def __init__(self, text: str = "", parent: QWidget | None = None, *, selectable: bool = False) -> None:
         super().__init__(parent)
         self.setObjectName("monoText")
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self._full = ""
+        self._selectable = selectable
+        if selectable:
+            self.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard
+            )
+            self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+            self.setCursor(Qt.CursorShape.IBeamCursor)
+            self.setProperty("selectable", True)
         self.set_full_text(text)
 
     def set_full_text(self, text: str) -> None:
@@ -639,6 +710,29 @@ class MonoPathLabel(QLabel):
 
     def full_text(self) -> str:
         return self._full
+
+    def copy_full(self) -> None:
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.clipboard().setText(self._full)
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        if not self._selectable or not self._full:
+            return super().contextMenuEvent(event)
+        from PySide6.QtWidgets import QMenu
+
+        menu = QMenu(self)
+        menu.addAction("Copy path", self.copy_full)
+        menu.exec(event.globalPos())
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        from PySide6.QtGui import QKeySequence
+
+        if self._selectable and self._full and event.matches(QKeySequence.StandardKey.Copy):
+            self.copy_full()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def _elide(self) -> None:
         from PySide6.QtGui import QFontMetrics
@@ -699,8 +793,9 @@ class HealthGridRow(QWidget):
     NARROW = 560
     LABEL_WIDTH = 140
 
-    def __init__(self, label: str, parent: QWidget | None = None) -> None:
+    def __init__(self, label: str, parent: QWidget | None = None, *, h_pad: int = 0) -> None:
         super().__init__(parent)
+        self._pad = h_pad   # horizontal padding inside the row, so a full-bleed hairline can sit in a card
         self.setObjectName("healthRowGrid")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._glyph = StatusGlyph()
@@ -728,7 +823,7 @@ class HealthGridRow(QWidget):
         self._action: QPushButton | None = None
         self._status = "neutral"
         self._outer = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
-        self._outer.setContentsMargins(0, 12, 0, 12)
+        self._outer.setContentsMargins(h_pad, 12, h_pad, 12)
         self._outer.setSpacing(14)
         self._head = QHBoxLayout()
         self._head.setContentsMargins(0, 0, 0, 0)
@@ -782,7 +877,7 @@ class HealthGridRow(QWidget):
         # The action drops under the value below NARROW, or sooner when larger text makes the label column,
         # the fix button and a readable value no longer fit side by side.
         # A fixed estimate of the widest fix button, so every row in the grid flips together.
-        needed = theme.scaled_px(self.LABEL_WIDTH) + 16 + 28 + theme.scaled_px(110) + 220
+        needed = theme.scaled_px(self.LABEL_WIDTH) + 16 + 28 + theme.scaled_px(110) + 220 + 2 * self._pad
         stacked = self.width() < max(self.NARROW, needed)
         if stacked != self._stacked:
             self._stacked = stacked
@@ -847,3 +942,172 @@ class MeasureRow(QWidget):
 
     def text(self) -> str:
         return " ".join(part for part in (self.lead.text(), self.title.text(), self.sub.text(), self.value.text()) if part)
+
+
+class SetupCard(QFrame):
+    """The one raised neutral card per page that holds setup or health (Path of Building, Application health).
+
+    Title inside the card, one status (dot or glyph plus a word) at the top right, rows beneath. The border and
+    surface never change with status: health is said by the header word and by the row that has the problem.
+    """
+
+    PAD = 20
+
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("setupCard")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._column = QVBoxLayout(self)
+        self._column.setContentsMargins(0, 0, 0, 0)
+        self._column.setSpacing(0)
+        head = QWidget()
+        self._head_row = QHBoxLayout(head)
+        self._head_row.setContentsMargins(self.PAD, 13, self.PAD, 11)
+        self._head_row.setSpacing(16)
+        self.heading = QLabel(title)
+        self.heading.setObjectName("sectionHeading")
+        self.heading.setAccessibleName(title)
+        self.status = StatusValue("", "neutral")
+        self.status.set_word_wrap(False)
+        self._head_row.addWidget(self.heading, 1)
+        self._head_row.addWidget(self.status, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._column.addWidget(head)
+        self.lead = WrapLabel("")
+        self.lead.setObjectName("cardLead")
+        self.lead.setContentsMargins(self.PAD, 0, self.PAD, 12)
+        self.lead.setVisible(False)
+        self._column.addWidget(self.lead)
+
+    def set_status(self, text: str, status: str) -> None:
+        self.status.set_value(text, status)
+
+    def set_lead(self, text: str) -> None:
+        self.lead.setText(text)
+        self.lead.setVisible(bool(text))
+        self._head_row.setContentsMargins(self.PAD, 13, self.PAD, 4 if text else 11)
+
+    def add_row(self, widget: QWidget) -> QWidget:
+        self._column.addWidget(widget)
+        return widget
+
+    def add_footer(self, widget: QWidget) -> QWidget:
+        widget.setObjectName("zoneFooter")
+        widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._column.addWidget(widget)
+        return widget
+
+
+class CardRow(QWidget):
+    """A setup-card row: fixed label column, a value column that may hold several lines, actions at the right.
+
+    Below the stacking threshold the actions drop under the value, left-aligned, so a long path or a large Windows
+    text size never forces the page wider than its viewport. ``set_problem`` lifts only this row.
+    """
+
+    LABEL_WIDTH = 104
+    NARROW = 560
+
+    def __init__(self, label: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("cardRow")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._label = QLabel(label)
+        self._label.setObjectName("healthLabel")
+        self._label.setFixedWidth(theme.scaled_px(self.LABEL_WIDTH))
+        self._label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._value = QVBoxLayout()
+        self._value.setContentsMargins(0, 0, 0, 0)
+        self._value.setSpacing(1)
+        self._action_host = QWidget()
+        self._actions = QHBoxLayout(self._action_host)
+        self._actions.setContentsMargins(0, 0, 0, 0)
+        self._actions.setSpacing(8)
+        self._outer = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
+        self._outer.setContentsMargins(SetupCard.PAD, 12, SetupCard.PAD, 12)
+        self._outer.setSpacing(16)
+        head = QHBoxLayout()
+        head.setContentsMargins(0, 0, 0, 0)
+        head.setSpacing(16)
+        head.addWidget(self._label, 0, Qt.AlignmentFlag.AlignTop)
+        head.addLayout(self._value, 1)
+        self._outer.addLayout(head, 1)
+        self._outer.addWidget(self._action_host, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._stacked = False
+        self.setAccessibleName(label)
+
+    def label(self) -> str:
+        return self._label.text()
+
+    def add_value(self, widget: QWidget) -> QWidget:
+        self._value.addWidget(widget)
+        return widget
+
+    def add_action(self, widget: QWidget) -> QWidget:
+        self._actions.addWidget(widget)
+        return widget
+
+    def set_problem(self, problem: bool) -> None:
+        set_property(self, "problem", bool(problem))
+
+    def is_stacked(self) -> bool:
+        return self._stacked
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        # One shared estimate (label, a readable value, the widest action group) so both rows of a card flip together.
+        needed = theme.scaled_px(self.LABEL_WIDTH) + 16 + theme.scaled_px(120) + theme.scaled_px(280) + 2 * SetupCard.PAD
+        stacked = self.width() < max(self.NARROW, needed)
+        if stacked != self._stacked:
+            self._stacked = stacked
+            self._outer.setDirection(QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight)
+            self._outer.setAlignment(self._action_host, Qt.AlignmentFlag.AlignLeft if stacked else Qt.AlignmentFlag.AlignVCenter)
+            self._outer.invalidate()
+            self.updateGeometry()
+
+
+class ZoneFooter(QWidget):
+    """A zone's footer: a sentence at the left and its actions at the right.
+
+    The actions drop under the sentence when the zone is too narrow for both, so a long status sentence and a
+    larger Windows text size never force the page wider than its viewport.
+    """
+
+    def __init__(self, text: QWidget, *, margins: tuple[int, int, int, int] = (16, 10, 16, 11), parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("zoneFooter")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._margin_w = margins[0] + margins[2]
+        self.text = text
+        self._action_host = QWidget()
+        self._actions = QHBoxLayout(self._action_host)
+        self._actions.setContentsMargins(0, 0, 0, 0)
+        self._actions.setSpacing(8)
+        self._outer = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
+        self._outer.setContentsMargins(*margins)
+        self._outer.setSpacing(16)
+        self._outer.addWidget(text, 1, Qt.AlignmentFlag.AlignVCenter)
+        self._outer.addWidget(self._action_host, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._stacked = False
+
+    def add_action(self, button: QWidget) -> QWidget:
+        self._actions.addWidget(button)
+        return button
+
+    def is_stacked(self) -> bool:
+        return self._stacked
+
+    def reflow(self) -> None:
+        """Re-decide side-by-side or stacked (call after the visible actions change)."""
+        actions = self._action_host.sizeHint().width() if not self._action_host.isHidden() else 0
+        needed = theme.scaled_px(220) + 16 + actions + self._margin_w
+        stacked = self.width() < needed and actions > 0
+        if stacked != self._stacked:
+            self._stacked = stacked
+            self._outer.setDirection(QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight)
+            self._outer.setAlignment(self._action_host, Qt.AlignmentFlag.AlignLeft if stacked else Qt.AlignmentFlag.AlignVCenter)
+            self._outer.invalidate()
+            self.updateGeometry()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.reflow()

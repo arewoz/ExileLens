@@ -346,7 +346,7 @@ class Disclosure(QWidget):
 
     toggled = Signal(bool)
 
-    def __init__(self, title: str, parent: QWidget | None = None) -> None:
+    def __init__(self, title: str, parent: QWidget | None = None, *, preview: str = "") -> None:
         super().__init__(parent)
         self.setObjectName("disclosure")
         self._title = title
@@ -372,7 +372,19 @@ class Disclosure(QWidget):
         column = QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
-        column.addWidget(self.toggle, 0, Qt.AlignmentFlag.AlignLeft)
+        head = QHBoxLayout()
+        head.setContentsMargins(0, 0, 0, 0)
+        head.setSpacing(6)
+        head.addWidget(self.toggle, 0, Qt.AlignmentFlag.AlignLeft)
+        # A one-line description of what is inside, shown only while collapsed.
+        self.preview = QLabel(preview)
+        self.preview.setObjectName("helperText")
+        self.preview.setWordWrap(True)   # wraps instead of forcing the page wider at large text sizes
+        self.preview.setVisible(bool(preview))
+        self._preview_text = preview
+        head.addWidget(self.preview, 0)
+        head.addStretch(1)
+        column.addLayout(head)
         column.addWidget(self.content)
 
     def is_expanded(self) -> bool:
@@ -390,6 +402,7 @@ class Disclosure(QWidget):
 
     def _on_toggled(self, checked: bool) -> None:
         self.content.setVisible(checked)
+        self.preview.setVisible(bool(self._preview_text) and not checked)
         self.toggle.setArrowType(Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow)
         self.toggled.emit(checked)
 

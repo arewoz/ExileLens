@@ -59,6 +59,20 @@ ERROR_LINE = "rgba(239,128,119,97)"
 INFO_TINT = "rgba(134,179,230,23)"
 INFO_LINE = "rgba(134,179,230,87)"
 
+# Zone treatments (Settings / Diagnostics regroup). One neutral raised card for setup and health, and two
+# tinted zones that are identity, never state: coral = Patreon supporter functionality, honey = help.
+# Tints are alpha 0-255 over the page background (4% / 5.5%); lines 19% / 24%; inner rules 12% / 14%.
+CARD_LINE = "rgba(255,255,255,28)"
+CARD_RULE = "rgba(255,255,255,17)"
+PATREON = "#ff424d"                       # the shipped mark's own colour; never used as a fill or a button outline
+PATREON_TINT = "rgba(255,66,77,10)"
+PATREON_LINE = "rgba(255,66,77,48)"
+PATREON_RULE = "rgba(255,66,77,31)"
+HELP = "#e6b84f"                          # honey: yellower than WARN, more saturated than ACCENT
+HELP_TINT = "rgba(230,184,79,14)"
+HELP_LINE = "rgba(230,184,79,61)"
+HELP_RULE = "rgba(230,184,79,36)"
+
 INPUT_BG = WELL
 INPUT_FG = TEXT
 BUTTON_BG = SURFACE_2

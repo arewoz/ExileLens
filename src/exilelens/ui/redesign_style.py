@@ -77,6 +77,9 @@ _TEMPLATE = """
 @ROOT@ QLabel#bodyText { color: @TEXT_BODY@; font-size: 14px; }
 @ROOT@ QLabel#fieldLabel { color: @TEXT@; font-size: 14px; font-weight: 500; }
 @ROOT@ QLabel#monoText { color: @TEXT_MUTED@; font-family: @MONO_FONT@; font-size: 12px; }
+/* a selectable path can take keyboard focus (to copy it), so it shows the page's focus ring */
+@ROOT@ QLabel#monoText[selectable="true"] { border: 1px solid transparent; border-radius: 3px; padding: 0 2px; }
+@ROOT@ QLabel#monoText[selectable="true"]:focus { border: 1px solid @FOCUS@; }
 @ROOT@ QLabel#statusOk { color: @OK@; font-weight: 600; }
 @ROOT@ QLabel#statusWarn { color: @WARN@; font-weight: 600; }
 @ROOT@ QLabel#statusError { color: @ERROR@; font-weight: 600; }
@@ -108,6 +111,27 @@ _TEMPLATE = """
 @ROOT@ QLabel#measureValue[tone="warn"] { color: @WARN@; font-weight: 500; }
 @ROOT@ QLabel#measureValue[tone="muted"] { color: @TEXT_MUTED@; font-weight: 400; }
 @ROOT@ QLabel#boldValue { color: @TEXT@; font-weight: 500; }
+
+/* zones: one raised neutral card (setup, health), one coral supporter zone, one honey help zone.
+   Tint is identity, not state, so borders never change with status; buttons inside stay neutral. */
+@ROOT@ QFrame#setupCard { background: @SURFACE_1@; border: 1px solid @CARD_LINE@; border-radius: @R6@px; }
+@ROOT@ QFrame#setupCard QWidget#cardRow, @ROOT@ QFrame#setupCard QWidget#healthRowGrid,
+@ROOT@ QFrame#setupCard QWidget#zoneFooter { border-top: 1px solid @CARD_RULE@; border-bottom: 0; background: transparent; }
+@ROOT@ QFrame#setupCard QWidget#cardRow[problem="true"] { background: rgba(255,255,255,7); }
+@ROOT@ QFrame#setupCard QLabel#cardLead { color: @TEXT_MUTED@; font-size: 13px; }
+@ROOT@ QFrame#supporterZone { background: @PATREON_TINT@; border: 1px solid @PATREON_LINE@; border-radius: @R6@px; }
+@ROOT@ QFrame#supporterZone QWidget#settingsRow, @ROOT@ QFrame#supporterZone QWidget#zoneFooter
+{ border-top: 1px solid @PATREON_RULE@; border-bottom: 0; background: transparent; }
+@ROOT@ QFrame#supporterZone QWidget#rowGroup { border: 0; }
+@ROOT@ QFrame#supporterZone QLabel#zoneTitle, @ROOT@ QFrame#helpZone QLabel#zoneTitle { font-size: 14px; font-weight: 600; color: @TEXT@; }
+@ROOT@ QFrame#helpZone QLabel#zoneTitle { font-size: 15px; }
+@ROOT@ QFrame#supporterZone QLabel#zoneText, @ROOT@ QFrame#helpZone QLabel#zoneText { color: @TEXT_BODY@; font-size: 13px; }
+@ROOT@ QFrame#helpZone { background: @HELP_TINT@; border: 1px solid @HELP_LINE@; border-radius: @R6@px; }
+@ROOT@ QFrame#helpZone QWidget#zoneFooter { border-top: 1px solid @HELP_RULE@; background: transparent; }
+@ROOT@ QFrame#helpZone QLabel#helperText { color: @TEXT_BODY@; }
+@ROOT@ QFrame#helpZone QLabel#zoneFooterText { color: @TEXT_MUTED@; font-size: 13px; }
+@ROOT@ QLabel#supportId { color: @TEXT_BODY@; font-family: @MONO_FONT@; font-size: 12px; }
+@ROOT@ QPlainTextEdit#diagnosticViewer { font-family: @MONO_FONT@; font-size: 12px; }
 
 /* notices: tinted only when they ask for action */
 @ROOT@ QWidget#notice { border: 1px solid @HAIRLINE_STRONG@; border-radius: @R4@px; background: @SURFACE_1@; }
@@ -212,6 +236,9 @@ def build_stylesheet() -> str:
         "HAIRLINE": theme.HAIRLINE, "HAIRLINE_STRONG": theme.HAIRLINE_STRONG,
         "WARN_TINT": theme.WARN_TINT, "WARN_LINE": theme.WARN_LINE, "ERROR_TINT": theme.ERROR_TINT,
         "ERROR_LINE": theme.ERROR_LINE, "INFO_TINT": theme.INFO_TINT, "INFO_LINE": theme.INFO_LINE,
+        "CARD_LINE": theme.CARD_LINE, "CARD_RULE": theme.CARD_RULE,
+        "PATREON_TINT": theme.PATREON_TINT, "PATREON_LINE": theme.PATREON_LINE, "PATREON_RULE": theme.PATREON_RULE,
+        "HELP_TINT": theme.HELP_TINT, "HELP_LINE": theme.HELP_LINE, "HELP_RULE": theme.HELP_RULE,
         "R4": str(theme.RADIUS_SM), "R6": str(theme.RADIUS_MD),
         "KEY_H": str(theme.scaled_px(24)), "CONTROL_H": str(theme.CONTROL_HEIGHT), "CONTROL_HC": str(theme.CONTROL_HEIGHT_COMPACT),
         "UI_FONT": theme.UI_FONT_FAMILY, "BUILD_FONT": theme.BUILD_NAME_FONT_FAMILY, "MONO_FONT": theme.MONO_FONT_FAMILY,
