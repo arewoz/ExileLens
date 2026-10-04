@@ -94,6 +94,8 @@ class HotkeyCaptureDialog(QDialog):
         self.accept()
 
 
+from exilelens.price_check.market_policy import market_capability  # noqa: E402  (pure policy read; no network stack)
+
 MARKET_PRICES_COPY = (
     "Market prices sends the item's searchable properties and your selected league to the market provider to find comparable "
     "listings. It does not send your PoB build, character, account or item history."
@@ -262,7 +264,7 @@ class SettingsPage(ColumnPage):
         self._build_market_prices_control()
 
     def _build_market_prices_control(self) -> None:
-        capability = self.controller.market_capability()
+        capability = market_capability(self.settings)
         self._market_prices = ThemedSwitch("Market prices")
         self._market_prices.setAccessibleName("Market prices")
         self._market_prices.setChecked(capability.active)
@@ -379,7 +381,7 @@ class SettingsPage(ColumnPage):
         self._refresh_leagues_btn.clicked.connect(self._refresh_leagues)
         # R5-C: the Market rows exist only when the provider can actually serve prices. While it cannot (the current production state),
         # nothing here invites the player to switch on a feature that cannot work; Diagnostics reports "Provider unavailable".
-        market_available = self.controller.market_capability().provider_available
+        market_available = market_capability(self.settings).provider_available
         row = SettingsRow("Market league")
         row.add_left(self._league_status)
         row.add_control(self._league_combo)
