@@ -76,7 +76,6 @@ REASON_TEXT: dict[str, str] = {
     "WEAK_COMPARABLES": "Too few comparable listings for an estimate.",
     "UNIQUE_NOT_PRICED": "Unique items are not priced from their base type.",
     "LEAGUE_REQUIRED": "No league is selected for market prices.",
-    "TIMEOUT": "The market lookup took too long.",
 }
 _TRUST_TEXT: dict[str, str] = {
     "SAMPLE_TOO_SMALL": "Too few comparable listings for an estimate.",

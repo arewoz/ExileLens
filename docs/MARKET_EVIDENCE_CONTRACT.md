@@ -35,7 +35,7 @@ No confidence percentage, score, history, value class or buy recommendation exis
 - `evidence_from_price_result(result, ...)` is the one conversion from `PriceCheckResult`/trust to this contract. Deterministic, never raises.
 - `MarketEvidenceService` (`price_check/market_evidence_service.py`) is the only thing Item Check calls: access decision first (disabled, `no_network`, provider
   not authorized all short-circuit before the provider is even constructed), compile with the existing planner, evidence cache, one provider lookup with a
-  timeout, conversion, containment of every exception. It reuses the provider, trust model, rate policy, FX and league resolver.
+  conversion, containment of every exception. It is synchronous and starts no threads; each lookup builds its own provider. It reuses the provider, trust model, rate policy, FX and league resolver.
 - Evidence cache key: `(league, compiled-query fingerprint)`; TTL 10 minutes; only `AVAILABLE` evidence is cached; a hit ages its `freshness`. The PoB build is
   not part of the key because price estimation does not depend on it.
 
@@ -48,5 +48,5 @@ the provider may finish, its result is dropped. `market_evidence_updated(request
 
 ## Diagnostics
 
-Operational state only: access state, provider id, last status/reason code, freshness, rate-limited, pending, cache size, lookup count. Never queries, listing
+Operational state only: access state, pending, cache size, attempted-lookup count (service), plus provider id, status/reason code, freshness and rate-limited of the last evidence the controller ACCEPTED (set only after the stale guards, so a late superseded lookup never looks current). Never queries, listing
 ids, sellers, prices, item text, PoB XML or build/character identity. No telemetry events.

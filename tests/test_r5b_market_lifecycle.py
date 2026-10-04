@@ -147,7 +147,7 @@ def test_policy_blocked_production_path_is_typed_inline_and_makes_no_request(con
     evidence = controller._last_result["market_evidence"]
     assert (evidence["status"], evidence["reason_code"]) == ("UNAVAILABLE", "PROVIDER_NOT_AUTHORIZED")
     assert evidence["price"] is None and evidence["headline"] is None
-    assert controller._market_service._provider is None, "the live provider stack was never constructed"
+    assert controller._market_service.diagnostics()["provider_lookups"] == 0, "no provider was ever built or asked"
     assert {k: v for k, v in controller._last_result.items() if k != "market_evidence"} == before
     assert [rid for rid, _ in controller._emitted] == [1]
 
@@ -343,3 +343,76 @@ def test_controller_diagnostics_hold_operational_state_only(controller):
     for private in ("Arcane Loop", "Synthetic", "Seller", "syn0", "35"):
         assert private not in blob
     assert diag["last_status"] == EvidenceStatus.AVAILABLE.value and diag["pending"] is False
+
+
+# ------------------------------------------------------------------- the real race: A in flight, B accepted, A finishes late
+
+
+class _Guarded:
+    """Not thread-safe on purpose: entering `lookup` while another call on THIS instance is active fails the test."""
+
+    def __init__(self, inner, gate=None, started=None):
+        self.inner, self.gate, self.started = inner, gate, started
+        self.active = 0
+        self.max_active = 0
+
+    def lookup(self, request):
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        try:
+            assert self.active == 1, "two lookups used one provider instance concurrently"
+            if self.started is not None:
+                self.started.set()
+            if self.gate is not None:
+                assert self.gate.wait(10)
+            return self.inner.lookup(request)
+        finally:
+            self.active -= 1
+
+
+def test_late_item_a_neither_overwrites_b_nor_becomes_the_accepted_diagnostics_state_nor_shares_a_provider(controller):
+    from tests.market_support import FakeTransport, error_response
+
+    gate, started = threading.Event(), threading.Event()
+    built: list[_Guarded] = []
+
+    def factory():
+        index = len(built)
+        if index == 0:  # Item A: a strong market, blocked until released
+            provider = _Guarded(make_provider(make_client(scenario_transport("strong"))), gate, started)
+        else:  # Item B: distinguishable outcome (rate limited), completes immediately
+            provider = _Guarded(make_provider(make_client(FakeTransport(lambda r: error_response("rate_limited_429")))))
+        built.append(provider)
+        return provider
+
+    _opt_in(controller, authorized=True)
+    controller._market_service = MarketEvidenceService(access_fn=lambda: AVAILABLE, provider_factory=factory, wall_clock=lambda: 5000.0)
+
+    controller._maybe_schedule_market_evidence(1, _paint(controller, ITEM_A, 1, "hash-a"))
+    job_a = controller._market_jobs.pop(0)
+    worker = threading.Thread(target=job_a)
+    worker.start()
+    assert started.wait(5), "A's provider call is in flight"
+
+    # B: new Item Check cancels A's enrichment, paints, schedules, and completes while A is STILL executing.
+    controller._cancel_market_evidence_work()
+    b = _paint(controller, ITEM_B, 2, "hash-b")
+    controller._maybe_schedule_market_evidence(2, b)
+    _run_next(controller)
+    assert worker.is_alive(), "A has not finished yet"
+    accepted_b = json.dumps(controller._last_result["market_evidence"], sort_keys=True)
+    diag_b = controller.market_evidence_diagnostics()
+    assert controller._last_result["market_evidence"]["status"] == "RATE_LIMITED" and diag_b["last_status"] == "RATE_LIMITED"
+    assert len(built) == 2 and built[0] is not built[1], "B got its own provider while A still held its own"
+
+    gate.set()  # A finishes late
+    worker.join(10)
+    controller._test_app.processEvents()
+
+    assert controller._last_result["raw_input"]["content_hash"] == "hash-b"
+    assert json.dumps(controller._last_result["market_evidence"], sort_keys=True) == accepted_b, "B's evidence is unchanged"
+    after = controller.market_evidence_diagnostics()
+    for key in ("provider_id", "last_status", "last_reason_code", "freshness", "rate_limited"):
+        assert after[key] == diag_b[key], f"late A changed the accepted diagnostics field {key}"
+    assert [rid for rid, _ in controller._emitted] == [2]
+    assert all(provider.max_active == 1 for provider in built)

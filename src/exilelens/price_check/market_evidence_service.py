@@ -5,6 +5,17 @@ Responsibilities, in order: read the central market-access decision (and stop th
 conversion layer, and contain every failure as a typed `MarketEvidence`. It owns no pricing logic: the provider, trust model, rate
 policy, FX and league handling are reused. It never touches PoB.
 
+Concurrency model: the service is SYNCHRONOUS and starts no threads. The caller (EvaluationController) owns asynchrony and runs
+`evidence_for` inside its own background job. Python cannot cancel a running thread, so the service does not pretend to: staleness is the
+caller's decision (identity guards); a superseded job simply finishes and its result is discarded. Every lookup builds its OWN provider from
+`provider_factory`, so an old job still executing can never share a provider with a newer one. The shared, already thread-safe pieces (rate
+policy/limit state, response caches, in-flight coalescer, FX cache) stay shared through the provider's defaults.
+
+Bounded work (live provider, when one is ever authorized): the transport times out each request after 30 s; one lookup makes at most 1 search
+and 2 fetch batches (<= 20 listings) plus one exchange request per distinct non-base currency actually present (cached 15 min); pacing never
+sleeps more than 5 s per wait and otherwise returns a typed rate-limited result. The bound is on request count and per-request time, not on
+total wall-clock; no wall-clock service timeout exists.
+
 While the live provider is unauthorized the default provider is never constructed (the access decision stops first), so nothing from the
 trade2 stack is imported and no request is made. Tests inject `access_fn` and `provider_factory`.
 """
@@ -30,7 +41,6 @@ from exilelens.price_check.market_policy import MarketAccessDecision, MarketAcce
 logger = logging.getLogger(__name__)
 
 DEFAULT_EVIDENCE_TTL_SECONDS = 600.0
-DEFAULT_TIMEOUT_SECONDS = 90.0
 MAX_CACHE_ENTRIES = 64
 
 _ACCESS_STATUS = {
@@ -89,20 +99,16 @@ class MarketEvidenceService:
         access_fn: Callable[[], MarketAccessDecision] = current_market_access,
         provider_factory: Callable[[], Any] = _default_provider,
         ttl_seconds: float = DEFAULT_EVIDENCE_TTL_SECONDS,
-        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         wall_clock: Callable[[], float] = time.time,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._access_fn = access_fn
         self._provider_factory = provider_factory
-        self._provider: Any = None
         self._ttl = float(ttl_seconds)
-        self._timeout = float(timeout_seconds)
         self._wall = wall_clock
         self._mono = monotonic
         self._cache: dict[tuple[str, str], _CacheEntry] = {}
         self._lock = threading.Lock()
-        self._last: MarketEvidence | None = None
         self._lookups = 0
 
     # ------------------------------------------------------------------------------------------------------ public
@@ -111,12 +117,9 @@ class MarketEvidenceService:
         """Never raises. Returns typed evidence for every outcome."""
         try:
             evidence = self._evidence_for(item_raw, str(league or "").strip(), listed)
-        except TimeoutError:
-            evidence = status_evidence(EvidenceStatus.UNAVAILABLE, "TIMEOUT", listed=listed)
         except Exception as exc:  # noqa: BLE001 - nothing market-related may reach Item Check
             logger.warning("market evidence contained %s", type(exc).__name__)
             evidence = status_evidence(EvidenceStatus.UNAVAILABLE, "PROVIDER_ERROR", listed=listed)
-        self._last = evidence
         return evidence
 
     def invalidate(self) -> None:
@@ -124,17 +127,12 @@ class MarketEvidenceService:
             self._cache.clear()
 
     def diagnostics(self) -> dict[str, Any]:
-        """Operational state only: no query, listing, seller, price, item text or identity."""
+        """Attempt-level operational state only (no query, listing, seller, price, item text or identity). What the product actually
+        ACCEPTED is tracked by the controller after its stale guards, never here: a late, superseded lookup must not look current."""
         decision = self._access_fn()
-        last = self._last
         return {
             "access_state": decision.state.value,
             "network_permitted": decision.network_permitted,
-            "provider_id": last.provider_id if last else "",
-            "last_status": last.status.value if last else None,
-            "last_reason_code": last.reason_code if last else "",
-            "freshness": last.freshness.value if last and last.freshness else None,
-            "rate_limited": bool(last and last.status is EvidenceStatus.RATE_LIMITED),
             "cache_entries": len(self._cache),
             "provider_lookups": self._lookups,
         }
@@ -162,25 +160,10 @@ class MarketEvidenceService:
         return evidence.with_listed(listed) if listed is not None else evidence
 
     def _lookup(self, request: Any) -> Any:
-        if self._provider is None:
-            self._provider = self._provider_factory()
-        self._lookups += 1
-        box: dict[str, Any] = {}
-
-        def run() -> None:
-            try:
-                box["result"] = self._provider.lookup(request)
-            except Exception as exc:  # noqa: BLE001
-                box["error"] = exc
-
-        worker = threading.Thread(target=run, name="market-evidence-lookup", daemon=True)
-        worker.start()
-        worker.join(self._timeout)
-        if worker.is_alive():
-            raise TimeoutError("market lookup timed out")
-        if "error" in box:
-            raise box["error"]
-        result = box.get("result")
+        provider = self._provider_factory()  # one provider per lookup: never shared with a superseded, still-running lookup
+        with self._lock:
+            self._lookups += 1
+        result = provider.lookup(request)
         if result is None:
             raise LookupError("provider returned no result")
         return result

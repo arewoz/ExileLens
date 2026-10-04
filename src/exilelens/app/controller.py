@@ -1077,6 +1077,8 @@ class EvaluationController(QObject):
         self._market_service: Any = None
         self._market_job_seq = 0
         self._market_active: dict[str, Any] | None = None
+        #: Operational snapshot of the last market evidence the controller ACCEPTED (after every stale guard). Status fields only.
+        self._market_accepted: dict[str, Any] = {}
         self._market_spawn: Callable[[Callable[[], None]], None] = _spawn_market_thread
         self._prices: dict[tuple[str, str], ManualPrice] = {}
         self._last_analysis: dict[str, Any] | None = None
@@ -5062,9 +5064,19 @@ class EvaluationController(QObject):
         out: dict[str, Any] = {
             "access_state": access.state.value,
             "network_permitted": access.network_permitted,
+            "provider_id": "",
+            "last_status": None,
+            "last_reason_code": "",
+            "freshness": None,
+            "rate_limited": False,
+            "cache_entries": 0,
+            "provider_lookups": 0,
         }
         if self._market_service is not None:
-            out.update(self._market_service.diagnostics())
+            attempts = self._market_service.diagnostics()
+            out["cache_entries"] = attempts.get("cache_entries", 0)
+            out["provider_lookups"] = attempts.get("provider_lookups", 0)
+        out.update(self._market_accepted)
         out["pending"] = self._market_active is not None
         return out
 
@@ -5140,6 +5152,13 @@ class EvaluationController(QObject):
             if evidence is None:
                 return
             self._market_active = None
+            self._market_accepted = {
+                "provider_id": evidence.provider_id,
+                "last_status": evidence.status.value,
+                "last_reason_code": evidence.reason_code,
+                "freshness": evidence.freshness.value if evidence.freshness else None,
+                "rate_limited": evidence.status.value == "RATE_LIMITED",
+            }
             updated = dict(self._last_result)
             updated["market_evidence"] = evidence.to_dict()
             updated["request_meta"] = dict(self._last_result.get("request_meta") or {})

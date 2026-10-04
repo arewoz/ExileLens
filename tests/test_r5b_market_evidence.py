@@ -296,7 +296,7 @@ def test_a_missing_league_is_typed():
 def test_rate_limited_and_unavailable_are_typed_and_not_cached():
     service, transport, _, _ = _service(FakeTransport(lambda r: error_response("rate_limited_429")))
     assert service.evidence_for(ITEM, league=LEAGUE).status is EvidenceStatus.RATE_LIMITED
-    assert service.diagnostics()["cache_entries"] == 0 and service.diagnostics()["rate_limited"] is True
+    assert service.diagnostics()["cache_entries"] == 0
     service2, _, _, _ = _service(FakeTransport(lambda r: error_response("server_error_503")))
     assert service2.evidence_for(ITEM, league=LEAGUE).status is EvidenceStatus.UNAVAILABLE
     assert service2.diagnostics()["cache_entries"] == 0
@@ -323,17 +323,38 @@ def test_a_throwing_factory_and_an_uncompilable_item_are_contained():
     assert service.evidence_for("not an item", league=LEAGUE).status is EvidenceStatus.UNAVAILABLE
 
 
-def test_a_slow_provider_times_out_without_blocking_the_caller():
-    release = threading.Event()
+def test_the_service_is_synchronous_and_starts_no_threads_of_its_own():
+    seen = []
 
-    class Slow:
+    class Probe:
         def lookup(self, request):
-            release.wait(5)
+            seen.append(threading.current_thread())
+            return make_provider(make_client(scenario_transport("strong"))).lookup(request)
 
-    service = MarketEvidenceService(access_fn=lambda: AVAILABLE, provider_factory=Slow, timeout_seconds=0.05)
+    MarketEvidenceService(access_fn=lambda: AVAILABLE, provider_factory=Probe).evidence_for(ITEM, league=LEAGUE)
+    assert seen == [threading.current_thread()]
+
+
+def test_a_transport_timeout_is_the_real_boundary_and_is_typed():
+    from exilelens.price_check.transport import TransportError
+
+    service, _, _, _ = _service(FakeTransport(lambda r: TransportError("timeout")))
     evidence = service.evidence_for(ITEM, league=LEAGUE)
-    release.set()
-    assert evidence.status is EvidenceStatus.UNAVAILABLE and evidence.reason_code == "TIMEOUT"
+    assert evidence.status is EvidenceStatus.UNAVAILABLE and evidence.price is None
+
+
+def test_every_lookup_gets_its_own_provider():
+    built = []
+
+    def factory():
+        provider = make_provider(make_client(scenario_transport("strong")))
+        built.append(provider)
+        return provider
+
+    service = MarketEvidenceService(access_fn=lambda: AVAILABLE, provider_factory=factory)
+    service.evidence_for(ITEM, league=LEAGUE)
+    service.evidence_for(ITEM.replace("40% increased", "20% increased"), league=LEAGUE)
+    assert len(built) == 2 and built[0] is not built[1]
 
 
 # cache: key = (league, compiled-query fingerprint); never the PoB build
@@ -395,8 +416,7 @@ def test_diagnostics_are_operational_only():
     service, _, _, _ = _service()
     service.evidence_for(ITEM + "Note: ~b/o 33 exalted\n", league=LEAGUE)
     diag = service.diagnostics()
-    assert set(diag) == {"access_state", "network_permitted", "provider_id", "last_status", "last_reason_code", "freshness", "rate_limited",
-                         "cache_entries", "provider_lookups"}
+    assert set(diag) == {"access_state", "network_permitted", "cache_entries", "provider_lookups"}
     blob = json.dumps(diag)
     for private in ("Arcane Loop", "syn0", "Seller", "exalted", "query", ITEM[:20]):
         assert private not in blob

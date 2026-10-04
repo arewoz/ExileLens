@@ -398,7 +398,7 @@ Contract reference: [MARKET_EVIDENCE_CONTRACT.md](MARKET_EVIDENCE_CONTRACT.md). 
 enabled lookup resolves to `UNAVAILABLE / PROVIDER_NOT_AUTHORIZED` with no request and no trade2 stack loaded. R5-B does not expose the final R5-C UX.
 
 **Delivered:** `price_check/market_evidence.py` (contract v1, the one conversion, listed-price comparison, freshness aging), `price_check/market_evidence_service.py`
-(access gate, compile, evidence cache, one provider lookup with timeout, containment), controller post-paint scheduling with identity guards, operational diagnostics,
+(access gate, compile, evidence cache, one synchronous provider lookup on a per-lookup provider, containment), controller post-paint scheduling with identity guards, operational diagnostics,
 tests `test_r5b_market_evidence.py` / `test_r5b_market_lifecycle.py`, CI step.
 
 **Deviations from §7/§14, and why:**
@@ -414,6 +414,12 @@ tests `test_r5b_market_evidence.py` / `test_r5b_market_lifecycle.py`, CI step.
    (R5-B has no efficiency; `power_per_currency` removal stays with R5-C).
 6. `market_evidence_updated` is emitted for in-place re-rendering but `main.py` does not connect it: no surface renders market evidence yet (R5-C), and a re-render with
    unchanged presentation would only cost a repaint.
+
+**Concurrency model (hardening pass):** the controller owns the single async layer (one background job per Item Check); the service runs inside it with no thread of its own.
+Python cannot cancel a running thread, so there is no wall-clock service timeout: the bound is the transport's 30 s per request, at most 1 search + 2 fetch batches (20
+listings) + one exchange request per distinct non-base currency, and pacing waits capped at 5 s. A superseded job finishes and is discarded by identity; every lookup builds its
+own provider so it can never share one with a still-running older job (shared rate state, caches and the in-flight coalescer stay shared). The accepted-evidence diagnostics are
+set by the controller after the stale guards.
 
 **R5-C prerequisites:** a consent/Settings surface that records `market_consent_version`; the compact line / More Info section reading `result["market_evidence"]`; removal of
 `power_per_currency` and the `fair` label; copy review.
