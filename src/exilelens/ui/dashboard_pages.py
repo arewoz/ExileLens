@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSignalBlocker, QTimer
-from PySide6.QtGui import QColor, QKeyEvent, QPalette
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -430,7 +430,10 @@ class SettingsPage(ColumnPage):
         texts.addWidget(note)
         # Logs, the event history and support reports are on Diagnostics, not here. One wrapping label with an
         # inline link, so it never forces the page wider at large text sizes.
-        pointer = QLabel('Logs, event history and support reports are in <a href="diagnostics">Diagnostics</a>.')
+        pointer = QLabel(
+            f'<style>a {{ color: {theme.TEXT}; }}</style>'
+            'Logs, event history and support reports are in <a href="diagnostics">Diagnostics</a>.'
+        )
         pointer.setObjectName("helperText")
         pointer.setTextFormat(Qt.TextFormat.RichText)
         pointer.setWordWrap(True)
@@ -438,9 +441,6 @@ class SettingsPage(ColumnPage):
             Qt.TextInteractionFlag.LinksAccessibleByMouse | Qt.TextInteractionFlag.LinksAccessibleByKeyboard
         )
         pointer.setOpenExternalLinks(False)
-        palette = pointer.palette()
-        palette.setColor(QPalette.ColorRole.Link, QColor(theme.TEXT))   # the same white link as the other in-app links
-        pointer.setPalette(palette)
         pointer.setAccessibleName("Logs, event history and support reports are in Diagnostics")
         pointer.linkActivated.connect(lambda _href: self._open_diagnostics())
         self._diagnostics_pointer = pointer

@@ -10,7 +10,7 @@ does so the two stay in step.
 |---|---|---|---|
 | Neutral | none | Hotkey, Updates (manual row), Item evaluation, Overlay, Privacy | none: flat rows, hairlines `HAIRLINE` |
 | Setup / health | `setupCard` | **Path of Building** (Settings), **Application health** (Diagnostics). Max one per page | `SURFACE_1`, 1 px `CARD_LINE`, radius 6, inner rules `CARD_RULE` |
-| Supporter | `supporterZone` | Seamless updates and every Patreon control. Max one per page | no fill, 1 px `CARD_LINE`, rules `CARD_RULE`. **Neutral on purpose**: a red/pink surface read as a warning or the destructive style, so the zone is identified only by the exact Patreon mark, its heading and its copy |
+| Supporter | `supporterZone` | Seamless updates and every Patreon control. Max one per page | `SUPPORT_SURFACE` `#27232a` (raised neutral + ~5% plum), 1 px neutral `CARD_LINE`, rules `CARD_RULE`. **Never red**: a red/burgundy surface read as a warning or the destructive style; this is a barely warm raised surface, and the exact Patreon mark stays the only red |
 | Help | `helpZone` | **Report a problem** only | `HELP_TINT` (~5.5%), 1 px `HELP_LINE` (~24%), rules `HELP_RULE` |
 
 All tokens are in `ui/theme.py`; the rules are in `ui/redesign_style.py` and are scoped to the zone object names, so the

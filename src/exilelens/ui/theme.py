@@ -59,13 +59,17 @@ ERROR_LINE = "rgba(239,128,119,97)"
 INFO_TINT = "rgba(134,179,230,23)"
 INFO_LINE = "rgba(134,179,230,87)"
 
-# Zone treatments (Settings / Diagnostics regroup). One neutral raised card for setup and health, a neutral outlined
-# zone for the optional supporter feature (its identity is the shipped Patreon mark, never a tint: red surfaces read as
+# Zone treatments (Settings / Diagnostics regroup). One neutral raised card for setup and health, a faintly plum-warmed
+# zone for the optional supporter feature (identified by the shipped Patreon mark; a red or burgundy surface reads as
 # warning or danger), and one honey-tinted help zone. The honey tint is alpha 0-255 over the page background (5.5%);
 # line 24%; inner rule 14%.
 CARD_LINE = "rgba(255,255,255,28)"
 CARD_RULE = "rgba(255,255,255,17)"
 PATREON = "#ff424d"                       # the shipped mark's own colour; used nowhere else, never as a surface
+# The supporter zone is the raised neutral surface (SURFACE_1) with about 5% plum mixed in: a faint warm undertone that
+# marks it as one intentional, optional feature without reading as warning or danger. Opaque on purpose, and nowhere
+# near the error salmon of Reset configuration (hue ~280 vs ~5, saturation ~0.09). Its border stays the neutral card line.
+SUPPORT_SURFACE = "#27232a"
 HELP = "#e6b84f"                          # honey: yellower than WARN, more saturated than ACCENT
 HELP_TINT = "rgba(230,184,79,14)"
 HELP_LINE = "rgba(230,184,79,61)"

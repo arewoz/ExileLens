@@ -74,13 +74,49 @@ def test_supporter_zone_has_no_reddish_surface_or_border_only_the_mark_keeps_the
             c = QColor(image.pixel(x, y))
             # a red/pink cast: red clearly above green AND blue, with green close to blue. (The orange of a warn status
             # word has green well above blue; champagne and green text are excluded the same way.)
-            if c.red() - c.green() > 14 and abs(c.green() - c.blue()) < 25:
+            if c.red() - c.green() > 14 and c.blue() >= c.green() - 6:   # pink/red; champagne (switch) and orange have blue well below green
                 reddish.append((x, y, c.name()))
     assert reddish == [], reddish[:5]
-    # The surface is the page's own background (no fill), and the border is a neutral hairline.
-    bg = QColor(theme.BG)
+    # The surface is the faintly plum-warmed raised neutral, visibly apart from the page but nowhere near red.
+    want = QColor(theme.SUPPORT_SURFACE)
     inside = QColor(image.pixel(image.width() // 2, image.height() - 3))
-    assert abs(inside.red() - bg.red()) <= 3 and abs(inside.green() - bg.green()) <= 3 and abs(inside.blue() - bg.blue()) <= 3
+    assert abs(inside.red() - want.red()) <= 3 and abs(inside.green() - want.green()) <= 3 and abs(inside.blue() - want.blue()) <= 3
+    page = QColor(theme.BG)
+    assert (inside.red() + inside.green() + inside.blue()) - (page.red() + page.green() + page.blue()) >= 20
+
+
+def test_supporter_surface_is_a_warm_neutral_far_from_the_destructive_family() -> None:
+    import colorsys
+
+    from exilelens.ui import theme
+
+    def hsl(value):
+        r, g, b = (int(value.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        h, l, s = colorsys.rgb_to_hls(r, g, b)
+        return h * 360, s, l
+
+    hue, sat, light = hsl(theme.SUPPORT_SURFACE)
+    error_hue = hsl(theme.ERROR)[0]
+    distance = min(abs(hue - error_hue), 360 - abs(hue - error_hue))
+    assert sat < 0.15 and light < 0.2                 # a faint undertone on a dark surface, not a coloured panel
+    assert distance > 60                              # a different colour family from Reset configuration's outline
+    # still a visible section against the page background, and its text keeps the informational contrast
+    assert light > hsl(theme.BG)[2]
+    from exilelens.ui.redesign_style import build_stylesheet  # noqa: F401  (stylesheet builds with the token)
+    surface = tuple(int(theme.SUPPORT_SURFACE.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+    for name in ("TEXT", "TEXT_BODY", "TEXT_MUTED"):
+        value = tuple(int(getattr(theme, name).lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+        la, lb = sorted((_lum(value), _lum(surface)), reverse=True)
+        assert (la + 0.05) / (lb + 0.05) >= 4.5, name
+
+
+def _lum(rgb):
+    def channel(c):
+        c /= 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
 def test_zone_does_not_share_the_destructive_look_with_reset(harness) -> None:

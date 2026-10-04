@@ -1,11 +1,12 @@
 """Settings → Updates › Seamless updates: the canonical home of everything Patreon.
 
-One neutral supporter zone holds the two supporter switches, the link state, Link Patreon and
+One supporter zone holds the two supporter switches, the link state, Link Patreon and
 Support on Patreon. Patreon is optional and never needed for any ExileLens feature; every non-active state says
 that manual updates still work. The panel never shows a Patreon name, email, avatar or tier because the app never
 receives one.
 
-The zone is neutral: no tint, no coloured border (red surfaces read as warning or danger). It is identified by the
+The zone is a raised surface with a barely perceptible plum undertone (``theme.SUPPORT_SURFACE``) and a neutral border:
+visible as one intentional section, never red (red surfaces read as warning or danger). It is identified by the
 shipped Patreon mark, its heading and its copy, and looks the same linked or not. State is carried by the word at the
 top right, the switches (dashed and dimmed while locked) and one footer sentence. Buttons stay neutral.
 """
