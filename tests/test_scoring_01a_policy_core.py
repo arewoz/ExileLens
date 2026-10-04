@@ -460,7 +460,10 @@ def test_the_negligible_axis_is_neither_a_reason_nor_a_trade_off_line(fixture_id
     explanation = shown["intel"]["explanation"]
     reasons = explanation["improvements"] + explanation["tradeoffs"] + explanation["primary_reasons"]
     assert not [row for row in reasons if row.get("metric") == "recovery"]
-    assert [row["metric"] for row in explanation["negligible_opposition"]] == ["recovery"]
+    # R4: RECOVERY-02A (#58) made the legacy recovery axis a COMPOSITE of Life and Energy Shield regeneration, so it no longer
+    # yields a legacy row for `negligible_opposition` to move (this assertion had failed on main since then). What the player
+    # reads is unchanged and is asserted here: the negligible recovery change is disclosed, not presented as a reason or a trade-off.
+    assert "recovery" not in [row["metric"] for row in explanation["tradeoffs"]]
     text = " ".join(visible_text(shown)).lower()
     assert "too small to offset" in text and "recovery" in text
 
