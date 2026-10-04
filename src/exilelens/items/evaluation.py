@@ -349,16 +349,7 @@ def _evaluate_item_steps(
             # code) -- `allocated_jewel_socket_count` comes straight from
             # PoB's own allocated-socket enumeration (bridge.lua
             # `allocated_jewel_socket_slots`), not a guess.
-            allocated_count = pob_parse.allocated_jewel_socket_count or 0
-            if allocated_count == 0:
-                raise NoCompatibleSlot(
-                    "this build has no allocated jewel sockets",
-                    {"allocated_jewel_socket_count": 0},
-                )
-            raise NoCompatibleSlot(
-                "this jewel is not compatible with any allocated jewel socket in this build",
-                {"allocated_jewel_socket_count": allocated_count},
-            )
+            raise no_compatible_jewel_slot_error(pob_parse)
         raise NoCompatibleSlot("item has no compatible replacement slots in the loaded build")
     # Detect two-hand weapon candidate that would auto-clear an equipped offhand.
     # This is a paired-slot change: equipping a two-hander in Weapon 1 removes
@@ -916,6 +907,34 @@ def _classify_localization_failure(raw_text: str, error: EngineError) -> EngineE
         },
     )
 
+
+
+def no_compatible_jewel_slot_error(pob_parse: Any) -> NoCompatibleSlot:
+    """The truthful refusal for a jewel with no socket to be compared in.
+
+    Three different situations reach an empty `compatible_slots` list and must not read alike:
+    the build has no allocated jewel socket; every allocated socket was withheld because the
+    jewel currently in it changes passive-tree connectivity (R4: this used to be reported as
+    "not compatible", which is false -- it was never tried); or the sockets exist and none
+    accepts this jewel family.
+    """
+    allocated_count = pob_parse.allocated_jewel_socket_count or 0
+    excluded_count = pob_parse.excluded_connectivity_risky_socket_count or 0
+    if allocated_count == 0:
+        return NoCompatibleSlot(
+            "this build has no allocated jewel sockets",
+            {"allocated_jewel_socket_count": 0},
+        )
+    if excluded_count >= allocated_count:
+        return NoCompatibleSlot(
+            "every allocated jewel socket in this build holds a jewel that changes which passives are "
+            "connected, so this jewel could not be compared safely",
+            {"allocated_jewel_socket_count": allocated_count, "excluded_connectivity_risky_socket_count": excluded_count},
+        )
+    return NoCompatibleSlot(
+        "this jewel is not compatible with any allocated jewel socket in this build",
+        {"allocated_jewel_socket_count": allocated_count, "excluded_connectivity_risky_socket_count": excluded_count},
+    )
 
 def evaluate_item(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:
     """Evaluate a clipboard item; English behaviour is byte-for-byte unchanged.
