@@ -10,7 +10,7 @@ does so the two stay in step.
 |---|---|---|---|
 | Neutral | none | Hotkey, Updates (manual row), Item evaluation, Overlay, Privacy | none: flat rows, hairlines `HAIRLINE` |
 | Setup / health | `setupCard` | **Path of Building** (Settings), **Application health** (Diagnostics). Max one per page | `SURFACE_1`, 1 px `CARD_LINE`, radius 6, inner rules `CARD_RULE` |
-| Supporter | `supporterZone` | Seamless updates and every Patreon control. Max one per page | `PATREON_TINT` (~4%), 1 px `PATREON_LINE` (~19%), rules `PATREON_RULE` |
+| Supporter | `supporterZone` | Seamless updates and every Patreon control. Max one per page | no fill, 1 px `CARD_LINE`, rules `CARD_RULE`. **Neutral on purpose**: a red/pink surface read as a warning or the destructive style, so the zone is identified only by the exact Patreon mark, its heading and its copy |
 | Help | `helpZone` | **Report a problem** only | `HELP_TINT` (~5.5%), 1 px `HELP_LINE` (~24%), rules `HELP_RULE` |
 
 All tokens are in `ui/theme.py`; the rules are in `ui/redesign_style.py` and are scoped to the zone object names, so the
@@ -19,11 +19,10 @@ colours cannot leak into the rail, the buttons or the destructive style (tested)
 * **Tint is identity, not state.** Borders and fills never change with status. Status is a word plus a dot or glyph
   (the header word of a card, the state word of the supporter zone) and, for a card, the one row that has the problem
   (`problem` property: a faint lift, and that row owns the page's single primary button).
-* **Hue map.** Champagne = primary / selected. Coral = Patreon supporter zone only (the shipped mark keeps its own
+* **Hue map.** Champagne = primary / selected. Patreon red = the shipped Patreon mark only, never a surface (it keeps its own
   `#ff424d`). Honey `#e6b84f` = help only: yellower than `WARN`, more saturated than `ACCENT`. Green / orange / salmon =
   status words only.
-* **Buttons inside tinted zones stay neutral** (secondary / tertiary). A coral fill or outline would read as the
-  destructive style.
+* **Buttons inside zones stay neutral** (secondary / tertiary).
 * Contrast on the tints is asserted in `tests/test_ui_settings_diagnostics_regroup.py` (informational text at least
   4.5:1; the mark and the lifebuoy at least 3:1).
 
@@ -82,3 +81,22 @@ Rows stack deliberately instead of squeezing: `CardRow` and `HealthGridRow` drop
 `ZoneFooter` drops its actions under the sentence, `FlowLayout` wraps button rows (the GitHub / Clear / Copy controls are
 right-aligned *trailing* items that wrap to their own line). Paths truncate; nothing clips or overlaps down to
 720 × 560, including at 150% Windows text size (asserted in `tests/test_ui_settings_diagnostics_regroup.py`).
+
+## Information dialogs: `InfoDialog`
+
+`ui/info_dialog.py` is the one dialog shell: about 560 px wide (scaled with the Windows text size), fixed header (title
+and a one-line muted intro), a body that scrolls only when it must, a fixed footer (optional secondary link on the left,
+default **Close** on the right), height capped at 80% of the app window, hairline under the header only after the body
+has scrolled. No tabs, no cards. **What ExileLens collects** (`CollectedDialog`, opened by *See what is collected*) is
+built on it; the planned What's New dialog is meant to use the same shell.
+
+The collected summary is deliberately short (about 140 words): usage statistics, crash and error reports, never
+collected, one closing line, and a *Full privacy details* link to `PRIVACY.md`. It shows no event names, field schemas,
+JSON, IDs or retention periods. Semantic tests (`tests/test_ui_privacy_dialog_and_supporter_polish.py`) tie it to
+`events.v1.json`: every usage event, every error-report field and every "never collected" entry must still be covered,
+so a contract change fails a test until the copy is reviewed.
+
+## Updates copy
+
+The pre-release line ("Pre-release · Latest stable 0.6.0") stays; the "Beta channel…" helper is no longer shown. The
+update channel logic itself is unchanged.

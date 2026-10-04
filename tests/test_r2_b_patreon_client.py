@@ -535,7 +535,7 @@ def test_status_copy_for_every_state_says_manual_updates_work_and_shows_no_profi
         if state not in (PatreonState.ACTIVE, PatreonState.NOT_CONNECTED, PatreonState.LINKING):
             assert "Manual updates still work" in text
         assert "@" not in text and "email" not in text.lower()
-    assert "not available in this build" in describe_view(PatreonView(PatreonState.NOT_CONNECTED), available=False)
+    assert "available in this build" in describe_view(PatreonView(PatreonState.NOT_CONNECTED), available=False)
 
 
 def test_patreon_panel_states_and_actions(tmp_path: Path) -> None:

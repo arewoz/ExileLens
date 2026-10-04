@@ -112,16 +112,16 @@ _TEMPLATE = """
 @ROOT@ QLabel#measureValue[tone="muted"] { color: @TEXT_MUTED@; font-weight: 400; }
 @ROOT@ QLabel#boldValue { color: @TEXT@; font-weight: 500; }
 
-/* zones: one raised neutral card (setup, health), one coral supporter zone, one honey help zone.
+/* zones: one raised neutral card (setup, health), one neutral outlined supporter zone, one honey help zone.
    Tint is identity, not state, so borders never change with status; buttons inside stay neutral. */
 @ROOT@ QFrame#setupCard { background: @SURFACE_1@; border: 1px solid @CARD_LINE@; border-radius: @R6@px; }
 @ROOT@ QFrame#setupCard QWidget#cardRow, @ROOT@ QFrame#setupCard QWidget#healthRowGrid,
 @ROOT@ QFrame#setupCard QWidget#zoneFooter { border-top: 1px solid @CARD_RULE@; border-bottom: 0; background: transparent; }
 @ROOT@ QFrame#setupCard QWidget#cardRow[problem="true"] { background: rgba(255,255,255,7); }
 @ROOT@ QFrame#setupCard QLabel#cardLead { color: @TEXT_MUTED@; font-size: 13px; }
-@ROOT@ QFrame#supporterZone { background: @PATREON_TINT@; border: 1px solid @PATREON_LINE@; border-radius: @R6@px; }
+@ROOT@ QFrame#supporterZone { background: transparent; border: 1px solid @CARD_LINE@; border-radius: @R6@px; }
 @ROOT@ QFrame#supporterZone QWidget#settingsRow, @ROOT@ QFrame#supporterZone QWidget#zoneFooter
-{ border-top: 1px solid @PATREON_RULE@; border-bottom: 0; background: transparent; }
+{ border-top: 1px solid @CARD_RULE@; border-bottom: 0; background: transparent; }
 @ROOT@ QFrame#supporterZone QWidget#rowGroup { border: 0; }
 @ROOT@ QFrame#supporterZone QLabel#zoneTitle, @ROOT@ QFrame#helpZone QLabel#zoneTitle { font-size: 14px; font-weight: 600; color: @TEXT@; }
 @ROOT@ QFrame#helpZone QLabel#zoneTitle { font-size: 15px; }
@@ -132,6 +132,19 @@ _TEMPLATE = """
 @ROOT@ QFrame#helpZone QLabel#zoneFooterText { color: @TEXT_MUTED@; font-size: 13px; }
 @ROOT@ QLabel#supportId { color: @TEXT_BODY@; font-family: @MONO_FONT@; font-size: 12px; }
 @ROOT@ QPlainTextEdit#diagnosticViewer { font-family: @MONO_FONT@; font-size: 12px; }
+
+/* information dialog (What ExileLens collects; the What's New dialog uses the same shell) */
+@ROOT@ QDialog#infoDialog { background: @SURFACE_1@; }
+@ROOT@ QDialog#infoDialog QWidget#infoHeader, @ROOT@ QDialog#infoDialog QWidget#infoBody,
+@ROOT@ QDialog#infoDialog QScrollArea#infoScroll { background: transparent; }
+@ROOT@ QDialog#infoDialog QWidget#infoHeader { border-bottom: 1px solid transparent; }
+@ROOT@ QDialog#infoDialog QWidget#infoHeader[scrolled="true"] { border-bottom: 1px solid @HAIRLINE@; }
+@ROOT@ QDialog#infoDialog QWidget#infoFooter { border-top: 1px solid @HAIRLINE@; }
+@ROOT@ QDialog#infoDialog QLabel#infoTitle { font-size: 18px; font-weight: 600; color: @TEXT@; }
+@ROOT@ QDialog#infoDialog QLabel#infoMeta { font-size: 13px; color: @TEXT_MUTED@; }
+@ROOT@ QDialog#infoDialog QLabel#infoHeading { font-size: 14px; font-weight: 600; color: @TEXT@; }
+@ROOT@ QDialog#infoDialog QLabel#infoItem { font-size: 13px; color: @TEXT_BODY@; }
+@ROOT@ QDialog#infoDialog QLabel#infoNote { font-size: 13px; color: @TEXT_MUTED@; }
 
 /* notices: tinted only when they ask for action */
 @ROOT@ QWidget#notice { border: 1px solid @HAIRLINE_STRONG@; border-radius: @R4@px; background: @SURFACE_1@; }
@@ -237,7 +250,6 @@ def build_stylesheet() -> str:
         "WARN_TINT": theme.WARN_TINT, "WARN_LINE": theme.WARN_LINE, "ERROR_TINT": theme.ERROR_TINT,
         "ERROR_LINE": theme.ERROR_LINE, "INFO_TINT": theme.INFO_TINT, "INFO_LINE": theme.INFO_LINE,
         "CARD_LINE": theme.CARD_LINE, "CARD_RULE": theme.CARD_RULE,
-        "PATREON_TINT": theme.PATREON_TINT, "PATREON_LINE": theme.PATREON_LINE, "PATREON_RULE": theme.PATREON_RULE,
         "HELP_TINT": theme.HELP_TINT, "HELP_LINE": theme.HELP_LINE, "HELP_RULE": theme.HELP_RULE,
         "R4": str(theme.RADIUS_SM), "R6": str(theme.RADIUS_MD),
         "KEY_H": str(theme.scaled_px(24)), "CONTROL_H": str(theme.CONTROL_HEIGHT), "CONTROL_HC": str(theme.CONTROL_HEIGHT_COMPACT),

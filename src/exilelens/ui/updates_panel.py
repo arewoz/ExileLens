@@ -15,7 +15,6 @@ from exilelens.app.settings import AppSettings
 from exilelens.ui.components import make_button
 from exilelens.ui.dashboard_widgets import Notice, SettingsGroup, SettingsRow, WrapLabel
 
-PRERELEASE_NOTE = "Beta channel · Later betas and the final release are offered automatically."
 
 class UpdatesPanel(QWidget):
     """Wires one :class:`~exilelens.app.updates.service.UpdateService` into Settings."""
@@ -134,7 +133,6 @@ class UpdatesPanel(QWidget):
         if state == "ahead":
             if self._installed_is_prerelease():
                 text = f"Pre-release · Latest stable {version}"
-                extra = PRERELEASE_NOTE
             else:
                 text = f"Newer than the latest release ({version})"
         else:

@@ -1,13 +1,13 @@
 """Settings → Updates › Seamless updates: the canonical home of everything Patreon.
 
-One coral-tinted supporter zone holds the two supporter switches, the link state, Link Patreon and
+One neutral supporter zone holds the two supporter switches, the link state, Link Patreon and
 Support on Patreon. Patreon is optional and never needed for any ExileLens feature; every non-active state says
 that manual updates still work. The panel never shows a Patreon name, email, avatar or tier because the app never
 receives one.
 
-The tint is identity, not state: the zone looks the same linked or not. State is carried by the word at the top
-right, the switches (dashed and dimmed while locked) and one footer sentence. Buttons stay neutral; a coral fill or
-outline would read as the destructive style.
+The zone is neutral: no tint, no coloured border (red surfaces read as warning or danger). It is identified by the
+shipped Patreon mark, its heading and its copy, and looks the same linked or not. State is carried by the word at the
+top right, the switches (dashed and dimmed while locked) and one footer sentence. Buttons stay neutral.
 """
 
 from __future__ import annotations
@@ -34,10 +34,10 @@ PRIVACY_LINE = (
 )
 FREE_LINE = "Manual updates and all core features stay free."
 ZONE_TITLE = "Seamless updates"
-ZONE_DESCRIPTION = "Verified updates download in the background and install when ExileLens closes."
+ZONE_DESCRIPTION = "Supporters can download verified updates automatically and install them when ExileLens closes."
 SUPPORT_HELP = "Help fund development and get seamless automatic updates."
 LOCKED_TIP = "Needs an active Patreon link."
-AUTO_DOWNLOAD_LABEL = "Download updates automatically"
+AUTO_DOWNLOAD_LABEL = "Automatically download updates"
 INSTALL_ON_EXIT_LABEL = "Install when ExileLens closes"
 
 
@@ -46,7 +46,7 @@ def describe_view(view: PatreonView, *, available: bool) -> str:
     state = view.state
     if state is PatreonState.NOT_CONNECTED:
         if not available:
-            return f"Patreon linking is not available in this build. {MANUAL_NOTE}"
+            return f"Patreon linking isn't available in this build. {MANUAL_NOTE}"
         return "Link Patreon to turn these on."
     if state is PatreonState.LINKING:
         return "Finish connecting in your browser. This can take a minute."

@@ -498,7 +498,7 @@ def _contrast(a, b) -> float:
     return (la + 0.05) / (lb + 0.05)
 
 
-@pytest.mark.parametrize("tint", ["PATREON_TINT", "HELP_TINT"])
+@pytest.mark.parametrize("tint", ["HELP_TINT"])
 def test_text_on_the_zone_tints_keeps_the_informational_contrast(tint) -> None:
     from exilelens.ui import theme
 
@@ -514,10 +514,10 @@ def test_honey_icon_and_status_words_are_legible_on_the_help_surface() -> None:
 
     surface = _over(_hex(theme.BG), _rgba(theme.HELP_TINT))
     assert _contrast(_hex(theme.HELP), surface) >= 3.0           # a graphical object (WCAG 1.4.11)
-    pat = _over(_hex(theme.BG), _rgba(theme.PATREON_TINT))
-    assert _contrast(_hex(theme.PATREON), pat) >= 3.0            # the shipped mark on its own surface
-    for name in ("OK", "WARN"):                                  # status words that sit on the zones
-        assert _contrast(_hex(getattr(theme, name)), pat) >= 4.5
+    page = _hex(theme.BG)
+    assert _contrast(_hex(theme.PATREON), page) >= 3.0           # the shipped mark on the plain page surface
+    for name in ("OK", "WARN"):                                  # status words that sit on the supporter zone
+        assert _contrast(_hex(getattr(theme, name)), page) >= 4.5
 
 
 def test_zone_tokens_are_isolated_from_the_rest_of_the_ui(harness) -> None:
@@ -525,9 +525,13 @@ def test_zone_tokens_are_isolated_from_the_rest_of_the_ui(harness) -> None:
     from exilelens.ui.redesign_style import build_stylesheet
 
     css = build_stylesheet()
-    for token in (theme.PATREON_TINT, theme.PATREON_LINE, theme.HELP_TINT, theme.HELP_LINE):
+    for token in (theme.HELP_TINT, theme.HELP_LINE):
         scoped = [line for line in css.splitlines() if token in line]
-        assert scoped and all("#supporterZone" in line or "#helpZone" in line for line in scoped), token
+        assert scoped and all("#helpZone" in line for line in scoped), token
+    # The supporter zone is neutral: nothing reddish anywhere in the dashboard style (red means warning or danger,
+    # and only the Patreon mark itself keeps its colour).
+    assert not hasattr(theme, "PATREON_TINT") and "255,66,77" not in css and "ff424d" not in css.lower()
+
     # Neither zone colour appears in the rail, buttons or the destructive style.
     assert theme.PATREON.lower() not in css.lower() and theme.HELP.lower() not in css.lower()
 
@@ -535,7 +539,7 @@ def test_zone_tokens_are_isolated_from_the_rest_of_the_ui(harness) -> None:
 def test_locked_switch_and_zone_controls_have_accessible_names(harness) -> None:
     _go(harness, "settings-supporter", (980, 720))
     zone = harness.window._settings_page._patreon_panel
-    assert zone.auto_download.accessibleName() == "Download updates automatically"
+    assert zone.auto_download.accessibleName() == "Automatically download updates"
     assert zone.install_on_exit.accessibleName() == "Install when ExileLens closes"
     assert zone.accessibleName().startswith("Seamless updates")
     assert zone.state_label.text()                                   # state always carries a word

@@ -1,6 +1,6 @@
 """Privacy UI: the Settings section, the one-time dashboard card and the transparency dialog.
 
-All logic lives in ``exilelens.cloud.consent`` / ``transparency``; this module only presents it with the
+All logic lives in ``exilelens.cloud.consent``; this module only presents it with the
 existing components. Turning a switch on or off takes effect immediately (and off deletes the queue and ID).
 """
 
@@ -9,23 +9,12 @@ from __future__ import annotations
 import time
 
 from PySide6.QtCore import QSignalBlocker, Qt
-from PySide6.QtWidgets import (
-    QDialog,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QPlainTextEdit,
-    QScrollArea,
-    QSizePolicy,
-    QTabWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
-from exilelens.cloud import consent, hooks, transparency
-from exilelens.ui import theme
-from exilelens.ui.components import ThemedCheckBox, button_row, make_button, make_link_button
+from exilelens.cloud import consent, hooks
+from exilelens.ui.components import ThemedCheckBox, make_button, make_link_button
 from exilelens.ui.dashboard_widgets import SettingsGroup, SettingsRow, ThemedSwitch
+from exilelens.ui.info_dialog import InfoDialog
 
 USAGE_LABEL = "Send privacy-friendly usage stats"
 ERRORS_LABEL = "Send crash and error reports"
@@ -43,67 +32,64 @@ def _label(text: str, name: str = "helperText") -> QLabel:
     return widget
 
 
-class CollectedDialog(QDialog):
-    """What is collected, which identifiers exist and what is never collected (generated from the contract)."""
+#: What each contract usage event is summarised as. The summary is deliberately short; this map exists so that a
+#: new event in ``events.v1.json`` fails a test until someone decides how the summary should mention it.
+USAGE_TOPICS = {
+    "app_started": "start",
+    "onboarding_completed": "start",
+    "pob_connected": "start",
+    "item_checks_summary": "counts",
+    "analyze_build_completed": "counts",
+    "update_detected": "update",
+    "update_download_completed": "update",
+    "update_install_completed": "update",
+}
+USAGE_BULLETS = {
+    "start": "App starts, setup, and whether Path of Building starts",
+    "counts": "Counts of item checks and build analyses, with speed ranges",
+    "update": "Update outcomes",
+}
+ERROR_BULLETS = (
+    "Registered error codes, component and exception type",
+    "Module and function names where it happened, and the Path of Building version",
+)
+#: One short line per entry of the contract's ``never_collected`` list, in the same order.
+NEVER_BULLETS = (
+    "Item or clipboard contents",
+    "Builds, characters, skills or equipment",
+    "Trade searches or prices",
+    "File paths, logs or settings",
+    "IP addresses (not stored; the host still sees them in any web request)",
+    "Hardware, accounts, email or Patreon identity",
+)
+COLLECTED_TITLE = "What ExileLens collects"
+COLLECTED_INTRO = "Both options are off by default and work independently."
+ERRORS_NOT_SENT = "Error messages, stack traces and file paths are not sent."
+CLOSING_NOTE = (
+    "Each option has its own random ID, created only when you turn it on. Uploads include the ExileLens version, "
+    "release type and Windows version. Turn either off at any time; its queued data and ID are deleted."
+)
+FULL_PRIVACY = "Full privacy details"
+
+
+class CollectedDialog(InfoDialog):
+    """What can be sent, what never is, that it is optional and how to control it. One short page, no schemas."""
 
     def __init__(self, cloud=None, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle(SEE_COLLECTED)
-        self.setMinimumSize(560, 520)
-        model = transparency.describe(cloud)
-        layout = QVBoxLayout(self)
-        layout.addWidget(
-            _label(
-                "ExileLens works fully without any of this. Both switches are off by default and independent. "
-                "Reports are pseudonymous (a random ID), not anonymous — see the identifiers below."
-            )
+        from exilelens.ui.recovery_actions import open_privacy_details
+
+        super().__init__(
+            COLLECTED_TITLE,
+            COLLECTED_INTRO,
+            link_text=FULL_PRIVACY,
+            link_icon="github",
+            on_link=open_privacy_details,
+            parent=parent,
         )
-        tabs = QTabWidget()
-        for category in model["categories"]:
-            tabs.addTab(self._category_tab(category), category["title"])
-        tabs.addTab(self._never_tab(model), "Never collected")
-        layout.addWidget(tabs, 1)
-        layout.addLayout(button_row([self._close_button()]))
-
-    def _close_button(self):
-        button = make_button("Close", "secondary")
-        button.clicked.connect(self.accept)
-        return button
-
-    def _category_tab(self, category: dict) -> QWidget:
-        content = QWidget()
-        inner = QVBoxLayout(content)
-        inner.setSpacing(theme.SPACE_SM)
-        inner.addWidget(_label(category["summary"]))
-        inner.addWidget(_label("Identifier: " + category["identifier"]))
-        if category["queued"]:
-            inner.addWidget(_label(f"Waiting to be sent: {category['queued']} item(s)."))
-        for event in category["events"]:
-            inner.addWidget(_label(event["name"], "cardTitle"))
-            inner.addWidget(_label(event["description"]))
-            inner.addWidget(_label("; ".join(f"{field['name']}: {field['allowed']}" for field in event["fields"]), "secondaryText"))
-        title = "Your next upload (identifier shortened)" if category["example_is_real"] else "Example upload"
-        inner.addWidget(_label(title, "cardTitle"))
-        example = QPlainTextEdit(category["example"])
-        example.setReadOnly(True)
-        example.setMinimumHeight(180)
-        inner.addWidget(example)
-        inner.addStretch(1)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(content)
-        return scroll
-
-    def _never_tab(self, model: dict) -> QWidget:
-        content = QWidget()
-        inner = QVBoxLayout(content)
-        inner.addWidget(_label("These are never part of any upload:"))
-        for line in model["never_collected"]:
-            inner.addWidget(_label("• " + line))
-        inner.addWidget(_label(model["retention"]))
-        inner.addStretch(1)
-        return content
+        self.add_section("Usage statistics", bullets=tuple(USAGE_BULLETS.values()))
+        self.add_section("Crash and error reports", bullets=ERROR_BULLETS, note=ERRORS_NOT_SENT)
+        self.add_section("Never collected", bullets=NEVER_BULLETS)
+        self.add_note(CLOSING_NOTE)
 
 
 def open_collected_dialog(parent: QWidget | None = None, cloud=None) -> None:

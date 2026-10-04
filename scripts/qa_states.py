@@ -17,9 +17,10 @@ def _page(page: str, state: str = "ready"):
     return build
 
 
-def _settings(section: str | None, *, state: str = "ready", update=None, patreon=None, consent: bool = False):
+def _settings(section: str | None, *, state: str = "ready", update=None, patreon=None, consent: bool = False, linking: bool = True):
     def build(h):
         h.set_state(state)
+        h.cloud.patreon.is_available = linking
         h.patreon("not_connected")
         h.update("unchecked", "")
         if update:
@@ -105,6 +106,8 @@ STATE_REGISTRY = {
     "settings-patreon-reconnect": _settings("Updates", patreon=("reconnect_required",)),
     "settings-patreon-unavailable": _settings("Updates", patreon=("service_unavailable",)),
     "settings-supporter": _settings("__supporter__"),
+    "settings-supporter-unavailable": _settings("__supporter__", linking=False),
+    "settings-updates-top": _settings("Updates", update=("ahead", "0.6.0")),
     "settings-supporter-active": _settings("__supporter__", update=("ahead", "0.6.0"), patreon=("active",)),
     "settings-supporter-grace": _settings("__supporter__", patreon=("offline_grace", {"expires_at": _GRACE_UNTIL})),
     "settings-pob-down": _settings(None, state="disconnected"),

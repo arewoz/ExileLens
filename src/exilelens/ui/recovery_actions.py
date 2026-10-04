@@ -39,6 +39,13 @@ def open_github_issues() -> None:
     QDesktopServices.openUrl(QUrl(GITHUB_ISSUES_URL))
 
 
+def open_privacy_details() -> None:
+    """Open the fixed, official PRIVACY.md in the ExileLens repository on user action."""
+    from exilelens.app.updates.constants import GITHUB_PRIVACY_URL
+
+    QDesktopServices.openUrl(QUrl(GITHUB_PRIVACY_URL))
+
+
 def open_discord_invite() -> None:
     """Open the fixed, official ExileLens Discord invite on user action."""
     from exilelens.app.update_check import DISCORD_INVITE_URL

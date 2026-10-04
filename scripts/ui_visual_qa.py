@@ -129,10 +129,11 @@ class FakePatreon:
         self.state = PatreonState.NOT_CONNECTED
         self.expires_at = None
         self.detail = ""
+        self.is_available = True   # False reproduces a build with Patreon linking switched off
         self._listeners: list = []
 
     def available(self) -> bool:
-        return True
+        return self.is_available
 
     def add_listener(self, listener) -> None:
         self._listeners.append(listener)
