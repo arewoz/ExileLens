@@ -86,8 +86,9 @@ Two separate switches in Settings → Privacy, **both off by default**. They
 are independent: turning one on never turns on the other, and ExileLens
 behaves identically with both off. A card on the Overview page asks once
 after setup; "Not now" leaves both off. **See what is collected** in
-Settings shows the exact fields, the identifiers and a real example of
-your next upload.
+Settings summarises, on one short page, what can be sent and what is never
+collected. The exact fields and identifiers are described below and in the
+published event contract (`events.v1.json`).
 
 **Privacy-friendly usage statistics** — counts that show whether
 ExileLens works and is used: that the app started (and whether the previous
@@ -143,7 +144,7 @@ old items. Nothing about the app depends on it.
 ## Optional Patreon supporter link
 
 Linking Patreon is optional, independent of the two switches above, and never required for any ExileLens
-feature. There is no ExileLens account. Settings → *Patreon supporter* → **Link Patreon** opens Patreon in your
+feature. There is no ExileLens account. Settings → Updates → *Seamless updates* → **Link Patreon** opens Patreon in your
 browser; you approve ExileLens's read-only `identity` access there. The ExileLens service (not the app) completes
 the sign-in and checks only **whether your membership currently includes a paid tier** (gifted memberships and free
 trials count; free memberships do not).

@@ -106,10 +106,13 @@ def test_dashboard_footer_version_label(monkeypatch, tmp_path) -> None:
     controller = EvaluationController(settings)
     dashboard = DashboardWindow(settings, controller)
     try:
-        assert dashboard._version_label.text() == f"ExileLens {__version__}"
+        # The version and the actionable update link live in the Status Rail footer.
+        assert dashboard._rail.version_text() == f"ExileLens {__version__}"
         dashboard.update_service.state_changed.emit("available", "9.9.9b9")
-        assert "9.9.9b9" in dashboard._update_indicator.text()
-        assert not dashboard._footer_download_btn.isHidden()
+        assert dashboard._rail.update_text() == "Update available"
+        # The Overview notice names the version and offers the manual download.
+        assert "9.9.9b9" in dashboard._update_notice_title.text()
+        assert not dashboard._update_notice_action.isHidden()
     finally:
         controller.shutdown()
         dashboard.deleteLater()

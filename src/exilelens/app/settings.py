@@ -104,7 +104,6 @@ class AppSettings:
     overlay_position_mode: str = OverlayPositionMode.NEAR_ITEM.value
     overlay_near_offset_px: int = 40
     overlay_auto_hide_seconds: float = 0.0
-    dedup_window_seconds: float = 3.0
     debug: bool = False
     first_run_complete: bool = False
     # Versioned separately from the settings schema: an app update does not replay setup.
@@ -215,7 +214,6 @@ class AppSettings:
             ),
             overlay_near_offset_px=int(data.get("overlay_near_offset_px", 40)),
             overlay_auto_hide_seconds=float(data.get("overlay_auto_hide_seconds", 0.0)),
-            dedup_window_seconds=float(data.get("dedup_window_seconds", 3.0)),
             debug=bool(data.get("debug", False)),
             first_run_complete=bool(data.get("first_run_complete", False)),
             onboarding_version_completed=completed,

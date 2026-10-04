@@ -30,7 +30,7 @@ and its own runbook live in [`cloud/`](../cloud/README.md); the update machinery
 |---|---|
 | Worker (`cloud/src/contract.ts`) | validates every request; unknown fields are rejected (fail closed) |
 | Client (`src/exilelens/cloud/contract.py`) | validates every item *before* it is queued |
-| *See what is collected* dialog | generated from the same file, so it cannot drift |
+| *See what is collected* dialog | a short hand-written summary; tests tie it to the same file (every usage event, error-report field and "never collected" entry must still be covered), so it cannot silently drift |
 | Tests | `cloud/contract/fixtures.json` is run by **both** validators; a byte-equality test keeps the packaged copy (`src/exilelens/cloud/events.v1.json`) identical |
 
 There is no free-text or metadata field. Values are enums, booleans, bounded integers, strict version
@@ -192,7 +192,7 @@ session end or after a crash), and an explicit **Restart now**. It is the **same
 `docs/UPDATE_RELEASE_SIGNING.md`); entitlement is a yes/no gate with no way to supply a URL, hash, version or file.
 Free users keep *Download & Install* and *Restart & Update* unchanged, and nothing here ever restarts the app unasked.
 
-Settings → **Patreon supporter** shows the states: not connected, linking, active (with the two toggles, default on),
+Settings → Updates → **Seamless updates** (the supporter zone) shows the states: not connected, linking, active (with the two toggles, default on),
 connected but not eligible, offline grace, expired, reconnect required and service unavailable. Every non-active state
 says that manual updates still work.
 

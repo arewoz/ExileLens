@@ -146,7 +146,8 @@ def test_dashboard_and_settings_share_update_service_instance(monkeypatch, tmp_p
         assert dashboard._diagnostics.update_service is dashboard.update_service
         dashboard.update_service.state_changed.emit("available", "8.8.8b8")
         assert "8.8.8b8" in dashboard._settings_page._updates_panel._status.text()
-        assert "8.8.8b8" in dashboard._update_indicator.text()
+        assert dashboard._rail.update_text() == "Update available"
+        assert "8.8.8b8" in dashboard._update_notice_title.text()
     finally:
         controller.shutdown()
         dashboard.deleteLater()
@@ -238,32 +239,44 @@ def test_newer_release_without_manifest_is_rejected(monkeypatch) -> None:
     assert not service.start_download()
 
 
-def test_diagnostics_advanced_section_is_collapsed_by_default() -> None:
+def _diagnostics_page():
     from PySide6.QtWidgets import QApplication
 
     from exilelens.ui.dashboard_pages import DiagnosticsPage
 
     QApplication.instance() or QApplication([])
     settings = AppSettings()
-    page = DiagnosticsPage(SimpleNamespace(settings=settings), settings, UpdateService(settings))
-    assert hasattr(page, "_advanced")
+    return DiagnosticsPage(SimpleNamespace(settings=settings), settings, UpdateService(settings))
+
+
+def test_diagnostics_advanced_section_is_collapsed_by_default_and_the_normal_page_stays_simple() -> None:
+    page = _diagnostics_page()
+    # The one Advanced diagnostics disclosure exists and starts collapsed: its technical tooling is not exposed.
     assert not page._advanced.is_expanded()
-    assert not page._event_history.is_expanded()
-    assert not page._technical_report.is_expanded()
+    for hidden in (page._viewer, page._logs_btn, page._verbose_btn, page._clear_history_btn, page._viewer_copy_btn):
+        assert not hidden.isVisibleTo(page)
+    # Everything a normal user needs is there without opening it: health, and the report actions with the Support ID.
+    for shown in (page._health_card, page._help_zone, page._copy_btn, page._export_bundle_btn, page._support_id, page._copy_id_btn):
+        assert shown.isVisibleTo(page)
+    assert page._support_id.text()
 
 
-def test_diagnostics_nested_sections_expand_independently() -> None:
-    from PySide6.QtWidgets import QApplication
+def test_expanding_advanced_diagnostics_reveals_the_tooling_and_collapsing_hides_it_again() -> None:
+    page = _diagnostics_page()
+    tooling = (page._logs_btn, page._verbose_btn, page._clear_history_btn, page._viewer, page._viewer_copy_btn)
 
-    from exilelens.ui.dashboard_pages import DiagnosticsPage
-
-    QApplication.instance() or QApplication([])
-    settings = AppSettings()
-    page = DiagnosticsPage(SimpleNamespace(settings=settings), settings, UpdateService(settings))
     page._advanced.set_expanded(True)
-    page._event_history.set_expanded(True)
-    assert page._event_history.is_expanded()
-    assert not page._technical_report.is_expanded()
-    page._technical_report.set_expanded(True)
-    assert page._event_history.is_expanded()
-    assert page._technical_report.is_expanded()
+    assert page._advanced.is_expanded()
+    assert all(widget.isVisibleTo(page) for widget in tooling)
+    # One viewer, two views: the event history (default) and the technical report.
+    assert page.viewer_mode() == "events"
+    assert page._viewer.toPlainText()
+    page._viewer_mode.buttons()[1].click()
+    assert page.viewer_mode() == "report" and "Version" in page._viewer.toPlainText()
+    page._viewer_mode.buttons()[0].click()
+    assert page.viewer_mode() == "events"
+
+    page._advanced.set_expanded(False)
+    assert not page._advanced.is_expanded()
+    assert not any(widget.isVisibleTo(page) for widget in tooling)
+    assert page._copy_btn.isVisibleTo(page)   # the report actions stay put

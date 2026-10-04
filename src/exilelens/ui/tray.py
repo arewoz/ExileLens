@@ -488,7 +488,7 @@ class TrayManager(QSystemTrayIcon):
     def _on_update_state(self, state: str, version: str) -> None:
         self._update_check_state = state
         self._update_remote_version = version
-        if state in ("current", "unchecked", "unavailable", "verification_failed", "failed"):
+        if state in ("current", "ahead", "unchecked", "unavailable", "verification_failed", "failed"):
             self._update_download_state = ""
         self._sync_update_presentation()
 

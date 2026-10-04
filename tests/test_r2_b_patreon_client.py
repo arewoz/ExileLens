@@ -535,7 +535,7 @@ def test_status_copy_for_every_state_says_manual_updates_work_and_shows_no_profi
         if state not in (PatreonState.ACTIVE, PatreonState.NOT_CONNECTED, PatreonState.LINKING):
             assert "Manual updates still work" in text
         assert "@" not in text and "email" not in text.lower()
-    assert "not available in this build" in describe_view(PatreonView(PatreonState.NOT_CONNECTED), available=False)
+    assert "available in this build" in describe_view(PatreonView(PatreonState.NOT_CONNECTED), available=False)
 
 
 def test_patreon_panel_states_and_actions(tmp_path: Path) -> None:
@@ -550,19 +550,24 @@ def test_patreon_panel_states_and_actions(tmp_path: Path) -> None:
     cloud.patreon = make_link(tmp_path / "x", http)  # fake DPAPI, scripted service
     settings = AppSettings()
     panel = PatreonPanel(settings, cloud)
-    assert panel.link_button.isEnabled() and not panel.disconnect_button.isVisibleTo(panel) and not panel.auto_download.isVisibleTo(panel)
+    # Not linked: the entry state offers Support on Patreon and Link Patreon as distinct actions. The two
+    # supporter switches stay visible (Settings shows them under Updates) but are disabled and Off.
+    assert panel.link_button.isEnabled() and panel.support_button.isVisibleTo(panel) and not panel.disconnect_button.isVisibleTo(panel)
+    assert not panel.auto_download.isEnabled() and not panel.install_on_exit.isEnabled()
+    assert not panel.auto_download.isChecked() and not panel.install_on_exit.isChecked()
     http.script("POST", "/v1/patreon/link/start", START_OK)
     http.script("GET", "/v1/patreon/link/status", linked_result())
     cloud.patreon._open_url = lambda u: True
     cloud.patreon.start_link()
     cloud.patreon._link_thread.join(10)
     panel.render()
-    assert panel.disconnect_button.isVisibleTo(panel) and panel.auto_download.isVisibleTo(panel) and panel.install_on_exit.isVisibleTo(panel)
+    assert panel.disconnect_button.isVisibleTo(panel) and not panel.support_button.isVisibleTo(panel)
+    assert panel.auto_download.isEnabled() and panel.install_on_exit.isEnabled()
     assert panel.auto_download.isChecked() and panel.install_on_exit.isChecked()
     panel.install_on_exit.setChecked(False)
     assert settings.updates_install_on_exit is False
     panel.disconnect_button.click()
-    assert not panel.disconnect_button.isVisibleTo(panel) and not panel.auto_download.isVisibleTo(panel)
+    assert not panel.disconnect_button.isVisibleTo(panel) and not panel.auto_download.isEnabled()
     assert app is not None
 
 

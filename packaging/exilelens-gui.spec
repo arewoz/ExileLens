@@ -29,6 +29,12 @@ bundled_icons = [
     (str(ui_assets / "download.svg"), "assets/ui"),
     (str(ui_assets / "patreon.svg"), "assets/ui"),
 ]
+# Bundled build-name font (Spectral, SIL OFL). Optional: without it the font stack falls back to Georgia.
+font_assets = repo_root / "assets" / "fonts"
+if font_assets.is_dir():
+    for font_file in sorted(font_assets.iterdir()):
+        if font_file.suffix.lower() in (".ttf", ".otf", ".txt"):
+            bundled_icons.append((str(font_file), "assets/fonts"))
 # R2 cloud contract + explicit release endpoint configuration (data files read at runtime next to the module).
 cloud_package = src_root / "exilelens" / "cloud"
 cloud_data = [(str(cloud_package / "events.v1.json"), "exilelens/cloud")]

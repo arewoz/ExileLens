@@ -30,15 +30,18 @@ from PySide6.QtWidgets import (
 from exilelens.analysis.catalog import ProbeCatalog
 from exilelens.analysis.view import build_analysis_view, build_slot_view, display_name, progress_text, slot_row_texts
 from exilelens.ui import theme
-from exilelens.ui.components import StatusValue, ThemedCheckBox, button_row, make_button
+import re
+
+from exilelens.ui.components import StatusValue, ThemedCheckBox, make_button
+from exilelens.ui.dashboard_widgets import ColumnPage, MeasureRow, SettingsGroup, WrapLabel, set_property
+from exilelens.ui.redesign_style import REDESIGN_STYLESHEET
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
 from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style, apply_window_interaction_policy
 
 IDLE, RUNNING, CURRENT, STALE, ERROR = "IDLE", "RUNNING", "CURRENT", "STALE", "ERROR"
 
 _INTRO = (
-    "Analyze Build tests how your Path of Building build responds to common stats. "
-    "It takes a few seconds, runs in the background and never runs during Item Check."
+    "Tests how your build responds to common stats. Runs in the background, never during Item Check."
 )
 _MAX_FIX_FIRST = 4
 
@@ -47,53 +50,65 @@ def _esc(text: Any) -> str:
     return html.escape(str(text or ""))
 
 
-class _ResponseTile(QFrame):
-    """One strongest measured response: what was measured, how much, and the tested change that produced it."""
+class _ResponseRow(MeasureRow):
+    """One strongest measured response: what was measured, the tested change, and its measured result."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("responseTile")
-        self.caption = QLabel("")
-        self.caption.setObjectName("tileCaption")
-        self.value = QLabel("")
-        self.value.setObjectName("tileValue")
-        self.value.setWordWrap(True)
-        self.change = QLabel("")
-        self.change.setObjectName("tileChange")
-        self.change.setWordWrap(True)
-        column = QVBoxLayout(self)
-        column.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
-        column.setSpacing(2)
-        column.addWidget(self.caption)
-        column.addWidget(self.value)
-        self.note = QLabel("")
-        self.note.setObjectName("tileNote")
-        self.note.setWordWrap(True)
-        column.addWidget(self.change)
-        column.addWidget(self.note)
-        column.addStretch(1)
+        super().__init__("", "", "", "", parent=parent)
+        # Keep the attribute names the tile had: callers and tests read caption / value / change / note.
+        self.caption = self.lead
+        self.change = self.title
+        self.note = self.sub
 
     def set_tile(self, tile: dict[str, Any]) -> None:
-        self.caption.setText(str(tile.get("caption") or ""))
-        self.value.setText(str(tile.get("value") or ""))
-        if not tile.get("measured"):
-            name = "tileValueEmpty"
-        else:  # several axes on one tile read as a line of text, not as one headline number
-            name = "tileValueSmall" if "·" in str(tile.get("value") or "") and tile.get("key") == "multi_impact" else "tileValue"
-        self.value.setObjectName(name)
-        self.value.style().unpolish(self.value)
-        self.value.style().polish(self.value)
-        self.value.setVisible(bool(self.value.text()))
+        caption = str(tile.get("caption") or "")
+        self._raw_caption = caption  # the view model's own wording, kept for text()
+        # Captions arrive upper-case from the view model ("EHP · MAX HIT"); the page shows sentence case.
+        shown = caption.title().replace("Ehp", "EHP") if caption.isupper() else caption
+        self.caption.setText(shown)
+        measured = bool(tile.get("measured"))
+        value = str(tile.get("value") or "")
+        self.value.setText(value or "—")
+        set_property(self.value, "tone", "" if measured else "muted")
         self.change.setText(str(tile.get("change") or ""))
         self.note.setText(str(tile.get("note") or ""))
         self.note.setVisible(bool(self.note.text()))
         self.setToolTip(str(tile.get("tested_change") or ""))  # the exact tested line behind the short form
 
     def text(self) -> str:
-        return " ".join(part for part in (self.caption.text(), self.value.text(), self.change.text(), self.note.text()) if part)
+        parts = (getattr(self, "_raw_caption", self.caption.text()), self.value.text() if self.value.text() != "—" else "", self.change.text(), self.note.text())
+        return " ".join(part for part in parts if part)
 
 
-class AnalysisWindow(QWidget):
+class _ActionRow(MeasureRow):
+    """One next action: rank, title with its summary beneath, and the measured result at the right axis."""
+
+    _RESULT = re.compile(r"\s*→\s*([+-]?\d+(?:\.\d+)?%)\s*$")
+
+    def __init__(self, number: Any, title: str, summary: str, fix: bool, parent: QWidget | None = None) -> None:
+        match = self._RESULT.search(summary or "")
+        value = match.group(1) if match else ""
+        sub = self._RESULT.sub("", summary or "") if match else (summary or "")
+        super().__init__(f"{number}", title, sub, value, lead_width=22, tone="ok" if value else "", title_name="fieldLabel", parent=parent)
+        self._plain = f"{number}. {title} — {summary}"
+        self.setObjectName("settingsRow")
+        self.setProperty("fix", bool(fix))
+
+    def text(self) -> str:  # the shipped one-line form, used by tests and accessibility
+        return self._plain
+
+
+class _HealthLine(MeasureRow):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__("", "", "", "", lead_width=132, value_width=170, parent=parent)
+
+    def set_row(self, row: dict[str, Any]) -> None:
+        tone = {"warn": "warn", "ok": "ok", "neutral": "muted", "muted": "muted"}.get(str(row.get("tone")), "")
+        self.set_texts(str(row.get("title") or ""), str(row.get("reason") or ""), "", str(row.get("state") or ""), tone)
+        self.lead.setObjectName("fieldLabel")
+
+
+class AnalysisWindow(ColumnPage):
     def __init__(
         self,
         controller: Any,
@@ -102,15 +117,15 @@ class AnalysisWindow(QWidget):
         embedded: bool = False,
         navigate: Callable[[str], None] | None = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__("Analyze Build", sticky_header=True, object_name="analysisPage", parent=parent)
         self.controller = controller
         self._navigate = navigate
         self._embedded = embedded
-        self.setObjectName("analysisPage")
         if not embedded:
             self.setWindowTitle("Analyze Build")
             apply_window_interaction_policy(self, WindowInteractionPolicy.INTERACTIVE_TOOL)
-            self.setStyleSheet(DASHBOARD_STYLESHEET)
+            self.setObjectName("dashboardRoot")
+            self.setStyleSheet(DASHBOARD_STYLESHEET + REDESIGN_STYLESHEET)
             apply_exile_lens_chrome(self)
             self.resize(920, 640)
         self._result: dict[str, Any] | None = None
@@ -123,96 +138,120 @@ class AnalysisWindow(QWidget):
         self._analyzed_at: float | None = None
         self._run_id: Any = None
         self._probe_labels = {d.probe_id: d.label for d in ProbeCatalog().all()}
+        self.set_max_width(808)
 
         # --- header: which build, how fresh, and the one action ---------------------
-        title = QLabel("Analyze Build")
-        title.setObjectName("pageTitle")
         self._analyze_btn = make_button("Analyze Build", "primary")
         self._analyze_btn.clicked.connect(self._rerun)
         self._diagnostics_btn = make_button("Open Diagnostics", "tertiary")
         self._diagnostics_btn.clicked.connect(lambda: self._navigate("diagnostics") if self._navigate else None)
         self._diagnostics_btn.setVisible(False)
-        head = QHBoxLayout()
-        head.setContentsMargins(0, 0, 0, 0)
-        head.setSpacing(theme.SPACE_SM)
-        head.addWidget(title)
-        head.addStretch(1)
-        head.addWidget(self._diagnostics_btn)
-        head.addWidget(self._analyze_btn)
-
-        self._header = QLabel("")
-        self._header.setObjectName("cardTitle")
+        self._header = self.header.subtitle_label  # "[build] · [main skill] · [context]"; the full path is its tooltip
+        self._header.setVisible(True)
         self._status = StatusValue("Not analyzed yet", "neutral")
         self._status.set_word_wrap(False)
-        self._progress = QLabel(_INTRO)
-        self._progress.setObjectName("helperText")
-        self._progress.setWordWrap(True)
+        self.header.actions.addWidget(self._status)
+        self.header.actions.addSpacing(6)
+        self.header.actions.addWidget(self._diagnostics_btn)
+        self.header.actions.addWidget(self._analyze_btn)
+        self._progress = WrapLabel(_INTRO)
+        self._progress.setObjectName("bodyText")
+        self._progress.setMaximumWidth(620)
+        self._progress.setContentsMargins(0, 0, 0, 14)  # breathing room above the first section
+        self.column.addWidget(self._progress)
+        self.column.setSpacing(0)
 
-        # --- strongest measured responses ------------------------------------------
-        self._strongest_title = QLabel("STRONGEST MEASURED RESPONSES")
-        self._strongest_title.setObjectName("sectionTitle")
-        self._strongest_note = QLabel("")
-        self._strongest_note.setObjectName("helperText")
-        self._strongest_note.setWordWrap(True)
-        self._tiles: list[_ResponseTile] = []
-        self._tile_row = QHBoxLayout()
-        self._tile_row.setContentsMargins(0, 0, 0, 0)
-        self._tile_row.setSpacing(theme.SPACE_SM)
-        self._strongest_host = QWidget()
-        strongest = QVBoxLayout(self._strongest_host)
-        strongest.setContentsMargins(0, 0, 0, 0)
-        strongest.setSpacing(theme.SPACE_XS)
-        strongest_head = QHBoxLayout()
-        strongest_head.setContentsMargins(0, 0, 0, 0)
-        strongest_head.setSpacing(theme.SPACE_MD)
-        strongest_head.addWidget(self._strongest_title)
-        strongest_head.addWidget(self._strongest_note, 1)  # the caveat sits beside the heading, not on a line of its own
-        strongest.addLayout(strongest_head)
-        strongest.addLayout(self._tile_row)
-        self._strongest_host.setVisible(False)
+        def section(title: str, caption: str = "") -> tuple[QWidget, QVBoxLayout]:
+            host = QWidget()
+            layout = QVBoxLayout(host)
+            layout.setContentsMargins(0, theme.SECTION_GAP, 0, 0)
+            layout.setSpacing(0)
+            heading = QLabel(title)
+            heading.setObjectName("sectionHeading")
+            layout.addWidget(heading)
+            if caption:
+                note = QLabel(caption)
+                note.setObjectName("helperText")
+                note.setWordWrap(True)
+                layout.addWidget(note)
+            layout.addSpacing(8)
+            host.setVisible(False)
+            host.heading = heading  # type: ignore[attr-defined]
+            return host, layout
 
-        # --- R1.5: what is wrong and what to do next, before any optimisation number ----
-        self._focus_card = QFrame()
-        self._focus_card.setObjectName("focusCard")
-        self._focus_title = QLabel("CURRENT FOCUS")
-        self._focus_title.setObjectName("tileCaption")
+        # --- current focus and next actions --------------------------------------------------
+        self._overview_host = QWidget()
+        overview = QVBoxLayout(self._overview_host)
+        overview.setContentsMargins(0, 0, 0, 0)
+        overview.setSpacing(0)
+        self._focus_card = QWidget()  # kept as an attribute name; no longer a card
+        self._focus_card.setObjectName("analysisFocus")
+        focus = QVBoxLayout(self._focus_card)
+        focus.setContentsMargins(0, 4, 0, 0)
+        focus.setSpacing(2)
+        self._focus_title = QLabel("Current focus")
+        self._focus_title.setObjectName("helperText")
         self._focus_headline = QLabel("")
         self._focus_headline.setObjectName("focusHeadline")
         self._focus_headline.setWordWrap(True)
         self._focus_detail = QLabel("")
-        self._focus_detail.setObjectName("tileChange")
+        self._focus_detail.setObjectName("leadText")
         self._focus_detail.setWordWrap(True)
-        focus = QVBoxLayout(self._focus_card)
-        focus.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
-        focus.setSpacing(2)
         for widget in (self._focus_title, self._focus_headline, self._focus_detail):
             focus.addWidget(widget)
-        focus.addStretch(1)
-
-        self._actions_card = QFrame()
-        self._actions_card.setObjectName("responseTile")
-        actions_title = QLabel("NEXT ACTIONS")
-        actions_title.setObjectName("tileCaption")
-        self._actions_layout = QVBoxLayout(self._actions_card)
-        self._actions_layout.setContentsMargins(theme.SPACE_MD, theme.SPACE_SM, theme.SPACE_MD, theme.SPACE_SM)
-        self._actions_layout.setSpacing(2)
-        self._actions_layout.addWidget(actions_title)
-        self._action_labels: list[QLabel] = []
-
-        self._overview_host = QWidget()
-        overview = QHBoxLayout(self._overview_host)
-        overview.setContentsMargins(0, 0, 0, 0)
-        overview.setSpacing(theme.SPACE_SM)
-        overview.addWidget(self._focus_card, 2)
-        overview.addWidget(self._actions_card, 3)
+        overview.addWidget(self._focus_card)
+        self._actions_card = QWidget()
+        self._actions_card.setObjectName("analysisActions")
+        actions_host = QVBoxLayout(self._actions_card)
+        actions_host.setContentsMargins(0, theme.SECTION_GAP, 0, 0)
+        actions_host.setSpacing(0)
+        actions_title = QLabel("Next actions")
+        actions_title.setObjectName("sectionHeading")
+        actions_host.addWidget(actions_title)
+        actions_host.addSpacing(8)
+        self._actions_group = SettingsGroup()
+        actions_host.addWidget(self._actions_group)
+        overview.addWidget(self._actions_card)
+        self._action_labels: list[Any] = []
         self._overview_host.setVisible(False)
+        self.column.addWidget(self._overview_host)
 
-        # --- priorities and slots ----------------------------------------------------
+        # --- strongest measured responses ------------------------------------------------------
+        self._strongest_host, strongest_layout = section("Strongest measured responses")
+        self._strongest_title = self._strongest_host.heading  # type: ignore[attr-defined]
+        self._tiles: list[_ResponseRow] = []
+        self._strongest_group = SettingsGroup()
+        strongest_layout.addWidget(self._strongest_group)
+        self._strongest_note = QLabel("")
+        self._strongest_note.setObjectName("helperText")
+        self._strongest_note.setWordWrap(True)
+        self._strongest_note.setContentsMargins(0, 8, 0, 0)
+        strongest_layout.addWidget(self._strongest_note)
+        self.column.addWidget(self._strongest_host)
+
+        # --- build health --------------------------------------------------------------------------
+        self._health_host, health_layout = section("Build health")
+        self._health_group = SettingsGroup()
+        health_layout.addWidget(self._health_group)
+        self._health_lines: list[_HealthLine] = []
+        self.column.addWidget(self._health_host)
+
+        # --- analysis coverage -----------------------------------------------------------------------
+        self._coverage_host, coverage_layout = section("Analysis coverage")
+        self._coverage_lines = QVBoxLayout()
+        self._coverage_lines.setContentsMargins(0, 0, 0, 0)
+        self._coverage_lines.setSpacing(4)
+        coverage_layout.addLayout(self._coverage_lines)
+        self.column.addWidget(self._coverage_host)
+
+        # --- upgrade opportunities and details ------------------------------------------------------------
         self._list = QListWidget()
+        self._list.setAccessibleName("Upgrade opportunities")
         self._list.setWordWrap(True)
         self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._list.setMinimumWidth(190)
         self._detail = QTextEdit()
+        self._detail.setAccessibleName("Upgrade opportunity details")
         self._detail.setReadOnly(True)
         # Text wraps to the pane; the page never needs a horizontal scrollbar.
         self._detail.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
@@ -223,15 +262,16 @@ class AnalysisWindow(QWidget):
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
         splitter.setChildrenCollapsible(False)
+        splitter.setFixedHeight(380)
 
         # Advanced actions: quiet by default, and the two exports only appear with the measurement details.
         self._slot_selected = False
         self._details_toggle = ThemedCheckBox("Show measurement details")
         self._details_toggle.setObjectName("advancedToggle")
         self._details_toggle.toggled.connect(self._on_details_toggled)
-        self._copy_btn = make_button("Copy Search Intent", "tertiary")
+        self._copy_btn = make_button("Copy Search Intent", "tertiary", compact=True)
         self._copy_btn.clicked.connect(self._copy_intent)
-        self._export_btn = make_button("Export JSON", "tertiary")
+        self._export_btn = make_button("Export JSON", "tertiary", compact=True)
         self._export_btn.clicked.connect(self._export_json)
         self._export_btn.setEnabled(False)
         footer = QHBoxLayout()
@@ -243,33 +283,21 @@ class AnalysisWindow(QWidget):
         footer.addWidget(self._export_btn)
         self._set_copy_available(False)
 
-        layout = QVBoxLayout(self)
-        margin = 0 if embedded else theme.PAGE_GUTTER
-        layout.setContentsMargins(margin, margin, margin, margin)
-        layout.setSpacing(theme.SPACE_SM)
-        identity = QHBoxLayout()
-        identity.setContentsMargins(0, 0, 0, 0)
-        identity.setSpacing(theme.SPACE_LG)
-        identity.addWidget(self._header)
-        identity.addWidget(self._status)
-        identity.addStretch(1)
-
         # Nothing to browse before the first analysis: no empty list, no empty detail pane.
         self._body = QWidget()
         body = QVBoxLayout(self._body)
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(theme.SPACE_SM)
-        body.addWidget(splitter, 1)
+        body.setContentsMargins(0, theme.SECTION_GAP, 0, 0)
+        body.setSpacing(0)
+        self._upgrade_heading = QLabel("Upgrade opportunities")
+        self._upgrade_heading.setObjectName("sectionHeading")
+        body.addWidget(self._upgrade_heading)
+        body.addSpacing(8)
+        body.addWidget(splitter)
+        body.addSpacing(8)
         body.addLayout(footer)
         self._body.setVisible(False)
-
-        layout.addLayout(head)
-        layout.addLayout(identity)
-        layout.addWidget(self._progress)
-        layout.addWidget(self._overview_host)
-        layout.addWidget(self._strongest_host)
-        layout.addWidget(self._body, 100)
-        layout.addStretch(1)  # keeps the header at the top while there is no result to show
+        self.column.addWidget(self._body)
+        self.finish()
 
         self._list.currentRowChanged.connect(self._show_slot)
         started = getattr(controller, "build_analysis_started", None) or controller.analysis_started
@@ -379,12 +407,14 @@ class AnalysisWindow(QWidget):
         self._slots = list(result.get("slots") or [])
         self._render_overview_cards()
         self._render_strongest()
+        self._render_health()
+        self._render_coverage()
         self._list.clear()
         self._has_priorities = bool(self._view["has_priorities"])
         # Row map: the priorities summary, then a heading, then one row per slot in the existing opportunity order.
         self._rows = []
         if self._has_priorities:
-            self._list.addItem(QListWidgetItem("Overview"))  # the whole-build view
+            self._list.addItem(QListWidgetItem("Overview"))  # stat priorities and focus for the whole build
             self._rows.append(-1)
         if self._slots:
             heading = QListWidgetItem("UPGRADE OPPORTUNITIES")
@@ -407,58 +437,97 @@ class AnalysisWindow(QWidget):
     def _render_strongest(self) -> None:
         tiles = self._view.get("tiles") or []
         while len(self._tiles) < len(tiles):
-            tile = _ResponseTile()
-            self._tiles.append(tile)
-            self._tile_row.addWidget(tile, 1)
-        for index, tile in enumerate(self._tiles):
-            tile.setVisible(index < len(tiles))
+            row = _ResponseRow()
+            self._tiles.append(row)
+            self._strongest_group.add_row(row)
+        for index, row in enumerate(self._tiles):
+            row.setVisible(index < len(tiles))
             if index < len(tiles):
-                tile.set_tile(tiles[index])
-                self._tile_row.setStretch(index, 2 if tiles[index]["key"] == "multi_impact" else 1)
+                row.set_tile(tiles[index])
         self._strongest_note.setText(str(self._view.get("caveat") or ""))
         self._strongest_note.setToolTip(f"{self._view.get('basis')} {self._view.get('caveat')}".strip())
         self._strongest_host.setVisible(bool(tiles))
 
+    def _render_health(self) -> None:
+        rows = self._view.get("health") or []
+        while len(self._health_lines) < len(rows):
+            line = _HealthLine()
+            self._health_lines.append(line)
+            self._health_group.add_row(line)
+        for index, line in enumerate(self._health_lines):
+            line.setVisible(index < len(rows))
+            if index < len(rows):
+                line.set_row(rows[index])
+        self._health_host.setVisible(bool(rows))
+
+    def _render_coverage(self) -> None:
+        while self._coverage_lines.count():
+            item = self._coverage_lines.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
+        summary = self._view.get("coverage_summary") or {}
+        label = str(summary.get("label") or "")
+        self._coverage_host.heading.setText(f"Analysis coverage · {label}" if label else "Analysis coverage")  # type: ignore[attr-defined]
+        lines = [summary.get("summary", ""), *summary.get("notes", []), *(self._view.get("coverage") or [])]
+        for line in lines:
+            if line:
+                text = QLabel(str(line))
+                text.setObjectName("bodyText")
+                text.setWordWrap(True)
+                text.setMaximumWidth(680)
+                self._coverage_lines.addWidget(text)
+        self._coverage_host.setVisible(bool(self._view.get("has_priorities") or lines))
+
     def _render_overview_cards(self) -> None:
-        for label in self._action_labels:
-            self._actions_layout.removeWidget(label)
-            label.deleteLater()
+        for row in self._action_labels:
+            row.setParent(None)
+            row.deleteLater()
         self._action_labels.clear()
         view = self._view
         if not view.get("has_actionable"):
             self._overview_host.setVisible(False)
             return
         focus = view["focus"]
-        self._focus_title.setText(focus["title"])
+        self._focus_title_raw = str(focus["title"])  # the view model's wording; the page shows sentence case
+        self._focus_title.setText(self._focus_title_raw.capitalize())
+        self._focus_card.setProperty("issue", bool(focus["issue"]))
         self._focus_headline.setText(focus["headline"])
         self._focus_detail.setText(focus["detail"])
-        # An issue is marked; "no critical issue" is deliberately calm.
-        self._focus_card.setProperty("issue", bool(focus["issue"]))
-        self._focus_card.style().unpolish(self._focus_card)
-        self._focus_card.style().polish(self._focus_card)
+        self._focus_detail.setVisible(bool(focus["detail"]))
         actions = view.get("actions") or []
         for action in actions:
-            label = QLabel(f"{action['number']}. {action['title']} — {action['summary']}")
-            label.setObjectName("fixFirstRow" if action["fix"] else "tileChange")
-            label.setWordWrap(True)
-            self._actions_layout.addWidget(label)
-            self._action_labels.append(label)
+            row = _ActionRow(action["number"], action["title"], action["summary"], bool(action["fix"]))
+            row.setObjectName("settingsRow")
+            self._actions_group.add_row(row)
+            self._action_labels.append(row)
         if not actions:
-            label = QLabel("No action could be established from this analysis.")
-            label.setObjectName("tileChange")
-            label.setWordWrap(True)
-            self._actions_layout.addWidget(label)
-            self._action_labels.append(label)
+            row = _ActionRow("", "No action could be established from this analysis.", "", False)
+            self._actions_group.add_row(row)
+            self._action_labels.append(row)
         self._overview_host.setVisible(True)
 
     def strongest_text(self) -> list[str]:
         return [tile.text() for tile in self._tiles if not tile.isHidden()]
 
     def focus_text(self) -> list[str]:
-        return [self._focus_title.text(), self._focus_headline.text(), self._focus_detail.text()] if not self._overview_host.isHidden() else []
+        return [getattr(self, "_focus_title_raw", self._focus_title.text()), self._focus_headline.text(), self._focus_detail.text()] if not self._overview_host.isHidden() else []
 
     def actions_text(self) -> list[str]:
-        return [label.text() for label in self._action_labels]
+        return [row.text() for row in self._action_labels]
+
+    def health_text(self) -> list[str]:
+        return [line.text() for line in self._health_lines if not line.isHidden()]
+
+    def coverage_text(self) -> list[str]:
+        texts = [self._coverage_host.heading.text()]  # type: ignore[attr-defined]
+        for index in range(self._coverage_lines.count()):
+            item = self._coverage_lines.itemAt(index)
+            if item.widget() is not None:
+                texts.append(item.widget().text())
+        return texts
 
     def _heading(self, title: str, note: str = "") -> str:
         extra = f" <span style='color:{theme.TEXT_MUTED};font-weight:400'>— {_esc(note)}</span>" if note else ""
@@ -473,16 +542,6 @@ class AnalysisWindow(QWidget):
         if view.get("changes"):
             out.append(self._heading("WHAT CHANGED", "since your previous analysis"))
             out.extend(f"<p style='margin:0 0 3px 0;color:{text}'>{_esc(line)}</p>" for line in view["changes"])
-        if view.get("health"):
-            out.append(self._heading("BUILD HEALTH"))
-            out.append("<table cellspacing='0' cellpadding='2' width='100%'>")
-            for row in view["health"]:
-                out.append(
-                    f"<tr><td width='96' style='color:{text}'>{_esc(row['title'])}</td>"
-                    f"<td width='170'><b style='color:{tones[row['tone']]}'>{_esc(row['state'])}</b></td>"
-                    f"<td style='color:{muted}'>{_esc(row['reason'])}</td></tr>"
-                )
-            out.append("</table>")
         if view.get("ladders"):
             out.append(self._heading("STAT PRIORITIES", "strongest measured responses, each at its tested amount"))
         for ladder in view.get("ladders") or []:
@@ -505,11 +564,6 @@ class AnalysisWindow(QWidget):
             for stat in package["stats"]:
                 out.append(f"<p style='margin:0 0 2px 0;color:{text}'>{_esc(stat['change'])} "
                            f"<span style='color:{muted}'>· {_esc(stat['evidence'])}</span></p>")
-        summary = view.get("coverage_summary") or {}
-        out.append(self._heading("ANALYSIS COVERAGE", summary.get("label", "")))
-        for line in [summary.get("summary", ""), *summary.get("notes", []), *(view.get("coverage") or [])]:
-            if line:
-                out.append(f"<p style='margin:0 0 3px 0;color:{text}'>{_esc(line)}</p>")
         if self._details_toggle.isChecked():
             out.append(self._heading("MEASUREMENT DETAILS"))
             for line in [*(view.get("curve_details") or []), *(view.get("breakpoint_details") or []),

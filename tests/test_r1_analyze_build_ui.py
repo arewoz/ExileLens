@@ -127,6 +127,12 @@ def _window() -> tuple[AnalysisWindow, Controller]:
     return AnalysisWindow(controller, embedded=True), controller
 
 
+
+def _full_detail(window) -> str:
+    """Details pane plus the page's own Build health and Coverage sections (they used to live in the pane)."""
+    return "\n".join([window._detail.toPlainText(), "BUILD HEALTH", *window.health_text(), "ANALYSIS COVERAGE", *window.coverage_text()])
+
+
 def _page_text(window: AnalysisWindow) -> str:
     return "\n".join([window._header.text(), window._status.text(), window._progress.text(), *window.strongest_text(),
                       *window.focus_text(), *window.actions_text(), window._detail.toPlainText()])
@@ -203,7 +209,7 @@ def test_page_renders_strongest_responses_fix_first_and_priorities() -> None:
     # R1.5: the urgent problem is the current focus and action #1, ahead of any optimisation.
     assert window.focus_text()[:2] == ["BIGGEST CURRENT ISSUE", "Fire Resistance is below cap."]
     assert window.actions_text()[0] == "1. Cap Fire Resistance — +17% reaches cap"
-    detail = window._detail.toPlainText()
+    detail = _full_detail(window)
     for expected in ("BUILD HEALTH", "STAT PRIORITIES", "DAMAGE", "10% increased Cast Speed", "+6.1%", "STAT FOCUS", "HYBRID FOCUS",
                      "ANALYSIS COVERAGE", "No measurable response: Crit Chance.", "Based on stats ExileLens tested against this PoB build."):
         assert expected in detail
@@ -433,7 +439,9 @@ def test_slot_list_is_framed_as_upgrade_opportunities_in_the_same_order() -> Non
     window.show_result(realistic_analysis())
     assert [window._list.item(i).text() for i in range(window._list.count())] == [
         "Overview", "UPGRADE OPPORTUNITIES", "Gloves", "Belt", "Weapon 1 — Limited analysis"]
-    assert window._list.currentRow() == 0 and "ANALYSIS COVERAGE" in window._detail.toPlainText()  # Overview = whole build
+    # Overview row = stat priorities for the whole build; health and coverage have their own page sections.
+    assert window._list.currentRow() == 0 and "STAT PRIORITIES" in window._detail.toPlainText()
+    assert any("coverage" in line.lower() for line in window.coverage_text())
     window._list.setCurrentRow(2)
     window._list.setCurrentRow(0)
     assert "DAMAGE" in window._detail.toPlainText() and "CURRENT ITEM" not in window._detail.toPlainText()
@@ -594,7 +602,7 @@ def test_overview_answers_what_is_wrong_what_to_do_and_what_matters() -> None:
         "3. Improve Damage — Spell Skill Levels · +1 Spell Skill Level → +8.7%",
     ]
     assert window.strongest_text()[0] == "DAMAGE +8.7% +1 Spell Skill Level"  # best response stays visible beside the priority
-    detail = window._detail.toPlainText()
+    detail = _full_detail(window)
     for expected in ("BUILD HEALTH", "Needs attention", "Chaos Resistance below cap.", "Opportunity", "No urgent issue detected",
                      "STAT PRIORITIES", "next step +7.8% · Response remains similar", "next step +3.8% · Response weakens",
                      "STAT FOCUS", "OFFENSE FOCUS", "DEFENCE FOCUS", "HYBRID FOCUS", "ANALYSIS COVERAGE", "Partial",
@@ -619,7 +627,7 @@ def test_what_changed_appears_only_when_a_comparable_previous_analysis_differs()
     window.show_result(after)
     detail = window._detail.toPlainText()
     assert "WHAT CHANGED" in detail and "✓ Chaos Resistance is no longer a priority." in detail
-    assert detail.index("WHAT CHANGED") < detail.index("BUILD HEALTH")
+    assert window.health_text()  # build health is its own section now, not part of the details pane
     assert window.focus_text()[1] == "Improve Max Hit" and window.focus_text()[2].startswith("No critical issue detected.")
 
 
@@ -629,7 +637,7 @@ def test_overview_cards_do_not_claim_a_damage_stat_the_coverage_cannot_support()
     window, _controller = _window()
     window.show_result(actionable_analysis(confidence="LOW", slots=[]))
     assert all("Damage" not in line for line in window.actions_text())
-    detail = window._detail.toPlainText()
+    detail = " ".join([window._detail.toPlainText(), *window.health_text(), *window.coverage_text()])
     assert "Limited analysis" in detail and "Limited confidence in this build's damage number." in detail
     assert "Damage could not be established reliably" in detail
 
@@ -653,8 +661,8 @@ def test_minor_gap_is_visible_but_quiet_on_the_overview() -> None:
         "2. Improve Damage — Spell Skill Levels · +1 Spell Skill Level → +8.7%",
         "3. Finish capping Chaos Resistance — 74% → 75% · nearly capped",
     ]
-    assert window._action_labels[2].objectName() == "tileChange"  # not emphasised like a hard problem
-    detail = window._detail.toPlainText()
+    assert window._action_labels[2].property("fix") is False  # not emphasised like a hard problem
+    detail = _full_detail(window)
     assert "Nearly capped" in detail and "Chaos Resistance is 1% below cap." in detail and "Needs attention" not in detail
     assert "MINOR" not in detail and "BIGGEST" not in " ".join(window.focus_text())
 
@@ -665,7 +673,7 @@ def test_material_gap_still_leads_and_is_emphasised() -> None:
     window, _controller = _window()
     window.show_result(actionable_analysis(needs=[CHAOS], chaos=42.0, slots=[]))
     assert window.focus_text()[:2] == ["BIGGEST CURRENT ISSUE", "Chaos Resistance is below cap."] and window._focus_card.property("issue") is True
-    assert window._action_labels[0].objectName() == "fixFirstRow" and "Needs attention" in window._detail.toPlainText()
+    assert window._action_labels[0].property("fix") is True and any("Needs attention" in line for line in window.health_text())
 
 
 def test_hybrid_overlap_is_not_rendered_as_a_duplicate_package_and_raw_data_is_in_details() -> None:
