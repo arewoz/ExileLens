@@ -143,7 +143,7 @@ old items. Nothing about the app depends on it.
 ## Optional Patreon supporter link
 
 Linking Patreon is optional, independent of the two switches above, and never required for any ExileLens
-feature. There is no ExileLens account. Settings → *Patreon supporter* → **Link Patreon** opens Patreon in your
+feature. There is no ExileLens account. Settings → Updates → *Seamless updates* → **Link Patreon** opens Patreon in your
 browser; you approve ExileLens's read-only `identity` access there. The ExileLens service (not the app) completes
 the sign-in and checks only **whether your membership currently includes a paid tier** (gifted memberships and free
 trials count; free memberships do not).

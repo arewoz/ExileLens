@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSignalBlocker, QTimer
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QColor, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -24,19 +25,23 @@ from PySide6.QtWidgets import (
 from exilelens.app.controller import EvaluationController
 from exilelens.app.settings import AppSettings, save_settings
 from exilelens.ui import theme
-from exilelens.ui.components import Disclosure, StatusValue, make_button
+from exilelens.ui.components import Disclosure, SegmentedControl, StatusValue, make_button
 from exilelens.ui.dashboard_widgets import (
+    CardRow,
     ChevronComboBox,
-    FlowLayout,
     ColumnPage,
+    FlowLayout,
     Hairline,
     HealthGridRow,
     KeycapDisplay,
     MonoPathLabel,
-    SettingsGroup,
     SettingsRow,
     SettingsSection,
+    SetupCard,
     ThemedSwitch,
+    WrapLabel,
+    ZoneFooter,
+    set_button_tier,
 )
 from exilelens.ui.overlay import OverlayWindow
 from exilelens.ui.ui_icons import outline_icon
@@ -90,7 +95,13 @@ class HotkeyCaptureDialog(QDialog):
 
 
 class SettingsPage(ColumnPage):
-    """One scrolling page of flat rows, in the shipped section order. Settings apply immediately."""
+    """One scrolling page, in the shipped section order. Settings apply immediately.
+
+    Top to bottom: the Path of Building setup card, Hotkey, Updates (the free manual flow, then the Seamless
+    updates supporter zone), Item evaluation, Overlay, Privacy, and the page foot (Reset, with a pointer to
+    Diagnostics). There is no Advanced section: the folder and build pickers live on the card, logs and reports
+    live on Diagnostics.
+    """
 
     def __init__(
         self,
@@ -98,40 +109,30 @@ class SettingsPage(ColumnPage):
         controller: EvaluationController,
         update_service=None,
         parent: QWidget | None = None,
+        *,
+        navigate=None,
     ) -> None:
         super().__init__("Settings", sticky_header=True, object_name="settingsPage", parent=parent)
         self.settings = settings
         self.controller = controller
         self.update_service = update_service
+        self._navigate = navigate
         self._scroll_area = self.scroll
         self.scroll.setObjectName("settingsScrollArea")
 
         # Built first: later sections reference the widgets these create.
         self._build_shared_controls()
-        self._updates_section = self._build_updates_section()
-        # Updates and Support ExileLens are one related block (supporter convenience under the update
-        # controls): tighter spacing between the two than between ordinary sections, no card.
-        supporter_block = QWidget()
-        block = QVBoxLayout(supporter_block)
-        block.setContentsMargins(0, 0, 0, 0)
-        block.setSpacing(20)
-        block.addWidget(self._updates_section)
-        block.addWidget(self._build_patreon_section())
         for section in (
             self._build_pob_section(),
             self._build_hotkey_section(),
-            supporter_block,
+            self._build_updates_section(),
             self._build_evaluation_section(),
             self._build_overlay_section(),
             self._build_privacy_section(),
-            self._build_advanced_section(),
             self._build_reset_section(),
         ):
             self.column.addWidget(section)
         self.finish()
-        updates_panel = getattr(self, "_updates_panel", None)
-        if updates_panel is not None:
-            updates_panel.attach_seamless_controls(self._patreon_panel)
 
         controller.value_profile_changed.connect(self._on_profile_changed_externally)
         controller.build_changed.connect(lambda _info: self.refresh_setup_status())
@@ -157,24 +158,40 @@ class SettingsPage(ColumnPage):
         self.scroll.ensureWidgetVisible(self._updates_section, 0, 12)
         self.scroll.verticalScrollBar().setValue(self._updates_section.y())
 
+    def focus_supporter(self) -> None:
+        """Reveal the Seamless updates supporter zone and put keyboard focus on its first action (the rail's
+        "Support ExileLens"). Nothing external opens here."""
+        self._reveal_supporter_zone()
+        # The page may only just have been shown, so measure again once the layout has settled.
+        QTimer.singleShot(0, self._reveal_supporter_zone)
+
+    def _reveal_supporter_zone(self) -> None:
+        zone = self._patreon_panel
+        body = self.scroll.widget()
+        top = zone.mapTo(body, zone.rect().topLeft()).y()
+        bar = self.scroll.verticalScrollBar()
+        bar.setValue(max(0, min(bar.maximum(), top - 96)))   # the zone with its Updates heading just above it
+        for button in (
+            zone.link_button, zone.reconnect_button, zone.support_button, zone.view_button, zone.cancel_button,
+            zone.retry_button, zone.disconnect_button,
+        ):
+            if button.isVisibleTo(zone) and button.isEnabled():
+                button.setFocus(Qt.FocusReason.TabFocusReason)
+                return
+        zone.setFocus(Qt.FocusReason.OtherFocusReason)
+
     # --- construction -----------------------------------------------------------
 
     def _build_shared_controls(self) -> None:
-        """Create every control up front, so sections only arrange them.
-
-        The two path line edits are real, editable controls kept under Advanced.
-        The primary surface shows a value and a Change button instead, but pasting
-        a path directly stays possible and the widgets stay live.
-        """
+        """Create every control up front, so sections only arrange them."""
         settings = self.settings
 
-        self._pob_edit = QLineEdit(settings.pob_path)
-        self._pob_edit.editingFinished.connect(self._persist_pob_path)
-        self._build_edit = QLineEdit(settings.build_path or self.controller.build_info.path)
+        # The two paths are shown, never edited here: Detect / Change folder / Change build pick them.
+        self._pob_path = str(settings.pob_path or "")
+        self._build_path = str(settings.build_path or self.controller.build_info.path or "")
 
-        for label_attr in ("_pob_status", "_build_file_status", "_engine_status", "_loaded_status"):
-            label = QLabel()
-            label.setWordWrap(True)
+        for label_attr in ("_pob_status", "_loaded_status"):
+            label = WrapLabel()
             label.setObjectName("helperText")
             label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             setattr(self, label_attr, label)
@@ -208,11 +225,6 @@ class SettingsPage(ColumnPage):
         self._auto_hide.setFixedWidth(theme.SETTINGS_SELECT_WIDTH)
         self._auto_hide.setAccessibleName("Auto hide (seconds)")
 
-        self._dedup = QLineEdit(str(settings.dedup_window_seconds))
-        self._dedup.editingFinished.connect(self._persist_numeric_settings)
-        self._dedup.setFixedWidth(theme.SETTINGS_SELECT_WIDTH)
-        self._dedup.setAccessibleName("Dedup window (seconds)")
-
         self._show_hints = ThemedSwitch("Show hotkey hints")
         self._show_hints.setChecked(bool(getattr(settings, "show_hotkey_hints", True)))
         self._show_hints.toggled.connect(self._on_show_hints_changed)
@@ -237,11 +249,6 @@ class SettingsPage(ColumnPage):
         self._hotkey_elevation_status.setObjectName("helperText")
         self._hotkey_elevation_status.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.controller.price_check_hotkey.hotkey_tested.connect(self._hotkey_test_succeeded)
-
-        self._live_market_label = QLabel(
-            "Enabled" if str(settings.live_market_mode or "auto") != "disabled" else "Disabled"
-        )
-        self._live_market_label.setObjectName("secondaryText")
 
         self._build_league_controls()
 
@@ -269,43 +276,52 @@ class SettingsPage(ColumnPage):
         self._league_status.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
 
     def _build_pob_section(self):
-        section = SettingsSection("Path of Building")
-        # Named rows: "Connected" on its own does not say what is connected.
-        self._pob_state = StatusValue("", "neutral")
-        self._pob_state.set_word_wrap(False)
-        self._build_state = StatusValue("", "neutral")
-        self._build_state.set_word_wrap(False)
-        self._pob_path_label = MonoPathLabel(self._pob_edit.text())
-        self._build_path_label = MonoPathLabel(self._build_edit.text())
-        self._pob_edit.textChanged.connect(self._pob_path_label.set_full_text)
-        self._build_edit.textChanged.connect(self._build_path_label.set_full_text)
+        """The setup card: Installation and Build, each with its own path and actions. The state shown comes from
+        the same health model as the rail and Diagnostics; there is no second, independent status."""
+        card = SetupCard("Path of Building")
+        self._pob_card = card
 
-        self._change_pob_btn = make_button("Change location", "secondary", compact=True)
-        self._change_pob_btn.clicked.connect(self._browse_pob)
+        # --- Installation -----------------------------------------------------------------------------
+        self._pob_state = StatusValue("", "neutral")
+        self._pob_path_label = MonoPathLabel(self._pob_path, selectable=True)
+        self._pob_path_label.setAccessibleName("Path of Building folder")
         self._detect_pob_btn = make_button("Detect", "tertiary", compact=True, tooltip="Look for Path of Building automatically")
         self._detect_pob_btn.clicked.connect(self._auto_detect_pob)
-        self._change_build_btn = make_button("Change build", "secondary", compact=True)
-        self._change_build_btn.clicked.connect(self._browse_build)
+        self._change_pob_btn = make_button("Change folder", "secondary", compact=True)
+        self._change_pob_btn.clicked.connect(self._browse_pob)
         # Surfaces only while the integration is actually down.
         self._reconnect_btn = make_button("Reconnect", "primary", compact=True)
-        self._reconnect_btn.clicked.connect(self._apply_pob_path)
+        self._reconnect_btn.clicked.connect(self._reconnect_pob)
         self._reconnect_btn.setVisible(False)
 
-        install = SettingsRow("Installation")
-        install.add_left(self._pob_state)
-        install.add_left(self._pob_path_label)
-        install.add_left(self._pob_status)
-        for button in (self._reconnect_btn, self._detect_pob_btn, self._change_pob_btn):
-            install.add_control(button)
-        section.add_row(install)
+        self._install_row = CardRow("Installation")
+        for widget in (self._pob_state, self._pob_path_label, self._pob_status):
+            self._install_row.add_value(widget)
+        for button in (self._detect_pob_btn, self._change_pob_btn, self._reconnect_btn):
+            self._install_row.add_action(button)
+        card.add_row(self._install_row)
 
-        build = SettingsRow("Build")
-        build.add_left(self._build_state)
-        build.add_left(self._build_path_label)
-        build.add_left(self._loaded_status)
-        build.add_control(self._change_build_btn)
-        section.add_row(build)
-        return section
+        # --- Build ------------------------------------------------------------------------------------
+        self._build_name = QLabel("")
+        self._build_name.setObjectName("healthValue")
+        self._build_name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self._build_age = QLabel("")
+        self._build_age.setObjectName("helperText")
+        self._build_state = StatusValue("", "neutral")
+        self._build_path_label = MonoPathLabel(self._build_path, selectable=True)
+        self._build_path_label.setAccessibleName("Build file")
+        self._reload_btn = make_button("Reload", "tertiary", compact=True, tooltip="Reload the active build from disk without restarting ExileLens.")
+        self._reload_btn.clicked.connect(self._reload_build)
+        self._change_build_btn = make_button("Change build", "secondary", compact=True)
+        self._change_build_btn.clicked.connect(self._browse_build)
+
+        self._build_row = CardRow("Build")
+        for widget in (self._build_name, self._build_age, self._build_state, self._build_path_label, self._loaded_status):
+            self._build_row.add_value(widget)
+        for button in (self._reload_btn, self._change_build_btn):
+            self._build_row.add_action(button)
+        card.add_row(self._build_row)
+        return card
 
     def _build_evaluation_section(self):
         section = SettingsSection("Item evaluation")
@@ -360,16 +376,27 @@ class SettingsPage(ColumnPage):
         return section
 
     def _build_updates_section(self):
+        """Free, manual updates first (never tinted), then the one supporter zone, then the free-features line."""
+        from exilelens.ui.patreon_panel import FREE_LINE, PatreonPanel
+
         section = SettingsSection("Updates", with_group=False)
+        self._updates_section = section
         if self.update_service is None:
             note = QLabel("Update checks are unavailable in this view.")
             note.setObjectName("helperText")
             section.add_panel(note)
-            return section
-        from exilelens.ui.updates_panel import UpdatesPanel
+        else:
+            from exilelens.ui.updates_panel import UpdatesPanel
 
-        self._updates_panel = UpdatesPanel(self.settings, self.update_service)
-        section.add_panel(self._updates_panel)
+            self._updates_panel = UpdatesPanel(self.settings, self.update_service)
+            section.add_panel(self._updates_panel)
+        self._patreon_panel = PatreonPanel(self.settings)
+        section.add_below(self._patreon_panel, 12)
+        free = QLabel(FREE_LINE)
+        free.setObjectName("helperText")
+        free.setWordWrap(True)
+        free.setContentsMargins(0, 8, 0, 0)
+        section.add_panel(free)
         return section
 
     def _build_privacy_section(self):
@@ -378,60 +405,6 @@ class SettingsPage(ColumnPage):
         section = SettingsSection("Privacy", with_group=False)
         self._privacy_panel = PrivacyPanel(self.settings)
         section.add_panel(self._privacy_panel)
-        return section
-
-    def _build_patreon_section(self):
-        from exilelens.ui.patreon_panel import PatreonPanel
-
-        section = SettingsSection("Support ExileLens", with_group=False)
-        self._patreon_panel = PatreonPanel(self.settings)
-        section.set_heading_icon("patreon")  # the exact shipped mark, native colour, once
-        section.add_panel(self._patreon_panel)
-        return section
-
-    def _build_advanced_section(self):
-        section = SettingsSection("Advanced", with_group=False)
-        self._advanced = Disclosure("Troubleshooting & diagnostics")
-        group = SettingsGroup()
-
-        row = SettingsRow("Path of Building folder")
-        row.add_left(self._pob_edit)
-        pob_browse = make_button("Browse", "tertiary", compact=True)
-        pob_browse.clicked.connect(self._browse_pob)
-        pob_detect = make_button("Auto-detect", "tertiary", compact=True, tooltip="Look for Path of Building automatically")
-        pob_detect.clicked.connect(self._auto_detect_pob)
-        pob_apply = make_button("Apply", "secondary", compact=True, tooltip="Reconnect using this folder")
-        pob_apply.clicked.connect(self._apply_pob_path)
-        for button in (pob_browse, pob_detect, pob_apply):
-            row.add_control(button)
-        group.add_row(row)
-
-        row = SettingsRow("Build file")
-        row.add_left(self._build_edit)
-        row.add_left(self._build_file_status)
-        build_browse = make_button("Browse", "tertiary", compact=True)
-        build_browse.clicked.connect(self._browse_build)
-        build_load = make_button("Load", "secondary", compact=True)
-        build_load.clicked.connect(self._load_build_from_edit)
-        row.add_control(build_browse)
-        row.add_control(build_load)
-        group.add_row(row)
-
-        row = SettingsRow("Dedup window (seconds)")
-        row.add_control(self._dedup)
-        group.add_row(row)
-        row = SettingsRow("Live market")
-        row.add_control(self._live_market_label)
-        group.add_row(row)
-        reload_btn = make_button("Reload build", "secondary", compact=True)
-        reload_btn.setToolTip("Reload the active build from disk without restarting ExileLens.")
-        reload_btn.clicked.connect(self._reload_build)
-        row = SettingsRow("Reload build")
-        row.add_control(reload_btn)
-        group.add_row(row)
-
-        self._advanced.add_widget(group)
-        section.add_panel(self._advanced)
         return section
 
     def _build_reset_section(self):
@@ -444,6 +417,9 @@ class SettingsPage(ColumnPage):
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(24)
+        texts = QVBoxLayout()
+        texts.setContentsMargins(0, 0, 0, 0)
+        texts.setSpacing(2)
         note = QLabel(
             "Restores defaults and forgets your PoB folder, build and preferences. "
             "A backup is kept. Your builds and game files are not touched."
@@ -451,12 +427,34 @@ class SettingsPage(ColumnPage):
         note.setObjectName("bodyText")
         note.setWordWrap(True)
         note.setMaximumWidth(560)
+        texts.addWidget(note)
+        # Logs, the event history and support reports are on Diagnostics, not here. One wrapping label with an
+        # inline link, so it never forces the page wider at large text sizes.
+        pointer = QLabel('Logs, event history and support reports are in <a href="diagnostics">Diagnostics</a>.')
+        pointer.setObjectName("helperText")
+        pointer.setTextFormat(Qt.TextFormat.RichText)
+        pointer.setWordWrap(True)
+        pointer.setTextInteractionFlags(
+            Qt.TextInteractionFlag.LinksAccessibleByMouse | Qt.TextInteractionFlag.LinksAccessibleByKeyboard
+        )
+        pointer.setOpenExternalLinks(False)
+        palette = pointer.palette()
+        palette.setColor(QPalette.ColorRole.Link, QColor(theme.TEXT))   # the same white link as the other in-app links
+        pointer.setPalette(palette)
+        pointer.setAccessibleName("Logs, event history and support reports are in Diagnostics")
+        pointer.linkActivated.connect(lambda _href: self._open_diagnostics())
+        self._diagnostics_pointer = pointer
+        texts.addWidget(pointer)
         self._reset_btn = make_button("Reset configuration", "destructive", compact=True)
         self._reset_btn.clicked.connect(self._reset_configuration)
-        row.addWidget(note, 1)
+        row.addLayout(texts, 1)
         row.addWidget(self._reset_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         column.addLayout(row)
         return host
+
+    def _open_diagnostics(self) -> None:
+        if self._navigate is not None:
+            self._navigate("diagnostics")
 
     # --- setup / recovery -------------------------------------------------------
 
@@ -472,112 +470,162 @@ class SettingsPage(ColumnPage):
                 self._profile_combo.setCurrentIndex(index)
 
     def refresh_setup_status(self) -> None:
-        from exilelens.app.setup_status import (
-            check_build_file,
-            check_pob_folder,
-            describe_build_state,
-            describe_engine,
-        )
+        from exilelens.app.setup_status import check_build_file, check_pob_folder, describe_build_state
 
-        pob = check_pob_folder(self._pob_edit.text())
-        build_file = check_build_file(self._build_edit.text())
-        engine = describe_engine(self.controller.engine_status())
+        # The displayed paths follow the runtime, not a copy made at start-up: the build can be changed from
+        # Overview or Diagnostics too.
+        self._set_pob_path(str(self.settings.pob_path or ""))
+        self._set_build_path(str(self.settings.build_path or ""))
+        pob = check_pob_folder(self._pob_path)
         loaded = describe_build_state(self.controller.build_info)
-        for label, check in (
-            (self._pob_status, pob),
-            (self._build_file_status, build_file),
-            (self._engine_status, engine),
-            (self._loaded_status, loaded),
-        ):
-            # The row beside this already names the state ("* Not found"), so the
-            # detail line carries only the explanation, not "NOT FOUND -- " again.
-            label.setText(check.detail or check.label)
-            label.setProperty("setupOk", check.ok)
-            label.setStyleSheet("" if check.ok else "color: #e0a040;")
-        import time
-
-        loaded_text = loaded.detail or loaded.label
-        loaded_at = getattr(self.controller, "build_loaded_at", None)
-        if loaded.ok and isinstance(loaded_at, (int, float)):
-            loaded_text += f" · loaded {time.strftime('%H:%M:%S', time.localtime(loaded_at))}"
+        self._pob_folder_detail = "" if pob.ok else (pob.detail or pob.label)
+        # One detail line for the Build row, shown only when something is wrong. It carries the build state's own
+        # explanation, a reload warning, and whether the configured file is still on disk.
+        lines = [] if loaded.ok else [loaded.detail or loaded.label]
         warning = getattr(self.controller, "reload_warning", "")
         if isinstance(warning, str) and warning:
-            loaded_text += f"\n{warning}"
-            self._loaded_status.setStyleSheet("color: #e0a040;")
-        self._loaded_status.setText(loaded_text)
+            lines.append(warning)
+        if self._build_path:
+            file_check = check_build_file(self._build_path)
+            if not file_check.ok:
+                lines.append(file_check.detail or file_check.label)
+        self._build_detail_lines = lines
+        self._loaded_status.setText("\n".join(lines))
+        self._loaded_status.setStyleSheet(f"color: {theme.WARN};" if lines else "")
         from exilelens.platform.windows.elevation import evaluate_elevation_status
 
         elevation = evaluate_elevation_status()
         self._hotkey_elevation_status.setText(elevation.detail if elevation.mismatch else "")
         self._hotkey_elevation_status.setVisible(bool(elevation.mismatch))
-        self._hotkey_elevation_status.setStyleSheet("color: #e0a040;" if elevation.mismatch else "")
+        self._hotkey_elevation_status.setStyleSheet(f"color: {theme.WARN};" if elevation.mismatch else "")
 
         self._apply_health_presentation()
 
+    @staticmethod
+    def _card_status(health) -> tuple[str, str]:
+        """Header word for the setup card: Path of Building and the build only (the hotkey is not part of it)."""
+        pob, build = health.pob, health.build
+        if pob.value == "Not found":
+            return "Setup needed", "warn"
+        if pob.value.startswith("Connecting"):
+            return "Connecting…", "neutral"
+        if pob.status in ("warn", "error"):
+            return "Not connected", "error"
+        if build.value == "Not selected":
+            return "Setup needed", "warn"
+        if build.status == "error":
+            return "Needs attention", "error"
+        if "loading" in build.value or "refreshing" in build.value:
+            return "Loading…", "neutral"
+        if build.status == "warn":
+            return "Needs attention", "warn"
+        return "Ready", "ok"
+
     def _apply_health_presentation(self) -> None:
-        """Healthy configuration is quiet; problems get the detail and the action."""
+        """Healthy configuration is quiet; only the affected row is lifted and gets the page's primary action."""
         from exilelens.app.setup_status import check_build_file
         from exilelens.ui.health import derive_health
 
         health = derive_health(self.controller, self.settings)
+        pob, build = health.pob, health.build
+        word, tone = self._card_status(health)
+        self._pob_card.set_status(word, tone)
 
-        self._pob_state.set_value(health.pob.value, health.pob.status)
-        # Detail lines only earn their space when something is wrong.
-        self._pob_status.setVisible(health.pob.status != "ok")
-        self._reconnect_btn.setVisible(
-            health.pob.status in ("warn", "error") and health.pob.value != "Not found"
+        # --- Installation ---
+        self._pob_state.set_value(pob.value, pob.status)
+        pob_problem = pob.status in ("warn", "error")
+        not_found = pob.value == "Not found"
+        self._pob_path_label.setVisible(bool(self._pob_path))
+        # The one explanation: the health model's own detail (say, "The Path of Building worker stopped."), or the
+        # folder check when the folder itself is the problem.
+        detail = pob.detail or self._pob_folder_detail
+        self._pob_status.setText(detail)
+        self._pob_status.setStyleSheet(f"color: {theme.WARN};" if self._pob_folder_detail else "")
+        self._pob_status.setVisible(pob_problem and bool(detail))
+        self._install_row.set_problem(pob_problem)
+        reconnect = pob_problem and not not_found
+        self._reconnect_btn.setVisible(reconnect)
+        set_button_tier(self._reconnect_btn, "primary")
+        set_button_tier(self._change_pob_btn, "primary" if not_found else ("tertiary" if reconnect else "secondary"))
+
+        # --- Build: the name and age come from the one health value ("Name · loaded 3 min ago") ---
+        no_build = build.value == "Not selected" or not self._build_path
+        file_bad = bool(self._build_path) and not check_build_file(self._build_path).ok
+        build_problem = (build.status in ("warn", "error") or file_bad) and not pob_problem
+        if build.status == "ok":
+            name, _sep, age = build.value.partition(" · ")
+            self._build_name.setText(name)
+            self._build_age.setText(age[:1].upper() + age[1:] if age else "")
+            self._build_age.setVisible(bool(age))
+            self._build_name.setVisible(True)
+            self._build_state.setVisible(False)
+        else:
+            self._build_state.set_value(build.value, build.status)
+            self._build_state.setVisible(True)
+            self._build_name.setVisible(False)
+            self._build_age.setVisible(False)
+        self._build_path_label.setVisible(bool(self._build_path))
+        self._loaded_status.setVisible(bool(self._build_detail_lines))
+        self._build_row.set_problem(build_problem)
+        primary_build = not pob_problem and not not_found and (no_build or build.status == "error")
+        self._change_build_btn.setText("Choose build" if no_build else "Change build")
+        set_button_tier(self._change_build_btn, "primary" if primary_build else "secondary")
+        self._reload_btn.setVisible(bool(self._build_path))
+        set_button_tier(
+            self._reload_btn,
+            "primary" if (build.status == "warn" and not pob_problem and not primary_build) else "tertiary",
         )
 
-        build = health.build
-        self._build_state.set_value(build.value, build.status)
-        show_build_detail = build.status != "ok" or bool(
-            getattr(self.controller, "reload_warning", "")
-        )
-        self._loaded_status.setVisible(show_build_detail)
-        # "FOUND" next to a healthy build file is noise; the check only earns space
-        # when it has a problem to report.
-        self._build_file_status.setVisible(not check_build_file(self._build_edit.text()).ok)
-
-    def _apply_pob_path(self) -> None:
-        candidate = self._pob_edit.text().strip()
+    def _reconnect_pob(self) -> None:
+        """Re-validate the configured folder and restart the Path of Building worker with it."""
         from exilelens.app.setup_status import check_pob_folder
 
+        candidate = self._pob_path.strip()
         check = check_pob_folder(candidate)
         if not check.ok:
-            self._pob_edit.setText(self.settings.pob_path)
             self.refresh_setup_status()
             QMessageBox.warning(self, "Path of Building", check.text())
             return
-
         self.settings.pob_path = candidate
         save_settings(self.settings)
         self.refresh_setup_status()
         self.controller.restart_engine()
         self.refresh_setup_status()
 
+    def _set_pob_path(self, path: str) -> None:
+        self._pob_path = path
+        if self._pob_path_label.full_text() != path:
+            self._pob_path_label.set_full_text(path)
+
+    def _set_build_path(self, path: str) -> None:
+        self._build_path = path
+        if self._build_path_label.full_text() != path:
+            self._build_path_label.set_full_text(path)
+
     def _browse_build(self) -> None:
         from exilelens.ui.setup_dialog import pick_build_file
 
-        path = pick_build_file(self._build_edit.text())
+        path = pick_build_file(self._build_path)
         if path:
-            self._build_edit.setText(path)
-            self._load_build_from_edit()
+            self._load_build_from_path(path)
 
-    def _load_build_from_edit(self) -> None:
+    def _load_build_from_path(self, path: str) -> None:
+        """Validate the picked build file, then load it (or save it, while Path of Building is not running)."""
         from pathlib import Path
 
         from exilelens.app.setup_status import check_build_file
 
-        path = self._build_edit.text().strip()
+        path = path.strip()
         check = check_build_file(path)
-        self.refresh_setup_status()
         if not check.ok:
             QMessageBox.warning(self, "Build file", check.text())
             return
         if self.controller.engine_status() != "ready":
             self.settings.build_path = path
             save_settings(self.settings)
-            self._build_file_status.setText("FOUND — saved; it loads as soon as Path of Building is running.")
+            self.refresh_setup_status()
+            self._loaded_status.setText("Saved. It loads as soon as Path of Building is running.")
+            self._loaded_status.setVisible(True)
             return
         self.controller.change_build(path)
         if self.controller.build_info.path != str(Path(path).resolve()) or not self.controller.build_info.is_ready:
@@ -618,8 +666,8 @@ class SettingsPage(ColumnPage):
         if privacy_panel is not None:
             privacy_panel.refresh()
         BuildCache().clear_active()
-        self._pob_edit.setText(self.settings.pob_path)
-        self._build_edit.setText("")
+        self._set_pob_path(self.settings.pob_path)
+        self._set_build_path("")
         self.refresh_setup_status()
         self.controller.restart_engine()
         QMessageBox.information(
@@ -631,11 +679,12 @@ class SettingsPage(ColumnPage):
         )
 
     def _league_status_text(self) -> str:
+        live = "Live prices off" if str(self.settings.live_market_mode or "auto") == "disabled" else "Live prices on"
         saved = str(self.settings.market_league or "").strip()
         if not saved:
-            return "Not resolved yet"
+            return f"{live} · league not resolved yet"
         mode = str(self.settings.market_league_mode or "AUTO").upper()
-        return f"{saved} ({'pinned' if mode == 'PINNED' else 'auto-detected'})"
+        return f"{live} · {saved} ({'pinned' if mode == 'PINNED' else 'auto-detected'})"
 
     def _refresh_leagues(self) -> None:
         from exilelens.price_check.league_catalog import LOOKUP_OK
@@ -663,14 +712,14 @@ class SettingsPage(ColumnPage):
         )
 
     def _persist_pob_path(self) -> None:
-        path = self._pob_edit.text().strip()
+        path = self._pob_path.strip()
         if path == self.settings.pob_path:
             return
         from exilelens.app.setup_status import check_pob_folder
 
         check = check_pob_folder(path)
         if not check.ok:
-            self._pob_edit.setText(self.settings.pob_path)
+            self._set_pob_path(self.settings.pob_path)
             self.refresh_setup_status()
             return
         self.settings.pob_path = path
@@ -684,16 +733,16 @@ class SettingsPage(ColumnPage):
         path = detect_pob_path(self)
         if path is None:
             return
-        self._pob_edit.setText(path)
+        self._set_pob_path(path)
         if path != self.settings.pob_path:
-            self._apply_pob_path()
+            self._reconnect_pob()
 
     def _browse_pob(self) -> None:
         from exilelens.ui.setup_dialog import pick_pob_directory
 
-        path = pick_pob_directory(self._pob_edit.text())
+        path = pick_pob_directory(self._pob_path)
         if path:
-            self._pob_edit.setText(path)
+            self._set_pob_path(path)
             self._persist_pob_path()
             self.refresh_setup_status()
 
@@ -757,7 +806,6 @@ class SettingsPage(ColumnPage):
     def _persist_numeric_settings(self) -> None:
         try:
             self.settings.overlay_auto_hide_seconds = float(self._auto_hide.text())
-            self.settings.dedup_window_seconds = float(self._dedup.text())
         except ValueError:
             return
         save_settings(self.settings)
@@ -777,7 +825,12 @@ class SettingsPage(ColumnPage):
 
 
 class DiagnosticsPage(ColumnPage):
-    """A utility, not a dashboard: five health rows, a report block, and collapsed advanced tools."""
+    """A utility, not a dashboard.
+
+    Top to bottom: the Application health card (the one raised neutral card, with an aggregate status), the Report a
+    problem help zone (honey; the Support ID travels with the report), and Advanced diagnostics, collapsed, with one
+    viewer that switches between the event history and the technical report.
+    """
 
     #: Health rows, in the order they are shown.
     HEALTH_KEYS = ("app", "pob", "build", "hotkey", "market")
@@ -789,6 +842,12 @@ class DiagnosticsPage(ColumnPage):
         "market": "Market",
     }
     INTRO = ""
+    REPORT_INTRO = (
+        "Copy the diagnostics or export a support package, then attach it to a GitHub issue. "
+        "Nothing is sent automatically."
+    )
+    SUPPORT_ID_HINT = "Include it in the issue to match events."
+    ADVANCED_PREVIEW = "Logs, event history, technical report"
 
     def __init__(
         self,
@@ -813,160 +872,226 @@ class DiagnosticsPage(ColumnPage):
         self._refresh_btn.clicked.connect(self.refresh)
         self.header.actions.addWidget(self._refresh_btn)
 
-        # --- application health ---------------------------------------------------------------------
-        health = QWidget()
-        health_layout = QVBoxLayout(health)
-        health_layout.setContentsMargins(0, 0, 0, 0)
-        health_layout.setSpacing(0)
-        heading = QLabel("Application health")
-        heading.setObjectName("sectionHeading")
-        self._verdict = QLabel(self.INTRO)
-        self._verdict.setObjectName("helperText")
-        self._verdict.setWordWrap(True)
-        self._verdict.setVisible(bool(self.INTRO))
-        health_layout.addWidget(heading)
-        health_layout.addWidget(self._verdict)
-        health_layout.addSpacing(8)
-        self._rows_group = SettingsGroup()
+        self.column.addWidget(self._build_health_card())
+        self.column.addWidget(self._build_report_zone())
+        self.column.addWidget(self._build_advanced())
+        self.finish()
+        self.column.setSpacing(24)
+
+        self._advanced.toggled.connect(self._on_advanced_toggled)
+        self.refresh()
+
+    # --- construction -----------------------------------------------------------
+
+    def _build_health_card(self) -> QWidget:
+        card = SetupCard("Application health")
+        self._health_card = card
+        self._verdict = card.lead
         self._health_rows: dict[str, HealthGridRow] = {}
         for key in self.HEALTH_KEYS:
-            row = HealthGridRow(self._LABELS[key])
+            row = HealthGridRow(self._LABELS[key], h_pad=SetupCard.PAD)
             self._health_rows[key] = row
-            self._rows_group.add_row(row)
+            card.add_row(row)
         # The optional elevation row only exists when the product reports something about it.
-        self._elevation_row = HealthGridRow("Hotkey access")
+        self._elevation_row = HealthGridRow("Hotkey access", h_pad=SetupCard.PAD)
         self._elevation_row.setVisible(False)
-        self._rows_group.add_row(self._elevation_row)
-        health_layout.addWidget(self._rows_group)
-        self._support_hint = QLabel("")
+        card.add_row(self._elevation_row)
+        # Footer: the recovery hint and the structured error summary, only when there is something to say.
+        footer = QWidget()
+        footer_column = QVBoxLayout(footer)
+        footer_column.setContentsMargins(SetupCard.PAD, 10, SetupCard.PAD, 11)
+        footer_column.setSpacing(6)
+        self._support_hint = WrapLabel("")
         self._support_hint.setObjectName("helperText")
-        self._support_hint.setWordWrap(True)
-        self._support_hint.setVisible(False)
-        self._support_hint.setContentsMargins(0, 8, 0, 0)
-        health_layout.addWidget(self._support_hint)
-        self._structured_error_hint = QLabel("")
+        self._structured_error_hint = WrapLabel("")
         self._structured_error_hint.setObjectName("helperText")
-        self._structured_error_hint.setWordWrap(True)
-        self._structured_error_hint.setVisible(False)
-        self._structured_error_hint.setContentsMargins(0, 8, 0, 0)
-        health_layout.addWidget(self._structured_error_hint)
-        self.column.addWidget(health)
+        for hint in (self._support_hint, self._structured_error_hint):
+            hint.setVisible(False)
+            footer_column.addWidget(hint)
+        self._health_footer = card.add_footer(footer)
+        self._health_footer.setVisible(False)
+        return card
 
-        # --- report a problem --------------------------------------------------------------------------
-        report = QWidget()
-        report_layout = QVBoxLayout(report)
-        report_layout.setContentsMargins(0, 0, 0, 0)
-        report_layout.setSpacing(0)
-        report_heading = QLabel("Report a problem")
-        report_heading.setObjectName("sectionHeading")
-        report_intro = QLabel(
-            "Copy diagnostics or export a support package for a GitHub issue. Nothing is sent automatically."
-        )
-        report_intro.setObjectName("helperText")
-        report_intro.setWordWrap(True)
-        report_layout.addWidget(report_heading)
-        report_layout.addWidget(report_intro)
-        report_layout.addSpacing(10)
+    def _build_report_zone(self) -> QWidget:
+        zone = QFrame()
+        zone.setObjectName("helpZone")
+        zone.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        zone.setAccessibleName("Report a problem")
+        self._help_zone = zone
+        column = QVBoxLayout(zone)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+
+        head = QWidget()
+        head_row = QHBoxLayout(head)
+        head_row.setContentsMargins(16, 13, 16, 0)
+        head_row.setSpacing(10)
+        mark = QLabel()
+        mark.setFixedSize(20, 20)
+        mark.setPixmap(outline_icon("lifebuoy", theme.HELP, 20).pixmap(20, 20))
+        mark.setAccessibleName("")
+        title = QLabel("Report a problem")
+        title.setObjectName("zoneTitle")
+        head_row.addWidget(mark, 0, Qt.AlignmentFlag.AlignVCenter)
+        head_row.addWidget(title, 0, Qt.AlignmentFlag.AlignVCenter)
+        head_row.addStretch(1)
+        column.addWidget(head)
+
+        body = QWidget()
+        body_column = QVBoxLayout(body)
+        body_column.setContentsMargins(46, 4, 16, 14)   # aligned to the title, past the icon
+        body_column.setSpacing(0)
+        intro = WrapLabel(self.REPORT_INTRO)
+        intro.setObjectName("helperText")
+        body_column.addWidget(intro)
+        body_column.addSpacing(10)
         self._repro_notes = QTextEdit()
-        self._repro_notes.setPlaceholderText("Optional: what were you doing when the problem happened?")
+        self._repro_notes.setPlaceholderText("Optional: what were you doing when it happened?")
         self._repro_notes.setFixedHeight(76)
         self._repro_notes.setAccessibleName("What were you doing when the problem happened?")
-        report_layout.addWidget(self._repro_notes)
-        report_layout.addSpacing(12)
-        self._copy_btn = make_button("Copy diagnostics", "secondary")
+        body_column.addWidget(self._repro_notes)
+        body_column.addSpacing(12)
+        self._copy_btn = make_button("Copy diagnostics", "secondary", compact=True)
+        self._copy_btn.setIcon(outline_icon("copy", theme.TEXT, 16))
         self._copy_btn.setToolTip("Copies a privacy-safe diagnostic summary for GitHub issues.")
         self._copy_btn.clicked.connect(self._copy)
-        self._export_bundle_btn = make_button("Export support package", "secondary")
+        self._export_bundle_btn = make_button("Export support package…", "secondary", compact=True)
         self._export_bundle_btn.setToolTip("Save a reviewed ZIP bundle for support (logs and diagnostics).")
         self._export_bundle_btn.clicked.connect(self._export_support_bundle)
         # The GitHub mark, not a generic external-link icon: it says where this goes.
-        self._report_issue_btn = make_button("Report an issue", "tertiary", icon="github")
+        self._report_issue_btn = make_button("Open a GitHub issue", "tertiary", compact=True, icon="github")
         self._report_issue_btn.setToolTip("Open the ExileLens issue tracker on GitHub.")
         self._report_issue_btn.clicked.connect(self._open_github_issues)
-        actions = FlowLayout(spacing=10)  # wraps at larger Windows text sizes instead of widening the page
-        for button in (self._copy_btn, self._export_bundle_btn, self._report_issue_btn):
-            actions.addWidget(button)
-        report_layout.addLayout(actions)
-        self._report_status = QLabel("")
+        actions = FlowLayout(spacing=8)  # wraps at larger Windows text sizes instead of widening the page
+        actions.addWidget(self._copy_btn)
+        actions.addWidget(self._export_bundle_btn)
+        actions.addTrailingWidget(self._report_issue_btn)   # right-aligned: the only control that leaves the app
+        body_column.addLayout(actions)
+        self._report_status = WrapLabel("")
         self._report_status.setObjectName("helperText")
-        self._report_status.setWordWrap(True)
         self._report_status.setContentsMargins(0, 8, 0, 0)
-        report_layout.addWidget(self._report_status)
-        self.column.addWidget(report)
+        self._report_status.setVisible(False)
+        body_column.addWidget(self._report_status)
+        column.addWidget(body)
 
-        # --- advanced diagnostics (collapsed) -------------------------------------------------------------
-        self._advanced = Disclosure("Advanced diagnostics")
-        self._session_label = QLabel("")
-        self._session_label.setObjectName("helperText")
-        self._session_label.setWordWrap(True)
-        session_help = QLabel("Support session ID helps match your report to in-app events.")
-        session_help.setObjectName("helperText")
-        session_help.setWordWrap(True)
-        self._advanced.add_widget(session_help)
-        self._advanced.add_widget(self._session_label)
+        # Footer: the Support ID with Copy, and what it is for.
+        id_row = QWidget()
+        id_layout = QHBoxLayout(id_row)
+        id_layout.setContentsMargins(0, 0, 0, 0)
+        id_layout.setSpacing(10)
+        id_label = QLabel("Support ID")
+        id_label.setObjectName("zoneFooterText")
+        self._support_id = QLabel("")
+        self._support_id.setObjectName("supportId")
+        self._support_id.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._support_id.setAccessibleName("Support ID")
+        self._copy_id_btn = make_button("Copy", "tertiary", compact=True)
+        self._copy_id_btn.setAccessibleName("Copy Support ID")
+        self._copy_id_btn.clicked.connect(self._copy_support_id)
+        for widget in (id_label, self._support_id, self._copy_id_btn):
+            id_layout.addWidget(widget, 0, Qt.AlignmentFlag.AlignVCenter)
+        id_layout.addStretch(1)
+        hint = QLabel(self.SUPPORT_ID_HINT)   # one line; the footer drops it under the ID when the zone is narrow
+        hint.setObjectName("zoneFooterText")
+        self._support_id_footer = ZoneFooter(id_row, margins=(46, 8, 16, 9))
+        self._support_id_footer.add_action(hint)
+        column.addWidget(self._support_id_footer)
+        return zone
 
-        self._event_history = Disclosure("Diagnostic event history")
-        event_help = QLabel("Recent in-app diagnostic events (privacy filtered).")
-        event_help.setObjectName("helperText")
-        event_help.setWordWrap(True)
-        self._event_history.add_widget(event_help)
-        self._event_history_text = QTextEdit()
-        self._event_history_text.setReadOnly(True)
-        self._event_history_text.setMinimumHeight(120)
-        self._event_history_text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
-        self._event_history.add_widget(self._event_history_text)
-        self._advanced.add_widget(self._event_history)
-
-        self._verbose_btn = make_button("Enable verbose diagnostics (15 min)", "tertiary", compact=True)
+    def _build_advanced(self) -> QWidget:
+        self._advanced = Disclosure("Advanced diagnostics", preview=self.ADVANCED_PREVIEW)
+        # Tools row: most-used first, the clearing action apart at the right.
+        self._logs_btn = make_button("Open logs folder", "secondary", compact=True)
+        self._logs_btn.setIcon(outline_icon("folder", theme.TEXT, 16))
+        self._logs_btn.setToolTip("Opens the ExileLens log folder in your file manager.")
+        self._logs_btn.clicked.connect(self._open_logs)
+        self._verbose_btn = make_button("Enable verbose diagnostics for 15 min", "tertiary", compact=True)
         self._verbose_btn.setToolTip("Records extra diagnostic detail locally for the next 15 minutes.")
         self._verbose_btn.clicked.connect(self._enable_verbose_diagnostics)
         self._clear_history_btn = make_button("Clear diagnostic history", "tertiary", compact=True)
         self._clear_history_btn.setToolTip("Removes stored diagnostic events from this installation.")
         self._clear_history_btn.clicked.connect(self._clear_diagnostic_history)
-        self._logs_btn = make_button("Open logs", "secondary", compact=True)
-        self._logs_btn.setToolTip("Opens the ExileLens log folder in your file manager.")
-        self._logs_btn.clicked.connect(self._open_logs)
-        tool_row = QHBoxLayout()
-        tool_row.setContentsMargins(0, 0, 0, 0)
-        tool_row.setSpacing(8)
-        for button in (self._verbose_btn, self._clear_history_btn, self._logs_btn):
-            tool_row.addWidget(button)
-        tool_row.addStretch(1)
-        self._advanced.add_layout(tool_row)
+        tools = FlowLayout(spacing=8)
+        tools.addWidget(self._logs_btn)
+        tools.addWidget(self._verbose_btn)
+        tools.addTrailingWidget(self._clear_history_btn)
+        self._advanced.add_layout(tools)
 
-        self._technical_report = Disclosure("Technical report")
-        raw_help = QLabel("Raw technical dump for deep troubleshooting (allowlisted global report).")
-        raw_help.setObjectName("helperText")
-        raw_help.setWordWrap(True)
-        self._technical_report.add_widget(raw_help)
-        self._build_info = QLabel()
-        self._build_info.setWordWrap(True)
-        self._build_info.setObjectName("diagnosticsBuildInfo")
-        self._build_info.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self._text = QTextEdit()
-        self._text.setReadOnly(True)
-        self._text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self._text.setMinimumHeight(180)
-        self._text.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
-        self._technical_report.add_widget(self._build_info)
-        self._technical_report.add_widget(self._text)
-        self._advanced.add_widget(self._technical_report)
-        self.column.addWidget(self._advanced)
-        self.finish()
-        self.column.setSpacing(30)
-
-        self._advanced.toggled.connect(self._on_advanced_toggled)
-        self._technical_report.toggled.connect(self._on_technical_report_toggled)
-        self.refresh()
+        # One viewer, two modes. Copy always copies what is shown.
+        self._viewer_mode = SegmentedControl([("events", "Event history"), ("report", "Technical report")])
+        self._viewer_mode.set_current_value("events")
+        self._viewer_mode.changed.connect(self._set_viewer_mode)
+        for button in self._viewer_mode.buttons():
+            button.setAccessibleName(button.text())
+        self._viewer_copy_btn = make_button("Copy", "tertiary", compact=True)
+        self._viewer_copy_btn.setIcon(outline_icon("copy", theme.TEXT_BODY, 16))
+        self._viewer_copy_btn.setAccessibleName("Copy what is shown")
+        self._viewer_copy_btn.clicked.connect(self._copy_viewer)
+        mode_row = FlowLayout(spacing=8)   # Copy wraps under the switch when narrow
+        mode_row.setContentsMargins(0, 8, 0, 0)
+        mode_row.addWidget(self._viewer_mode)
+        mode_row.addTrailingWidget(self._viewer_copy_btn)
+        self._advanced.add_layout(mode_row)
+        self._viewer = QPlainTextEdit()
+        self._viewer.setObjectName("diagnosticViewer")
+        self._viewer.setReadOnly(True)
+        self._viewer.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self._viewer.setMinimumHeight(168)
+        self._viewer.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
+        self._viewer.setAccessibleName("Diagnostic viewer")
+        self._advanced.add_widget(self._viewer)
+        self._viewer_caption = WrapLabel("")
+        self._viewer_caption.setObjectName("helperText")
+        self._advanced.add_widget(self._viewer_caption)
+        self._event_text = ""
+        self._report_text = ""
+        self._events_caption = ""
+        self._report_caption = ""
+        return self._advanced
 
     def _on_advanced_toggled(self, expanded: bool) -> None:
         return None
 
-    def _on_technical_report_toggled(self, expanded: bool) -> None:
-        return None
-
     def expand_advanced(self) -> None:
         self._advanced.set_expanded(True)
+
+    # --- viewer -----------------------------------------------------------------
+
+    def _set_viewer_mode(self, mode: str) -> None:
+        self._viewer_mode.set_current_value(mode)
+        events = mode == "events"
+        self._viewer.setPlainText(self._event_text if events else self._report_text)
+        self._viewer_caption.setText(self._events_caption if events else self._report_caption)
+
+    def viewer_mode(self) -> str:
+        return self._viewer_mode.current_value()
+
+    def _copy_viewer(self) -> None:
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.clipboard().setText(self._viewer.toPlainText())
+        self._viewer_copy_btn.setText("Copied")
+        QTimer.singleShot(2000, lambda: self._viewer_copy_btn.setText("Copy"))
+
+    @staticmethod
+    def format_events(events: list[dict]) -> str:
+        """One readable line per event: time, category, name, then every detail as ``key=value`` (nothing dropped)."""
+        import json
+        import time
+
+        lines = []
+        for event in events:
+            stamp = time.strftime("%H:%M:%S", time.localtime(float(event.get("ts") or 0)))
+            head = f"{stamp}  {str(event.get('category', '')):<12} {event.get('name', '')}"
+            detail = event.get("detail") or {}
+            parts = []
+            for key, value in detail.items():
+                shown = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
+                parts.append(f"{key}={shown}")
+            lines.append(f"{head}  {' '.join(parts)}".rstrip())
+        return "\n".join(lines) if lines else "No events recorded this session."
+
+    # --- health rows ------------------------------------------------------------
 
     def _verdict_text(self, status) -> str:
         """One line of consequence under the heading when something is wrong."""
@@ -1017,6 +1142,8 @@ class DiagnosticsPage(ColumnPage):
         """Test/debug helper: ``key -> (value, status)`` as currently rendered."""
         return {key: (row.value(), row.status()) for key, row in self._health_rows.items()}
 
+    # --- report actions ---------------------------------------------------------
+
     def _copy(self) -> None:
         from exilelens.ui.recovery_actions import copy_diagnostics
 
@@ -1024,6 +1151,17 @@ class DiagnosticsPage(ColumnPage):
         copy_diagnostics(self.controller, self.settings, update_service=self.update_service)
         self._copy_btn.setText("Diagnostics copied")
         QTimer.singleShot(2500, lambda: self._copy_btn.setText("Copy diagnostics"))
+
+    def _copy_support_id(self) -> None:
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.clipboard().setText(self._support_id.text())
+        self._copy_id_btn.setText("Copied")
+        QTimer.singleShot(2000, lambda: self._copy_id_btn.setText("Copy"))
+
+    def _set_report_status(self, text: str) -> None:
+        self._report_status.setText(text)
+        self._report_status.setVisible(bool(text))
 
     def _export_support_bundle(self) -> None:
         from pathlib import Path
@@ -1065,16 +1203,16 @@ class DiagnosticsPage(ColumnPage):
                 subsystem="diagnostics",
                 stage="export_bundle",
             )
-            self._report_status.setText(str(exc))
+            self._set_report_status(str(exc))
             return
-        self._report_status.setText(f"Support package saved to {destination.name}")
+        self._set_report_status(f"Support package saved to {destination.name}")
         self.refresh()
 
     def _clear_diagnostic_history(self) -> None:
         from exilelens.diagnostics import clear_event_history
 
         clear_event_history()
-        self._report_status.setText("Diagnostic event history cleared.")
+        self._set_report_status("Diagnostic event history cleared.")
         self.refresh()
 
     def _enable_verbose_diagnostics(self) -> None:
@@ -1083,7 +1221,7 @@ class DiagnosticsPage(ColumnPage):
 
         enable_verbose_mode(self.settings)
         save_settings(self.settings)
-        self._report_status.setText(
+        self._set_report_status(
             "Verbose diagnostics enabled for 15 minutes." if verbose_mode_active(self.settings) else ""
         )
         self.refresh()
@@ -1097,6 +1235,8 @@ class DiagnosticsPage(ColumnPage):
         from exilelens.ui.recovery_actions import open_github_issues
 
         open_github_issues()
+
+    # --- refresh ----------------------------------------------------------------
 
     def refresh(self) -> None:
         from exilelens.app.diagnostics import build_global_diagnostics
@@ -1122,12 +1262,17 @@ class DiagnosticsPage(ColumnPage):
             self._elevation_row.set_item(elevation.value, elevation.status, elevation.detail)
 
         degraded = [getattr(health, key) for key in self.HEALTH_KEYS if getattr(health, key).status in ("warn", "error")]
-        self._verdict.setText(self._verdict_text(status) if degraded else self.INTRO)
-        self._verdict.setVisible(bool(self._verdict.text()))
+        needing = len(degraded) + (1 if self._elevation_row.isVisibleTo(self) else 0)
+        # The header word is the aggregate; the card itself never changes colour.
+        if needing:
+            self._health_card.set_status(f"{needing} need attention" if needing > 1 else "1 needs attention", "warn")
+        else:
+            self._health_card.set_status("All good", "ok")
+        self._health_card.set_lead(self._verdict_text(status) if degraded else self.INTRO)
         if degraded:
             actions = [item.action for item in degraded if item.action]
             recovery = actions[0] if actions else "the relevant recovery action"
-            self._support_hint.setText(f"Try {recovery} first. If the problem continues, see below.")
+            self._support_hint.setText(f"Try {recovery} first. Still stuck? Report it below.")
             self._support_hint.setVisible(True)
         else:
             self._support_hint.setVisible(False)
@@ -1142,22 +1287,18 @@ class DiagnosticsPage(ColumnPage):
             error_summary = f"{error_summary}\n{extra}".strip() if error_summary else extra
         self._structured_error_hint.setText(error_summary)
         self._structured_error_hint.setVisible(bool(error_summary))
+        self._health_footer.setVisible(not self._support_hint.isHidden() or not self._structured_error_hint.isHidden())
 
         from exilelens.diagnostics import build_extended_summary, event_buffer, verbose_mode_active
-        import json
 
         report = build_global_diagnostics(self.controller)
         build_info = f"ExileLens {report.version}  |  build {report.build}  |  {report.mode}"
-        self._build_info.setText(build_info)
-        self._build_info.setToolTip(build_info)
-        self._text.setPlainText(report.render())
         extended = build_extended_summary(self.controller, self.settings, update_service=self.update_service)
-        session = extended.get("support_session_id", "")
+        self._support_id.setText(str(extended.get("support_session_id", "")))
         verbose = "on" if verbose_mode_active(self.settings) else "off"
-        event_count = len(event_buffer().snapshot(include_verbose=verbose_mode_active(self.settings)))
-        self._session_label.setText(f"Session ID: {session} · verbose {verbose} · {event_count} events recorded")
-        events = event_buffer().export_records(
-            include_verbose=verbose_mode_active(self.settings),
-            limit=80,
-        )
-        self._event_history_text.setPlainText(json.dumps(events, indent=2))
+        events = event_buffer().export_records(include_verbose=verbose_mode_active(self.settings), limit=80)
+        self._event_text = self.format_events(events)
+        self._report_text = report.render()
+        self._events_caption = f"Privacy filtered · verbose {verbose} · {len(events)} events recorded"
+        self._report_caption = f"{build_info}. Allowlisted technical report for deep troubleshooting."
+        self._set_viewer_mode(self._viewer_mode.current_value() or "events")

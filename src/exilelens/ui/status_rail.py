@@ -33,7 +33,7 @@ NavItem = tuple[str, str, str]
 
 _LINK_SPECS = (
     ("support", "Support ExileLens", "patreon",
-     "Support the continued development of free, open-source ExileLens on Patreon."),
+     "Open Settings to link Patreon or support ExileLens."),
     ("discord", "Discord", "discord",
      "Join the ExileLens Discord for questions, feedback and community help."),
     ("issues", "Report an Issue", "github",
@@ -204,7 +204,7 @@ class StatusRail(QWidget):
         settings,
         nav_groups: Sequence[Sequence[NavItem]],
         *,
-        open_patreon: Callable[[], None],
+        open_support: Callable[[], None],
         open_discord: Callable[[], None],
         open_issues: Callable[[], None],
         version_text: str,
@@ -252,7 +252,7 @@ class StatusRail(QWidget):
         column.addWidget(self._divider())
         column.addSpacing(8)
         self._links: dict[str, QPushButton] = {}
-        handlers = {"support": open_patreon, "discord": open_discord, "issues": open_issues}
+        handlers = {"support": open_support, "discord": open_discord, "issues": open_issues}
         links = QVBoxLayout()
         links.setContentsMargins(0, 0, 0, 0)
         links.setSpacing(1)

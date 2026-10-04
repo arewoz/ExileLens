@@ -1,15 +1,9 @@
-"""Settings › Updates: the free manual update flow, then the seamless-automatic-updates group.
+"""Settings › Updates: the free manual update flow.
 
-Order, top to bottom:
-
-1. the current update state and its manual actions (always usable by everyone);
-2. one explanatory sentence only when it changes what the player should understand
-   (the pre-release case);
-3. **Seamless automatic updates**, always visible: what it is, and the two real switches.
-   Without a supporter lease the switches are shown disabled, so the benefit is obvious
-   without a card, a lock or a badge.
-
-The manual update controls stay visually primary whenever an update is available.
+The current update state and its manual actions are always usable by everyone, never tinted, and stay visually
+primary whenever an update is available. One explanatory sentence appears only when it changes what the player
+should understand (the pre-release case). Seamless updates, a Patreon supporter feature, live in their own zone
+(``patreon_panel.PatreonPanel``) directly beneath this panel.
 """
 
 from __future__ import annotations
@@ -18,19 +12,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from exilelens.app.settings import AppSettings
-from exilelens.ui.components import make_button, make_link_button
+from exilelens.ui.components import make_button
 from exilelens.ui.dashboard_widgets import Notice, SettingsGroup, SettingsRow, WrapLabel
 
-SEAMLESS_TITLE = "Seamless automatic updates"
-SEAMLESS_FULL = "Supporters can download verified updates automatically and install them when ExileLens closes."
-SEAMLESS_QUIET = "Supporters can have updates handled automatically."
-SEAMLESS_ACTIVE = "Verified updates download automatically and install when ExileLens closes."
-SEAMLESS_NOT_ELIGIBLE = SEAMLESS_FULL
 PRERELEASE_NOTE = "Beta channel · Later betas and the final release are offered automatically."
-
-#: Update-check states during which the manual flow is "in progress" and the Patreon row stays quiet.
-_BUSY_STATES = {"available", "verification_failed"}
-
 
 class UpdatesPanel(QWidget):
     """Wires one :class:`~exilelens.app.updates.service.UpdateService` into Settings."""
@@ -42,7 +27,6 @@ class UpdatesPanel(QWidget):
         self._check_state = "unchecked"
         self._check_version = ""
         self._download_state = ""
-        self._seamless_state = "not_connected"
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -109,20 +93,6 @@ class UpdatesPanel(QWidget):
         layout.addWidget(self._extras_host)
         self._recovery_needed = False
 
-        # --- seamless automatic updates ----------------------------------------------------------
-        self._seamless_host = QWidget()
-        seamless_layout = QVBoxLayout(self._seamless_host)
-        seamless_layout.setContentsMargins(0, 14, 0, 0)
-        seamless_layout.setSpacing(0)
-        self._seamless_group = SettingsGroup()
-        self._seamless_row = SettingsRow(SEAMLESS_TITLE, SEAMLESS_FULL)
-        self._learn_link = make_link_button("Learn about supporter updates")
-        self._learn_link.clicked.connect(self._open_patreon_page)
-        self._seamless_row.add_control(self._learn_link)
-        self._seamless_group.add_row(self._seamless_row)
-        seamless_layout.addWidget(self._seamless_group)
-        layout.addWidget(self._seamless_host)
-
         self.update_service.state_changed.connect(self._on_update_state)
         self.update_service.download_progress.connect(self._on_download_progress)
         self.update_service.download_state_changed.connect(self._on_download_state)
@@ -135,44 +105,6 @@ class UpdatesPanel(QWidget):
         previous = getattr(self.update_service, "last_install_notice", None)
         if previous is not None:
             self._on_install_outcome(previous)
-
-    # --- seamless group (switches come from the Patreon panel) ---------------------------------------
-
-    def attach_seamless_controls(self, patreon_panel) -> None:
-        """Place the two supporter switches under the seamless row and follow the Patreon state."""
-        host = patreon_panel.detach_seamless_controls()
-        layout = self._seamless_host.layout()
-        layout.addWidget(host)
-        self._seamless_controls = host
-        patreon_panel.view_rendered.connect(self._on_patreon_view)
-        self._on_patreon_view(patreon_panel.current_state())
-
-    def _on_patreon_view(self, state_value) -> None:
-        from exilelens.cloud.patreon import PatreonState
-
-        try:
-            state = PatreonState(state_value)
-        except ValueError:
-            state = PatreonState.NOT_CONNECTED
-        self._seamless_state = state.value
-        self._refresh_seamless_row()
-
-    def _refresh_seamless_row(self) -> None:
-        from exilelens.cloud.patreon import PatreonState
-
-        state = self._seamless_state
-        if state in (PatreonState.ACTIVE.value, PatreonState.OFFLINE_GRACE.value):
-            text, link = SEAMLESS_ACTIVE, False
-        elif state == PatreonState.NOT_ELIGIBLE.value:
-            text, link = SEAMLESS_NOT_ELIGIBLE, False
-        else:
-            quiet = self._check_state in _BUSY_STATES or self._download_state in {"downloading", "ready", "installing", "error"}
-            text, link = (SEAMLESS_QUIET if quiet else SEAMLESS_FULL), False
-        self._seamless_row.set_helper(text)
-        self._learn_link.setVisible(link)
-
-    def seamless_helper_text(self) -> str:
-        return self._seamless_row.helper.text()
 
     # --- manual flow -------------------------------------------------------------------------------------
 
@@ -230,7 +162,6 @@ class UpdatesPanel(QWidget):
         if state == "available":
             self._check_btn.setVisible(False)
         self._sync_extras()
-        self._refresh_seamless_row()
 
     def _sync_extras(self) -> None:
         widgets = (self._progress, self._bar, self._extra, self._last_result)
@@ -298,7 +229,6 @@ class UpdatesPanel(QWidget):
             self._cancel_btn.setVisible(False)
             self._bar.setVisible(False)
         self._sync_extras()
-        self._refresh_seamless_row()
 
     def _on_action_error(self, message: str) -> None:
         if message:
@@ -323,11 +253,6 @@ class UpdatesPanel(QWidget):
         from exilelens.ui.recovery_actions import open_github_releases
 
         open_github_releases()
-
-    def _open_patreon_page(self) -> None:
-        from exilelens.ui.recovery_actions import open_patreon
-
-        open_patreon()
 
     def focus_here(self) -> None:
         """Scroll target for the rail's "Update available" link."""

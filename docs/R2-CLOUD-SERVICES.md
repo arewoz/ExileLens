@@ -192,7 +192,7 @@ session end or after a crash), and an explicit **Restart now**. It is the **same
 `docs/UPDATE_RELEASE_SIGNING.md`); entitlement is a yes/no gate with no way to supply a URL, hash, version or file.
 Free users keep *Download & Install* and *Restart & Update* unchanged, and nothing here ever restarts the app unasked.
 
-Settings → **Patreon supporter** shows the states: not connected, linking, active (with the two toggles, default on),
+Settings → Updates → **Seamless updates** (the supporter zone) shows the states: not connected, linking, active (with the two toggles, default on),
 connected but not eligible, offline grace, expired, reconnect required and service unavailable. Every non-active state
 says that manual updates still work.
 

@@ -138,7 +138,7 @@ class DashboardWindow(ManagedToolWindow):
         self._market = MarketHubPage(controller, settings) if is_enabled(FeatureModule.MARKET) else None
         self._tree = TreeWorkspace(controller, embed_mode=True) if is_enabled(FeatureModule.TREE_TOOLS) else None
         self._gear = GearOptimizerPage(controller) if is_enabled(FeatureModule.GEAR_OPTIMIZER) else None
-        self._settings_page = SettingsPage(settings, controller, self.update_service)
+        self._settings_page = SettingsPage(settings, controller, self.update_service, navigate=self.navigate)
         self._diagnostics = DiagnosticsPage(controller, settings, self.update_service, navigate=self.navigate)
         for page_id, widget in (
             ("overview", self._overview),
@@ -166,7 +166,7 @@ class DashboardWindow(ManagedToolWindow):
             controller,
             settings,
             [primary, secondary],
-            open_patreon=self._open_patreon,
+            open_support=self.show_supporter_area,
             open_discord=self._open_discord,
             open_issues=self._open_github_issues,
             version_text=f"ExileLens {__version__}",
@@ -287,10 +287,13 @@ class DashboardWindow(ManagedToolWindow):
 
         open_discord_invite()
 
-    def _open_patreon(self) -> None:
-        from exilelens.ui.recovery_actions import open_patreon
-
-        open_patreon()
+    def show_supporter_area(self) -> None:
+        """The rail's "Support ExileLens": go to Settings and reveal the supporter zone. Nothing external opens here;
+        Link Patreon and Support on Patreon inside the zone are the only controls that do."""
+        self.navigate("settings")
+        focus = getattr(self._settings_page, "focus_supporter", None)
+        if callable(focus):
+            focus()
 
     def _open_github_issues(self) -> None:
         from exilelens.ui.recovery_actions import open_github_issues

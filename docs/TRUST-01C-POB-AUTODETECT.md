@@ -44,13 +44,13 @@ source is kept and all finders are recorded for diagnostics. Order:
 
 One clearly best installation is auto-selected. If two or more non-user-intent candidates are equivalent
 (same verified state, layout and version) nothing is chosen. Startup then leaves `pob_path` untouched and the
-Settings → Advanced **Auto-detect** button lists them ("Multiple Path of Building installations were found":
-version · installed/source · shortened path). Manual **Browse** is always available.
+Settings → Path of Building **Detect** button lists them ("Multiple Path of Building installations were found":
+version · installed/source · shortened path). Manual **Change folder** is always available.
 
 * A configured path that still validates is kept and discovery does not run.
 * An invalid/empty path is replaced only by exactly one clear validated installation, and saved after validation.
-* **Auto-detect** (Settings → Advanced): one result is applied, several are offered, none keeps the current path
-  and points to Browse.
+* **Detect** (Settings → Path of Building → Installation): one result is applied, several are offered, none keeps the
+  current path and points to Change folder.
 
 ## Local only
 
