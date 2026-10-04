@@ -1114,16 +1114,22 @@ class EvaluationController(QObject):
         self._external_clipboard_counts: dict[str, int] = {}
         self._last_external_clipboard_decision = "(none)"
         self._price_check_cache = PriceCheckCache()
+        # R5-A: one central market-access decision. The legacy `live_market_mode` setting is ignored; the provider chain and the
+        # production transport both follow `market_policy.resolve_market_access` (off by default; the live provider is unauthorized).
+        from exilelens.price_check.market_policy import live_market_mode_for_settings, register_settings_reader
+
+        register_settings_reader(lambda: self.settings)
+        _market_mode = live_market_mode_for_settings(settings)
         self._price_check_service = PriceCheckService(
             providers=build_default_price_check_providers(
                 observations_fn=self._price_check_observations,
                 league=settings.market_league,
                 cache=self._price_check_cache,
-                live_market_mode=settings.live_market_mode,
+                live_market_mode=_market_mode,
                 diagnostic_mode=settings.price_check_diagnostic_mode,
             ),
             cache=self._price_check_cache,
-            live_market_mode=settings.live_market_mode,
+            live_market_mode=_market_mode,
             settings_strict_live=settings.strict_live,
             diagnostic_mode=settings.price_check_diagnostic_mode,
         )

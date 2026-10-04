@@ -1,0 +1,54 @@
+{
+ "id": "synthetic-exchange-1",
+ "total": 3,
+ "result": {
+  "x1": {
+   "listing": {
+    "offers": [
+     {
+      "exchange": {
+       "currency": "divine",
+       "amount": 1
+      },
+      "item": {
+       "currency": "exalted",
+       "amount": 120
+      }
+     }
+    ]
+   }
+  },
+  "x2": {
+   "listing": {
+    "offers": [
+     {
+      "exchange": {
+       "currency": "divine",
+       "amount": 1
+      },
+      "item": {
+       "currency": "exalted",
+       "amount": 124
+      }
+     }
+    ]
+   }
+  },
+  "x3": {
+   "listing": {
+    "offers": [
+     {
+      "exchange": {
+       "currency": "divine",
+       "amount": 1
+      },
+      "item": {
+       "currency": "exalted",
+       "amount": 122
+      }
+     }
+    ]
+   }
+  }
+ }
+}

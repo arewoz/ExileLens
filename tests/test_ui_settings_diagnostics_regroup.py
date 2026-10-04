@@ -666,10 +666,17 @@ def test_invalid_folder_is_rejected_and_the_old_one_kept(harness, monkeypatch) -
 def test_market_league_hint_carries_the_live_market_state_that_used_to_be_a_separate_row(harness) -> None:
     _go(harness, "settings-top", (980, 720))
     page = harness.window._settings_page
-    assert page._league_status.text().startswith("Live prices on")
-    harness.settings.live_market_mode = "disabled"
-    assert page._league_status_text().startswith("Live prices off")
+    # R5-A: market prices are OFF by default; the legacy live_market_mode setting no longer decides anything.
+    assert page._league_status.text().startswith("Market prices off")
     harness.settings.live_market_mode = "auto"
+    assert page._league_status_text().startswith("Market prices off")
+    harness.settings.live_market_mode = "disabled"
+    # Opted in with consent, the live provider is still unauthorized: unavailable, never "on".
+    harness.settings.market_prices_enabled = True
+    harness.settings.market_consent_version = 1
+    assert page._league_status_text().startswith("Market prices unavailable")
+    harness.settings.market_prices_enabled = False
+    harness.settings.market_consent_version = 0
 
 
 def test_reset_configuration_still_resets_and_refreshes_the_card(harness, monkeypatch) -> None:

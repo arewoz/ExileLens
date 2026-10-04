@@ -60,6 +60,14 @@ _LIVE_STATE_UI: dict[LiveSearchState, tuple[str, str]] = {
         "LIVE PROVIDER DISABLED",
         "Live market search is disabled for this build.",
     ),
+    LiveSearchState.LIVE_PROVIDER_ERROR: (
+        "MARKET UNAVAILABLE",
+        "The market lookup failed internally; no estimate is shown.",
+    ),
+    LiveSearchState.LIVE_ITEM_CLASS_UNSUPPORTED: (
+        "NO ESTIMATE",
+        "Unique items are not priced from their base type, so there is no trustworthy estimate.",
+    ),
 }
 
 
@@ -88,8 +96,11 @@ def map_trade2_error_code(code: str, http_status: int | None) -> LiveSearchState
         return LiveSearchState.LIVE_SEARCH_RATE_LIMITED
     if code in {"search_error", "bad_request", "http_error"} and http_status == 400:
         return LiveSearchState.LIVE_SEARCH_BAD_REQUEST
-    if code == "network_error":
+    if code in {"network_error", "timeout"}:
         return LiveSearchState.LIVE_SEARCH_NETWORK_ERROR
+    if code == "not_permitted":
+        # Central market access refused the request before anything was sent (disabled / no_network / provider not authorized).
+        return LiveSearchState.LIVE_PROVIDER_DISABLED
     if code in {"invalid_response", "parse_error"}:
         return LiveSearchState.LIVE_SEARCH_PARSE_ERROR
     if code in {"fetch_error"}:
@@ -118,9 +129,19 @@ class RelaxationPassDiagnostics:
     search_id: str = ""
     error: str | None = None
     funnel: dict[str, Any] = field(default_factory=dict)
+    #: Seller structure of the similar listings BEFORE per-seller dedupe: how many listings, how many distinct sellers and the
+    #: share held by the busiest seller. The trust layer reads it to flag a sample that is really one or two accounts.
+    seller_listing_count: int = 0
+    distinct_sellers: int = 0
+    top_seller_share: float = 0.0
+    fetch_batches: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "seller_listing_count": self.seller_listing_count,
+            "distinct_sellers": self.distinct_sellers,
+            "top_seller_share": self.top_seller_share,
+            "fetch_batches": self.fetch_batches,
             "pass_index": self.pass_index,
             "relaxation_tier": self.relaxation_tier,
             "search_total": self.search_total,

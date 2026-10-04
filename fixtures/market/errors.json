@@ -1,0 +1,64 @@
+{
+ "_note": "Synthetic HTTP outcomes: status, headers and a body string. Rate-limit header values are invented for the tests, not observed live.",
+ "bad_request_400": {
+  "status": 400,
+  "headers": {},
+  "body": "{\"error\": {\"code\": 2, \"message\": \"Query is invalid\"}}"
+ },
+ "unauthorized_401": {
+  "status": 401,
+  "headers": {},
+  "body": "{}"
+ },
+ "forbidden_403": {
+  "status": 403,
+  "headers": {},
+  "body": "{}"
+ },
+ "rate_limited_429": {
+  "status": 429,
+  "headers": {
+   "Retry-After": "37",
+   "X-Rate-Limit-Policy": "synthetic-search",
+   "X-Rate-Limit-Rules": "Ip",
+   "X-Rate-Limit-Ip": "3:10:60",
+   "X-Rate-Limit-Ip-State": "4:10:37"
+  },
+  "body": "{}"
+ },
+ "server_error_503": {
+  "status": 503,
+  "headers": {},
+  "body": "unavailable"
+ },
+ "malformed_json": {
+  "status": 200,
+  "headers": {},
+  "body": "{not json"
+ },
+ "non_object_json": {
+  "status": 200,
+  "headers": {},
+  "body": "[1, 2, 3]"
+ },
+ "missing_query_id": {
+  "status": 200,
+  "headers": {},
+  "body": "{\"total\": 3, \"result\": [\"a\", \"b\", \"c\"]}"
+ },
+ "empty_search": {
+  "status": 200,
+  "headers": {},
+  "body": "{\"id\": \"synthetic-empty\", \"total\": 0, \"result\": []}"
+ },
+ "fetch_missing_fields": {
+  "status": 200,
+  "headers": {},
+  "body": "{\"result\": [{\"id\": \"x\"}, {\"id\": \"y\", \"listing\": {}, \"item\": {}}]}"
+ },
+ "fetch_result_not_list": {
+  "status": 200,
+  "headers": {},
+  "body": "{\"result\": \"nope\"}"
+ }
+}

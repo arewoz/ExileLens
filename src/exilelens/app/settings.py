@@ -152,7 +152,12 @@ class AppSettings:
     market_league_mode: str = "AUTO"
     market_league_cache: list[str] = field(default_factory=list)
     market_league_cache_at: float = 0.0
-    live_market_mode: str = "auto"
+    # Legacy, IGNORED since R5-A: market networking is decided only by `market_prices_enabled` + consent via
+    # price_check.market_policy.resolve_market_access. Kept so old settings files still load.
+    live_market_mode: str = "disabled"
+    # R5-A: market prices are OFF by default and need an explicit opt-in recorded with the consent version the user saw.
+    market_prices_enabled: bool = False
+    market_consent_version: int = 0
     strict_live: bool = True
     price_check_enabled: bool = True
     price_check_hotkey: str = DEFAULT_PRICE_CHECK_HOTKEY
@@ -263,7 +268,9 @@ class AppSettings:
             market_league_mode=_normalize_league_mode(data.get("market_league_mode")),
             market_league_cache=[str(row) for row in (data.get("market_league_cache") or []) if str(row).strip()],
             market_league_cache_at=float(data.get("market_league_cache_at") or 0.0),
-            live_market_mode=str(data.get("live_market_mode") or "auto"),
+            live_market_mode=str(data.get("live_market_mode") or "disabled"),
+            market_prices_enabled=bool(data.get("market_prices_enabled", False)),
+            market_consent_version=int(data.get("market_consent_version") or 0),
             strict_live=bool(data.get("strict_live", True)),
             price_check_enabled=bool(data.get("price_check_enabled", True)),
             price_check_hotkey=_normalize_price_check_hotkey(data.get("price_check_hotkey"), version=version),

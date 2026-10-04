@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from exilelens.price_check.cache import InFlightCoalescer, PriceCheckCache
 from exilelens.price_check.comparable_query import RelaxationTier
@@ -12,12 +12,13 @@ from exilelens.price_check.diagnostic_mode import (
 )
 from exilelens.price_check.provider import MarketCandidateProvider
 from exilelens.price_check.market_policy import is_live_market_enabled
-from exilelens.price_check.providers.cached_live_trade2 import CachedLiveMarketProvider
 from exilelens.price_check.providers.fixture import FixtureComparableProvider, default_fixture_corpus_path
-from exilelens.price_check.providers.live_trade2 import LiveTradeComparableProvider
-from exilelens.price_check.providers.market_session_provider import MarketSessionProvider
 from exilelens.price_check.providers.observation import ObservationCorpusProvider
-from exilelens.price_check.trade2_client import Trade2Client
+
+# R5-A: the live trade2 stack (client, live/cached/session providers) is imported only when a chain that uses it is built. A
+# default launch, where market prices are off, never loads it.
+if TYPE_CHECKING:
+    from exilelens.price_check.trade2_client import Trade2Client
 
 
 def build_default_price_check_providers(
@@ -45,6 +46,10 @@ def build_default_price_check_providers(
     shared_cache = cache or PriceCheckCache()
     providers: list[MarketCandidateProvider] = []
     if is_live_market_enabled(live_market_mode):
+        from exilelens.price_check.providers.cached_live_trade2 import CachedLiveMarketProvider
+        from exilelens.price_check.providers.live_trade2 import LiveTradeComparableProvider
+        from exilelens.price_check.providers.market_session_provider import MarketSessionProvider
+
         providers.extend(
             [
                 # MARKET-01B11: reuse real listings this session already fetched before
@@ -70,6 +75,8 @@ def build_market_only_price_check_providers(
     client: Trade2Client | None = None,
 ) -> list[MarketCandidateProvider]:
     """Strict live-only chain for MARKET-01B6 validation — no cache/observation/fixture."""
+    from exilelens.price_check.providers.live_trade2 import LiveTradeComparableProvider
+
     return [
         LiveTradeComparableProvider(
             client=client,

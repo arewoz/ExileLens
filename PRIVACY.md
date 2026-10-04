@@ -5,9 +5,10 @@ transmits. It describes current behavior only — not planned features.
 See "Future features" at the end for how that's handled.
 
 **In short:** ExileLens works fully offline for item checks and build
-analysis. By default it contacts only the services it needs (GitHub for
-updates, and the official Path of Exile website for optional market
-features). Two *optional* settings — usage statistics and crash/error
+analysis. By default it contacts only GitHub, for updates. **ExileLens does
+not contact Grinding Gear Games' market (trade) service by default, and live
+market prices are not enabled in this build** — see "Market prices" below.
+Two *optional* settings — usage statistics and crash/error
 reports — are **off by default** and send nothing until you turn them on.
 
 ## What ExileLens reads
@@ -73,12 +74,35 @@ described below.
 | Destination | What is sent | When |
 |---|---|---|
 | `api.github.com`, `github.com` (ExileLens releases) | A request for the list of ExileLens releases and, if a newer one exists, its signed update manifest. The update package is downloaded only when you choose to install it. No account, no identifier. | Packaged builds check at startup and at most about once every 24 hours. |
-| `www.pathofexile.com` (official Path of Exile site) | The structured market search derived from the item you checked (category, rarity, matched stat ranges), and the league list. Your raw clipboard/item text is not sent. | Only for the optional live-market features. |
+| `www.pathofexile.com` (official Path of Exile site) | **Nothing, in this build.** Market prices are off by default and the live market provider is not enabled while its authorization is unresolved, so no request to the market service is made, not at startup and not on an item check. See "Market prices". | Never in this build. |
 | ExileLens cloud service (`api` host of the project; **only if this build has it configured**) | Opt-in usage statistics / error reports (items listed below), and, if you link Patreon, the device credential and lease refresh described below. | Only for what you switched on or linked. |
 
-**Your raw clipboard/item text is not sent over the network.** Only the
-structured values derived from it are, and only for the trade-search
-feature specifically.
+**Your raw clipboard/item text is not sent over the network.**
+
+## Market prices
+
+Market prices are **off by default**, and turning them on needs an explicit
+opt-in. In this build the live market provider is additionally **not
+enabled**: it relies on a website interface that Grinding Gear Games' developer
+documentation does not offer, so it stays disabled until that access is
+documented or authorized. Until then, switching market prices on does not
+cause any request either; ExileLens simply reports that the provider is not
+available. Concretely:
+
+- No request to `www.pathofexile.com` is made at startup, when you check an
+  item, or from the settings or diagnostics screens. The league list is not
+  fetched either.
+- No session cookie (`POESESSID`) or account credential is ever sent. An old
+  `POE2VALUE_TRADE2_SESSION` environment variable, if you have one, is ignored.
+- A market request, if one is ever enabled, contains only the league, the item
+  type/base and rarity, mapped stat ids with value ranges, the filters the
+  search needs, the sort, and currency ids. It never contains your Path of
+  Building file or XML, build name, account or character name, clipboard
+  history, other equipped items, usage-statistics or Patreon identity, local
+  file paths, or the item text as a block.
+- Any price shown would be the asking price of comparable listings (the cost
+  to buy a comparable item), not what the item is worth.
+- `no_network` builds make no market request under any setting.
 
 ## Optional usage statistics and error reports
 
@@ -199,7 +223,7 @@ automatically. You can copy a diagnostics report yourself from the app's
 
 | Destination | Purpose | Trigger |
 |---|---|---|
-| `www.pathofexile.com` (official PoE trade API) | Market/trade comparables, league list | Optional live-pricing feature |
+| `www.pathofexile.com` (official PoE trade API) | None in this build: market prices are off by default and the live provider is not enabled (see "Market prices") | Never in this build |
 | `api.github.com` / `github.com` | Update check and (on your action) update download | Packaged builds, about once per 24 h |
 | ExileLens cloud service (Cloudflare Workers + D1) | Opt-in usage statistics and error reports; optional Patreon link and lease refresh | Only if configured in this build and you opted in / linked |
 | Patreon (through the ExileLens service, in your browser) | Optional supporter sign-in | Only when you click Link Patreon |

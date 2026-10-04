@@ -33,6 +33,8 @@ LOOKUP_FAILED = "LEAGUE_LOOKUP_FAILED"
 LOOKUP_EMPTY = "NO_ACTIVE_LEAGUES"
 LOOKUP_CACHED = "CACHED"
 LOOKUP_SKIPPED = "SKIPPED_FRESH"
+# Market networking is not permitted (off by default, no_network, or the provider is not authorized): nothing was requested.
+LOOKUP_DISABLED = "MARKET_DISABLED"
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,14 @@ class LeagueCatalog:
         force: bool = False,
     ) -> LeagueListResult:
         """Fetch the league list when stale. Never clears the cache on failure."""
+        # R5-A: the decision is made BEFORE anything is initiated, from the one central access policy. An injected `leagues_fn`
+        # (tests, an authorized future provider) is the caller's responsibility; the default network fetch is never started
+        # unless market networking is permitted.
+        if leagues_fn is None:
+            from exilelens.price_check.market_policy import current_market_access
+
+            if not current_market_access().network_permitted:
+                return LeagueListResult(tuple(self.leagues), LOOKUP_DISABLED, from_cache=True)
         if not force and not self.is_stale:
             return LeagueListResult(tuple(self.leagues), LOOKUP_SKIPPED, from_cache=True)
 

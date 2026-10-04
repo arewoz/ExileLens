@@ -309,3 +309,81 @@ Deterministic fixtures and pure functions first (compiler, trust table, bands/ou
 ## 18. Sequence
 
 `R5-A` (foundation, privacy, tests) → `R5-B` (evidence + async enrichment) → `R5-C` (UX + efficiency cleanup) → `R5-D` (consolidation/R6 handover, optional). Each is a separately reviewable PR; A is a prerequisite for B, B for C.
+
+---
+
+# R5-A implementation record (market foundation)
+
+R5-A is the privacy-safe, deterministic foundation: privacy, transport seam, fixtures, estimator correctness, tests. It is **not** user-facing enrichment
+(no async Item Check price line, no More Info section, no Settings UI beyond the minimal backing fields, no Upgrade Finder, no live activation).
+
+## A1. Policy correction (overrides §4 and the §16 owner questions where they differ)
+
+**Live trade2 is production-disabled.** GGG's developer documentation supports the documented API Reference / Data Exports resources and prohibits
+reverse-engineering unsupported internal website APIs; `/api/trade2/*` is such an interface and nothing in this repository establishes permission. So the
+situation is the same as R3: *infrastructure-ready, external-access-blocked*. No live endpoint was contacted while building R5-A; the canary was not run;
+nothing was probed. Owner decisions applied: market prices default **off**; explicit opt-in with a recorded consent version; an estimate means the cost of
+comparable listings (never "worth / true value / fair value"); `POESESSID` removed; the legacy Price Check panel / Ctrl+Shift+R stays dormant.
+
+## A2. Central enablement contract (`price_check/market_policy.py`)
+
+`resolve_market_access(enabled, consent_version, provider_authorized)` is the one decision. Precedence: `NETWORK_DISABLED` (audit/no_network) ->
+`DISABLED_BY_USER` (off, or consent for a different statement) -> `PROVIDER_NOT_AUTHORIZED` (`LIVE_TRADE2_AUTHORIZED = False`, state
+`BLOCKED_PENDING_PROVIDER_AUTHORIZATION`) -> `AVAILABLE`. With the constant as shipped, `network_permitted` is False for every setting combination. Environment
+variables can only disable. `market_lookup_status()` maps a lookup outcome to `DISABLED_BY_USER / NETWORK_DISABLED / PROVIDER_NOT_AUTHORIZED / RATE_LIMITED /
+UNAVAILABLE` without implying an estimate. Consumers: the startup league fetch (not initiated, not caught after the fact; `LeagueCatalog.refresh` re-checks), the
+provider-chain mode, the startup banner, the Settings/health text, the canary (inert), and, as defence in depth, `AuthorizedTransport`, which re-checks on every
+request and also lets the client skip pacing/accounting for a request that would be refused.
+
+## A3. Transport seam (`price_check/transport.py`)
+
+`TransportRequest` / `TransportResponse` / `TransportError` and a `Trade2Transport` callable Protocol. HTTP statuses are responses; the client maps them to
+`Trade2Error` codes in one place (`_send`). Production = `AuthorizedTransport(UrllibTransport(), current_market_access)`; tests inject fakes
+(`tests/market_support.py`). `conftest.py` makes any real connection from a `test_r5a_*` module fail the test.
+
+## A4. Findings: estimator defects (reproduced with fixtures first, then fixed)
+
+| | Defect | Result | Fix |
+|---|---|---|---|
+| A | Compiled path had `similarity_band = UNKNOWN` and no stability, so `current_excellent` and `plus_ok` could never both hold: HIGH CONFIDENCE was **unreachable** | **Confirmed** (every scenario, incl. a 20-seller tight set, topped out at ASSISTED/LOW) | New `SimilarityBand.SERVER_MATCHED` for a compiled STRICT query whose coverage omitted no anchor or flexible group; no similarity number is invented (`median_similarity` stays None). An omitted anchor/group leaves it UNKNOWN; an omitted anchor now also moves the state to NEEDS REFINEMENT. The OVER_SPECIFIC cap no longer applies to a server-matched query with >= 15 results. |
+| B | Sample bound | **Confirmed**: target 36 / 40 ids / 4 batches per search (8 per lookup), but an early stop at 3 FX-usable listings made the real sample the cheapest ~10 | Hard bound 20 ids / 2 batches (client and provider); the second batch is read only if the server total exceeds what the first returned (`_make_stop_when`). |
+| C | Cheapest-first | Kept (sort price asc) | Documented as "cost to buy comparable listings"; disclaimer rewritten. |
+| D | Uniques priced by base type (rarity=unique + base) | **Confirmed** | Typed refusal `LIVE_ITEM_CLASS_UNSUPPORTED` before any request; trust veto `UNIQUE_NOT_PRICED`; no price display. Live unique retrieval not implemented. |
+| E | Exceptions escaping | **Confirmed**: `lookup` raised `InvalidTradeQuery`; fetch errors re-raised; the service had no guard | `LiveTradeComparableProvider.lookup` never raises (typed `LIVE_PROVIDER_ERROR` / mapped state); `PriceCheckService.check` also contains a raising provider. Exception text is never surfaced. |
+| – | Outlier order and MAD | **Confirmed**: outliers ran before seller dedupe (one account's cheap listings skewed the quartiles); MAD was unscaled (`3.5*MAD`, ~2.4 sigma) with an absolute `1.0` zero fallback that depends on the display currency | Order is normalize -> one listing per seller (cheapest) -> IQR -> scaled MAD (`3.5*1.4826*MAD`, zero fallback = half the median). |
+| – | Re-assessing a result changed it (its own `estimate_state` fed back, adding `QUERY_IDENTITY_WEAKENED`) | **Confirmed** | Compiled path no longer feeds the previous state back. |
+| – | A refused request still consumed rate-limit budget | Found while testing | `_gate` consults the transport first. |
+
+Known limitation (documented by a test, not changed): two lone extreme asks form a "second mode" of size 2 and read as MULTIMODAL (conservative).
+
+Seller concentration: the sample's listing count, distinct sellers and top-seller share are measured **before** dedupe and carried in the pass diagnostics; a
+sample where one seller holds >= 50% of >= 4 listings gets `SELLER_CONCENTRATED` and cannot be HIGH.
+
+## A5. Headline mapping (pure, not wired to UI)
+
+`market_headline(assessment)` -> `STRONG_COMPARABLE_SET | WEAK_COMPARABLE_SET | SPARSE_MARKET | VOLATILE_ESTIMATE | NO_TRUSTWORTHY_ESTIMATE`. Hard no-price vetoes
+(unique, base-only, unusable sample, omitted anchor, unsupported identity, weak similarity, stale) -> NO_TRUSTWORTHY; multimodal / extreme spread / sensitive ->
+VOLATILE; HIGH -> STRONG; thin sample or thin liquidity -> SPARSE; otherwise WEAK. `PriceTrustAssessment`, `EstimateState` and `TrustReason` are unchanged in
+shape (additive members only); there is no numeric score.
+
+## A6. User-Agent
+
+`USER_AGENT = "ExileLens-market/1 (internal; live provider disabled)"` is an ExileLens-specific internal string. No OAuth client id, no contact address and no
+GGG-prescribed format is claimed. The format GGG requires for a live provider is **BLOCKED_PENDING_PROVIDER_AUTHORIZATION**; nothing here asserts compliance.
+
+## A7. `power_per_currency`: call sites and removal impact (documented only; R5-C removes it)
+
+Definition/classification: `items/price.py` (`classify_power_per_currency`, `compute_power_per_currency`). Producers: `items/ranking.py:299,310`,
+`items/value_layer.py:50`, `items/intelligence.py:51,70`, `items/evaluation.py:815`, `items/build_intel/engine.py:322` (always `None`). Presentation:
+`items/presentation.py:205,800`, `ui/overlay_presentation.py:882`, `app/controller.py:4715`. Parked features that depend on it: `market/{categories,engine,models}.py`,
+`market_assist/{evaluator,finalization,session_store}.py`, `ui/market_assistant_overlay.py:139`, `gear/registry.py:60`. Impact of removal: the Item Check value
+layer and the VALUE / COST line lose their only input (it is `None` unless a manual price is entered), the three parked packages must drop the field in the same change,
+and the result-contract field disappears from `ItemEvaluation` consumers. No R5-A foundation test depends on it, so it is untouched here.
+
+## A8. Remaining prerequisites for R5-B
+
+1. Owner/GGG outcome on provider authorization (or a documented-API/Data-Exports provider); flipping `LIVE_TRADE2_AUTHORIZED` is a single reviewed change, and the
+   User-Agent/identification format must be settled first.
+2. A consent UI that records `market_consent_version` (only backing fields exist now).
+3. The MarketEvidence contract and async Item Check enrichment (R5-B), built on `market_headline` and `MarketLookupStatus`.
+4. R5-C: remove `power_per_currency`, and rename the internal band label `fair` (it is still `quick_sale / fair / optimistic`), so no surface can read as "fair value".

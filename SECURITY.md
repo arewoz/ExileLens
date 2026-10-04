@@ -41,7 +41,7 @@ Its normal job is to:
 3. read the resulting item text from the Windows clipboard
 4. evaluate the item against the Path of Building 2 installation and build you configured
 5. show the result in an overlay
-6. optionally query the official Path of Exile trade service for live market information
+6. (disabled in this build) the live market provider; ExileLens makes no market request
 
 The important trust boundaries are described below.
 
@@ -93,9 +93,9 @@ Do not assume that the system clipboard is private from other applications runni
 
 Normal ExileLens item evaluation runs locally.
 
-The optional live market pricing feature can communicate over HTTPS with the official Path of Exile trade service.
+ExileLens does not contact the Path of Exile trade service in this build. Market prices are off by default, and the live market provider is production-disabled while Grinding Gear Games' authorization for that access is unresolved (the central policy is `price_check/market_policy.py`; a transport guard re-checks it on every request, so even a configuration error cannot send one). No session cookie or account credential is used or accepted.
 
-For market lookups, ExileLens sends structured search information derived from the item being evaluated, such as:
+If a market provider is ever enabled, a lookup would send only structured search information derived from the item being evaluated, such as:
 
 - item category
 - rarity

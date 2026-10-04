@@ -10,6 +10,7 @@ from typing import Any, Callable
 logger = logging.getLogger(__name__)
 
 _monotonic_clock: Callable[[], float] = time.monotonic
+_sleep: Callable[[float], None] = time.sleep
 _GLOBAL_RATE_LIMIT_STATE: RateLimitState | None = None
 
 
@@ -23,8 +24,15 @@ def set_monotonic_clock(clock: Callable[[], float]) -> None:
 
 
 def reset_monotonic_clock() -> None:
-    global _monotonic_clock
+    global _monotonic_clock, _sleep
     _monotonic_clock = time.monotonic
+    _sleep = time.sleep
+
+
+def set_sleep(sleeper: Callable[[float], None]) -> None:
+    """Test hook: pacing waits call this instead of time.sleep."""
+    global _sleep
+    _sleep = sleeper
 
 
 class CooldownSource(str, Enum):
@@ -165,7 +173,7 @@ class RateLimitState:
         seconds = self.seconds_until_allowed()
         if seconds <= 0:
             return 0.0
-        time.sleep(min(seconds, 5.0))
+        _sleep(min(seconds, 5.0))
         return seconds
 
     def snapshot(self, *, include_diagnostics: bool = False) -> dict[str, Any]:
