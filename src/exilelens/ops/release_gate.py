@@ -19,6 +19,7 @@ REQUIRED_PACKAGING = (
     "packaging/RELEASE_NOTES.md",
     "packaging/README.txt",
     "packaging/version_info.txt",
+    "src/exilelens/whats_new/whats_new.json",
     "packaging/exilelens-gui.spec",
     "packaging/exilelens-updater.spec",
     "scripts/build_exe.ps1",
@@ -100,6 +101,27 @@ def _version_files_coherent(root: Path) -> CheckResult:
             f"version {__version__} missing or stale in {', '.join(missing)}",
         )
     return CheckResult("version_coherence", GateVerdict.PASS, detail=f"version {__version__}")
+
+
+def _whats_new(root: Path) -> CheckResult:
+    """The candidate version must have a valid, player-facing entry in the packaged What's New content."""
+    import json
+
+    from exilelens.app.updates.version import ExileLensVersion
+    from exilelens.whats_new import content
+
+    path = root / "src" / "exilelens" / "whats_new" / content.CONTENT_FILE
+    try:
+        catalog = content.parse_document(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, UnicodeError) as exc:
+        return CheckResult("whats_new", GateVerdict.BLOCKED, Severity.P1, f"whats_new.json unusable: {exc}")
+    candidate = ExileLensVersion.parse(__version__)
+    if candidate is None:
+        return CheckResult("whats_new", GateVerdict.BLOCKED, Severity.P1, f"version {__version__!r} is not a release version")
+    problems = content.lint_catalog(catalog, candidate)
+    if problems:
+        return CheckResult("whats_new", GateVerdict.BLOCKED, Severity.P1, "; ".join(problems[:8]))
+    return CheckResult("whats_new", GateVerdict.PASS, detail=f"entry for {candidate} is valid")
 
 
 def _release_tag_coherent(root: Path) -> CheckResult:
@@ -385,6 +407,7 @@ def evaluate_release_gate(
     checks = [
         _version_files_coherent(base),
         _release_tag_coherent(base),
+        _whats_new(base),
         *_compatibility(base),
         _p0_registry(base),
         _dirty_tree(base, allow_dirty=allow_dirty),

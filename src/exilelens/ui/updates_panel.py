@@ -13,16 +13,17 @@ from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from exilelens.app.settings import AppSettings
 from exilelens.ui.components import make_button
-from exilelens.ui.dashboard_widgets import Notice, SettingsGroup, SettingsRow, WrapLabel
+from exilelens.ui.dashboard_widgets import FlowLayout, Notice, SettingsGroup, SettingsRow, WrapLabel
 
 
 class UpdatesPanel(QWidget):
     """Wires one :class:`~exilelens.app.updates.service.UpdateService` into Settings."""
 
-    def __init__(self, settings: AppSettings, update_service, parent: QWidget | None = None) -> None:
+    def __init__(self, settings: AppSettings, update_service, parent: QWidget | None = None, *, release_notes=None) -> None:
         super().__init__(parent)
         self.settings = settings
         self.update_service = update_service
+        self._release_notes = release_notes
         self._check_state = "unchecked"
         self._check_version = ""
         self._download_state = ""
@@ -59,6 +60,22 @@ class UpdatesPanel(QWidget):
         self._row.label.setVisible(True)
         self._row.helper.setVisible(False)
         self._row._left.addWidget(self._status)
+        # Two quiet links about the INSTALLED version; hidden whenever the row is about an update instead.
+        self._installed_links = QWidget()
+        links = FlowLayout(self._installed_links, spacing=4)   # wraps instead of widening the page at large text sizes
+        links.setContentsMargins(0, 2, 0, 0)
+        self._whats_new_btn = make_button("What's new", "tertiary", compact=True)
+        self._whats_new_btn.setToolTip("What changed in the version you have installed")
+        self._whats_new_btn.clicked.connect(self._show_whats_new)
+        self._full_notes_btn = make_button("Full release notes", "tertiary", compact=True, icon="github")
+        self._full_notes_btn.setAccessibleName("Full release notes, opens GitHub in your browser")
+        self._full_notes_btn.clicked.connect(self._open_full_notes)
+        for quiet in (self._whats_new_btn, self._full_notes_btn):
+            quiet.setProperty("flush", True)   # tighter padding, so the text sits close to the label's left edge
+        links.addWidget(self._whats_new_btn)
+        links.addWidget(self._full_notes_btn)
+        self._installed_links.setVisible(False)
+        self._row._left.addWidget(self._installed_links)
         for button in (self._open_releases_btn, self._cancel_btn, self._check_btn, self._download_btn, self._restart_btn):
             self._row.add_control(button)
         self._group.add_row(self._row)
@@ -159,7 +176,29 @@ class UpdatesPanel(QWidget):
         self._check_btn.setEnabled(state != "checking")
         if state == "available":
             self._check_btn.setVisible(False)
+        self.sync_installed_links()
         self._sync_extras()
+
+    #: Row states that describe the installed version itself (an update, a download or a verification problem is a
+    #: different subject, and keeps the row to its primary action).
+    _INSTALLED_STATES = ("unchecked", "checking", "current", "ahead", "failed", "unavailable")
+
+    def sync_installed_links(self) -> None:
+        about_installed = self._check_state in self._INSTALLED_STATES and self._download_state not in {
+            "downloading", "ready", "installing",
+        }
+        notes = self._release_notes
+        self._whats_new_btn.setVisible(bool(about_installed and notes is not None and notes.has_notes()))
+        self._full_notes_btn.setVisible(bool(about_installed and notes is not None))
+        self._installed_links.setVisible(about_installed and notes is not None)
+
+    def _show_whats_new(self) -> None:
+        if self._release_notes is not None:
+            self._release_notes.show_manual()
+
+    def _open_full_notes(self) -> None:
+        if self._release_notes is not None:
+            self._release_notes.open_full_notes()
 
     def _sync_extras(self) -> None:
         widgets = (self._progress, self._bar, self._extra, self._last_result)
@@ -197,6 +236,7 @@ class UpdatesPanel(QWidget):
 
     def _on_download_state(self, state: str) -> None:
         self._download_state = state
+        self.sync_installed_links()
         if state == "downloading":
             self._download_btn.setVisible(False)
             self._cancel_btn.setVisible(True)

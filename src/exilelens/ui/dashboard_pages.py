@@ -111,12 +111,14 @@ class SettingsPage(ColumnPage):
         parent: QWidget | None = None,
         *,
         navigate=None,
+        release_notes=None,
     ) -> None:
         super().__init__("Settings", sticky_header=True, object_name="settingsPage", parent=parent)
         self.settings = settings
         self.controller = controller
         self.update_service = update_service
         self._navigate = navigate
+        self._release_notes = release_notes
         self._scroll_area = self.scroll
         self.scroll.setObjectName("settingsScrollArea")
 
@@ -388,7 +390,7 @@ class SettingsPage(ColumnPage):
         else:
             from exilelens.ui.updates_panel import UpdatesPanel
 
-            self._updates_panel = UpdatesPanel(self.settings, self.update_service)
+            self._updates_panel = UpdatesPanel(self.settings, self.update_service, release_notes=self._release_notes)
             section.add_panel(self._updates_panel)
         self._patreon_panel = PatreonPanel(self.settings)
         section.add_below(self._patreon_panel, 12)
