@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "releases": [
+    {
+      "version": "0.7.0b1",
+      "released": "2026-10-04",
+      "previous": "0.6.0",
+      "highlights": [
+        {
+          "id": "desktop-redesign",
+          "title": "A redesigned desktop app",
+          "text": "A status panel on the left shows your build and whether ExileLens is ready, with Overview, Settings and Diagnostics beside it.",
+          "introduced": "0.7.0b1",
+          "priority": 1,
+          "link": null
+        },
+        {
+          "id": "analyze-build-in-app",
+          "title": "Analyze Build is part of the main app",
+          "text": "Your strongest measured improvements and next actions now sit beside Overview, Settings and Diagnostics.",
+          "introduced": "0.7.0b1",
+          "priority": 2,
+          "link": {
+            "label": "Open Analyze Build",
+            "destination": "build_analysis"
+          }
+        },
+        {
+          "id": "supporter-seamless-updates",
+          "title": "Seamless automatic updates",
+          "text": "Patreon supporters can have verified updates downloaded automatically and installed when ExileLens closes. Manual updates stay free.",
+          "introduced": "0.7.0b1",
+          "priority": 3,
+          "link": {
+            "label": "Learn about supporter updates",
+            "destination": "supporter"
+          }
+        }
+      ],
+      "minor": [
+        {
+          "id": "optional-privacy-switches",
+          "text": "Usage stats and crash reports are optional and off until you turn them on; Settings shows exactly what would be sent.",
+          "introduced": "0.7.0b1"
+        },
+        {
+          "id": "prerelease-update-status",
+          "text": "Pre-release versions now show their update status correctly.",
+          "introduced": "0.7.0b1"
+        },
+        {
+          "id": "update-result-notice",
+          "text": "After an update, ExileLens tells you whether it installed or the previous version was restored.",
+          "introduced": "0.7.0b1"
+        },
+        {
+          "id": "diagnostics-attention-count",
+          "text": "The Diagnostics entry shows how many things need your attention.",
+          "introduced": "0.7.0b1"
+        }
+      ],
+      "limitations": [
+        {
+          "id": "patreon-linking-beta",
+          "text": "Patreon linking may be unavailable in this beta. Manual updates are not affected.",
+          "introduced": "0.7.0b1"
+        }
+      ],
+      "action": null
+    }
+  ]
+}
