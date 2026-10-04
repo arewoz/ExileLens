@@ -655,10 +655,12 @@ def test_invalid_folder_is_rejected_and_the_old_one_kept(harness, monkeypatch) -
     _go(harness, "settings-top", (980, 720))
     page = harness.window._settings_page
     before = harness.settings.pob_path
+    warned = []
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *a, **k: warned.append(True))
     monkeypatch.setattr("exilelens.ui.setup_dialog.pick_pob_directory", lambda current: r"C:\definitely\not\pob")
     monkeypatch.setattr(setup_status, "check_pob_folder", lambda p: setup_status.SetupCheck(p == before, "x", "bad"))
     page._change_pob_btn.click()
-    assert harness.settings.pob_path == before and page._pob_path == before
+    assert harness.settings.pob_path == before and page._pob_path == before and warned   # reported, never applied
 
 
 def test_market_league_hint_carries_the_live_market_state_that_used_to_be_a_separate_row(harness) -> None:
