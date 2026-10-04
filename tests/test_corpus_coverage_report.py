@@ -524,3 +524,39 @@ def test_build_intelligence_gate_accepts_an_explicit_no_evidence_state() -> None
     explicit = _measure_build(lane_row_counts={"offense": 0, "ehp": 0, "max_hit": 0, "mobility": 0},
                               strongest_status={"damage": "COULD_NOT_ESTABLISH", "ehp": "COULD_NOT_ESTABLISH"})
     assert evaluate_build_intel_gate({"builds": [explicit], "cache": [_measure_cache()]}).passed
+
+
+# --------------------------------------------------------------------------- integrity semantics: only a plain PASS counts
+
+
+def test_every_state_integrity_case_expects_a_plain_pass() -> None:
+    """An integrity case proves state; a declared refusal cannot be proof, so none may expect UNCERTAIN/UNSUPPORTED."""
+    assert [c.id for c in ALL_CASES if c.role is CaseRole.STATE_INTEGRITY and c.expected is not ExpectedResult.CONFIDENT] == []
+
+
+def _integrity_case_outcome(expected: ExpectedResult, status: str, message: str = ""):
+    case = _case(id="INTEGRITY", node_name="t_int", expected=expected, role=CaseRole.STATE_INTEGRITY)
+    report = build_report([_outcome(name="t_int", status=status, message=message)], (case,))
+    return {c.name: c for c in evaluate_gate(report).checks}["RESTORE_AND_STATE_INTEGRITY"]
+
+
+def test_integrity_pass_satisfies_the_integrity_criterion() -> None:
+    assert _integrity_case_outcome(ExpectedResult.CONFIDENT, "passed").passed
+
+
+@pytest.mark.parametrize("expected, label", [(ExpectedResult.UNCERTAIN, "EXPECTED_UNCERTAIN"), (ExpectedResult.UNSUPPORTED, "UNSUPPORTED")])
+def test_integrity_refusal_results_block_the_gate(expected: ExpectedResult, label: str) -> None:
+    check = _integrity_case_outcome(expected, "passed")
+    assert not check.passed and "INTEGRITY" in check.detail, label
+
+
+@pytest.mark.parametrize("message", ["assert 'a' == 'b'", "state was UNCERTAIN"])
+def test_integrity_failure_blocks_the_gate(message: str) -> None:
+    for expected in (ExpectedResult.CONFIDENT, ExpectedResult.UNCERTAIN):
+        assert not _integrity_case_outcome(expected, "failed", message).passed
+
+
+def test_integrity_case_that_did_not_run_blocks_the_gate() -> None:
+    case = _case(id="INTEGRITY", node_name="t_int", role=CaseRole.STATE_INTEGRITY)
+    report = build_report([], (case,))
+    assert not {c.name: c for c in evaluate_gate(report).checks}["RESTORE_AND_STATE_INTEGRITY"].passed

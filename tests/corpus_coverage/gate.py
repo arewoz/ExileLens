@@ -86,7 +86,8 @@ def evaluate_gate(report: CoverageReport) -> GateResult:
                             f"WRONG_RESULT/WRONG_UNCERTAIN cases: {_names(wrong)}"))
 
     integrity = [g for g in report.grades if g.case.role is CaseRole.STATE_INTEGRITY]
-    integrity_bad = [g for g in integrity if g.result not in (CoverageResult.PASS, CoverageResult.EXPECTED_UNCERTAIN, CoverageResult.UNSUPPORTED)]
+    # A state-integrity case proves the state was right: only a plain PASS counts. A refusal, a skip or a failure is not proof.
+    integrity_bad = [g for g in integrity if g.result is not CoverageResult.PASS]
     checks.append(GateCheck("RESTORE_AND_STATE_INTEGRITY", bool(integrity) and not integrity_bad, BLOCK,
                             f"{len(integrity) - len(integrity_bad)}/{len(integrity)} integrity cases pass; failing/not run: {_names(integrity_bad)}"))
 

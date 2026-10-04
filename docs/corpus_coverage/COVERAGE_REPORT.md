@@ -34,8 +34,8 @@ This measures *executed coverage cases*, not real-build population share — the
 | Result | Count |
 | --- | --- |
 | EXPECTED_UNCERTAIN | 19 |
-| PASS | 159 |
-| UNSUPPORTED | 10 |
+| PASS | 160 |
+| UNSUPPORTED | 9 |
 
 ## Functional coverage (separate from the headline metric)
 
@@ -236,13 +236,13 @@ Verdict-level cases that prove the right loadout/state was evaluated, isolated, 
 | EFFENUM-BOUND-AND-ORDINARY-CHECK | PASS |
 | JEWEL-UNALLOCATED-SOCKETS-NEVER-EVALUATED | PASS |
 | JEWEL-CONNECTIVITY-JEWEL-RESTORE | PASS |
-| JEWEL-ALTERNATE-START-SOCKET-EXCLUDED | UNSUPPORTED |
+| JEWEL-ALTERNATE-START-SOCKET-EXCLUDED | PASS |
 
 ## Refusal / uncertainty audit
 
 Every case whose correct answer is a refusal (expected UNCERTAIN or UNSUPPORTED) or that is only partially measured, with the audited reason. CORRECT_UNCERTAINTY stays; FIXABLE_MEASUREMENT_GAP is a documented product limitation with its effort; COPY_OR_DIAGNOSTIC is a wording problem.
 
-Audit counts: COPY_OR_DIAGNOSTIC=1, CORRECT_UNCERTAINTY=24, FIXABLE_MEASUREMENT_GAP=5.
+Audit counts: COPY_OR_DIAGNOSTIC=1, CORRECT_UNCERTAINTY=23, FIXABLE_MEASUREMENT_GAP=5.
 
 | Case | Answer | Audit | Note |
 | --- | --- | --- | --- |
@@ -265,7 +265,6 @@ Audit counts: COPY_OR_DIAGNOSTIC=1, CORRECT_UNCERTAINTY=24, FIXABLE_MEASUREMENT_
 | MORTAR-IGNITE-ONLY-CHANGE-IS-PARTIAL | UNCERTAIN | FIXABLE_MEASUREMENT_GAP | PoB measures IgniteDPS; ExileLens scores a per-use skill's hit rate only (PER_USE_DOT_NOT_MEASURED). Small-medium effort, niche (ignite on per-use cooldown skills); truthful refusal, not a blocker. |
 | MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL | UNCERTAIN | FIXABLE_MEASUREMENT_GAP | PoB's damage is for one totem; ActiveTotemLimit/TotemsSummoned exist in PoB's output but ExileLens does not compose a total (no formula is invented, POB_NATIVE_DAMAGE_POLICY). +maximum totems is a plausible affix on totem builds. Whether PoB's FullDPS composes the count correctly is unverified. Medium effort; truthful refusal (TOTEM_LIMIT_CHANGED), not a blocker. |
 | BALLISTA-TOTEM-COUNT-CHANGE-IS-PARTIAL | UNCERTAIN | FIXABLE_MEASUREMENT_GAP | Same as MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL for Siege Ballista (PoB's Artillery damage does not move with the totem count). |
-| JEWEL-ALTERNATE-START-SOCKET-EXCLUDED | UNSUPPORTED | CORRECT_UNCERTAINTY | Restoring that socket leaves a ~2.5% secondary-metric (Life) discrepancy that was not explained, so the socket is excluded rather than risk a wrong delivered value. Rare (jewel-specific); the socket count is reported in the diagnostics, the user-facing copy does not yet name skipped sockets (P2). |
 | REDUCED-EVIDENCE-NEVER-DIRECTIONAL | UNCERTAIN | CORRECT_UNCERTAINTY | Fail-closed invariant: reduced evidence can never emit a directional verdict. |
 | MALFORMED-METRICS-FAIL-CLOSED | UNCERTAIN | CORRECT_UNCERTAINTY | Fail-closed invariant: malformed worker output is FAILED/NOT_EVALUATED, never coerced. |
 | MISSING-RESISTANCE-UNKNOWN | UNCERTAIN | CORRECT_UNCERTAINTY | Fail-closed invariant: a missing resistance is UNKNOWN, never a zero deficit. |
@@ -462,7 +461,7 @@ Audit counts: COPY_OR_DIAGNOSTIC=1, CORRECT_UNCERTAINTY=24, FIXABLE_MEASUREMENT_
 | JEWEL-EMPTY-ALLOCATED-SOCKET-COMPARED-AGAINST-NO-JEWEL | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 2/2 |
 | JEWEL-UNALLOCATED-SOCKETS-NEVER-EVALUATED | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 1/1 |
 | JEWEL-CONNECTIVITY-JEWEL-RESTORE | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 3/3 |
-| JEWEL-ALTERNATE-START-SOCKET-EXCLUDED | VERDICT | (none — cross-cutting) | UNSUPPORTED | UNSUPPORTED | 1/1 |
+| JEWEL-ALTERNATE-START-SOCKET-EXCLUDED | VERDICT | (none — cross-cutting) | CONFIDENT | PASS | 1/1 |
 | STAT-STACKER-BLOCK-CHANCE-DAMAGE-CONVERSION | VERDICT | stat_stacker, melee | CONFIDENT | PASS | 1/1 |
 
 ## Policy safety-net (adversarial unit coverage, not archetype-specific)

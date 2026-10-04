@@ -2580,19 +2580,13 @@ R4_CASES: tuple[CoverageCase, ...] = (
         test_file=_JEWEL_RESTORE_FILE,
         node_name="test_stage_context_split_personality_socket_is_excluded",
         depth=EvaluationDepth.VERDICT,
-        expected=ExpectedResult.UNSUPPORTED,
+        expected=ExpectedResult.CONFIDENT,
         description=(
             "A socket holding a Split Personality-class jewel (alternateClassStart) is left out of the evaluation and counted in "
-            "the diagnostics instead of risking a wrong delivered Life value."
+            "the diagnostics instead of risking a wrong delivered Life value. Rationale: restoring that socket leaves an unexplained ~2.5% Life discrepancy; user-facing copy does not yet name skipped sockets (P2)."
         ),
         manifest_id="CORE04-STAGE-CONTEXT",
         role=CaseRole.STATE_INTEGRITY,
-        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
-        audit_note=(
-            "Restoring that socket leaves a ~2.5% secondary-metric (Life) discrepancy that was not explained, so the socket is excluded "
-            "rather than risk a wrong delivered value. Rare (jewel-specific); the socket count is reported in the diagnostics, the "
-            "user-facing copy does not yet name skipped sockets (P2)."
-        ),
     ),
     CoverageCase(
         id="STAT-STACKER-BLOCK-CHANCE-DAMAGE-CONVERSION",

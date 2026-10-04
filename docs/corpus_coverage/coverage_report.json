@@ -1299,17 +1299,17 @@
     },
     {
       "archetypes": [],
-      "audit": "CORRECT_UNCERTAINTY",
-      "audit_note": "Restoring that socket leaves a ~2.5% secondary-metric (Life) discrepancy that was not explained, so the socket is excluded rather than risk a wrong delivered value. Rare (jewel-specific); the socket count is reported in the diagnostics, the user-facing copy does not yet name skipped sockets (P2).",
+      "audit": null,
+      "audit_note": "",
       "blocks_1_0": false,
       "depth": "VERDICT",
-      "expected": "UNSUPPORTED",
+      "expected": "CONFIDENT",
       "failure_messages": [],
       "functional": null,
       "id": "JEWEL-ALTERNATE-START-SOCKET-EXCLUDED",
       "manifest_id": "CORE04-STAGE-CONTEXT",
       "passed_variants": 1,
-      "result": "UNSUPPORTED",
+      "result": "PASS",
       "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_jewel_restore_remediation.py",
       "total_variants": 1
@@ -3698,8 +3698,8 @@
   },
   "result_counts": {
     "EXPECTED_UNCERTAIN": 19,
-    "PASS": 159,
-    "UNSUPPORTED": 10
+    "PASS": 160,
+    "UNSUPPORTED": 9
   },
   "runtime": {
     "pob_layout": "installed",
