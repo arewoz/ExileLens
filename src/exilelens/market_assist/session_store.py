@@ -216,8 +216,6 @@ class MarketCaptureSessionStore:
     def _refresh_session_state(self, session: MarketCaptureSession) -> None:
         best_id: str | None = None
         best_delta = float("-inf")
-        best_value_id: str | None = None
-        best_ppc = float("-inf")
         for row in session.observations:
             if row.queue_state is not CaptureQueueState.EVALUATED or not row.evaluation:
                 continue
@@ -225,13 +223,7 @@ class MarketCaptureSessionStore:
             if delta > best_delta:
                 best_delta = delta
                 best_id = row.observation_id
-            ppc = row.evaluation.get("power_per_currency") or {}
-            power = float(ppc.get("power_per_currency") or 0.0)
-            if power > best_ppc:
-                best_ppc = power
-                best_value_id = row.observation_id
         session.best_observation_id = best_id
-        session.best_value_observation_id = best_value_id
         session.guidance = self._guidance.compute(session)
         session.search_status = compute_search_status(session)
 

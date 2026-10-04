@@ -95,7 +95,7 @@ class ObservationCorpusProvider:
             confidence=confidence,
             currency_bands=(
                 CurrencyBand(label="quick_sale", amount=float(amount), currency=str(currency)),
-                CurrencyBand(label="fair", amount=float(amount), currency=str(currency)),
+                CurrencyBand(label="typical", amount=float(amount), currency=str(currency)),
                 CurrencyBand(label="optimistic", amount=float(amount), currency=str(currency)),
             ),
             comparables=(comparable,),

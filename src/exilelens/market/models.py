@@ -189,7 +189,6 @@ class CandidateEvaluation:
     offense_delta: float
     defense_delta: float
     verdict: str
-    power_per_currency: dict[str, Any] | None = None
     restore_pass: bool = True
     cache_hit: bool = False
     status: str = "ok"
@@ -203,7 +202,6 @@ class CandidateEvaluation:
             "offense_delta": self.offense_delta,
             "defense_delta": self.defense_delta,
             "verdict": self.verdict,
-            "power_per_currency": self.power_per_currency,
             "restore_pass": self.restore_pass,
             "cache_hit": self.cache_hit,
             "status": self.status,

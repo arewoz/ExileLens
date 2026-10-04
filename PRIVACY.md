@@ -85,10 +85,12 @@ Market prices are **off by default**, and turning them on needs an explicit
 opt-in. In this build the live market provider is additionally **not
 enabled**: it relies on a website interface that Grinding Gear Games' developer
 documentation does not offer, so it stays disabled until that access is
-documented or authorized. Until then, switching market prices on does not
-cause any request either; ExileLens simply reports that the provider is not
-available. Concretely:
+documented or authorized. Until then there is no switch to turn on, and
+ExileLens simply reports in Diagnostics that the provider is unavailable.
+Concretely:
 
+- Settings shows no market control while the provider is unavailable, which is the case in this build. (If a provider is ever authorized, a "Market prices"
+  switch appears, off by default, and turning it on asks you to confirm the data statement above.)
 - No request to `www.pathofexile.com` is made at startup, when you check an
   item, or from the settings or diagnostics screens. The league list is not
   fetched either.

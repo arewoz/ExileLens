@@ -18,7 +18,7 @@ from exilelens.items.offense_coverage import (
     clamp_primary_offense_noise,
     promote_pob_measured_offense_delta,
 )
-from exilelens.items.price import ManualPrice, compute_power_per_currency
+from exilelens.items.price import ManualPrice
 from exilelens.items.resist_caps import analyze_resistances
 from exilelens.items.value_profiles import ValueProfile, score_profile
 from exilelens.metrics import build_metric_profile
@@ -296,7 +296,6 @@ def enrich_slot_comparison(
         primary_confidence=effective_primary_confidence,
     )
     value = sync_value_with_outcome(value, outcome)
-    power = compute_power_per_currency(float(value["score_delta"]), price)
     comparison["evaluation_outcome"] = outcome.to_dict()
     comparison["damage_claim"] = dict(outcome.damage_claim)
     comparison["metric_profile"] = metric_profile
@@ -307,7 +306,6 @@ def enrich_slot_comparison(
     comparison["verdict"] = verdict.value
     comparison["verdict_reasons"] = reasons
     comparison["verdict_explanation"] = explanation
-    comparison["power_per_currency"] = power
     comparison["primary_metric_field"] = effective_primary_field
     if offense_coverage:
         comparison["offense_coverage"] = offense_coverage

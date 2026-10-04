@@ -182,3 +182,50 @@ def market_lookup_status(state: Any, access: MarketAccessDecision | None = None)
                  LiveSearchState.LIVE_ITEM_CLASS_UNSUPPORTED}:
         return MarketLookupStatus.AVAILABLE
     return MarketLookupStatus.UNAVAILABLE
+
+
+@dataclass(frozen=True)
+class MarketCapability:
+    """What the UI may offer, derived ONLY from `resolve_market_access` (no second policy, no copy of the authorization constant).
+
+    `provider_available` is "if the user opted in with current consent, would access be AVAILABLE": False while the live provider is
+    unauthorized or in a no_network build. The Settings control exists only when it is True."""
+
+    provider_available: bool
+    user_enabled: bool
+    consent_current: bool
+    access_state: MarketAccessState
+
+    @property
+    def can_enable(self) -> bool:
+        return self.provider_available
+
+    @property
+    def active(self) -> bool:
+        return self.access_state is MarketAccessState.AVAILABLE
+
+
+def market_capability(settings: Any = None) -> MarketCapability:
+    decision = market_access_for_settings(settings)
+    probe = resolve_market_access(enabled=True, consent_version=MARKET_CONSENT_VERSION)
+    return MarketCapability(
+        provider_available=probe.state is MarketAccessState.AVAILABLE,
+        user_enabled=bool(getattr(settings, "market_prices_enabled", False)),
+        consent_current=int(getattr(settings, "market_consent_version", 0) or 0) == MARKET_CONSENT_VERSION,
+        access_state=decision.state,
+    )
+
+
+def set_market_prices_enabled(settings: Any, enabled: bool) -> bool:
+    """The only writer of the opt-in. Enabling needs a provider that can actually serve prices, and records exactly the current consent
+    version (the caller must have obtained the user's explicit confirmation first). Disabling forgets the consent record, so turning it on
+    again is a fresh, explicit act. Returns whether the setting now equals `enabled`."""
+    if enabled:
+        if not market_capability(settings).can_enable:
+            return False
+        settings.market_prices_enabled = True
+        settings.market_consent_version = MARKET_CONSENT_VERSION
+        return True
+    settings.market_prices_enabled = False
+    settings.market_consent_version = 0
+    return True

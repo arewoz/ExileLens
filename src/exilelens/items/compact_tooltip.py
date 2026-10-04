@@ -904,6 +904,8 @@ def apply_compact_tooltip(model: dict[str, Any]) -> None:
         claimed=explained, texts=[str(reason.get("text") or "") for reason in reasons],
     )
     model["critical_notes"] = notes
+    # R5-C: at most two market lines (price/pairing and listed context), only when usable evidence exists.
+    model["market_lines"] = list((model.get("market") or {}).get("compact_lines") or [])[:2]
     model["replacing_line"] = replace_line
     model["compared_with_line"] = replace_line
     model["slot_verdict_lines"] = slot_lines

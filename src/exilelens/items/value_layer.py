@@ -47,7 +47,6 @@ def rescore_evaluation(
     result["value_profile"] = selected.value
     rec = ranking["recommendation"] or {}
     result["value"] = rec.get("value")
-    result["power_per_currency"] = rec.get("power_per_currency")
     if offense_coverage is not None:
         result["offense_coverage"] = offense_coverage
     if price is None:

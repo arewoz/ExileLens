@@ -245,23 +245,33 @@ def _hotkey_item(controller, settings) -> HealthItem:
     return HealthItem("hotkey", "Item check hotkey", f"{display} · active", OK)
 
 
-def _market_item(settings) -> HealthItem:
-    """Reports the configured mode only.
+def _market_item(settings, controller=None) -> HealthItem:
+    """Reports state, never reachability, and never as something the player must fix (always NEUTRAL, no action).
 
-    ``resolve_live_market_mode`` does not probe reachability, so this must never
-    render a green "Available" tick that implies a successful connection check.
+    States: Off, Provider unavailable, Ready, Looking up, Rate limited, Unavailable. While the live provider is unauthorized the
+    row says "Provider unavailable"; the market is optional and secondary to the build verdict.
     """
     try:
-        from exilelens.price_check.market_policy import MarketAccessState, market_access_for_settings
+        from exilelens.price_check.market_policy import MarketAccessState, market_capability
 
-        state = market_access_for_settings(settings).state
+        capability = market_capability(settings)
+        if capability.access_state is MarketAccessState.NETWORK_DISABLED:
+            return HealthItem("market", "Market", "Off", NEUTRAL, "Network access is disabled in this build.")
+        if not capability.provider_available:
+            return HealthItem("market", "Market", "Provider unavailable", NEUTRAL, "Market prices are not available in this build.")
+        if not capability.active:
+            return HealthItem("market", "Market", "Off", NEUTRAL)
+        diag = controller.market_evidence_diagnostics() if controller is not None else {}
     except Exception:  # noqa: BLE001
         return HealthItem("market", "Market", "Unknown", NEUTRAL)
-    if state is MarketAccessState.PROVIDER_NOT_AUTHORIZED:
-        return HealthItem("market", "Market", "Not available", NEUTRAL, "The market provider has not been authorized.")
-    if state is MarketAccessState.AVAILABLE:
-        return HealthItem("market", "Market", "On", NEUTRAL, "Availability is checked per lookup.")
-    return HealthItem("market", "Market", "Off", NEUTRAL)
+    if diag.get("pending"):
+        return HealthItem("market", "Market", "Looking up…", NEUTRAL)
+    if diag.get("rate_limited"):
+        return HealthItem("market", "Market", "Rate limited", NEUTRAL, "The market is busy; the next item check will try again.")
+    if diag.get("last_status") == "UNAVAILABLE":
+        return HealthItem("market", "Market", "Unavailable", NEUTRAL)
+    freshness = str(diag.get("freshness") or "").lower()
+    return HealthItem("market", "Market", "Ready", NEUTRAL, f"Last listings: {freshness}." if freshness else "")
 
 
 def _elevation_item() -> HealthItem | None:
@@ -286,7 +296,7 @@ def derive_health(controller, settings) -> AppHealth:
         pob=_pob_item(controller, settings),
         build=_build_item(controller),
         hotkey=_hotkey_item(controller, settings),
-        market=_market_item(settings),
+        market=_market_item(settings, controller),
         elevation=_elevation_item(),
     )
 

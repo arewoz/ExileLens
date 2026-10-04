@@ -94,6 +94,12 @@ class HotkeyCaptureDialog(QDialog):
         self.accept()
 
 
+MARKET_PRICES_COPY = (
+    "Market prices sends the item's searchable properties and your selected league to the market provider to find comparable "
+    "listings. It does not send your PoB build, character, account or item history."
+)
+
+
 class SettingsPage(ColumnPage):
     """One scrolling page, in the shipped section order. Settings apply immediately.
 
@@ -253,6 +259,40 @@ class SettingsPage(ColumnPage):
         self.controller.price_check_hotkey.hotkey_tested.connect(self._hotkey_test_succeeded)
 
         self._build_league_controls()
+        self._build_market_prices_control()
+
+    def _build_market_prices_control(self) -> None:
+        capability = self.controller.market_capability()
+        self._market_prices = ThemedSwitch("Market prices")
+        self._market_prices.setAccessibleName("Market prices")
+        self._market_prices.setChecked(capability.active)
+        self._market_prices.setEnabled(capability.can_enable)
+        self._market_prices.toggled.connect(self._on_market_prices_toggled)
+
+    def _confirm_market_consent(self) -> bool:
+        """One compact confirmation with the actual data statement. Overridable so tests never open a dialog."""
+        answer = QMessageBox.question(
+            self,
+            "Market prices",
+            MARKET_PRICES_COPY + "\n\nTurn on market prices?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _on_market_prices_toggled(self, enabled: bool) -> None:
+        if enabled and not self._confirm_market_consent():
+            self._set_market_switch(False)
+            return
+        if not self.controller.set_market_prices_enabled(enabled):
+            self._set_market_switch(False)
+            return
+        self._league_status.setText(self._league_status_text())
+
+    def _set_market_switch(self, checked: bool) -> None:
+        self._market_prices.blockSignals(True)
+        self._market_prices.setChecked(checked)
+        self._market_prices.blockSignals(False)
 
     def _build_league_controls(self) -> None:
         from exilelens.price_check.league_catalog import LeagueCatalog
@@ -337,11 +377,21 @@ class SettingsPage(ColumnPage):
         # the same line as the control it refreshes, the state directly beneath.
         self._refresh_leagues_btn = make_button("Refresh", "tertiary", compact=True)
         self._refresh_leagues_btn.clicked.connect(self._refresh_leagues)
+        # R5-C: the Market rows exist only when the provider can actually serve prices. While it cannot (the current production state),
+        # nothing here invites the player to switch on a feature that cannot work; Diagnostics reports "Provider unavailable".
+        market_available = self.controller.market_capability().provider_available
         row = SettingsRow("Market league")
         row.add_left(self._league_status)
         row.add_control(self._league_combo)
         row.add_control(self._refresh_leagues_btn)
         section.add_row(row)
+        self._market_league_row = row
+        row.setVisible(market_available)
+        row = SettingsRow("Market prices", MARKET_PRICES_COPY)
+        row.add_control(self._market_prices)
+        section.add_row(row)
+        self._market_prices_row = row
+        row.setVisible(market_available)
         row = SettingsRow("Ignore socketed Runes")
         row.add_control(self._ignore_socketed_mods)
         section.add_row(row)

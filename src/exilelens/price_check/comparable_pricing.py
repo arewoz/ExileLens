@@ -178,8 +178,8 @@ class OutlierFilter:
 @dataclass(frozen=True)
 class PriceBandEstimate:
     quick_sale: float
-    fair_low: float
-    fair_high: float
+    typical_low: float
+    typical_high: float
     optimistic: float
     currency: str
     sample_count: int
@@ -188,10 +188,10 @@ class PriceBandEstimate:
         return (
             CurrencyBand(label="quick_sale", amount=self.quick_sale, currency=self.currency),
             CurrencyBand(
-                label="fair",
-                amount=self.fair_low,
+                label="typical",
+                amount=self.typical_low,
                 currency=self.currency,
-                amount_high=self.fair_high,
+                amount_high=self.typical_high,
             ),
             CurrencyBand(label="optimistic", amount=self.optimistic, currency=self.currency),
         )
@@ -209,8 +209,8 @@ class PriceBandEstimator:
             value = amounts[0]
             return PriceBandEstimate(
                 quick_sale=value,
-                fair_low=value,
-                fair_high=value,
+                typical_low=value,
+                typical_high=value,
                 optimistic=value,
                 currency=currency,
                 sample_count=1,
@@ -221,8 +221,8 @@ class PriceBandEstimator:
         p75 = _percentile(amounts, 75)
         return PriceBandEstimate(
             quick_sale=round(p25, 1),
-            fair_low=round(min(p40, p60), 1),
-            fair_high=round(max(p40, p60), 1),
+            typical_low=round(min(p40, p60), 1),
+            typical_high=round(max(p40, p60), 1),
             optimistic=round(p75, 1),
             currency=currency,
             sample_count=len(amounts),

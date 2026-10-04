@@ -46,8 +46,6 @@ class MarketAssistantOverlay(ManagedToolWindow):
         self._progress.setTextVisible(True)
         self._best = QLabel("Best: —")
         self._best.setWordWrap(True)
-        self._best_value = QLabel("Best value: —")
-        self._best_value.setWordWrap(True)
         self._guidance = QLabel("NEXT SEARCH: —")
         self._guidance.setWordWrap(True)
         self._guidance.setObjectName("compactNote")
@@ -71,7 +69,6 @@ class MarketAssistantOverlay(ManagedToolWindow):
         root.addWidget(self._progress)
         root.addLayout(row)
         root.addWidget(self._best)
-        root.addWidget(self._best_value)
         root.addWidget(self._guidance)
         root.addWidget(self._status)
         root.addWidget(self._event)
@@ -132,16 +129,6 @@ class MarketAssistantOverlay(ManagedToolWindow):
                 self._best.setText(self._best.text() + f" @ {price.get('amount')} {price.get('currency')}")
         else:
             self._best.setText("Best: —")
-
-        value_id = payload.get("best_value_observation_id")
-        value_row = observations.get(value_id) if value_id else None
-        if value_row:
-            ppc = (value_row.get("evaluation") or {}).get("power_per_currency") or {}
-            self._best_value.setText(
-                f"Best value: {ppc.get('power_per_currency', '—')} power/{ppc.get('currency', 'unit')}"
-            )
-        else:
-            self._best_value.setText("Best value: —")
 
         guidance = payload.get("guidance") or {}
         next_rows = guidance.get("next_search") or []

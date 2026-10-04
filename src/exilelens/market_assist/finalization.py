@@ -48,7 +48,6 @@ def finalize_session_to_pool(session: MarketCaptureSession) -> MarketCandidatePo
             offense_delta=float(ev.get("offense_delta") or 0.0),
             defense_delta=float(ev.get("defense_delta") or 0.0),
             verdict=str(ev.get("verdict") or "UNRESOLVED"),
-            power_per_currency=ev.get("power_per_currency"),
             restore_pass=bool(ev.get("restore_pass", True)),
             cache_hit=bool(ev.get("cache_hit", False)),
             status=str(ev.get("status") or "ok"),

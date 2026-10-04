@@ -91,7 +91,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           # No live request, no real PoB, no corpus, no packaging: injected fake transports and synthetic fixtures only.
-          python -m pytest -o addopts= -q tests/test_r5a_market_access.py tests/test_r5a_market_estimator.py tests/test_r5a_market_failures_and_rate.py tests/test_r5a_market_request_privacy.py tests/test_r5a_market_foundation.py tests/test_r5a_market_lifecycle.py tests/test_r5b_market_evidence.py tests/test_r5b_market_lifecycle.py tests/test_r5_market_engine_stale_revision.py
+          python -m pytest -o addopts= -q tests/test_r5a_market_access.py tests/test_r5a_market_estimator.py tests/test_r5a_market_failures_and_rate.py tests/test_r5a_market_request_privacy.py tests/test_r5a_market_foundation.py tests/test_r5a_market_lifecycle.py tests/test_r5b_market_evidence.py tests/test_r5b_market_lifecycle.py tests/test_r5c_market_presentation.py tests/test_r5c_market_settings.py tests/test_r5_market_engine_stale_revision.py
           if ($LASTEXITCODE -ne 0) { throw 'R5-A market-foundation regressions failed.' }
 
       - name: Run native overlay production-wiring regression

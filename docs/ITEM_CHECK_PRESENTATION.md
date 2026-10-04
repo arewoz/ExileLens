@@ -74,9 +74,10 @@ tooltip or its More Info drawer calls the code path that would show them):
 Info is built; `companion` itself is never rendered — see above). `presentation.py`'s
 `recommendation_tag` ("Build Value +X") is unconditionally cleared by
 `apply_compact_tooltip` for both compact surfaces (`PASSIVE_COMPACT`, `PINNED_EXTENDED`).
-The Price Check panel's "VALUE / COST … Build Value / currency" line
-(`overlay_presentation.py:858`) belongs to the separate Price Check feature, which never
-populates `model["price"]` for Item Check results.
+(The old "VALUE / COST … Build Value / currency" line and its value classes were removed in
+R5-C; no ratio of Build Value to price exists anywhere. R5-C adds at most two compact
+`market_lines` and a More Info "MARKET" section, only when market evidence is usable; see
+`MARKET_EVIDENCE_CONTRACT.md`.)
 
 **Fix:** reworded the two reachable strings, keeping the same underlying numbers:
 

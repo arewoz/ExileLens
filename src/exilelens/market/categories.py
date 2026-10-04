@@ -30,14 +30,6 @@ def assign_categories(rows: list[MarketCandidateResult]) -> dict[str, str]:
     _best("BEST_OFFENSIVE", meaningful or ok, lambda r: r.evaluation.offense_delta)
     _best("BEST_DEFENSIVE", meaningful or ok, lambda r: r.evaluation.defense_delta)
 
-    ppc_rows = [row for row in meaningful if row.evaluation.power_per_currency]
-    if ppc_rows:
-        _best(
-            "BEST_VALUE",
-            ppc_rows,
-            lambda r: float((r.evaluation.power_per_currency or {}).get("power_per_currency") or 0.0),
-        )
-
     priced = [row for row in meaningful if row.evaluation.listing.price is not None]
     if priced:
         _best("CHEAPEST_MEANINGFUL", priced, lambda r: -float(r.evaluation.listing.price.amount))

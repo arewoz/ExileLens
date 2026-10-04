@@ -99,7 +99,6 @@ class MarketCaptureSession:
     guidance: dict[str, Any] = field(default_factory=dict)
     search_status: dict[str, Any] = field(default_factory=dict)
     best_observation_id: str | None = None
-    best_value_observation_id: str | None = None
     ended_reason: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     started_at: float = field(default_factory=time.time)
@@ -137,7 +136,6 @@ class MarketCaptureSession:
             "guidance": self.guidance,
             "search_status": self.search_status,
             "best_observation_id": self.best_observation_id,
-            "best_value_observation_id": self.best_value_observation_id,
             "ended_reason": self.ended_reason,
             "metadata": self.metadata,
             "started_at": self.started_at,
@@ -166,7 +164,6 @@ class MarketCaptureSession:
             guidance=dict(data.get("guidance") or {}),
             search_status=dict(data.get("search_status") or {}),
             best_observation_id=data.get("best_observation_id"),
-            best_value_observation_id=data.get("best_value_observation_id"),
             ended_reason=data.get("ended_reason"),
             metadata=dict(data.get("metadata") or {}),
             started_at=float(data.get("started_at") or time.time()),

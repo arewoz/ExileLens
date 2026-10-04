@@ -187,8 +187,8 @@ def diagnose_offline(
         else:
             metrics["estimate"] = {
                 "quick_sale": band.quick_sale,
-                "fair_low": band.fair_low,
-                "fair_high": band.fair_high,
+                "typical_low": band.typical_low,
+                "typical_high": band.typical_high,
                 "currency": band.currency,
                 "sample_count": band.sample_count,
             }

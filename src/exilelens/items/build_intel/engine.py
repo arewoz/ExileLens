@@ -319,7 +319,6 @@ def compare_slot(
         economics_seam={
             "build_value_delta": score_num,
             "price": None,
-            "power_per_currency": None,
         },
     )
 

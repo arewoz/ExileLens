@@ -4731,7 +4731,6 @@ class EvaluationController(QObject):
             )
             ctx["session_rank"] = rank
             ctx["session_total"] = len(observations)
-            ctx["is_best_value"] = bool(obs_id and session.best_observation_id == obs_id)
             ctx["is_new_best"] = bool(obs_id and obs_id == self._market_capture_new_best_id)
         merged = dict(result)
         merged["market_context"] = ctx
@@ -4741,10 +4740,8 @@ class EvaluationController(QObject):
         from exilelens.items.presentation import _build_price_block
 
         presentation = dict(result.get("presentation") or {})
-        power = (result.get("recommendation") or {}).get("power_per_currency") or result.get("power_per_currency")
         price_block = _build_price_block(
             result,
-            power=power,
             value_profile=str(result.get("value_profile") or self.settings.value_profile),
         )
         if price_block:
@@ -5051,6 +5048,34 @@ class EvaluationController(QObject):
             int(getattr(self.settings, "market_consent_version", 0) or 0),
             str(getattr(self.settings, "market_league", "") or ""),
         )
+
+    def market_capability(self) -> Any:
+        from exilelens.price_check.market_policy import market_capability
+
+        return market_capability(self.settings)
+
+    def set_market_prices_enabled(self, enabled: bool) -> bool:
+        """Settings entry point. The caller has already obtained explicit consent when enabling. Refused while the provider cannot serve
+        prices. Any change obsoletes pending evidence and drops what is attached to the current result."""
+        from exilelens.price_check.market_policy import set_market_prices_enabled
+
+        applied = set_market_prices_enabled(self.settings, bool(enabled))
+        if applied:
+            save_settings(self.settings)
+            self._invalidate_market_evidence()
+        return applied
+
+    def _invalidate_market_evidence(self) -> None:
+        self._cancel_market_evidence_work()
+        self._market_accepted = {}
+        if self._market_service is not None:
+            self._market_service.invalidate()
+        last = self._last_result
+        if last and "market_evidence" in last:
+            updated = dict(last)
+            updated.pop("market_evidence", None)
+            self._last_result = updated
+            self.market_evidence_updated.emit(int((updated.get("request_meta") or {}).get("request_id") or 0), updated)
 
     def _cancel_market_evidence_work(self) -> None:
         """Obsolete any pending lookup. The provider may finish internally; its result is discarded by identity."""

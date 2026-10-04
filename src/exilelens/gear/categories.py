@@ -29,11 +29,6 @@ def assign_plan_categories(rows: list[GearPlanEvaluation]) -> dict[str, str]:
 
     priced = [row for row in pool if row.total_price > 0]
     if priced:
-        _best(
-            "BEST_VALUE",
-            priced,
-            lambda r: r.build_value_delta / max(r.total_price, 0.01),
-        )
         strong = [row for row in priced if row.build_value_delta > 0]
         if strong:
             _best("CHEAPEST_STRONG", strong, lambda r: -r.total_price)
