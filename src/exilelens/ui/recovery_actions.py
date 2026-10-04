@@ -32,6 +32,13 @@ def open_github_releases() -> None:
     QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
 
 
+def open_release_notes_page(version) -> None:
+    """Open the GitHub Release page of exactly this installed version on user action."""
+    from exilelens.whats_new.content import github_release_url
+
+    QDesktopServices.openUrl(QUrl(github_release_url(version)))
+
+
 def open_github_issues() -> None:
     """Open the fixed, official ExileLens issue tracker on user action."""
     from exilelens.app.update_check import GITHUB_ISSUES_URL

@@ -120,6 +120,7 @@ class ExileLensApp:
         load_result = load_settings_result()
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
+        self._record_fresh_install_release_notes(load_result)
         self._pob_autodetected = False
         # Install-on-exit is only ever considered for a clean, user-initiated exit that is not part of a
         # Windows logoff/shutdown. Both flags default to the safe value (no install).
@@ -165,6 +166,22 @@ class ExileLensApp:
         self._tray_retries_left = 0
         self._setup_dialog: OnboardingDialog | None = None
         self._refine_dialog = None
+    def _record_fresh_install_release_notes(self, load_result) -> None:
+        """A brand-new profile starts "caught up": What's New is for people who already had ExileLens."""
+        try:
+            from exilelens._version import __version__
+            from exilelens.app.updates.version import ExileLensVersion
+            from exilelens.whats_new.trigger import record_fresh_install
+
+            record_fresh_install(
+                self.settings,
+                ExileLensVersion.parse(__version__),
+                loaded_from_disk=load_result.loaded_from_disk,
+                load_error=load_result.load_error,
+            )
+        except Exception:  # noqa: BLE001 - release notes must never affect startup
+            logger.exception("whats_new_fresh_install_record_failed")
+
     def run(self) -> int:
         apply_windows_app_id()
         app = QApplication(sys.argv)
