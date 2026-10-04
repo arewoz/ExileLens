@@ -185,6 +185,12 @@ Patreon token call (refresh tokens are single use); a loser answers `503 refresh
   then set `"override_user_hmacs":{"<hex>":["seamless_updates"]}` and bump `policy_version`. The script reads the
   pepper only from the environment and never prints it.
 
+  To keep the hash out of the public repository, put the same map in the optional Worker **secret**
+  `PATREON_OVERRIDE_USER_HMACS` instead (`{"<hex>":["seamless_updates"]}`). It is merged with the policy var's
+  overrides (de-duplicated, same 64-entry limit); missing, empty or malformed means no extra overrides. An existing
+  link with an empty verification picks it up on its next refresh after the hourly empty-result re-check, or at once
+  by linking again.
+
 ### Configuration
 
 | Name | Kind | Notes |
@@ -197,6 +203,7 @@ Patreon token call (refresh tokens are single use); a loser answers `503 refresh
 | `LEASE_ISSUANCE_ENABLED` | var | `"false"` => `503 issuance_disabled`, no lease at all |
 | `ENTITLEMENT_KEY_ID` | var | default `exilelens-entitlement-1`; the app needs the matching public key |
 | `ENTITLEMENT_POLICY` | var | see above |
+| `PATREON_OVERRIDE_USER_HMACS` | optional secret | extra user-HMAC capability overrides, see above |
 | `RL_LINK` | optional Rate Limiting binding | coarse per-IP guard for `link/start`, key never stored; verify Free-plan availability first |
 
 Any missing or invalid value gives `503 {code:"not_configured"}` with `Retry-After: 3600`, never a crash.

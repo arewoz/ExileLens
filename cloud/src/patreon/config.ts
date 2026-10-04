@@ -6,7 +6,7 @@
 import type { PatreonEnv } from "../env";
 import { importEncryptionKey } from "./crypto";
 import { importSigningKey } from "./lease";
-import { parsePolicy, type Policy } from "./policy";
+import { parseOverrideSecret, parsePolicy, withExtraOverrides, type Policy } from "./policy";
 
 export const DEFAULT_API_BASE = "https://www.patreon.com";
 export const DEFAULT_KEY_ID = "exilelens-entitlement-1";
@@ -71,8 +71,9 @@ export async function loadConfig(env: PatreonEnv): Promise<PatreonConfig | null>
     if (!validBase(apiBase)) return null;
     const kid = (env.ENTITLEMENT_KEY_ID ?? "").trim() === "" ? DEFAULT_KEY_ID : (env.ENTITLEMENT_KEY_ID as string).trim();
     if (!/^[A-Za-z0-9._-]{1,64}$/.test(kid)) return null;
-    const policy = parsePolicy(env.ENTITLEMENT_POLICY);
-    if (policy === null) return null;
+    const basePolicy = parsePolicy(env.ENTITLEMENT_POLICY);
+    if (basePolicy === null) return null;
+    const policy = withExtraOverrides(basePolicy, parseOverrideSecret(env.PATREON_OVERRIDE_USER_HMACS));
     const pepper = env.PATREON_ID_PEPPER;
     if (typeof pepper !== "string" || pepper.length < MIN_PEPPER_LENGTH) return null;
     const encKey = typeof env.TOKEN_ENC_KEY === "string" ? await importEncryptionKey(env.TOKEN_ENC_KEY) : null;

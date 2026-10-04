@@ -119,6 +119,48 @@ export function parsePolicy(text: string | undefined): Policy | null {
   };
 }
 
+/**
+ * Parse the optional `PATREON_OVERRIDE_USER_HMACS` secret: a JSON object of user HMAC (hex) -> capability names,
+ * kept out of the public repository. Anything missing, empty, malformed or over the limit yields no overrides
+ * (fail closed: it can never widen eligibility by accident, and never throws).
+ */
+export function parseOverrideSecret(text: string | undefined): Record<string, string[]> {
+  if (typeof text !== "string" || text.trim() === "" || text.length > 16384) return {};
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return {};
+  }
+  if (!isObj(raw)) return {};
+  const keys = Object.keys(raw);
+  if (keys.length > MAX_OVERRIDES) return {};
+  const out: Record<string, string[]> = {};
+  for (const k of keys) {
+    const caps = capList(raw[k]);
+    if (!HMAC_RE.test(k) || caps === null) return {};
+    out[k] = caps;
+  }
+  return out;
+}
+
+/**
+ * The policy with extra user overrides merged in. The policy var stays the source of truth for everyone else;
+ * a user present in both gets the de-duplicated union. If the union would exceed the override limit the extra
+ * overrides are ignored.
+ */
+export function withExtraOverrides(policy: Policy, extra: Record<string, string[]>): Policy {
+  const extraKeys = Object.keys(extra);
+  if (extraKeys.length === 0) return policy;
+  const merged: Record<string, string[]> = { ...policy.override_user_hmacs };
+  for (const k of extraKeys) {
+    const existing = Object.prototype.hasOwnProperty.call(merged, k) ? merged[k]! : [];
+    merged[k] = [...new Set([...existing, ...extra[k]!])];
+  }
+  if (Object.keys(merged).length > MAX_OVERRIDES) return policy;
+  return { ...policy, override_user_hmacs: merged };
+}
+
 function ruleMatches(rule: PolicyRule, tiers: TierFact[]): boolean {
   if ("when" in rule) return tiers.some((t) => t.amount_cents > 0);
   return tiers.some((t) => rule.tier_ids.includes(t.id));

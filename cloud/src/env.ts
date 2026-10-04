@@ -50,6 +50,8 @@ export interface PatreonEnv {
   ENTITLEMENT_KEY_ID?: string;
   /** JSON string, see src/patreon/policy.ts. */
   ENTITLEMENT_POLICY?: string;
+  /** Optional secret: JSON `{ "<user hmac hex>": ["capability"] }`, merged into the policy's overrides (creator / testers). */
+  PATREON_OVERRIDE_USER_HMACS?: string;
   /** Optional coarse outer guard for link/start, keyed by CF-Connecting-IP (never stored). */
   RL_LINK?: RateLimiter;
 }
@@ -85,6 +87,7 @@ const PATREON_KEYS = [
   "LEASE_ISSUANCE_ENABLED",
   "ENTITLEMENT_KEY_ID",
   "ENTITLEMENT_POLICY",
+  "PATREON_OVERRIDE_USER_HMACS",
   "RL_LINK",
 ] as const satisfies readonly (keyof PatreonEnv)[];
 

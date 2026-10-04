@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { env as bindings } from "cloudflare:workers";
-import { evaluatePolicy, extractFacts, parsePolicy, type MembershipFact } from "../src/patreon/policy";
+import { evaluatePolicy, extractFacts, parseOverrideSecret, parsePolicy, withExtraOverrides, type MembershipFact } from "../src/patreon/policy";
 import { NOW, referenceHmac } from "./helpers";
 import {
   CAMPAIGN,
@@ -163,5 +163,103 @@ describe("policy matrix through the real link flow (mocked identity payloads)", 
     // and a different user without membership gets nothing from the same policy
     mock.defaultIdentity = { userId: "31338", noMembership: true };
     expect((await fullLink(workerFor(NOW, mock), "code-2", env)).pollBody.status).toBe("not_entitled");
+  });
+});
+
+describe("creator override from the PATREON_OVERRIDE_USER_HMACS secret", () => {
+  beforeEach(resetPatreonDb);
+
+  const creator = "c".repeat(64);
+  const secret = (value: unknown) => JSON.stringify(value);
+
+  it("parseOverrideSecret: missing, empty and malformed values mean no overrides (fail closed, never throws)", () => {
+    expect(parseOverrideSecret(undefined)).toEqual({});
+    expect(parseOverrideSecret("")).toEqual({});
+    expect(parseOverrideSecret("   ")).toEqual({});
+    expect(parseOverrideSecret("not json")).toEqual({});
+    expect(parseOverrideSecret("[]")).toEqual({});
+    expect(parseOverrideSecret(secret({ nothex: ["seamless_updates"] }))).toEqual({});
+    expect(parseOverrideSecret(secret({ [creator]: ["Bad Cap"] }))).toEqual({});
+    expect(parseOverrideSecret(secret({ [creator]: "seamless_updates" }))).toEqual({});
+    // one bad entry invalidates the whole secret rather than half-applying it
+    expect(parseOverrideSecret(secret({ [creator]: ["seamless_updates"], nothex: ["x"] }))).toEqual({});
+    expect(parseOverrideSecret(secret({ [creator]: ["seamless_updates"] }))).toEqual({ [creator]: ["seamless_updates"] });
+  });
+
+  it("parseOverrideSecret enforces the same count limit as the policy var", () => {
+    const many = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [i.toString(16).padStart(64, "0"), ["seamless_updates"]]));
+    expect(Object.keys(parseOverrideSecret(secret(many(64))))).toHaveLength(64);
+    expect(parseOverrideSecret(secret(many(65)))).toEqual({});
+  });
+
+  it("withExtraOverrides merges with the policy var and de-duplicates; the policy stays the source of truth", () => {
+    const other = "d".repeat(64);
+    const base = parsePolicy(policyJson({ override_user_hmacs: { [other]: ["seamless_updates", "beta"], [creator]: ["alpha"] } }))!;
+    const merged = withExtraOverrides(base, { [creator]: ["seamless_updates", "alpha"] });
+    expect(merged.override_user_hmacs[creator]!.slice().sort()).toEqual(["alpha", "seamless_updates"]);
+    expect(merged.override_user_hmacs[other]).toEqual(["seamless_updates", "beta"]);
+    expect(merged.rules).toEqual(base.rules);
+    expect(base.override_user_hmacs[creator]).toEqual(["alpha"]); // input not mutated
+    expect(withExtraOverrides(base, {})).toBe(base);
+  });
+
+  it("withExtraOverrides ignores extras that would exceed the override limit", () => {
+    const full = Object.fromEntries(Array.from({ length: 64 }, (_, i) => [i.toString(16).padStart(64, "0"), ["seamless_updates"]]));
+    const base = parsePolicy(policyJson({ override_user_hmacs: full }))!;
+    expect(withExtraOverrides(base, { [creator]: ["seamless_updates"] })).toBe(base);
+  });
+
+  async function link(userId: string, spec: Record<string, unknown>, secretValue: string | undefined, code: string) {
+    const mock = new MockPatreon();
+    mock.defaultIdentity = { userId, ...spec } as IdentitySpec;
+    const env = makePatreonEnv(secretValue === undefined ? {} : { PATREON_OVERRIDE_USER_HMACS: secretValue });
+    return (await fullLink(workerFor(NOW, mock), code, env)).pollBody;
+  }
+
+  it("a creator with no membership gets seamless_updates through the secret (no change to the policy var)", async () => {
+    const hmac = await referenceHmac(bindings.PATREON_ID_PEPPER, "patreon", "31337");
+    const body = await link("31337", { noMembership: true }, secret({ [hmac]: ["seamless_updates"] }), "code-1");
+    expect(body.status).toBe("linked");
+    expect(body.lease!.lease.capabilities).toEqual(["seamless_updates"]);
+  });
+
+  it("a different user without membership gets nothing from the same secret", async () => {
+    const hmac = await referenceHmac(bindings.PATREON_ID_PEPPER, "patreon", "31337");
+    const body = await link("31338", { noMembership: true }, secret({ [hmac]: ["seamless_updates"] }), "code-2");
+    expect(body.status).toBe("not_entitled");
+    expect(body.lease!.lease.capabilities).toEqual([]);
+  });
+
+  it.each([["unset", undefined], ["garbage", "{not json"], ["wrong shape", "[1,2]"], ["bad hmac", secret({ nothex: ["seamless_updates"] })]])(
+    "a malformed or missing secret (%s) grants the creator nothing and does not break linking",
+    async (_name, value) => {
+      const body = await link("31337", { noMembership: true }, value as string | undefined, "code-3");
+      expect(body.status).toBe("not_entitled");
+      expect(body.lease!.lease.capabilities).toEqual([]);
+    },
+  );
+
+  it("supporter rules are unchanged when the secret is set: paid, gifted and trial are eligible, free members are not", async () => {
+    const hmac = await referenceHmac(bindings.PATREON_ID_PEPPER, "patreon", "31337");
+    const value = secret({ [hmac]: ["seamless_updates"] });
+    const paid = { tiers: [{ id: "9", cents: 500 }] };
+    expect((await link("1", paid, value, "c-paid")).lease!.lease.capabilities).toEqual(["seamless_updates"]);
+    expect((await link("2", { ...paid, is_gifted: true }, value, "c-gift")).lease!.lease.capabilities).toEqual(["seamless_updates"]);
+    expect((await link("3", { ...paid, is_free_trial: true }, value, "c-trial")).lease!.lease.capabilities).toEqual(["seamless_updates"]);
+    expect((await link("4", { tiers: [{ id: "8", cents: 0 }] }, value, "c-free")).lease!.lease.capabilities).toEqual([]);
+  });
+
+  it("the policy var override and the secret override both apply and merge", async () => {
+    const fromVar = await referenceHmac(bindings.PATREON_ID_PEPPER, "patreon", "500");
+    const fromSecret = await referenceHmac(bindings.PATREON_ID_PEPPER, "patreon", "501");
+    const mock = new MockPatreon();
+    const env = makePatreonEnv({
+      ENTITLEMENT_POLICY: policyJson({ override_user_hmacs: { [fromVar]: ["seamless_updates"] } }),
+      PATREON_OVERRIDE_USER_HMACS: secret({ [fromSecret]: ["seamless_updates"] }),
+    });
+    mock.defaultIdentity = { userId: "500", noMembership: true };
+    expect((await fullLink(workerFor(NOW, mock), "m-1", env)).pollBody.lease!.lease.capabilities).toEqual(["seamless_updates"]);
+    mock.defaultIdentity = { userId: "501", noMembership: true };
+    expect((await fullLink(workerFor(NOW, mock), "m-2", env)).pollBody.lease!.lease.capabilities).toEqual(["seamless_updates"]);
   });
 });
