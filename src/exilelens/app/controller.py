@@ -1133,15 +1133,8 @@ class EvaluationController(QObject):
             settings_strict_live=settings.strict_live,
             diagnostic_mode=settings.price_check_diagnostic_mode,
         )
-        self._market_only_service = PriceCheckService(
-            providers=build_market_only_price_check_providers(
-                league=settings.market_league,
-                cache=PriceCheckCache(live_ttl_seconds=0.0),
-            ),
-            cache=PriceCheckCache(live_ttl_seconds=0.0),
-            strict_live=True,
-            diagnostic_mode="market_only",
-        )
+        # R5-A: the legacy market-only service builds the live trade provider stack, so it is created on first use, never at startup.
+        self._market_only_service: PriceCheckService | None = None
         self._price_check_inflight = False
         self._active_price_check_id: int | None = None
         self._latest_price_check_id = 0
@@ -2817,6 +2810,21 @@ class EvaluationController(QObject):
                 return cleaned
         return None
 
+    def _get_market_only_service(self) -> PriceCheckService:
+        """Create (once) the legacy market-only service. Central market access still applies: its production transport is the
+        AuthorizedTransport, and there is no market-only bypass."""
+        if self._market_only_service is None:
+            self._market_only_service = PriceCheckService(
+                providers=build_market_only_price_check_providers(
+                    league=self.settings.market_league,
+                    cache=PriceCheckCache(live_ttl_seconds=0.0),
+                ),
+                cache=PriceCheckCache(live_ttl_seconds=0.0),
+                strict_live=True,
+                diagnostic_mode="market_only",
+            )
+        return self._market_only_service
+
     def resolve_price_check_league(self, *, allow_network: bool = True) -> LeagueResolution:
         resolution = resolve_market_league(
             settings_league=self.settings.market_league,
@@ -3546,7 +3554,7 @@ class EvaluationController(QObject):
                 request_id=request_id,
                 league_source=resolution.source,
             )
-            result = self._market_only_service.check(domain_request)
+            result = self._get_market_only_service().check(domain_request)
             presentation = build_market_only_presentation(
                 result,
                 debug=bool(self.settings.debug),
