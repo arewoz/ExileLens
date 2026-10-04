@@ -224,6 +224,7 @@ def test_already_transformed_gloves_are_never_transformed_twice(real_pob_engine,
     assert report["baseline"]["already_transformed"] is True
     _assert_same_metrics(row["baseline"]["metrics"], exported)
     _assert_same_metrics(row["candidate"]["metrics"], exported)
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert row["evaluation_outcome"]["verdict"] == "SIDEGRADE"
 
 
@@ -313,6 +314,7 @@ def test_roll_dependent_evaluation_is_deterministic_and_restores(real_pob_engine
     second = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
 
     a, b = _row(first), _row(second)
+    assert a["evaluation_outcome"]["evaluation_quality"] == b["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert a["evaluation_outcome"]["verdict"] == b["evaluation_outcome"]["verdict"]
     assert a["evaluation_outcome"]["final_score"] == b["evaluation_outcome"]["final_score"]
     assert a["stonefist_roll_bounds"]["ranges"] == b["stonefist_roll_bounds"]["ranges"]
@@ -640,6 +642,7 @@ def test_each_ranged_line_is_probed_alone_for_a_real_glove(real_pob_engine, monk
                         lambda slots, raws, **kw: calls.append(len(raws)) or variants(slots, raws, **kw))
     result = evaluate_item(candidate, real_pob_engine, build_path=str(BUILD))
     bounds = _row(result)["stonefist_roll_bounds"]
+    assert _row(result)["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert calls == [7]
     assert bounds["single_roll_probes"] == 4 and bounds["verified_configurations"] == 7
     assert "each ranged modifier alone at its highest roll" in bounds["summary"]

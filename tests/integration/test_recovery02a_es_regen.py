@@ -40,6 +40,8 @@ def test_authentic_invoker_boots_gain_real_es_regeneration_and_restore(real_pob_
     assert real_pob_engine.get_metrics()["fingerprint_hash"] == baseline["fingerprint_hash"]
 
     row = _row(evaluate_item(candidate, real_pob_engine, build_path=str(BUILD)), "Boots")
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert row["restore"]["pass"] is True
     impact = row["evaluation_outcome"]["item_impact"]
     recovery = impact["axes"]["RECOVERY"]
     es = next(metric for metric in recovery["metrics"] if metric["key"] == "EnergyShieldRegenRecovery")

@@ -216,6 +216,8 @@ def test_dropping_below_an_equipped_requirement_is_not_viable(real_pob_engine, t
     reference = _fresh(real_pob_engine, _variant(STRENGTH, tmp_path, "requirement", STR_CANDIDATES["requirement"]))
     assert reference["Str"] < reference["ReqStr"] == 157
     assert row["candidate"]["metrics"]["Str"] == reference["Str"]
+    # The offense and defence deltas are fully measured; the guardrail alone makes the verdict NOT_VIABLE.
+    assert outcome["evaluation_quality"] == "FULL"
     assert outcome["verdict"] == "NOT_VIABLE"
     assert "ATTRIBUTE_REQUIREMENT_LOST" in {g["code"] for g in outcome["guardrails_applied"]}
 

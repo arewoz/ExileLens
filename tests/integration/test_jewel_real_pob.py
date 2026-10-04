@@ -34,6 +34,7 @@ calling `it:UpdateSockets()` explicitly before reading `.inactive`.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -115,6 +116,7 @@ def test_repeated_evaluation_is_stable_and_restores_cleanly(real_pob_engine) -> 
     first_rows, second_rows = _rows(first), _rows(second)
     assert set(first_rows) == set(second_rows)
     for slot in first_rows:
+        assert first_rows[slot]["evaluation_outcome"]["evaluation_quality"] == "FULL", slot
         assert first_rows[slot]["verdict"] == second_rows[slot]["verdict"], slot
         assert first_rows[slot]["restore"]["pass"] is True
         assert second_rows[slot]["restore"]["pass"] is True
@@ -146,6 +148,7 @@ def test_multi_socket_ranking_reflects_best_valid_placement_not_first_socket(rea
     # This jewel raises per-use damage but lowers attack speed (0.8064 -> 0.7812), leaving the rate
     # unchanged; only the defence gain remains. The per-use figure used before hid the speed loss.
     assert result["recommendation"]["verdict"] == "DEFENSE_UPGRADE"
+    assert rows["Jewel 55190"]["evaluation_outcome"]["evaluation_quality"] == "FULL"
 
 
 def test_multi_axis_tradeoff_is_reported_not_hidden(real_pob_engine) -> None:
@@ -160,6 +163,7 @@ def test_multi_axis_tradeoff_is_reported_not_hidden(real_pob_engine) -> None:
     # attribute loss -- a real, PoB-measured multi-axis tradeoff.
     row = rows["Jewel 26196"]
     assert row["verdict"] == "TRADEOFF"
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     metric_profile = row["evaluation_outcome"]["item_impact"]["axes"]
     assert "OFFENSE" in metric_profile and "DEFENSE" in metric_profile
 
@@ -208,33 +212,62 @@ def test_unallocated_jewel_socket_ranking_only_sees_legal_candidates(real_pob_en
     assert rows["Jewel 61419"]["baseline_item"]["empty"] is False
 
 
-def test_empty_allocated_socket_is_compared_against_no_jewel() -> None:
-    """Scenario 3 (allocated but empty jewel socket -> compared against no
-    jewel, never inferred from a neighboring socket): not independently provable
-    against real PoB today.
+EMPTIED_SOCKET = 11184  # holds a plain rare Ruby ("Spirit Shard") in the unmodified fixture
 
-    No fixture in the current public corpus has a genuinely allocated-but-empty
-    jewel socket -- every allocated socket across all nine corpus builds is
-    occupied (checked directly for this fix: core04_bow_quiver.xml,
-    core04_melee_weapon.xml, core04_minion_actor.xml,
-    core04_mixed_hit_ailment.xml, core04_onehand_weapon.xml,
-    core04_poison_ailment.xml, core04_skill_native_dot.xml,
-    core04_stage_context.xml, core04_weapon_swap.xml). The claim this test's
-    name used to make (that core04_skill_native_dot.xml exercised this) was
-    itself a symptom of the bug fixed alongside it -- see the module docstring.
 
-    What IS true by code-path argument rather than a real-engine fixture:
-    `allocated_jewel_socket_slots()` (runtime/lua/bridge.lua) admits a socket
-    on exactly one condition, `is_jewel_socket_slot_name(name) and not
-    slot.inactive` -- there is no `selItemId`/occupancy check anywhere in that
-    function, so the SAME code path proven correct for occupied sockets
-    (test_unallocated_jewel_socket_ranking_only_sees_legal_candidates above,
-    and test_occupied_socket_replacement_measurable_and_restored) is used
-    unconditionally for empty ones too. This is documented as a real, known
-    coverage gap rather than asserted against a fixture that cannot prove it --
-    adding a synthetic real-PoB fixture solely to manufacture an empty
-    allocated socket was judged out of scope for this correctness fix."""
-    pytest.skip(
-        "no public corpus fixture has a genuinely allocated-but-empty jewel socket; "
-        "see docstring for the code-path argument this relies on instead"
-    )
+def _with_socket_emptied(tmp_path: Path, node_id: int, mode: str) -> Path:
+    """The public fixture with one allocated jewel unslotted, in both forms PoB writes a build with an empty socket:
+    an explicit ``itemId="0"`` entry, or no entry at all."""
+    text = MELEE_WEAPON_BUILD.read_text(encoding="utf-8")
+    pattern = rf'<Socket itemId="\d+" nodeId="{node_id}"/>'
+    if mode == "explicit_zero":
+        text, count = re.subn(pattern, f'<Socket itemId="0" nodeId="{node_id}"/>', text)
+    else:
+        text, count = re.subn(r"[ \t]*" + pattern + r"\r?\n", "", text)
+    assert count == 1, (mode, count)
+    variant = tmp_path / f"core04_melee_weapon_empty_{mode}.xml"
+    variant.write_text(text, encoding="utf-8")
+    return variant
+
+
+@pytest.mark.parametrize("mode", ["explicit_zero", "omitted"])
+def test_empty_allocated_socket_is_compared_against_no_jewel(real_pob_engine, tmp_path: Path, mode: str) -> None:
+    """Scenario 3: an allocated but EMPTY jewel socket is discovered and compared against no jewel, never inferred
+    from a neighbouring socket, and nothing leaks into the next evaluation.
+
+    R4 provenance note: no natural public-corpus build has an allocated-but-empty jewel socket (checked across the whole
+    corpus), so this test derives one from the existing public fixture by unslotting a single jewel -- the same
+    technique CORE-04's empty-ring test uses -- and measures it on the real engine. It is a variant of a real build, not
+    a hand-made fixture; the earlier skip rested only on a code-path argument. Both representations PoB produces for an
+    unslotted socket are covered."""
+    original = _rows(evaluate_item(CANDIDATE_RUBY, real_pob_engine, build_path=str(MELEE_WEAPON_BUILD)))
+    assert original[f"Jewel {EMPTIED_SOCKET}"]["baseline_item"]["empty"] is False
+
+    variant = _with_socket_emptied(tmp_path, EMPTIED_SOCKET, mode)
+    result = evaluate_item(CANDIDATE_RUBY, real_pob_engine, build_path=str(variant))
+
+    assert result["ok"] is True
+    rows = _rows(result)
+    # The emptied socket is still allocated, so it is still discovered; none of the others is lost.
+    assert set(rows) == set(original)
+    empty = rows[f"Jewel {EMPTIED_SOCKET}"]
+    assert empty["baseline_item"]["empty"] is True
+    outcome = empty["evaluation_outcome"]
+    assert outcome["replacing_empty_slot"] is True
+    assert outcome["evaluation_quality"] == "FULL"
+    assert empty["candidate"]["item_present"] is True
+    assert empty["restore"]["pass"] is True
+    # Compared against NO jewel: the unmodified socket was NO_CHANGE (same jewel family), the empty one is a real gain.
+    assert original[f"Jewel {EMPTIED_SOCKET}"]["verdict"] == "NO_CHANGE"
+    assert empty["verdict"] not in {"NO_CHANGE", "TRADEOFF"}
+    assert result["recommendation"]["product_slot"] == f"Jewel {EMPTIED_SOCKET}"
+    # Emptying one socket must not change what any other socket's own baseline measures.
+    for slot, row in rows.items():
+        if slot != f"Jewel {EMPTIED_SOCKET}":
+            assert row["baseline_item"]["name"] == original[slot]["baseline_item"]["name"], slot
+            assert row["verdict"] == original[slot]["verdict"], slot
+        assert row["restore"]["pass"] is True, slot
+
+    # No state leaked into the unmodified build.
+    again = _rows(evaluate_item(CANDIDATE_RUBY, real_pob_engine, build_path=str(MELEE_WEAPON_BUILD)))
+    assert {slot: row["verdict"] for slot, row in again.items()} == {slot: row["verdict"] for slot, row in original.items()}

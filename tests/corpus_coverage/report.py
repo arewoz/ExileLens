@@ -20,10 +20,12 @@ from tests.corpus_coverage.taxonomy import (
     FUNCTIONAL_RESULTS,
     SUPPORTED_RESULTS,
     Archetype,
+    CaseRole,
     CoverageResult,
     EvaluationDepth,
     ExpectedResult,
     FunctionalMeasurement,
+    UncertaintyAudit,
 )
 
 MANIFEST_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "builds" / "public_corpus" / "manifest.json"
@@ -107,9 +109,28 @@ def grade_case(case: CoverageCase, outcomes: list[JUnitOutcome]) -> CaseGrade:
     return CaseGrade(case, grade, passed, len(executed))
 
 
+@dataclass(frozen=True)
+class ArchetypeStatus:
+    """R4: what the corpus actually establishes for one archetype. Derived from the cases, never from their count."""
+
+    status: str
+    fully_measured: int
+    partially_measured: int
+    refusals: int
+    integrity_or_identity: int
+    failing: int
+
+
 @dataclass
 class CoverageReport:
     grades: list[CaseGrade] = field(default_factory=list)
+    # R4: failing tests in the executed suites that no registered case accounts for. The headline metric only sees
+    # registered cases, so without this a failing corpus-gate test could sit beside "100%".
+    unmapped_failures: list[JUnitOutcome] = field(default_factory=list)
+    # R4: the PoB runtime the report was measured on (version/layout only, no paths): results are runtime-specific.
+    runtime: dict[str, str] = field(default_factory=dict)
+    # R4: tests skipped in the executed suites. A skip is not evidence of anything and is listed so it cannot hide.
+    skipped: list[JUnitOutcome] = field(default_factory=list)
 
     @property
     def result_counts(self) -> dict[str, int]:
@@ -172,11 +193,56 @@ class CoverageReport:
         )
 
     def unclassified_verdict_count(self) -> int:
+        """Executed MECHANIC verdict cases with no functional classification (STATE_INTEGRITY cases are accounted for)."""
         return sum(
             1 for g in self.grades
             if g.case.depth is EvaluationDepth.VERDICT and g.case.functional is None
-            and g.result is not CoverageResult.NOT_RUN
+            and g.case.role is CaseRole.MECHANIC and g.result is not CoverageResult.NOT_RUN
         )
+
+    def integrity_grades(self) -> list[CaseGrade]:
+        """Executed VERDICT cases that prove state/loadout/restore integrity rather than measure a mechanic."""
+        return [
+            g for g in self.grades
+            if g.case.depth is EvaluationDepth.VERDICT and g.case.role is CaseRole.STATE_INTEGRITY
+            and g.result is not CoverageResult.NOT_RUN
+        ]
+
+    def archetype_status(self) -> dict[Archetype, ArchetypeStatus]:
+        """Per-archetype status from what the cases establish: FUNCTIONALLY MEASURED needs a passing FULLY_MEASURED verdict
+        case; PARTIAL/EXPECTED UNCERTAINTY describe only refusals; REPRESENTED means identity/policy/integrity cases only."""
+        by_archetype = self.archetype_counts()
+        table: dict[Archetype, ArchetypeStatus] = {}
+        for archetype in Archetype:
+            grades = [g for g in by_archetype.get(archetype, []) if g.result is not CoverageResult.NOT_RUN]
+            if not by_archetype.get(archetype):
+                table[archetype] = ArchetypeStatus("RELEASE GAP", 0, 0, 0, 0, 0)
+                continue
+            failing = sum(1 for g in grades if g.result not in SUPPORTED_RESULTS)
+            passing = [g for g in grades if g.result in SUPPORTED_RESULTS]
+            fully = sum(1 for g in passing if g.case.functional is FunctionalMeasurement.FULLY_MEASURED)
+            partial = sum(1 for g in passing if g.case.functional is FunctionalMeasurement.PARTIALLY_MEASURED)
+            refusals = sum(1 for g in passing if g.case.functional in (
+                FunctionalMeasurement.EXPECTED_UNCERTAINTY, FunctionalMeasurement.UNSUPPORTED_MECHANIC))
+            other = len(passing) - fully - partial - refusals
+            if fully:
+                status = "FUNCTIONALLY MEASURED"
+            elif partial:
+                status = "PARTIAL"
+            elif refusals:
+                status = "EXPECTED UNCERTAINTY"
+            else:
+                status = "REPRESENTED"
+            table[archetype] = ArchetypeStatus(status, fully, partial, refusals, other, failing)
+        return table
+
+    def audited_refusals(self) -> list[CaseGrade]:
+        """Every case whose correct answer is a refusal or that is only partially measured (the R4 uncertainty audit)."""
+        return [
+            g for g in self.grades
+            if g.case.expected is not ExpectedResult.CONFIDENT
+            or g.case.functional is FunctionalMeasurement.PARTIALLY_MEASURED
+        ]
 
     def functional_by_archetype(self) -> dict[Archetype, dict[str, int]]:
         table: dict[Archetype, dict[str, int]] = {}
@@ -188,11 +254,29 @@ class CoverageReport:
         return table
 
 
-def build_report(outcomes: list[JUnitOutcome], cases: tuple[CoverageCase, ...] = ALL_CASES) -> CoverageReport:
-    return CoverageReport(grades=[grade_case(case, outcomes) for case in cases])
+def _unmapped_failures(outcomes: list[JUnitOutcome], cases: tuple[CoverageCase, ...]) -> list[JUnitOutcome]:
+    accounted: set[int] = set()
+    for case in cases:
+        for matched in _matches(case, outcomes):
+            accounted.add(id(matched))
+    return [o for o in outcomes if o.status in ("failed", "error") and id(o) not in accounted]
 
 
-def render_markdown(report: CoverageReport) -> str:
+def build_report(
+    outcomes: list[JUnitOutcome],
+    cases: tuple[CoverageCase, ...] = ALL_CASES,
+    *,
+    runtime: dict[str, str] | None = None,
+) -> CoverageReport:
+    return CoverageReport(
+        grades=[grade_case(case, outcomes) for case in cases],
+        unmapped_failures=_unmapped_failures(outcomes, cases),
+        runtime=dict(runtime or {}),
+        skipped=[o for o in outcomes if o.status == "skipped"],
+    )
+
+
+def render_markdown(report: CoverageReport, gate_text: str | None = None) -> str:
     lines: list[str] = []
     lines.append("# Corpus Coverage Report")
     lines.append("")
@@ -206,6 +290,20 @@ def render_markdown(report: CoverageReport) -> str:
 
     total = report.total_count
     supported = report.supported_count
+    if report.runtime:
+        lines.append(
+            "**PoB runtime this report was measured on:** "
+            + ", ".join(f"{key} {value}" for key, value in sorted(report.runtime.items()))
+            + ". Results are specific to this runtime: another PoB revision can legitimately change a measured value."
+        )
+        lines.append("")
+    if gate_text:
+        lines.append("## R4 1.0 reliability gate (coverage half)")
+        lines.append("")
+        lines.append("```")
+        lines.append(gate_text)
+        lines.append("```")
+        lines.append("")
     lines.append("## Headline metric")
     lines.append("")
     if total == 0:
@@ -240,6 +338,9 @@ def render_markdown(report: CoverageReport) -> str:
     lines.append("")
 
     lines.extend(_render_functional(report))
+    lines.extend(_render_archetype_status(report))
+    lines.extend(_render_integrity(report))
+    lines.extend(_render_audit(report))
 
     lines.append("## Archetype / mechanic coverage matrix")
     lines.append("")
@@ -299,6 +400,29 @@ def render_markdown(report: CoverageReport) -> str:
         )
     lines.append("")
 
+    lines.append("## Failing tests outside the registry")
+    lines.append("")
+    if not report.unmapped_failures:
+        lines.append("None in this run: every failing test in the executed suites belongs to a registered case.")
+    else:
+        lines.append(
+            "The headline metric only sees registered cases. These tests failed in the executed suites and no registered "
+            "case accounts for them; the R4 gate blocks on any of them."
+        )
+        for outcome in report.unmapped_failures:
+            lines.append(f"- `{outcome.classname.split('.')[-1]}::{outcome.name}`: {outcome.message[:160]}")
+    lines.append("")
+
+    lines.append("## Skipped tests in the executed suites")
+    lines.append("")
+    if not report.skipped:
+        lines.append("None: every collected test in the executed suites ran.")
+    else:
+        lines.append("A skipped test is not evidence of anything. Listed so a skip cannot hide a gap.")
+        for outcome in report.skipped:
+            lines.append(f"- `{outcome.classname.split('.')[-1]}::{outcome.name}`: {outcome.message[:160]}")
+    lines.append("")
+
     high_risk = report.high_risk_grades
     lines.append("## High-risk failures (confident but incorrect)")
     lines.append("")
@@ -320,8 +444,9 @@ def _render_functional(report: CoverageReport) -> list[str]:
         "The headline metric above counts a correct refusal as supported. This section does "
         "not: it counts what each classified verdict-level case's own assertions establish "
         "about the mechanic (see `FunctionalMeasurement` in `tests/corpus_coverage/taxonomy.py`). "
-        "Only FULLY_MEASURED is functional coverage. Identity, restore/repeatability and policy "
-        "cases are not classified."
+        "Only FULLY_MEASURED is functional coverage. Every verdict-level case is either a MECHANIC case (classified "
+        "here) or a STATE_INTEGRITY case (loadout, restore and enumeration plumbing, listed separately below: it is "
+        "neither counted as nor against functional coverage). Identity and policy cases are not verdict-level."
     )
     lines.append("")
     classified = report.classified_grades()
@@ -332,7 +457,8 @@ def _render_functional(report: CoverageReport) -> list[str]:
     lines.append(
         f"**Fully measured (of executed classified cases): {report.functional_count}/{len(classified)} "
         f"({100.0 * report.functional_count / len(classified):.0f}%).** "
-        f"Executed verdict-level cases not yet classified: {report.unclassified_verdict_count()}."
+        f"Executed mechanic cases not yet classified: {report.unclassified_verdict_count()}. "
+        f"State-integrity cases: {len(report.integrity_grades())}."
     )
     lines.append("")
     lines.append("| Measurement | Cases |")
@@ -357,6 +483,65 @@ def _render_functional(report: CoverageReport) -> list[str]:
     return lines
 
 
+def _render_archetype_status(report: CoverageReport) -> list[str]:
+    lines = ["## Archetype status (what the cases establish, not how many there are)", ""]
+    lines.append(
+        "FUNCTIONALLY MEASURED = at least one passing FULLY_MEASURED verdict case. PARTIAL / EXPECTED UNCERTAINTY = only "
+        "partially measured or correctly refused. REPRESENTED = identity, policy or integrity cases only. RELEASE GAP = no case."
+    )
+    lines.append("")
+    lines.append("| Archetype | Status | Fully measured | Partial | Refusals | Other (identity/policy/integrity) | Failing |")
+    lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+    for archetype, status in report.archetype_status().items():
+        lines.append(
+            f"| {archetype.value} | {status.status} | {status.fully_measured} | {status.partially_measured} | "
+            f"{status.refusals} | {status.integrity_or_identity} | {status.failing} |"
+        )
+    lines.append("")
+    return lines
+
+
+def _render_integrity(report: CoverageReport) -> list[str]:
+    grades = report.integrity_grades()
+    lines = ["## State-integrity cases", ""]
+    lines.append(
+        "Verdict-level cases that prove the right loadout/state was evaluated, isolated, enumerated or restored. They assert no "
+        "mechanic measurement, so they are not functional coverage; a failure here is a restore/state-corruption failure and "
+        "blocks the R4 gate."
+    )
+    lines.append("")
+    lines.append("| Case | Result |")
+    lines.append("| --- | --- |")
+    for grade in grades:
+        lines.append(f"| {grade.case.id} | {grade.result.value} |")
+    lines.append("")
+    return lines
+
+
+def _render_audit(report: CoverageReport) -> list[str]:
+    grades = report.audited_refusals()
+    lines = ["## Refusal / uncertainty audit", ""]
+    lines.append(
+        "Every case whose correct answer is a refusal (expected UNCERTAIN or UNSUPPORTED) or that is only partially measured, "
+        "with the audited reason. CORRECT_UNCERTAINTY stays; FIXABLE_MEASUREMENT_GAP is a documented product limitation with "
+        "its effort; COPY_OR_DIAGNOSTIC is a wording problem."
+    )
+    lines.append("")
+    counts: dict[str, int] = defaultdict(int)
+    for grade in grades:
+        counts[grade.case.audit.value if grade.case.audit else "UNAUDITED"] += 1
+    lines.append("Audit counts: " + ", ".join(f"{name}={count}" for name, count in sorted(counts.items())) + ".")
+    lines.append("")
+    lines.append("| Case | Answer | Audit | Note |")
+    lines.append("| --- | --- | --- | --- |")
+    for grade in grades:
+        case = grade.case
+        note = case.audit_note.replace("|", "/")
+        lines.append(f"| {case.id} | {case.expected.value} | {case.audit.value if case.audit else 'UNAUDITED'} | {note} |")
+    lines.append("")
+    return lines
+
+
 def to_json_dict(report: CoverageReport) -> dict:
     """Deterministic, diff-friendly machine-readable form (sorted keys, no timestamps)."""
     return {
@@ -364,6 +549,15 @@ def to_json_dict(report: CoverageReport) -> dict:
         "supported_count": report.supported_count,
         "total_count": report.total_count,
         "uncovered_archetypes": sorted(a.value for a in report.uncovered_archetypes()),
+        "runtime": dict(sorted(report.runtime.items())),
+        "unmapped_failures": sorted(f"{o.classname}::{o.name}" for o in report.unmapped_failures),
+        "skipped_tests": sorted(f"{o.classname}::{o.name}" for o in report.skipped),
+        "state_integrity_cases": len(report.integrity_grades()),
+        "archetype_status": {
+            a.value: {"status": s.status, "fully_measured": s.fully_measured, "partially_measured": s.partially_measured,
+                      "refusals": s.refusals, "other": s.integrity_or_identity, "failing": s.failing}
+            for a, s in report.archetype_status().items()
+        },
         "functional": {
             "counts": report.functional_counts(),
             "fully_measured": report.functional_count,
@@ -379,6 +573,10 @@ def to_json_dict(report: CoverageReport) -> dict:
                 "archetypes": sorted(a.value for a in grade.case.archetypes),
                 "manifest_id": grade.case.manifest_id,
                 "functional": grade.case.functional.value if grade.case.functional else None,
+                "role": grade.case.role.value,
+                "audit": grade.case.audit.value if grade.case.audit else None,
+                "audit_note": grade.case.audit_note,
+                "blocks_1_0": grade.case.blocks_1_0,
                 "result": grade.result.value,
                 "passed_variants": grade.passed_variants,
                 "total_variants": grade.total_variants,
