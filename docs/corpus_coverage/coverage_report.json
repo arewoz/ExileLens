@@ -66,7 +66,7 @@
     },
     "melee": {
       "failing": 0,
-      "fully_measured": 9,
+      "fully_measured": 10,
       "other": 8,
       "partially_measured": 2,
       "refusals": 0,
@@ -805,6 +805,25 @@
       "result": "PASS",
       "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "DUAL-WIELD-WEAPON-CANDIDATE-BOTH-HANDS",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_r4_reliability_gate.py",
       "total_variants": 1
     },
     {
@@ -3662,15 +3681,15 @@
     }
   ],
   "functional": {
-    "classified_executed": 106,
+    "classified_executed": 107,
     "counts": {
       "EXPECTED_UNCERTAINTY": 9,
-      "FULLY_MEASURED": 90,
+      "FULLY_MEASURED": 91,
       "NOT_ESTABLISHED": 0,
       "PARTIALLY_MEASURED": 4,
       "UNSUPPORTED_MECHANIC": 3
     },
-    "fully_measured": 90,
+    "fully_measured": 91,
     "unclassified_verdict_executed": 0
   },
   "gate": {
@@ -3679,7 +3698,7 @@
   },
   "result_counts": {
     "EXPECTED_UNCERTAIN": 19,
-    "PASS": 158,
+    "PASS": 159,
     "UNSUPPORTED": 10
   },
   "runtime": {
@@ -3688,8 +3707,8 @@
   },
   "skipped_tests": [],
   "state_integrity_cases": 24,
-  "supported_count": 187,
-  "total_count": 187,
+  "supported_count": 188,
+  "total_count": 188,
   "uncovered_archetypes": [],
   "unmapped_failures": []
 }

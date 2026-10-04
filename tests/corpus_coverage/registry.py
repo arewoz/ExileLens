@@ -2474,6 +2474,21 @@ R4_CASES: tuple[CoverageCase, ...] = (
         functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
+        id="DUAL-WIELD-WEAPON-CANDIDATE-BOTH-HANDS",
+        test_file=_R4_FILE,
+        node_name="test_dual_wield_weapon_candidate_is_evaluated_in_both_hands_and_restored",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A one-hand weapon on a build wielding two one-handers (Brutus' Lead Sprinkler in each hand) is legal in both weapon "
+            "slots: each hand is evaluated against its own equipped weapon, FULL with a measured offense gain, restores, and the best "
+            "hand is chosen by measurement. The dual-wield layout had only been exercised with amulet candidates."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02G-STRENGTH-BRUTUS",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
         id="JEWEL-OCCUPIED-SOCKET-REPLACEMENT",
         test_file=_JEWEL_FILE,
         node_name="test_occupied_socket_replacement_measurable_and_restored",

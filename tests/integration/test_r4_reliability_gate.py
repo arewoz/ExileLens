@@ -57,3 +57,31 @@ def test_every_gear_slot_is_measured_in_its_own_slot_and_restored(real_pob_engin
     assert outcome["item_impact"]["axes"]["DEFENSE"]["direction"] == "POSITIVE"
     assert outcome["verdict"] in UPGRADES
     assert all(entry["restore"]["pass"] is True for entry in result["slot_comparisons"])
+
+
+STRENGTH_DUAL_WIELD_BUILD = ROOT / "fixtures" / "builds" / "public_corpus" / "corpus02g_strength_oracle_brutus.xml"
+
+
+def test_dual_wield_weapon_candidate_is_evaluated_in_both_hands_and_restored(real_pob_engine) -> None:
+    """A one-hand weapon on a build wielding two one-handers (Brutus' Lead Sprinkler in each hand) is legal in both weapon slots.
+
+    Both hands are evaluated against their OWN equipped weapon (the main hand is the Runeforged one), each in its own slot with a
+    measured offense gain, and both restore. The one-hand + SHIELD layout (one slot is NOT_VIABLE) was already covered; this is the
+    layout where removing the off-hand weapon is a legal swap, which the corpus had only ever exercised with amulet candidates."""
+    candidate = _equipped_item(STRENGTH_DUAL_WIELD_BUILD, "Weapon 2") + "\n30% increased Attack Speed\n"
+
+    result = evaluate_item(candidate, real_pob_engine, build_path=str(STRENGTH_DUAL_WIELD_BUILD))
+
+    assert result["pob_parse"]["weapon_layout"] == "AMBIGUOUS_WEAPON_LAYOUT"
+    rows = {row["pob_slot"]: row for row in result["slot_comparisons"]}
+    assert set(rows) == {"Weapon 1", "Weapon 2"}
+    assert rows["Weapon 1"]["baseline_item"]["name"] != rows["Weapon 2"]["baseline_item"]["name"]
+    for slot, row in rows.items():
+        outcome = row["evaluation_outcome"]
+        assert outcome["evaluation_quality"] == "FULL", slot
+        assert outcome["item_impact"]["axes"]["OFFENSE"]["direction"] == "POSITIVE", slot
+        assert outcome["verdict"] in UPGRADES, slot
+        assert row["candidate"]["item_present"] is True, slot
+        assert row["restore"]["pass"] is True, slot
+    # The best placement is chosen by measurement, not by slot order.
+    assert result["recommendation"]["pob_slot"] == "Weapon 2"
