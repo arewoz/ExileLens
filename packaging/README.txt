@@ -150,7 +150,9 @@ cannot be evaluated.
 MARKET PRICING
 --------------
 
-Live market pricing is NOT part of the normal Shift+C flow in this beta.
+Live market prices are not available. ExileLens does not contact the Path of Exile trade
+service, and Item Check shows no market price. Market prices are off by default and the
+live provider stays disabled until that access is documented or authorized.
 
 The main purpose of this release is:
 
@@ -244,8 +246,8 @@ Normal item evaluation runs locally.
 
 ExileLens currently has no analytics / telemetry system.
 
-Optional functionality (live market pricing) may contact the official
-Path of Exile trade site for league data and trade search results.
+ExileLens makes no request to the Path of Exile trade service in this build: market
+prices are off by default and the live provider is disabled.
 
 See PRIVACY.md in the project repository for full details, including
 what is read from the clipboard, when, and what is stored locally.

@@ -721,8 +721,8 @@ class ExileLensApp:
                     self.controller.price_check_hotkey.hook.hotkey,
                     self.controller.price_check_hotkey.hook_registered,
                 )
-            if self.settings.price_check_enabled:
-                self.controller.refine_price_hotkey.start()
+            # R5 closeout: the legacy Refine hotkey (Ctrl+Shift+R, RegisterHotKey) is DORMANT. Nothing runs a legacy price check, so
+            # registering it would only steal the chord system-wide from other applications. It is intentionally not started.
 
     def _on_clipboard_event(self, event: ClipboardEvent) -> None:
         if not self.controller:

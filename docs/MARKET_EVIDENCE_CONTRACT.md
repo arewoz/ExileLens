@@ -1,6 +1,6 @@
 # MarketEvidence contract (v1)
 
-Status: R5-B (contract, service, lifecycle) and R5-C (presentation, consent/Settings, Diagnostics) are implemented and tested with injected providers.
+Status: R5-B (contract, service, lifecycle) and R5-C (presentation, consent/Settings, Diagnostics) are COMPLETE and merged; R5 is closed for 1.0 (R5-D deferred). Tested with injected providers.
 **LIVE PROVIDER ACTIVATION REMAINS POLICY-BLOCKED** (`market_policy.LIVE_TRADE2_AUTHORIZED = False`): no market control is offered, no request is made,
 and Item Check shows nothing about the market. The UI below is complete but dormant until a provider is authorized.
 

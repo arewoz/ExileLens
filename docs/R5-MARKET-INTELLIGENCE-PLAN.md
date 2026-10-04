@@ -1,6 +1,6 @@
 # R5 — Economy / Market Intelligence: repository audit and implementation plan
 
-**Status:** R5-A complete and merged (#75, `25959b9`). R5-B complete and merged (#76, `ae17d1d`). R5-C (product surface) implemented on `r5-c/market-product-surface`; see the records at the end. **LIVE PROVIDER ACTIVATION REMAINS POLICY-BLOCKED**: no market control, request or Item Check market line exists in a shipped build.
+**Status: R5 CLOSED FOR 1.0.** R5-A COMPLETE (#75, `25959b9`). R5-B COMPLETE (#76, `ae17d1d`). R5-C COMPLETE (#77, `546ed98`). R5-D SKIPPED / DEFERRED (no concrete release blocker requires it). MarketEvidence infrastructure and the Item Check market UX exist and are tested with synthetic data; a shipped build hides the unavailable market controls and shows nothing about the market. **The live automated trade provider remains POLICY-BLOCKED**: no unsupported trade endpoint is contacted, and live prices are not available to users. This does not block 1.0. R6 (candidate search / Upgrade Finder) is post-1.0.
 
 Base: `origin/main` `a6dc07b` (R4 squash-merged). Branch `r5/market-intelligence-1.0`. Planning pass only: the one code change is the verified
 `MarketQueryPlan` import fix (§2). Nothing here changes behaviour of Item Check. Version unchanged (not 1.0.0); this is not R6 (Upgrade Finder) and not R3 (character sync).
@@ -453,3 +453,14 @@ and `build_value_delta` (Build Value) throughout the parked market/gear packages
 
 **Remaining before 1.0 (R5-D / owner):** provider authorization outcome (then flip the single constant and revisit the consent copy), a real-world copy review of the Market section once prices can exist,
 retiring the legacy Price Check panel code and `ops/*.json` claims, the missing synthetic test layer for `market/`, and R6 inputs.
+
+---
+
+# R5 closeout (1.0)
+
+- R5-A, R5-B, R5-C complete and merged. **R5-D skipped/deferred**: its candidates (retire the legacy Price Check code, a synthetic test layer for `market/`, `ops/*.json` claims) are not release blockers. The `ops/compatibility.json`
+  market note and the shipped `packaging/README.txt` market/privacy lines that implied optional live pricing were corrected; historical sections above remain as written.
+- Legacy Price Check is **DORMANT / LEGACY / NOT A 1.0 ENTRY POINT** (see `PARKED_FEATURES.md`). Finding fixed in the closeout: the Ctrl+Shift+R Refine hotkey was still registered globally at startup (a `RegisterHotKey` grab) for a
+  flow that cannot run; it is no longer started.
+- Live provider: POLICY-BLOCKED, accepted, not a 1.0 blocker. Reopen only if GGG documents or authorizes the access.
+- Known naming trap for future work: `PriceCheckHotkeyController` is the **Item Check** (Shift+C) hotkey; the name is historical.
