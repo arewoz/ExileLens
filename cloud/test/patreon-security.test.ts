@@ -250,7 +250,7 @@ describe("D1 Free budget (50 queries per invocation)", () => {
 describe("separation of the two databases", () => {
   it("patreonEnv() is an explicit allow-list: no TELEMETRY_DB, no usage-statistics pepper, no unknown keys", () => {
     const full = {
-      ...makePatreonEnv({ RL_LINK: { limit: async () => ({ success: true }) }, RL_INGEST: { limit: async () => ({ success: true }) } }),
+      ...makePatreonEnv({ RL_LINK: { limit: async () => ({ success: true }) }, RL_INGEST: { limit: async () => ({ success: true }) }, PATREON_OVERRIDE_USER_HMACS: "{}" }),
       SOMETHING_ELSE: "z",
     } as unknown as Env;
     const narrowed = patreonEnv(full);
@@ -265,6 +265,7 @@ describe("separation of the two databases", () => {
         "PATREON_CLIENT_SECRET",
         "PATREON_DB",
         "PATREON_ID_PEPPER",
+        "PATREON_OVERRIDE_USER_HMACS",
         "PATREON_LINK_ENABLED",
         "PATREON_REDIRECT_URI",
         "RL_LINK",
@@ -275,7 +276,7 @@ describe("separation of the two databases", () => {
   });
 
   it("telemetryEnv() ignores every Patreon key, including the new ones", () => {
-    const full = makePatreonEnv({ RL_LINK: { limit: async () => ({ success: true }) } });
+    const full = makePatreonEnv({ RL_LINK: { limit: async () => ({ success: true }) }, PATREON_OVERRIDE_USER_HMACS: "{}" });
     const keys = Object.keys(telemetryEnv(full)).sort();
     expect(keys).toEqual(["ANALYTICS_PEPPER", "DIAGNOSTIC_PEPPER", "INGEST_ENABLED", "TELEMETRY_DB"]);
     expect(keys.join(",")).not.toMatch(/PATREON|TOKEN|ENTITLEMENT|RL_LINK|LEASE/);
