@@ -163,7 +163,7 @@
 		</ConfigSet>
 	</Config>
 	<TreeView showStatDifferences="true" searchStr="" zoomX="0" zoomY="0" zoomLevel="3"/>
-	<Import exportParty="false" lastCharacterHash="42cbd01d31cc9f5da38b6a44f2ed5af598325f18" lastRealm="PoE2"/>
+	<Import exportParty="false" lastRealm="PoE2"/>
 	<Tree activeSpec="1">
 		<Spec nodes="11672,47359,6715,5703,27686,14958,48198,57821,63236,62984,10131,10364,62230,61834,6891,61403,39037,47976,46819,5501,55507,14446,60692,59799,10398,13065,4346,41372,59538,8143,29502,34621,58329,57710,32763,13748,57204,56640,12876,43281,51184,56045,29959,3823,14231,5335,61601,61419,61196,46088,722,20677,51934,14666,50755,49220,38493,15775,45702,3688,22314,48773,63713,21336,2254,47614,8569,22219,47307,47177,9994,23040,55621,59798,55088,14267,44357,15618,4157,22821,5257,9642,38541,56265,42857,46197,38537,51741,21779,55947,20024,44223,22290,13419,17088,41029,48821,38338,31950,36302,26682,11604,34168,21984,40760,30808,116,23415,16705,44683,15975,3251,19355,8616,56349,7338,17548,4519,31692,535,16367,13823,17602,13724,48030,31765,13407" ascendancyInternalId="Monk2" classId="8" ascendClassId="1" treeVersion="0_4" masteryEffects="" classInternalId="10" secondaryAscendClassId="nil">
 			<URL>
@@ -269,7 +269,6 @@
 			Rarity: RARE
 Blight Spark
 Sapphire
-Unique ID: f7c8d6515f544cdd10c22438a34ca4006044da97ab58ec7a5cb762d3f27996ea
 Item Level: 80
 LevelReq: 0
 Implicits: 1
@@ -289,7 +288,6 @@ Corrupted
 			Rarity: RARE
 Entropy Curio
 Sapphire
-Unique ID: 0ce53106001a9cbc0588ac4ff36c7c390afc01851a5eaf246819454ed65f86ec
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -306,7 +304,6 @@ Implicits: 0
 			Rarity: RARE
 Armageddon Joy
 Sapphire
-Unique ID: 98a65d57e634b04cbf716e78d3eee200930429e15d825b956d007e8dd956f9e9
 Item Level: 80
 LevelReq: 0
 Implicits: 1
@@ -326,7 +323,6 @@ Corrupted
 			Rarity: RARE
 Fulgent Curio
 Sapphire
-Unique ID: 988737e232033953db6592f419dd6036e7309f421dd3dc80367da394ea0302a9
 Item Level: 62
 LevelReq: 0
 Implicits: 0
@@ -342,7 +338,6 @@ Implicits: 0
 		<Item id="5">
 			Rarity: MAGIC
 Flooded Golden Charm of the Perpetual
-Unique ID: 6fb8c9a6f6cc979cb2b27d6f7c43a6de813c77a2eca1d99ea4f221c24d1551cc
 Item Level: 81
 Quality: 0
 LevelReq: 50
@@ -357,7 +352,6 @@ Recover 164 Mana when Used
 Torment Cowl
 Kamasan Tiara
 Energy Shield: 373
-Unique ID: 9b25dc33fd768d5672b4d6920a9f621c5826d6aea50947424619737f07b1b007
 Item Level: 79
 Quality: 20
 Sockets: S
@@ -390,7 +384,6 @@ Corrupted
 			Rarity: RARE
 Beast Mast
 Chiming Staff
-Unique ID: 9c4f1031cdf13f76df425d8b5981b5b7389fcce2b2c4cae2ce1117c2817209d1
 Item Level: 79
 Quality: 4
 LevelReq: 78
@@ -410,7 +403,6 @@ Gain 13 Mana per enemy killed
 			Rarity: UNIQUE
 Nascent Hope
 Thawing Charm
-Unique ID: 1a03b45df87efec7cf43af1f417fc1eb4a73bf7c9520fb1d237028fa21e36ac1
 Item Level: 81
 Quality: 0
 LevelReq: 12
@@ -422,7 +414,6 @@ Energy Shield Recharge starts on use
 		<Item id="9">
 			Rarity: MAGIC
 Sustained Ultimate Mana Flask of the Abundant
-Unique ID: 60d6d6c824516b5ebf3ef306617c383231f4bf82345a58cde96f89d54cbfe818
 Item Level: 68
 Quality: 3
 LevelReq: 60
@@ -436,7 +427,6 @@ Implicits: 0
 			Rarity: RARE
 Maelstrom Barb
 Withered Wand
-Unique ID: 2d1151f1a38e77cd6f4e2d14c4fc40764ef6010f501f7f49c319bca5ed82ede2
 Item Level: 81
 Quality: 9
 Sockets: S
@@ -467,7 +457,6 @@ Gain 29% of Damage as Extra Lightning Damage
 			Rarity: RARE
 Grim Coil
 Breach Ring
-Unique ID: 42c494124b94633a60cbdf360566935e97377eb93114c4900a8ae8ca32e561b9
 Item Level: 79
 LevelReq: 40
 Implicits: 1
@@ -490,7 +479,6 @@ Maximum Quality is 40%
 			Rarity: UNIQUE
 Lavianga&apos;s Spirits
 Gargantuan Mana Flask
-Unique ID: 89a6d54d91c325e4ceccf2aa955e7036012e65f65d2d2442ef057627aa646862
 Item Level: 82
 Quality: 17
 LevelReq: 40
@@ -504,7 +492,6 @@ This Flask cannot be Used but applies its Effect constantly
 Painter&apos;s Servant
 Torn Gloves
 Energy Shield: 11
-Unique ID: d4519750eb413802d0bcdc634c952a5a53ddcf31e53963037d84befc0486b421
 Item Level: 76
 Quality: 20
 Sockets: S
@@ -533,7 +520,6 @@ Gain 10% of Elemental Damage as Extra Lightning Damage
 Ghoul Guardian
 Vile Robe
 Energy Shield: 1069
-Unique ID: 3c5f003fb133e0e46c12e32070b9f549b8d9290492688977a0b82e06a7dd3528
 Item Level: 83
 Quality: 23
 Sockets: S S
@@ -565,7 +551,6 @@ Corrupted
 			Rarity: UNIQUE
 Kalandra&apos;s Touch
 Ring
-Unique ID: bd8c802b4b7a71f493c9af1f253c3af2d2ec9056b195ae9843ed5d3455dabbe4
 Item Level: 82
 LevelReq: 0
 Implicits: 0
@@ -577,7 +562,6 @@ Reflects opposite Ring
 Onslaught Pith
 Tasalian Focus
 Energy Shield: 380
-Unique ID: 0af2428b7c75658c83849d6d32672fc10895017c4d1829c90fa58ade3b65250b
 Item Level: 81
 Quality: 21
 Sockets: S
@@ -608,7 +592,6 @@ Implicits: 3
 Ingenuity
 Utility Belt
 Charm Slots: 1
-Unique ID: 14572684877793d635fe7efe99058afba58278428b5b57c9ab926814fdb32246
 Item Level: 84
 LevelReq: 55
 Implicits: 4
@@ -634,7 +617,6 @@ Corrupted
 			Rarity: UNIQUE
 Yoke of Suffering
 Bloodstone Amulet
-Unique ID: c016af1dc19868b327d4290423e6421ad53b8982c6a8d20f8a1d7c58913abe8e
 Item Level: 56
 LevelReq: 18
 Implicits: 2
@@ -657,7 +639,6 @@ your Ailments on them
 Horror Slippers
 Sekhema Sandals
 Energy Shield: 166
-Unique ID: 3fdeb16bc50112287849ed4878299c6aa55a9d7f9ae52913001080ab0a22aafa
 Item Level: 82
 Quality: 20
 Sockets: S
@@ -686,7 +667,6 @@ Implicits: 3
 		<Item id="20">
 			Rarity: MAGIC
 Sunburst Dousing Charm of the Practitioner
-Unique ID: 222d2ef264cd961f9d3a70ef498fc8d087fdc732b7f81f892aff35f307b4782c
 Item Level: 83
 Quality: 5
 LevelReq: 32

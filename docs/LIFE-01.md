@@ -2,7 +2,7 @@
 
 ## Fixture and provenance
 
-`fixtures/builds/public_corpus/life01_blood_mage_ember_fusillade.xml` is the unmodified decoded export from [pobb.in/duLtV2Cf4TfL](https://pobb.in/duLtV2Cf4TfL), published as “PoE2 0.4 Early Endgame Blood Mage” by Upto64Bit. The saved build is a level-91 Witch/Blood Mage. Its selected PLAYER main skill is Ember Fusillade; its 0.4 tree allocates Gore Spike (node 52703).
+`fixtures/builds/public_corpus/life01_blood_mage_ember_fusillade.xml` is the decoded export (R4 removed only the per-item GGG `Unique ID:` lines and the importing character's hash; PoB's metrics, equipment and skill identity are unchanged) from [pobb.in/duLtV2Cf4TfL](https://pobb.in/duLtV2Cf4TfL), published as “PoE2 0.4 Early Endgame Blood Mage” by Upto64Bit. The saved build is a level-91 Witch/Blood Mage. Its selected PLAYER main skill is Ember Fusillade; its 0.4 tree allocates Gore Spike (node 52703).
 
 ## PoB authority and measured proof
 

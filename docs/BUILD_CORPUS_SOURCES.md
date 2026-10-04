@@ -36,10 +36,12 @@ PoB2 runtime.
 | `fixtures/builds/public_corpus/corpus02g_strength_oracle_brutus.xml` | Druid/Oracle (level 99, Chaos Inoculation) dual wielding Brutus' Lead Sprinkler ("Added Attack Fire Damage per 25 Strength") with about 1,900 Strength; main skill Molten Blast. CORPUS-02G: the Strength stacker. See `docs/CORPUS-02G.md`. |
 | `fixtures/builds/public_corpus/corpus02g_dex_int_acolyte_hand_of_wisdom.xml` | Monk/Acolyte of Chayula (level 98) with Astramentis and Hand of Wisdom and Action (attack speed per 20 Dexterity, added lightning damage per 20 Intelligence); main skill Fragments of the Past. CORPUS-02G: the Dexterity/Intelligence stacker. See `docs/CORPUS-02G.md`. |
 | `fixtures/builds/public_corpus/corpus02h_eldritch_battery_shaman.xml` | Druid/Shaman (level 100) with the **Eldritch Battery** keystone (all Energy Shield converted to maximum Mana) and Rathpith Globe (damage and crit per 100 maximum Mana); main skill Spark from a Spell Totem. CORPUS-02H: Energy Shield that feeds the resource pool and, through it, damage. See `docs/CORPUS-02H.md`. |
+| `fixtures/builds/public_corpus/life01_blood_mage_ember_fusillade.xml` | Witch/Blood Mage Ember Fusillade (authentic pobb.in export); Gore Spike scales critical damage with current unreserved Life. LIFE-01: a Life-only item moves Life, CritMultiplier, DPS and EHP. See `docs/LIFE-01.md`. |
+| `fixtures/builds/public_corpus/recovery02a_es_regen_invoker.xml` | Monk/Invoker Spark (authentic pobb.in export); Energy Shield recovery. RECOVERY-02A: boots gaining ES regeneration are a distinct recovery channel from Life regeneration. See `docs/RECOVERY-02A.md`. Not in the manifest before R4. |
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(19 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, CORPUS-02G Strength and Dexterity/Intelligence stacker, and CORPUS-02H Eldritch Battery builds). It contains repository-relative paths and expected semantic
+(21 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, CORPUS-02G Strength and Dexterity/Intelligence stacker, CORPUS-02H Eldritch Battery, LIFE-01 Blood Mage and RECOVERY-02A Invoker builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -170,6 +172,14 @@ not used. The export was used unchanged apart from sanitization: 20 `Unique ID:`
 `<PlayerStat>` cache were removed (128 lines), nothing else changed, and no character permalink, account or character name
 was retained. It contains only the standard passive-tree `<URL>` and an empty `<Notes>`. Committed SHA-256 (LF line
 endings): `67d06d522604f1e9cc99d53689104db8d83c723ca6a9291a0d7dcc2f73bef5e2`. The saved main skill is used unchanged.
+
+`life01_blood_mage_ember_fusillade.xml` (LIFE-01) and `recovery02a_es_regen_invoker.xml` (RECOVERY-02A) are authentic pobb.in exports
+(`pobb.in/duLtV2Cf4TfL` and `pobb.in/K6bp-LNAo507`). They were committed in #58 without this section's sanitization: each still held
+20 per-item `Unique ID:` lines and the importing character's `lastCharacterHash`, which the privacy regression
+(`test_selected_fixture_contains_no_private_path_or_identity_markers`) rejects but could not see for RECOVERY-02A (not manifested) and which
+was failing, unnoticed, for LIFE-01. The R4 gate removed exactly those lines/attribute from both files and changed nothing else: PoB's raw
+metrics, equipment names and main-skill identity are identical before and after (checked on the installed PoB 0.23.1). The identifiers remain
+in the Git history of #58; rewriting history is an owner decision. The privacy scan now covers every XML in the corpus directory.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

@@ -17,7 +17,9 @@ MANIFEST = json.loads((CORPUS / "manifest.json").read_text(encoding="utf-8"))
 CASES = MANIFEST["fixtures"]
 PUBLIC_FIXTURES = (
     ROOT / "fixtures" / "builds" / "core04_player_ring.xml",
-    *(ROOT / case["file"] for case in CASES),
+    # Every XML in the corpus directory, not only the manifested ones: R4 found two fixtures carrying per-item GGG
+    # `Unique ID:` lines and a character hash that this privacy scan could not see because they were unmanifested.
+    *sorted(CORPUS.glob("*.xml")),
     *(ROOT / "fixtures" / "items" / name for name in (
         "core04_baseline_ring.txt",
         "core04_offense_ring.txt",
@@ -53,12 +55,20 @@ def test_manifest_is_small_complete_and_repository_relative() -> None:
         "CORPUS02G-STRENGTH-BRUTUS",
         "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
         "CORPUS02H-ELDRITCH-BATTERY",
+        "LIFE01-BLOOD-MAGE-GORE-SPIKE",
+        "RECOVERY02A-ES-REGEN-INVOKER",
     ]
-    assert len(CASES) == 19
+    assert len(CASES) == 21
     for case in CASES:
         assert set(case) == {"id", "file", "class", "ascendancy", "primary_skill", "actor", "purpose"}
         assert not Path(case["file"]).is_absolute()
         assert _path(case).is_file()
+
+
+def test_every_corpus_xml_is_manifested_and_every_manifest_entry_is_in_the_corpus_directory() -> None:
+    """The directory and the manifest may not drift: an unmanifested build is invisible to the identity gate."""
+    on_disk = {path.relative_to(ROOT).as_posix() for path in CORPUS.glob("*.xml")}
+    assert on_disk == {case["file"] for case in CASES}
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["id"])
