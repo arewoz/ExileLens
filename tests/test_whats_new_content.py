@@ -408,3 +408,26 @@ def test_pyinstaller_spec_ships_the_content_file_next_to_the_module() -> None:
 def test_content_path_follows_the_frozen_module_location() -> None:
     # Frozen builds place the file at <bundle>/exilelens/whats_new/ and import the module from there as well.
     assert content.content_path().parent.name == "whats_new" and content.content_path().parent.parent.name == "exilelens"
+
+
+def test_binary_report_flag_reports_a_loadable_entry_for_its_own_version(tmp_path: Path) -> None:
+    """The same flag the release gate runs against the packaged exe; here against the source entry point."""
+    import subprocess
+    import sys
+
+    report_path = tmp_path / "report.json"
+    completed = subprocess.run(
+        [sys.executable, str(ROOT / "src" / "exilelens" / "app" / "main.py"), "--exilelens-whats-new-report", str(report_path)],
+        env={**__import__("os").environ, "PYTHONPATH": str(ROOT / "src")}, timeout=120, check=False,
+    )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert completed.returncode == 0 and report["loaded"] and report["has_entry"] and report["problems"] == []
+    assert report["frozen"] is False
+
+
+def test_packaged_release_gate_check_is_only_required_for_a_built_artifact(tmp_path: Path) -> None:
+    from exilelens.ops.models import GateVerdict
+    from exilelens.ops.release_gate import _packaged_whats_new
+
+    assert _packaged_whats_new(tmp_path).status is GateVerdict.PASS
+    assert _packaged_whats_new(tmp_path, required=True).status is GateVerdict.BLOCKED

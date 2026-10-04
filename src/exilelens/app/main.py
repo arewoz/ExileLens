@@ -46,6 +46,39 @@ def _maybe_write_update_trust_report() -> None:
     raise SystemExit(0)
 
 
+WHATS_NEW_REPORT_ARG = "--exilelens-whats-new-report"
+
+
+def _maybe_write_whats_new_report() -> None:
+    """Release evidence: ``ExileLens.exe --exilelens-whats-new-report <path>`` writes whether *this* binary can load
+    its packaged release notes for its own version, then exits before any UI starts."""
+    if WHATS_NEW_REPORT_ARG not in sys.argv:
+        return
+    import json
+
+    from exilelens._version import __version__
+    from exilelens.app.updates.version import ExileLensVersion
+    from exilelens.whats_new import content
+
+    index = sys.argv.index(WHATS_NEW_REPORT_ARG)
+    if index + 1 >= len(sys.argv):
+        raise SystemExit(2)
+    path = content.content_path()
+    catalog = content.load_catalog()
+    installed = ExileLensVersion.parse(__version__)
+    report = {
+        "frozen": bool(getattr(sys, "frozen", False)),
+        "path": str(path),
+        "file_present": path.is_file(),
+        "loaded": catalog is not None,
+        "version": __version__,
+        "has_entry": bool(catalog is not None and catalog.get(installed) is not None),
+        "problems": content.lint_catalog(catalog, installed) if catalog is not None and installed is not None else ["not loaded"],
+    }
+    Path(sys.argv[index + 1]).write_text(json.dumps(report, sort_keys=True), encoding="utf-8")
+    raise SystemExit(0)
+
+
 def _maybe_defer_to_updater() -> None:
     """Packaged builds only: never start from an install that an updater is replacing or must recover."""
     if not getattr(sys, "frozen", False):
@@ -64,6 +97,7 @@ def _maybe_defer_to_updater() -> None:
 _maybe_run_worker_subprocess()
 _maybe_run_updater_subprocess()
 _maybe_write_update_trust_report()
+_maybe_write_whats_new_report()
 _maybe_defer_to_updater()
 
 from PySide6.QtCore import Qt, QTimer

@@ -396,6 +396,28 @@ def _packaged_update_trust(root: Path, *, required: bool = False) -> CheckResult
     return CheckResult("packaged_update_trust", GateVerdict.PASS, detail="packaged binary trusts only exilelens-prod-1")
 
 
+def _packaged_whats_new(root: Path, *, required: bool = False) -> CheckResult:
+    """Ask the packaged binary itself to load its release notes (proves the data file was bundled and is readable)."""
+    if not required:
+        return CheckResult("packaged_whats_new", GateVerdict.PASS, detail="not required pre-build")
+    import json
+    import tempfile
+
+    exe = root / "dist" / "ExileLens" / "ExileLens.exe"
+    if not exe.is_file():
+        return CheckResult("packaged_whats_new", GateVerdict.BLOCKED, Severity.P1, "packaged ExileLens.exe missing")
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "whats_new.json"
+        try:
+            completed = subprocess.run([str(exe), "--exilelens-whats-new-report", str(report_path)], timeout=120, check=False)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            return CheckResult("packaged_whats_new", GateVerdict.BLOCKED, Severity.P1, f"whats-new report failed: {exc}")
+    if completed.returncode != 0 or not (report.get("frozen") and report.get("loaded") and report.get("has_entry")) or report.get("problems"):
+        return CheckResult("packaged_whats_new", GateVerdict.BLOCKED, Severity.P1, f"packaged release notes unusable: {report!r}")
+    return CheckResult("packaged_whats_new", GateVerdict.PASS, detail=f"packaged binary loads its notes for {report.get('version')}")
+
+
 def evaluate_release_gate(
     *,
     root: Path | None = None,
@@ -418,6 +440,7 @@ def evaluate_release_gate(
         _expected_artifact(base, required=require_artifact),
         _artifact_provenance(base, required=require_artifact),
         _packaged_update_trust(base, required=require_artifact),
+        _packaged_whats_new(base, required=require_artifact),
     ]
     if smoke_result is not None:
         checks.append(smoke_result)
