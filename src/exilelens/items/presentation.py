@@ -19,6 +19,7 @@ from exilelens.items.presentation_copy import (
 from exilelens.items.decision import derive_swap_risk
 from exilelens.items.evaluation_outcome import authoritative_public_verdict
 from exilelens.items.item_impact import negligible_opposition_note
+from exilelens.items.slots import is_jewel_socket_pob_slot, jewel_socket_display_label
 from exilelens.items.offense_coverage import (
     OffenseCoverageState,
     offense_claim_allowed,
@@ -219,10 +220,13 @@ def build_presentation(
     slot = recommendation.get("pob_slot") or recommendation.get("product_slot") or ""
     baseline_item = recommendation.get("baseline_item") or {}
     baseline_name = baseline_item.get("display_name") or baseline_item.get("name")
+    # A jewel socket is a raw passive-tree node id ("Jewel 55190"), never player copy (slots.jewel_socket_display_label):
+    # it is named by the jewel in it, or as an empty socket, and carries no slot suffix.
+    shown_slot = "" if is_jewel_socket_pob_slot(str(slot)) else slot
     if baseline_item.get("empty"):
-        baseline_name = f"Empty {slot} Slot" if slot else "Empty slot"
+        baseline_name = "Empty jewel socket" if is_jewel_socket_pob_slot(str(slot)) else (f"Empty {slot} Slot" if slot else "Empty slot")
     if baseline_name:
-        baseline_line = f"vs {baseline_name}" + (f" · {slot}" if slot else "")
+        baseline_line = f"vs {baseline_name}" + (f" · {shown_slot}" if shown_slot else "")
     else:
         baseline_parts = [part for part in (f"vs {slot}" if slot else "", loadout_name or build_name, context) if part]
         baseline_line = " · ".join(baseline_parts)
@@ -233,7 +237,7 @@ def build_presentation(
         "title": "COMPARED AGAINST",
         "name": baseline_name or slot,
         "base_type": baseline_item.get("base_type") or "",
-        "slot": slot,
+        "slot": shown_slot,
         "item_set": item_set_name or baseline_item.get("item_set_name") or "",
         "loadout": loadout_name or baseline_item.get("loadout_name") or "",
         "source": "PoB baseline (not automatically in-game equipped gear)",
@@ -1089,6 +1093,16 @@ def _choice_from_outcome(
     }
 
 
+def _slot_text(slot: str, jewel_sockets: list[str]) -> str:
+    """A slot in the SLOT OPTIONS line. Jewel sockets are raw tree-node ids, so they read "Socket 1", "Socket 2" in the order the
+    options are listed (the convention of slots.jewel_socket_display_label); every other slot keeps its PoB name."""
+    if not is_jewel_socket_pob_slot(slot):
+        return slot
+    if slot not in jewel_sockets:
+        jewel_sockets.append(slot)
+    return jewel_socket_display_label(jewel_sockets.index(slot))
+
+
 def _slot_options(result: dict[str, Any], intel: dict[str, Any]) -> dict[str, Any]:
     comparisons = list(result.get("slot_comparisons") or [])
     if len(comparisons) < 2:
@@ -1097,6 +1111,7 @@ def _slot_options(result: dict[str, Any], intel: dict[str, Any]) -> dict[str, An
             return {}
         options = []
         parts = []
+        jewel_sockets: list[str] = []
         for note in notes:
             selected = bool(note.get("selected"))
             score = note.get("final_score")
@@ -1120,10 +1135,11 @@ def _slot_options(result: dict[str, Any], intel: dict[str, Any]) -> dict[str, An
             )
             marker = "→" if selected else " "
             label = "Equip to empty slot" if empty else _verdict_words(verdict)
-            parts.append(f"{marker} {note.get('pob_slot')}: {label}")
+            parts.append(f"{marker} {_slot_text(str(note.get('pob_slot') or ''), jewel_sockets)}: {label}")
         return {"title": "SLOT OPTIONS", "options": options, "compact_line": " · ".join(parts)}
     options = []
     parts = []
+    jewel_sockets = []
     selected_slot = str((result.get("recommendation") or {}).get("pob_slot") or "")
     for comparison in comparisons:
         slot = str(comparison.get("pob_slot") or "")
@@ -1131,12 +1147,12 @@ def _slot_options(result: dict[str, Any], intel: dict[str, Any]) -> dict[str, An
         choice = _choice_from_outcome(slot, outcome, selected=slot == selected_slot, comparison=comparison)
         options.append(choice)
         label = "Equip to empty slot" if choice["empty"] else choice["verdict_label"]
-        parts.append(f"{slot}: {label}")
+        parts.append(f"{_slot_text(slot, jewel_sockets)}: {label}")
     for failed in result.get("failed_slot_outcomes") or []:
         slot = str(failed.get("replacement_slot") or "")
         choice = _choice_from_outcome(slot, failed, selected=False)
         options.append(choice)
-        parts.append(f"{slot}: {choice['verdict_label'] or _verdict_words(choice['verdict'])}")
+        parts.append(f"{_slot_text(slot, jewel_sockets)}: {choice['verdict_label'] or _verdict_words(choice['verdict'])}")
     compact = " · ".join(parts)
     return {"title": "SLOT OPTIONS", "options": options, "compact_line": compact}
 

@@ -204,6 +204,7 @@ def test_minion_repeated_evaluation_is_deterministic_and_restores(real_pob_engin
 
     for slot in ("Ring 1", "Ring 2"):
         before, after = _row(first, slot), _row(second, slot)
+        assert before["evaluation_outcome"]["evaluation_quality"] == after["evaluation_outcome"]["evaluation_quality"] == "FULL"
         assert before["evaluation_outcome"]["verdict"] == after["evaluation_outcome"]["verdict"]
         assert before["evaluation_outcome"]["final_score"] == after["evaluation_outcome"]["final_score"]
         assert before["candidate"]["metrics"][MINION_FIELD] == after["candidate"]["metrics"][MINION_FIELD]

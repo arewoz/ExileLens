@@ -319,6 +319,8 @@ def test_ineligible_two_hander_clears_shield_and_is_not_viable(real_pob_engine, 
 
     outcome = row["evaluation_outcome"]
     assert outcome["verdict"] == "NOT_VIABLE"
+    # Offense of a build whose main skill cannot be used is intentionally not scored: PARTIAL quality, decisive verdict.
+    assert outcome["evaluation_quality"] == "PARTIAL"
     assert "MAIN_SKILL_INVALID" in {guard["code"] for guard in outcome["guardrails_applied"]}
     assert result["presentation"]["verdict"] == "NOT_VIABLE"
     assert row["restore"]["pass"] is True
@@ -340,5 +342,45 @@ def test_giants_blood_repeated_evaluation_is_deterministic_and_restores(real_pob
         assert before["evaluation_outcome"]["final_score"] == after["evaluation_outcome"]["final_score"]
         assert before["candidate"]["metrics"]["CombinedDPS"] == after["candidate"]["metrics"]["CombinedDPS"]
         assert after["restore"]["pass"] is True
+    for result in (first, second):
+        assert _row(result, "Weapon 1")["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert real_pob_engine.get_metrics()["fingerprint_hash"] == original_hash
     assert real_pob_engine.get_equipment() == original_equipment
+
+
+def test_block_chance_stacking_is_measured_through_the_damage_conversion(real_pob_engine, tmp_path: Path) -> None:
+    """R4 stat-stacker evidence: Chernobog's Pillar turns Chance to Block into Fire damage ("Gain 1% of damage as Fire
+    damage per 1% Chance to Block"), so this build stacks a stat that is neither an attribute nor a resource pool.
+
+    A candidate that lowers Block lowers BOTH effective HP and damage (the conversion), PoB measures it, and Item Check
+    reports a FULL downgrade on both axes that equals an independent cold PoB load. A candidate that adds Block changes
+    nothing because the stat is already at its cap -- PoB says so, and Item Check agrees (a SIDEGRADE, not an invented
+    gain). Scope: one stat-stacker flavour on one build; other stacked stats (Armour, Evasion, Rage, charges) have no
+    corpus build, and Item Check adds no stat-specific formula for any of them (PoB computes them).
+    """
+    own = _equipped_item(BUILD, "Weapon 2")
+    reduced = own + "\n20% reduced Block chance\n"
+    more = own + "\n20% increased Block chance\n"
+    baseline = _fresh_metrics(real_pob_engine, tmp_path, "block_baseline", {})
+    lower = _fresh_metrics(real_pob_engine, tmp_path, "block_reduced", {"Weapon 2": reduced})
+    higher = _fresh_metrics(real_pob_engine, tmp_path, "block_more", {"Weapon 2": more})
+    assert lower["BlockChance"] < baseline["BlockChance"]
+    assert lower["CombinedDPS"] < baseline["CombinedDPS"] and lower["TotalEHP"] < baseline["TotalEHP"]
+    assert higher["BlockChance"] == baseline["BlockChance"]  # already capped
+    assert _close(higher["CombinedDPS"], baseline["CombinedDPS"])
+
+    down = evaluate_item(reduced, real_pob_engine, build_path=str(BUILD))
+    row = _row(down, "Weapon 2")
+    assert _close(row["baseline"]["metrics"]["CombinedDPS"], baseline["CombinedDPS"])
+    assert _close(row["candidate"]["metrics"]["CombinedDPS"], lower["CombinedDPS"])
+    outcome = row["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL"
+    assert _axes(row)["OFFENSE"] == "NEGATIVE" and _axes(row)["DEFENSE"] == "NEGATIVE"
+    assert outcome["verdict"] in {"MINOR_DOWNGRADE", "MEANINGFUL_DOWNGRADE", "MAJOR_DOWNGRADE"}
+    assert row["restore"]["pass"] is True
+
+    flat = _row(evaluate_item(more, real_pob_engine, build_path=str(BUILD)), "Weapon 2")
+    assert flat["evaluation_outcome"]["evaluation_quality"] == "FULL"
+    assert flat["evaluation_outcome"]["verdict"] == "SIDEGRADE"
+    assert _close(flat["candidate"]["metrics"]["CombinedDPS"], higher["CombinedDPS"])
+    assert flat["restore"]["pass"] is True

@@ -1,7 +1,156 @@
 {
+  "archetype_status": {
+    "ailment": {
+      "failing": 0,
+      "fully_measured": 11,
+      "other": 2,
+      "partially_measured": 2,
+      "refusals": 1,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "ascendancy": {
+      "failing": 0,
+      "fully_measured": 14,
+      "other": 1,
+      "partially_measured": 0,
+      "refusals": 4,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "attribute_stacker": {
+      "failing": 0,
+      "fully_measured": 10,
+      "other": 3,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "crit": {
+      "failing": 0,
+      "fully_measured": 2,
+      "other": 0,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "dot": {
+      "failing": 0,
+      "fully_measured": 12,
+      "other": 3,
+      "partially_measured": 1,
+      "refusals": 1,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "es_scaling": {
+      "failing": 0,
+      "fully_measured": 9,
+      "other": 2,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "life_scaling": {
+      "failing": 0,
+      "fully_measured": 1,
+      "other": 1,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "mana_scaling": {
+      "failing": 0,
+      "fully_measured": 5,
+      "other": 2,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "melee": {
+      "failing": 0,
+      "fully_measured": 10,
+      "other": 8,
+      "partially_measured": 2,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "minion": {
+      "failing": 0,
+      "fully_measured": 7,
+      "other": 3,
+      "partially_measured": 0,
+      "refusals": 2,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "proxy_totem": {
+      "failing": 0,
+      "fully_measured": 14,
+      "other": 4,
+      "partially_measured": 1,
+      "refusals": 2,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "ranged_attack": {
+      "failing": 0,
+      "fully_measured": 8,
+      "other": 3,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "spell": {
+      "failing": 0,
+      "fully_measured": 7,
+      "other": 5,
+      "partially_measured": 1,
+      "refusals": 1,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "stat_stacker": {
+      "failing": 0,
+      "fully_measured": 1,
+      "other": 0,
+      "partially_measured": 1,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "trigger": {
+      "failing": 0,
+      "fully_measured": 2,
+      "other": 1,
+      "partially_measured": 0,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "unique_interaction": {
+      "failing": 0,
+      "fully_measured": 1,
+      "other": 0,
+      "partially_measured": 1,
+      "refusals": 0,
+      "status": "FUNCTIONALLY MEASURED"
+    },
+    "unusual_skill_part": {
+      "failing": 0,
+      "fully_measured": 0,
+      "other": 2,
+      "partially_measured": 1,
+      "refusals": 0,
+      "status": "PARTIAL"
+    },
+    "weapon_swap": {
+      "failing": 0,
+      "fully_measured": 7,
+      "other": 16,
+      "partially_measured": 0,
+      "refusals": 1,
+      "status": "FUNCTIONALLY MEASURED"
+    }
+  },
   "cases": [
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A scored ailment moving against a material real hit means the components disagree; refusing is the safe answer.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -10,11 +159,15 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_corpus02d1_ailment_intel.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Unit proof of the refusal asserted for real PoB by POISON-CONFIGURED-STACKS-UNCERTAIN.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -23,6 +176,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_corpus02d1_ailment_intel.py",
       "total_variants": 1
     },
@@ -30,6 +184,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -38,6 +195,7 @@
       "manifest_id": "CORPUS02F-BALLISTA",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -46,6 +204,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -54,6 +215,7 @@
       "manifest_id": "CORPUS02F-BALLISTA",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -61,6 +223,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": "FIXABLE_MEASUREMENT_GAP",
+      "audit_note": "Same as MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL for Siege Ballista (PoB's Artillery damage does not move with the totem count).",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -69,6 +234,7 @@
       "manifest_id": "CORPUS02F-BALLISTA",
       "passed_variants": 2,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 2
     },
@@ -77,6 +243,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -85,6 +254,7 @@
       "manifest_id": "CORPUS02F-BALLISTA",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -92,19 +262,26 @@
       "archetypes": [
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "BOW-QUIVER-REPLACEMENT",
       "manifest_id": "CORE04-BOW-QUIVER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -113,27 +290,36 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
     {
       "archetypes": [
         "melee",
+        "stat_stacker",
         "unique_interaction"
       ],
+      "audit": "FIXABLE_MEASUREMENT_GAP",
+      "audit_note": "PoB's CombinedDPS exists on both sides; the primary-skill guard refuses because the quantity changes from hit+ailment to hit only (documented scoring-policy decision, CORPUS-02A section 6). Affects candidates that add or remove an ailment component. Owner decision, small-medium effort; refusal is truthful, not a 1.0 blocker.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
-      "functional": null,
+      "functional": "PARTIALLY_MEASURED",
       "id": "CHERNOBOG-SHIELD-LOSS-SEMANTICS-CHANGE-UNCERTAIN",
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -142,6 +328,7 @@
       "manifest_id": null,
       "passed_variants": 5,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 5
     },
@@ -149,6 +336,9 @@
       "archetypes": [
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -157,6 +347,7 @@
       "manifest_id": "CORE04-BOW-QUIVER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -164,6 +355,9 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -172,6 +366,7 @@
       "manifest_id": "CORE04-MELEE-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -179,6 +374,9 @@
       "archetypes": [
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -187,6 +385,7 @@
       "manifest_id": "CORE04-MINION-ACTOR",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -196,6 +395,9 @@
         "dot",
         "trigger"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -204,6 +406,7 @@
       "manifest_id": "CORE04-MIXED-HIT-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -211,6 +414,9 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -219,6 +425,7 @@
       "manifest_id": "CORE04-ONEHAND-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -227,6 +434,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -235,6 +445,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -242,6 +453,9 @@
       "archetypes": [
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -250,6 +464,7 @@
       "manifest_id": "CORE04-SKILL-NATIVE-DOT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -258,6 +473,9 @@
         "spell",
         "unusual_skill_part"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -266,6 +484,7 @@
       "manifest_id": "CORE04-STAGE-CONTEXT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -273,6 +492,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -281,6 +503,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -288,6 +511,9 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -296,6 +522,7 @@
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -303,6 +530,9 @@
       "archetypes": [
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -311,11 +541,15 @@
       "manifest_id": "CORPUS02B-VARASHTA-DJINN",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -324,11 +558,15 @@
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -337,6 +575,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -344,6 +583,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -352,6 +594,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
@@ -359,6 +602,9 @@
       "archetypes": [
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -367,11 +613,15 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -380,6 +630,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
@@ -387,6 +638,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -395,6 +649,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_contextual_diagnostic_real_pob.py",
       "total_variants": 1
     },
@@ -402,6 +657,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -410,6 +668,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_contextual_diagnostic_real_pob.py",
       "total_variants": 1
     },
@@ -417,6 +676,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -425,6 +687,7 @@
       "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -432,6 +695,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -440,6 +706,7 @@
       "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -447,6 +714,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -455,6 +725,7 @@
       "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -462,6 +733,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -470,6 +744,7 @@
       "manifest_id": "CORPUS02G-DEX-INT-HAND-OF-WISDOM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -477,14 +752,18 @@
       "archetypes": [
         "minion"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "PoB calculates no offense at all when the player-cast Command effect is the main skill; nothing exists to measure. Item Check names the cause and the group sibling that would be measurable (MAIN-SKILL-01).",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
-      "functional": null,
+      "functional": "EXPECTED_UNCERTAINTY",
       "id": "DJINN-COMMAND-MAIN-SKILL-UNCERTAIN",
       "manifest_id": "CORPUS02B-VARASHTA-DJINN",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
@@ -493,14 +772,18 @@
         "ascendancy",
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "DJINN-MINION-DAMAGE-RING-UPGRADE",
       "manifest_id": "CORPUS02B-VARASHTA-DJINN",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
@@ -509,19 +792,45 @@
         "ascendancy",
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "DJINN-MINION-LEVELS-AND-ALL-DJINN-COMPONENTS",
       "manifest_id": "CORPUS02B-VARASHTA-DJINN",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "melee"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "DUAL-WIELD-WEAPON-CANDIDATE-BOTH-HANDS",
+      "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_r4_reliability_gate.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -530,6 +839,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_effect_level_enumeration.py",
       "total_variants": 1
     },
@@ -537,6 +847,9 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -545,6 +858,7 @@
       "manifest_id": "CORE04-MELEE-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_effect_level_enumeration.py",
       "total_variants": 1
     },
@@ -552,6 +866,9 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -560,6 +877,7 @@
       "manifest_id": "CORE04-MELEE-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_effect_level_enumeration.py",
       "total_variants": 1
     },
@@ -567,6 +885,9 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -575,6 +896,7 @@
       "manifest_id": "CORE04-MELEE-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_effect_level_enumeration.py",
       "total_variants": 1
     },
@@ -583,6 +905,9 @@
         "melee",
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -591,11 +916,15 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_effect_level_enumeration.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -604,6 +933,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
@@ -612,6 +942,9 @@
         "es_scaling",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -620,6 +953,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -627,6 +961,9 @@
       "archetypes": [
         "es_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -635,6 +972,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -642,6 +980,9 @@
       "archetypes": [
         "es_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -650,6 +991,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -658,6 +1000,9 @@
         "es_scaling",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -666,6 +1011,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -674,6 +1020,9 @@
         "es_scaling",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -682,6 +1031,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -690,6 +1040,9 @@
         "es_scaling",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -698,6 +1051,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -706,6 +1060,9 @@
         "es_scaling",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -714,6 +1071,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -721,6 +1079,9 @@
       "archetypes": [
         "es_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -729,6 +1090,7 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
@@ -737,6 +1099,9 @@
         "es_scaling",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -745,11 +1110,15 @@
       "manifest_id": "CORPUS02H-ELDRITCH-BATTERY",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02h_energy_shield_mana.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Fail-closed invariant: a restore failure is never presented as a valid comparison.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -758,6 +1127,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
@@ -765,6 +1135,28 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "GEAR-SLOTS-MEASURED-IN-OWN-SLOT-AND-RESTORED",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 8,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_r4_reliability_gate.py",
+      "total_variants": 8
+    },
+    {
+      "archetypes": [
+        "melee"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -773,6 +1165,7 @@
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
       "total_variants": 1
     },
@@ -780,14 +1173,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Decisive NOT_VIABLE (MAIN_SKILL_INVALID): the main skill needs the shield PoB drops, PoB's own output is zero, and the paired-offhand removal is disclosed. Quality is PARTIAL because offense of a build that cannot use its skill is intentionally not scored.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "PARTIALLY_MEASURED",
       "id": "GIANTS-BLOOD-INELIGIBLE-TWO-HANDER-CLEARS-SHIELD",
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
       "total_variants": 1
     },
@@ -795,14 +1192,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "GIANTS-BLOOD-REPEATED-EVALUATION-NO-LEAK",
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
       "total_variants": 1
     },
@@ -810,14 +1211,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "GIANTS-BLOOD-TWO-HAND-CANDIDATE-KEEPS-SHIELD",
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
       "total_variants": 1
     },
@@ -826,6 +1231,9 @@
         "attribute_stacker",
         "mana_scaling"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -834,11 +1242,15 @@
       "manifest_id": null,
       "passed_variants": 2,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 2
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A flagged item-transform comparison is UNSUPPORTED (ITEM_TRANSFORM_UNMODELED), never scored.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
@@ -847,11 +1259,15 @@
       "manifest_id": null,
       "passed_variants": 2,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/test_item_transform_guard.py",
       "total_variants": 2
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -860,11 +1276,15 @@
       "manifest_id": null,
       "passed_variants": 8,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_item_transform_guard.py",
       "total_variants": 8
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A PoB revision that claims to model Way of the Stonefist does not lift the guard unvalidated.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
@@ -873,11 +1293,151 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/test_item_transform_guard.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "JEWEL-ALTERNATE-START-SOCKET-EXCLUDED",
+      "manifest_id": "CORE04-STAGE-CONTEXT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "STATE_INTEGRITY",
+      "test_file": "tests/integration/test_jewel_restore_remediation.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "JEWEL-CONNECTIVITY-JEWEL-RESTORE",
+      "manifest_id": null,
+      "passed_variants": 3,
+      "result": "PASS",
+      "role": "STATE_INTEGRITY",
+      "test_file": "tests/integration/test_jewel_restore_remediation.py",
+      "total_variants": 3
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "JEWEL-EMPTY-ALLOCATED-SOCKET-COMPARED-AGAINST-NO-JEWEL",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 2,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_jewel_real_pob.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "JEWEL-MULTI-AXIS-TRADEOFF-REPORTED",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_jewel_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "JEWEL-MULTI-SOCKET-RANKING-SELECTS-BEST-PLACEMENT",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_jewel_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "JEWEL-OCCUPIED-SOCKET-REPLACEMENT",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_jewel_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "JEWEL-REPEATED-EVALUATION-RESTORE",
+      "manifest_id": "CORE04-MELEE-WEAPON",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_jewel_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "JEWEL-UNALLOCATED-SOCKETS-NEVER-EVALUATED",
+      "manifest_id": "CORE04-SKILL-NATIVE-DOT",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "STATE_INTEGRITY",
+      "test_file": "tests/integration/test_jewel_real_pob.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -886,11 +1446,57 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "ascendancy",
+        "crit",
+        "life_scaling",
+        "spell"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "LIFE01-BLOOD-MAGE-GORE-SPIKE",
+      "manifest_id": "LIFE01-BLOOD-MAGE-GORE-SPIKE",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_life01_blood_mage.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "life_scaling",
+        "spell"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "LIFE01-BLOOD-MAGE-IDENTITY",
+      "manifest_id": "LIFE01-BLOOD-MAGE-GORE-SPIKE",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -899,6 +1505,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_main_skill_diagnostics.py",
       "total_variants": 1
     },
@@ -907,6 +1514,9 @@
         "ascendancy",
         "minion"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Different cause from Voltaic Barrier: the Command effect has no offense; the diagnostic offers the selected group's own Navira summon.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -915,6 +1525,7 @@
       "manifest_id": "CORPUS02B-VARASHTA-DJINN",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_main_skill_01_real_pob.py",
       "total_variants": 1
     },
@@ -923,6 +1534,9 @@
         "ailment",
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -931,11 +1545,15 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_main_skill_01_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "The main-skill reason leads the PARTIAL reasons so the user sees the cause first (copy contract of MAIN-SKILL-01).",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -944,6 +1562,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_main_skill_diagnostics.py",
       "total_variants": 1
     },
@@ -952,6 +1571,9 @@
         "ascendancy",
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -960,6 +1582,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_main_skill_01_real_pob.py",
       "total_variants": 1
     },
@@ -967,6 +1590,9 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": "COPY_OR_DIAGNOSTIC",
+      "audit_note": "Refusal is correct; the user-facing remedy (selected skill named by its PoB identity, the PoB-calculated alternatives, how to select in PoB and reload, no automatic switch) shipped in MAIN-SKILL-01 and is what this case asserts. Copy issue resolved.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -975,11 +1601,15 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_main_skill_01_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Fail-closed invariant: malformed worker output is FAILED/NOT_EVALUATED, never coerced.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -988,6 +1618,7 @@
       "manifest_id": null,
       "passed_variants": 8,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 8
     },
@@ -995,14 +1626,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MELEE-TWO-HAND-WEAPON-UPGRADE",
       "manifest_id": "CORE04-MELEE-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1010,14 +1645,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MELEE-WEAPON-REPEATED-EVALUATION-NO-LEAK",
       "manifest_id": "CORE04-MELEE-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1025,14 +1664,18 @@
       "archetypes": [
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MINION-DAMAGE-RING-MEASURED",
       "manifest_id": "CORE04-MINION-ACTOR",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
@@ -1040,14 +1683,18 @@
       "archetypes": [
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MINION-PLAYER-DEFENSE-RING-TRADEOFF",
       "manifest_id": "CORE04-MINION-ACTOR",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
@@ -1055,14 +1702,18 @@
       "archetypes": [
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MINION-REPEATED-EVALUATION-NO-LEAK",
       "manifest_id": "CORE04-MINION-ACTOR",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
@@ -1070,14 +1721,18 @@
       "archetypes": [
         "minion"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MINION-SKILL-LEVEL-LOSS-MEASURED",
       "manifest_id": "CORE04-MINION-ACTOR",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02b_minion_djinn.py",
       "total_variants": 1
     },
@@ -1086,6 +1741,9 @@
         "minion",
         "unusual_skill_part"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1094,11 +1752,15 @@
       "manifest_id": "CORE04-MINION-ACTOR",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Fail-closed invariant: a missing resistance is UNKNOWN, never a zero deficit.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -1107,6 +1769,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
@@ -1116,6 +1779,9 @@
         "dot",
         "trigger"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1124,6 +1790,7 @@
       "manifest_id": "CORE04-MIXED-HIT-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1133,14 +1800,18 @@
         "dot",
         "trigger"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MIXED-HIT-AILMENT-REPEATED-EVALUATION-NO-LEAK",
       "manifest_id": "CORE04-MIXED-HIT-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1149,6 +1820,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1157,6 +1831,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1165,6 +1840,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1173,6 +1851,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1181,6 +1860,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1189,6 +1871,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1197,6 +1880,9 @@
         "ailment",
         "proxy_totem"
       ],
+      "audit": "FIXABLE_MEASUREMENT_GAP",
+      "audit_note": "PoB measures IgniteDPS; ExileLens scores a per-use skill's hit rate only (PER_USE_DOT_NOT_MEASURED). Small-medium effort, niche (ignite on per-use cooldown skills); truthful refusal, not a blocker.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -1205,6 +1891,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1213,6 +1900,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1221,6 +1911,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1229,6 +1920,9 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1237,6 +1931,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1244,14 +1939,18 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MORTAR-REPEATED-EVALUATION-RESTORE",
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1260,14 +1959,18 @@
         "proxy_totem",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "MORTAR-SCORES-THE-PER-SECOND-RATE",
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1275,6 +1978,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": "FIXABLE_MEASUREMENT_GAP",
+      "audit_note": "PoB's damage is for one totem; ActiveTotemLimit/TotemsSummoned exist in PoB's output but ExileLens does not compose a total (no formula is invented, POB_NATIVE_DAMAGE_POLICY). +maximum totems is a plausible affix on totem builds. Whether PoB's FullDPS composes the count correctly is unverified. Medium effort; truthful refusal (TOTEM_LIMIT_CHANGED), not a blocker.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -1283,6 +1989,7 @@
       "manifest_id": "CORPUS02F-MORTAR-CANNON",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02f_mortar_ballista.py",
       "total_variants": 1
     },
@@ -1290,19 +1997,26 @@
       "archetypes": [
         "spell"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A Focus/shield/quiver cannot legally be worn with an equipped two-handed weapon: PoB's own IsItemValidForSlot returns no slot. Item Check refuses (SLOT_RESOLUTION_FAILED / UNSUPPORTED_EQUIPMENT_LAYOUT) and does not evaluate the two-step change (swap the weapon too).",
+      "blocks_1_0": false,
       "depth": "VERDICT",
-      "expected": "CONFIDENT",
+      "expected": "UNSUPPORTED",
       "failure_messages": [],
-      "functional": null,
+      "functional": "UNSUPPORTED_MECHANIC",
       "id": "OFFHAND-CANDIDATE-AGAINST-TWO-HAND-WEAPON-FAILS-TRUTHFULLY",
       "manifest_id": null,
       "passed_variants": 1,
-      "result": "PASS",
+      "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1311,6 +2025,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1318,14 +2033,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "ONEHAND-WEAPON-AMBIGUOUS-SLOT-RESOLVED-SAFELY",
       "manifest_id": "CORE04-ONEHAND-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1333,14 +2052,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "ONEHAND-WEAPON-REPEATED-EVALUATION-NO-LEAK",
       "manifest_id": "CORE04-ONEHAND-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1349,6 +2072,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1357,6 +2083,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1365,6 +2092,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1373,6 +2103,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1381,6 +2112,9 @@
         "ailment",
         "dot"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "The build's configuration fixes the poison stack count, so duration/application changes cannot move PoisonDPS; claiming a measured poison comparison would be invented.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -1389,6 +2123,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
@@ -1397,6 +2132,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1405,6 +2143,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
@@ -1413,6 +2152,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1421,6 +2163,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
@@ -1429,6 +2172,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1437,6 +2183,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
@@ -1447,6 +2194,9 @@
         "unique_interaction",
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1455,6 +2205,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
@@ -1463,6 +2214,9 @@
         "ailment",
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1471,6 +2225,7 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
@@ -1480,6 +2235,9 @@
         "dot",
         "ranged_attack"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1488,11 +2246,54 @@
       "manifest_id": "CORE04-POISON-AILMENT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d1_poison_ailment.py",
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "es_scaling"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "RECOVERY02A-ES-REGEN-BOOTS-MEASURED",
+      "manifest_id": "RECOVERY02A-ES-REGEN-INVOKER",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_recovery02a_es_regen.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "es_scaling",
+        "spell"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "RECOVERY02A-ES-REGEN-INVOKER-IDENTITY",
+      "manifest_id": "RECOVERY02A-ES-REGEN-INVOKER",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_public_build_corpus.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Fail-closed invariant: reduced evidence can never emit a directional verdict.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -1501,11 +2302,15 @@
       "manifest_id": null,
       "passed_variants": 3,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 3
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1514,6 +2319,7 @@
       "manifest_id": null,
       "passed_variants": 5,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 5
     },
@@ -1521,31 +2327,38 @@
       "archetypes": [
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "RING-EMPTY-SLOT",
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [
         "crit",
-        "life_scaling",
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "RING-OFFENSE-DEFENSE-MEASURED",
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1553,19 +2366,26 @@
       "archetypes": [
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "RING-TRADEOFF-BEST-SLOT",
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1574,6 +2394,7 @@
       "manifest_id": null,
       "passed_variants": 6,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 6
     },
@@ -1581,14 +2402,18 @@
       "archetypes": [
         "melee"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "SHIELD-REPLACEMENT-MEASURED-AND-RESTORED",
       "manifest_id": "CORE04-ONEHAND-WEAPON",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1596,6 +2421,9 @@
       "archetypes": [
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1604,6 +2432,7 @@
       "manifest_id": "CORE04-SKILL-NATIVE-DOT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -1611,19 +2440,26 @@
       "archetypes": [
         "dot"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "SKILL-NATIVE-DOT-REPEATED-EVALUATION-NO-LEAK",
       "manifest_id": "CORE04-SKILL-NATIVE-DOT",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1632,11 +2468,15 @@
       "manifest_id": null,
       "passed_variants": 13,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 13
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1645,11 +2485,15 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1658,11 +2502,15 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1671,6 +2519,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_core_04_adversarial_item_check.py",
       "total_variants": 1
     },
@@ -1679,6 +2528,9 @@
         "proxy_totem",
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1687,6 +2539,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1694,6 +2547,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1702,6 +2558,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1710,6 +2567,9 @@
         "proxy_totem",
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1718,6 +2578,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1725,6 +2586,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1733,6 +2597,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1741,6 +2606,9 @@
         "proxy_totem",
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1749,6 +2617,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1757,6 +2626,9 @@
         "proxy_totem",
         "spell"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1765,6 +2637,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1772,6 +2645,9 @@
       "archetypes": [
         "proxy_totem"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1780,6 +2656,7 @@
       "manifest_id": "CORPUS02E-SPELL-TOTEM",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02e_spell_totem.py",
       "total_variants": 1
     },
@@ -1790,6 +2667,9 @@
         "spell",
         "unusual_skill_part"
       ],
+      "audit": "FIXABLE_MEASUREMENT_GAP",
+      "audit_note": "Only POISON has a PoB stack/stage scope proof (AILMENT_STACK_SCOPE_PROBES); ignite- and bleed-dominant primary outputs stay PARTIAL on every Item Check although PoB measures the ailment. Medium effort (per-ailment proof plus ignite and bleed corpus builds). Population unmeasured (1 of 21 corpus builds). Documented limitation, not a blocker.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -1798,11 +2678,35 @@
       "manifest_id": "CORE04-STAGE-CONTEXT",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
     {
+      "archetypes": [
+        "melee",
+        "stat_stacker"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "STAT-STACKER-BLOCK-CHANCE-DAMAGE-CONVERSION",
+      "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
+      "total_variants": 1
+    },
+    {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "When displayed lines fit several modifier combinations every alternative must agree, otherwise refused.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
@@ -1811,24 +2715,32 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-CHARACTER-LEVEL",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1837,6 +2749,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
@@ -1844,6 +2757,9 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1852,6 +2768,7 @@
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -1859,19 +2776,26 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-FIXED-VALUE-GLOVE-EXACT",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1880,6 +2804,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
@@ -1887,14 +2812,18 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-GUARANTEED-UPGRADE-COMMUNICATED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -1902,19 +2831,26 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-HAND-BUILT-BASELINE-TRANSFORMED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -1923,19 +2859,24 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A hand-built PoB with ordinary ranged gloves cannot give an exact transformed baseline; every other slot's effect can depend on the unknown gloves, so a confident verdict would be invented. Disclosed (STONEFIST_BASELINE_UNTRANSFORMED). Way of the Stonefist only.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
-      "functional": null,
+      "functional": "EXPECTED_UNCERTAINTY",
       "id": "STONEFIST-INEXACT-BASELINE-DISCLOSED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -1943,32 +2884,43 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-NO-DOUBLE-TRANSFORMATION",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-NON-GLOVE-CANDIDATES-STAY-MEASURED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Equal verdicts are not proof when PoB's outputs are not ordered across the rolls; refused.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
@@ -1977,6 +2929,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
@@ -1984,19 +2937,26 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-ORDINARY-REAL-GLOVES-VERIFIED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 7,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 7
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2005,6 +2965,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
@@ -2012,40 +2973,52 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-ROLL-BOUNDS-MATCH-REFERENCES",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-ROLL-DEPENDENT-DETERMINISTIC-RESTORE",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-SINGLE-ROLL-PROBES",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -2053,14 +3026,18 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-TRANSFORMED-GLOVES-MEASURED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
@@ -2068,45 +3045,60 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STONEFIST-UNIQUE-GLOVES-VERIFIED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Candlemaker: PoB's DPS falls as one transformed roll grows (a resistance-reduction line), so no verdict holds for every roll. PoB output is non-monotone; a verdict would be unsound.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
-      "functional": null,
+      "functional": "UNSUPPORTED_MECHANIC",
       "id": "STONEFIST-UNIQUE-UNORDERED-RESULTS-UNSUPPORTED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 1,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Unique gloves without real-item evidence of their modifiers, and gloves whose lines match no glove-modifier combination, are refused with the precise reason. Way of the Stonefist gloves only; adding evidence is per-unique data work.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
-      "functional": null,
+      "functional": "UNSUPPORTED_MECHANIC",
       "id": "STONEFIST-UNRESOLVABLE-GLOVES-UNSUPPORTED",
       "manifest_id": "CORPUS02C-STONEFIST",
       "passed_variants": 2,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02c_stonefist.py",
       "total_variants": 2
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A verdict that changes across the unknown roll range cannot be stated; refused.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
@@ -2115,11 +3107,15 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "A verdict reached through different impact patterns across the range is refused.",
+      "blocks_1_0": false,
       "depth": "POLICY_UNIT",
       "expected": "UNSUPPORTED",
       "failure_messages": [],
@@ -2128,6 +3124,7 @@
       "manifest_id": null,
       "passed_variants": 1,
       "result": "UNSUPPORTED",
+      "role": "MECHANIC",
       "test_file": "tests/test_stonefist_transform.py",
       "total_variants": 1
     },
@@ -2135,6 +3132,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2143,6 +3143,7 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2150,6 +3151,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2158,6 +3162,7 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2165,6 +3170,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2173,6 +3181,7 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2180,6 +3189,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2188,6 +3200,7 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2195,6 +3208,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2203,6 +3219,7 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2210,6 +3227,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2218,6 +3238,7 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2225,14 +3246,18 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "STRENGTH-REQUIREMENT-LOST",
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
@@ -2240,6 +3265,9 @@
       "archetypes": [
         "attribute_stacker"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2248,11 +3276,15 @@
       "manifest_id": "CORPUS02G-STRENGTH-BRUTUS",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02g_attribute_stacking.py",
       "total_variants": 1
     },
     {
       "archetypes": [],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "IDENTITY_ONLY",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2261,6 +3293,7 @@
       "manifest_id": "CORPUS02-GIANTS-BLOOD-SHIELD",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02_giants_blood_shield.py",
       "total_variants": 1
     },
@@ -2268,6 +3301,9 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "Offense is genuinely unmeasurable on the as-exported build; defense is still measured and reported, not discarded.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -2276,6 +3312,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d2_voltaic_barrier.py",
       "total_variants": 1
     },
@@ -2284,6 +3321,9 @@
         "ascendancy",
         "weapon_swap"
       ],
+      "audit": "CORRECT_UNCERTAINTY",
+      "audit_note": "The saved main skill (Virtuous Barrier) deals no damage; Item Check never manufactures a verdict from it. The most common 'UNCERTAIN for everything' cause; the actionable diagnostic is asserted by MAINSKILL-VOLTAIC-ACTIONABLE-DIAGNOSTIC.",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "UNCERTAIN",
       "failure_messages": [],
@@ -2292,6 +3332,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "EXPECTED_UNCERTAIN",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d2_voltaic_barrier.py",
       "total_variants": 1
     },
@@ -2299,6 +3340,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2307,6 +3351,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d2_voltaic_barrier.py",
       "total_variants": 1
     },
@@ -2314,6 +3359,9 @@
       "archetypes": [
         "ascendancy"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2322,6 +3370,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d2_voltaic_barrier.py",
       "total_variants": 1
     },
@@ -2330,6 +3379,9 @@
         "ascendancy",
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2338,6 +3390,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d2_voltaic_barrier.py",
       "total_variants": 1
     },
@@ -2345,6 +3398,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2353,6 +3409,7 @@
       "manifest_id": "CORPUS02D2-VOLTAIC-BARRIER",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_corpus02d2_voltaic_barrier.py",
       "total_variants": 1
     },
@@ -2360,6 +3417,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2368,6 +3428,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -2375,14 +3436,18 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "WEAPON-SWAP-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -2390,14 +3455,18 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
-      "functional": null,
+      "functional": "FULLY_MEASURED",
       "id": "WEAPON-SWAP-OFFHAND-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "MECHANIC",
       "test_file": "tests/integration/test_public_real_pob.py",
       "total_variants": 1
     },
@@ -2405,6 +3474,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2413,6 +3485,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2420,6 +3493,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2428,6 +3504,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2435,6 +3512,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2443,6 +3523,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2450,6 +3531,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2458,6 +3542,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2465,6 +3550,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2473,6 +3561,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2480,6 +3569,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2488,6 +3580,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2495,6 +3588,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2503,6 +3599,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2510,6 +3607,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2518,6 +3618,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_weapon_set_component_contexts.py",
       "total_variants": 1
     },
@@ -2525,6 +3626,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2533,6 +3637,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_contextual_incompatible_placement_real_pob.py",
       "total_variants": 1
     },
@@ -2540,6 +3645,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2548,6 +3656,7 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_contextual_incompatible_placement_real_pob.py",
       "total_variants": 1
     },
@@ -2555,6 +3664,9 @@
       "archetypes": [
         "weapon_swap"
       ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
       "depth": "VERDICT",
       "expected": "CONFIDENT",
       "failure_messages": [],
@@ -2563,30 +3675,40 @@
       "manifest_id": "CORE04-WEAPON-SWAP",
       "passed_variants": 1,
       "result": "PASS",
+      "role": "STATE_INTEGRITY",
       "test_file": "tests/integration/test_contextual_incompatible_placement_real_pob.py",
       "total_variants": 1
     }
   ],
   "functional": {
-    "classified_executed": 54,
+    "classified_executed": 107,
     "counts": {
-      "EXPECTED_UNCERTAINTY": 7,
-      "FULLY_MEASURED": 45,
+      "EXPECTED_UNCERTAINTY": 9,
+      "FULLY_MEASURED": 91,
       "NOT_ESTABLISHED": 0,
-      "PARTIALLY_MEASURED": 2,
-      "UNSUPPORTED_MECHANIC": 0
+      "PARTIALLY_MEASURED": 4,
+      "UNSUPPORTED_MECHANIC": 3
     },
-    "fully_measured": 45,
-    "unclassified_verdict_executed": 64
+    "fully_measured": 91,
+    "unclassified_verdict_executed": 0
+  },
+  "gate": {
+    "blockers": [],
+    "verdict": "PASS"
   },
   "result_counts": {
     "EXPECTED_UNCERTAIN": 19,
-    "PASS": 146,
-    "UNSUPPORTED": 8
+    "PASS": 160,
+    "UNSUPPORTED": 9
   },
-  "supported_count": 173,
-  "total_count": 173,
-  "uncovered_archetypes": [
-    "stat_stacker"
-  ]
+  "runtime": {
+    "pob_layout": "installed",
+    "pob_version": "0.23.1"
+  },
+  "skipped_tests": [],
+  "state_integrity_cases": 24,
+  "supported_count": 188,
+  "total_count": 188,
+  "uncovered_archetypes": [],
+  "unmapped_failures": []
 }

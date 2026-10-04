@@ -135,9 +135,9 @@ of a mechanic ExileLens actually measures, so the report adds a separate
 | `EXPECTED_UNCERTAINTY` | The asserted PARTIAL/UNCERTAIN outcome is correct: the specific information is genuinely insufficient. |
 | `UNSUPPORTED_MECHANIC` | The test asserts an explicit UNSUPPORTED refusal. |
 
-A declared case whose test fails is `NOT_ESTABLISHED`. Identity, restore/repeatability
-and policy cases are not classified, and unclassified verdict cases are counted
-separately rather than guessed. `test_declared_functional_measurement_matches_what_the_test_asserts`
+A declared case whose test fails is `NOT_ESTABLISHED`. Identity and policy cases are not verdict-level and are not
+classified. Since R4 every verdict-level case is either a `MECHANIC` case (classified as above) or a `STATE_INTEGRITY`
+case (see "R4 additions"); an unclassified verdict case is a test failure, not a count. `test_declared_functional_measurement_matches_what_the_test_asserts`
 checks every declaration against the quality the test body actually asserts.
 
 ### Registry, not manifest, carries the taxonomy
@@ -188,3 +188,30 @@ real corpus growth into, so the metric becomes meaningful as coverage grows.
 Do not add a `CoverageCase` for a fixture or test that does not exist yet, and do
 not invent a fixture merely to fill an empty archetype cell — an empty cell is a
 correct, reportable answer.
+
+## R4 additions (1.0 reliability gate)
+
+R4 turned this report into a gate. See `docs/R4-1.0-RELIABILITY-GATE.md` for the findings and the gate definition; the
+mechanics are:
+
+- **`CaseRole`** (`taxonomy.py`). A verdict-level case is a `MECHANIC` case (declares `functional`) or a `STATE_INTEGRITY`
+  case: loadout, restore, isolation and enumeration plumbing (weapon-set component contexts, effect-level enumeration,
+  restore recovery, transaction shape, jewel socket safety). Integrity cases assert no measurement quality, so they are reported
+  in their own table and are neither functional coverage nor a gap. A failing integrity case still blocks the gate.
+- **`UncertaintyAudit`** (`taxonomy.py`) with `audit_note` and `blocks_1_0` on every case whose correct answer is a refusal
+  (expected `UNCERTAIN`/`UNSUPPORTED`) or that is `PARTIALLY_MEASURED`: `CORRECT_UNCERTAINTY` (stays), `FIXABLE_MEASUREMENT_GAP`
+  (documented limitation with its effort) or `COPY_OR_DIAGNOSTIC`. The report prints the audit table.
+- **Archetype status** is derived from what the cases establish, never from a count: FUNCTIONALLY MEASURED needs a passing
+  FULLY_MEASURED verdict case; PARTIAL / EXPECTED UNCERTAINTY describe refusals only; REPRESENTED means identity/policy/integrity
+  only; RELEASE GAP means no case.
+- **Failing tests outside the registry** are reported and block the gate. Before R4 the headline read 100% beside two failing
+  corpus-gate tests because only registered cases were graded. **Skipped tests** in the executed suites are listed (a skip is no evidence).
+- **The report records the PoB runtime** (version and layout). Numbers are runtime-specific: the installed PoB Community PoE2 release
+  (what users run, auto-detected) and a development git checkout of the same head give different PoB output for some cases, and the
+  committed report is the installed-release one. Leave `POB2_PATH` unset when regenerating.
+- **`tests/corpus_coverage/gate.py`** holds the machine-checkable rules (`evaluate_gate`) and the Build Intelligence rules
+  (`evaluate_build_intel_gate`, over the JSON `scripts/r4_gate_measure.py` writes). Both are engine-free and unit-tested; the
+  registry itself is tested to satisfy the gate when every case passes. `python scripts/generate_corpus_coverage_report.py --check-gate`
+  exits non-zero when the coverage gate blocks.
+- A drift guard fails when a real-PoB integration test file is not wired into the generator's `SUITES`, and the build-corpus privacy scan now
+  covers every XML in the corpus directory, with a guard that the directory and the manifest agree.

@@ -74,13 +74,28 @@ def select_best_comparison(comparisons: list[dict[str, Any]]) -> dict[str, Any] 
     return min(comparisons, key=best_slot_sort_key)
 
 
+def replacement_label(slot: str, comparison: dict[str, Any] | None = None) -> str:
+    """"Replace <slot>" in player words. A jewel socket is a raw passive-tree node id ("Jewel 55190") that means nothing to a
+    player (slots.jewel_socket_display_label: raw ids are never player copy), so it is named by the jewel it replaces, or as an
+    empty socket."""
+    from exilelens.items.slots import is_jewel_socket_pob_slot
+
+    if is_jewel_socket_pob_slot(slot):
+        baseline = (comparison or {}).get("baseline_item") or {}
+        if baseline.get("empty"):
+            return "Equip to empty jewel socket"
+        name = str(baseline.get("display_name") or baseline.get("name") or "").strip()
+        return f"Replace {name}" if name else "Replace jewel"
+    return f"Replace {slot}"
+
+
 def best_slot_label(comparison: dict[str, Any] | None) -> str:
     if not comparison:
         return ""
     slot = comparison.get("pob_slot") or comparison.get("product_slot") or ""
     if not slot:
         return ""
-    return f"Replace {slot}"
+    return replacement_label(str(slot), comparison)
 
 
 def rank_comparisons_guardrail_first(comparisons: list[dict[str, Any]]) -> list[dict[str, Any]]:

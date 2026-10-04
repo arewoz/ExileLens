@@ -57,6 +57,50 @@ from exilelens.items.value_layer import parse_profile
 logger = logging.getLogger(__name__)
 
 
+def weapon_layout_refusal_message(reason: str | None) -> str:
+    """What the player reads (the engine message is shown as-is) when PoB says the item cannot be worn with the build's weapons.
+
+    The bridge reasons are developer wording ("off-hand item is not compatible with the current weapon layout"). The refusal is
+    correct (PoB's own IsItemValidForSlot decides, and ExileLens does not evaluate the two-step change of also swapping the weapon);
+    the message says what it means and what to do. The reason may be a two-handed main hand or a main hand the off-hand type needs
+    something else from (a quiver needs a bow), so it does not guess which."""
+    text = str(reason or "")
+    if text.startswith("off-hand item"):
+        return ("This off-hand item can't be equipped with the main-hand weapon in your Path of Building build, so there is nothing "
+                "to compare it with. Change the weapon in Path of Building to check it.")
+    if text.startswith("two-hand weapon"):
+        return "This two-handed weapon can't be equipped with the weapon layout in your Path of Building build."
+    return text or "unsupported equipment layout"
+
+
+def jewel_no_compatible_slot(allocated_count: int, excluded_count: int) -> NoCompatibleSlot:
+    """The truthful refusal when a jewel candidate has no evaluable socket (M1.3, R4).
+
+    Three different causes must not collapse into one message (`allocated_count` comes straight from PoB's allocated-socket
+    enumeration, bridge.lua `allocated_jewel_socket_slots`, and includes `excluded_count`):
+    no allocated socket at all; every allocated socket was left out because the jewel in it makes other passives'
+    allocation depend on its presence (a swap-and-restore of that socket is not provably restorable, bridge.lua
+    `jewel_socket_is_connectivity_risky`) -- the sockets exist and may well accept this jewel, so "not compatible" would be
+    false; or the evaluable sockets do not accept this jewel family.
+    """
+    details = {"allocated_jewel_socket_count": allocated_count, "excluded_connectivity_risky_socket_count": excluded_count}
+    if allocated_count == 0:
+        return NoCompatibleSlot("this build has no allocated jewel sockets", details)
+    if excluded_count >= allocated_count:
+        return NoCompatibleSlot(
+            "this build's allocated jewel sockets cannot be evaluated safely: the jewel socketed in each changes which "
+            "passives can be allocated, so replacing it cannot be checked and restored reliably",
+            details,
+        )
+    if excluded_count:
+        return NoCompatibleSlot(
+            "this jewel is not compatible with any jewel socket that can be evaluated safely in this build "
+            f"({excluded_count} socket(s) were skipped because their jewel changes passive connectivity)",
+            details,
+        )
+    return NoCompatibleSlot("this jewel is not compatible with any allocated jewel socket in this build", details)
+
+
 def _product_slot_value(pob_slot: str, item_type: str | None) -> str:
     """`pob_slot_to_product` as a plain string, for both fixed equipment slots
     (a `ProductSlot` member) and dynamic jewel sockets (already a plain
@@ -338,26 +382,14 @@ def _evaluate_item_steps(
 
     if pob_parse.weapon_layout == "UNSUPPORTED_EQUIPMENT_LAYOUT":
         raise SlotResolutionFailed(
-            pob_parse.weapon_layout_reason or "unsupported equipment layout",
+            weapon_layout_refusal_message(pob_parse.weapon_layout_reason),
             {"weapon_layout": pob_parse.weapon_layout},
         )
     if not compatible_slots:
         if is_jewel_candidate:
-            # M1.3: distinguish "this build has no allocated jewel sockets at
-            # all" from "it has sockets, but none accept this jewel family"
-            # (Phase spec: do not collapse jewel failures into one generic
-            # code) -- `allocated_jewel_socket_count` comes straight from
-            # PoB's own allocated-socket enumeration (bridge.lua
-            # `allocated_jewel_socket_slots`), not a guess.
-            allocated_count = pob_parse.allocated_jewel_socket_count or 0
-            if allocated_count == 0:
-                raise NoCompatibleSlot(
-                    "this build has no allocated jewel sockets",
-                    {"allocated_jewel_socket_count": 0},
-                )
-            raise NoCompatibleSlot(
-                "this jewel is not compatible with any allocated jewel socket in this build",
-                {"allocated_jewel_socket_count": allocated_count},
+            raise jewel_no_compatible_slot(
+                pob_parse.allocated_jewel_socket_count or 0,
+                pob_parse.excluded_connectivity_risky_socket_count or 0,
             )
         raise NoCompatibleSlot("item has no compatible replacement slots in the loaded build")
     # Detect two-hand weapon candidate that would auto-clear an equipped offhand.

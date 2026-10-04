@@ -4,7 +4,7 @@ RECOVERY-02A adds `EnergyShieldRegenRecovery` as an authoritative continuous rec
 
 ## Evidence
 
-`fixtures/builds/public_corpus/recovery02a_es_regen_invoker.xml` is the unchanged public export from `pobb.in/K6bp-LNAo507`. The public viewer recorded 9,365 Energy Shield and zero `EnergyShieldRegenRecovery`; the pinned local PoB revision recalculates the unchanged export at 9,284 ES, still with zero regeneration.
+`fixtures/builds/public_corpus/recovery02a_es_regen_invoker.xml` is the public export (R4 removed only the per-item GGG `Unique ID:` lines and the importing character's hash; PoB's metrics, equipment and skill identity are unchanged) from `pobb.in/K6bp-LNAo507`. The public viewer recorded 9,365 Energy Shield and zero `EnergyShieldRegenRecovery`; the pinned local PoB revision recalculates the unchanged export at 9,284 ES, still with zero regeneration.
 
 The integration candidate is built at runtime from that build's actually equipped boots and adds exactly `Regenerate 1% of maximum Energy Shield per second`. Pinned PoB's `Data/ModRunes.lua` identifies this as the bonded boots effect of **Warding Rune of Symbiosis** (`Bonded: Regenerate 1% of maximum Energy Shield per second`). No XML or custom modifier is fabricated.
 

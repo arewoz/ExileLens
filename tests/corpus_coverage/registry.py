@@ -16,7 +16,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tests.corpus_coverage.taxonomy import Archetype, EvaluationDepth, ExpectedResult, FunctionalMeasurement
+from tests.corpus_coverage.taxonomy import (
+    Archetype,
+    CaseRole,
+    EvaluationDepth,
+    ExpectedResult,
+    FunctionalMeasurement,
+    UncertaintyAudit,
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +42,15 @@ class CoverageCase:
     # cases not yet classified; `tests/test_corpus_coverage_report.py` checks each
     # declared value against the quality the test body asserts.
     functional: FunctionalMeasurement | None = None
+    # R4: a VERDICT case is either a MECHANIC case (declares `functional`) or a STATE_INTEGRITY case (loadout/restore/
+    # enumeration plumbing that asserts no measurement quality). `tests/test_corpus_coverage_report.py` fails a
+    # VERDICT case that is neither, so "not yet classified" can no longer accumulate silently.
+    role: CaseRole = CaseRole.MECHANIC
+    # R4: every case whose correct answer is a refusal (expected UNCERTAIN/UNSUPPORTED, or PARTIALLY_MEASURED)
+    # carries the audited reason and a one-line note; `blocks_1_0` marks an unresolved release blocker.
+    audit: UncertaintyAudit | None = None
+    audit_note: str = ""
+    blocks_1_0: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +263,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
             "directional OFFENSE/DEFENSE axis improvement, clean restore."
         ),
         archetypes=(Archetype.SPELL, Archetype.CRIT),
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="LIFE01-BLOOD-MAGE-GORE-SPIKE",
@@ -269,8 +286,9 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         node_name="test_ring_tradeoff_and_best_slot_remain_semantic",
         depth=EvaluationDepth.VERDICT,
         expected=ExpectedResult.CONFIDENT,
-        description="Two-ring transaction, TRADEOFF impact pattern classified as SIDEGRADE, stable best-slot pick.",
+        description="Two-ring transaction, TRADEOFF impact pattern with a material conflict capped at MINOR_UPGRADE (SCORING-01a), stable best-slot pick.",
         archetypes=(Archetype.SPELL,),
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="RING-EMPTY-SLOT",
@@ -280,6 +298,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description="Empty slot is compared explicitly, not inferred/guessed from a missing baseline.",
         archetypes=(Archetype.SPELL,),
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="BOW-QUIVER-REPLACEMENT",
@@ -290,6 +309,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Quiver replacement on a bow build preserves the Ice Shot player-skill identity and restores cleanly.",
         archetypes=(Archetype.RANGED_ATTACK,),
         manifest_id="CORE04-BOW-QUIVER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MINION-STAGE-IDENTITY-RETAINED",
@@ -309,6 +329,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description="A corrupted candidate restore is followed by a forced reload and a clean, valid subsequent evaluation.",
         archetypes=(Archetype.SPELL,),
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="ONE-BATCHED-TRANSACTION",
@@ -317,6 +338,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.VERDICT,
         expected=ExpectedResult.CONFIDENT,
         description="One Item Check issues exactly one batched PoB transaction across all compatible slots (perf invariant, not archetype-specific).",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="MELEE-TWO-HAND-WEAPON-UPGRADE",
@@ -330,6 +352,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MELEE-WEAPON-REPEATED-EVALUATION-NO-LEAK",
@@ -340,6 +363,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive Item Checks against the same melee weapon candidate produce identical score/verdict and both restore cleanly.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="ONEHAND-WEAPON-AMBIGUOUS-SLOT-RESOLVED-SAFELY",
@@ -356,6 +380,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-ONEHAND-WEAPON",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="SHIELD-REPLACEMENT-MEASURED-AND-RESTORED",
@@ -373,13 +398,14 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-ONEHAND-WEAPON",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="OFFHAND-CANDIDATE-AGAINST-TWO-HAND-WEAPON-FAILS-TRUTHFULLY",
         test_file="tests/integration/test_public_real_pob.py",
         node_name="test_offhand_candidate_against_two_hand_weapon_fails_truthfully",
         depth=EvaluationDepth.VERDICT,
-        expected=ExpectedResult.CONFIDENT,
+        expected=ExpectedResult.UNSUPPORTED,
         description=(
             "M1.2 offhand slice, invalid-combination case: a real Focus candidate against a "
             "build whose active weapon is a two-handed staff (empty offhand) resolves zero "
@@ -389,6 +415,9 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
             "the failed resolution left no residual build-state mutation."
         ),
         archetypes=(Archetype.SPELL,),
+        functional=FunctionalMeasurement.UNSUPPORTED_MECHANIC,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="A Focus/shield/quiver cannot legally be worn with an equipped two-handed weapon: PoB's own IsItemValidForSlot returns no slot. Item Check refuses (SLOT_RESOLUTION_FAILED / UNSUPPORTED_EQUIPMENT_LAYOUT) and does not evaluate the two-step change (swap the weapon too).",
     ),
     CoverageCase(
         id="ONEHAND-WEAPON-REPEATED-EVALUATION-NO-LEAK",
@@ -399,6 +428,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive ambiguous-slot Item Checks produce identical per-slot score/verdict and both slots restore cleanly both times.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-ONEHAND-WEAPON",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="POISON-AILMENT-OFFENSE-SELECTED-AND-MEASURED",
@@ -460,6 +490,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive Item Checks against the same mixed hit+ailment candidate select the same PoB field (CombinedDPS) and produce identical score/verdict, both restoring cleanly.",
         archetypes=(Archetype.AILMENT, Archetype.DOT, Archetype.TRIGGER),
         manifest_id="CORE04-MIXED-HIT-AILMENT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="WEAPON-SWAP-BASELINE-REFLECTS-ACTIVE-SET",
@@ -477,6 +508,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WEAPON-SWAP-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
@@ -497,6 +529,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="WEAPON-SWAP-OFFHAND-CANDIDATE-SUBSTITUTION-RESOLVES-ACTIVE-SLOT",
@@ -517,6 +550,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="SKILL-NATIVE-DOT-OFFENSE-SELECTED-AND-MEASURED",
@@ -547,6 +581,7 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         description="Two consecutive Item Checks against the same skill-native-DoT candidate select the same PoB field (TotalDot) and produce identical score/verdict, both restoring cleanly.",
         archetypes=(Archetype.DOT,),
         manifest_id="CORE04-SKILL-NATIVE-DOT",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STAGE-CHANNEL-RELEASE-IGNITE-VERDICT",
@@ -568,6 +603,8 @@ REAL_POB_VERDICT_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.SPELL, Archetype.AILMENT, Archetype.DOT, Archetype.UNUSUAL_SKILL_PART),
         manifest_id="CORE04-STAGE-CONTEXT",
         functional=FunctionalMeasurement.PARTIALLY_MEASURED,
+        audit=UncertaintyAudit.FIXABLE_MEASUREMENT_GAP,
+        audit_note='Only POISON has a PoB stack/stage scope proof (AILMENT_STACK_SCOPE_PROBES); ignite- and bleed-dominant primary outputs stay PARTIAL on every Item Check although PoB measures the ailment. Medium effort (per-ailment proof plus ignite and bleed corpus builds). Population unmeasured (1 of 21 corpus builds). Documented limitation, not a blocker.',
     ),
 )
 
@@ -590,6 +627,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="The same ComponentReference reads under set 1 and set 2 as two disjoint cache observations (shared component identity, distinct context identity) with exact fingerprint/equipment restore.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-REPEATED-SWITCH-DETERMINISTIC",
@@ -600,6 +638,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Repeated set2->set1->set2 component reads are deterministic per set (same status, same output when measured).",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-SIBLING-ISOLATION",
@@ -610,6 +649,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Two sibling effects under two weapon sets yield four disjoint context cache identities -- no observation is ever shared.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-PHYSICAL-SET2-ISOLATED",
@@ -620,6 +660,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="A candidate placed in the exact physical Weapon 1 Swap slot measures a real component delta with the opposite set byte-identical and the fingerprint restored.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-PHYSICAL-SET1-LEAVES-SET2",
@@ -630,6 +671,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="A set-1 physical placement never touches set 2 (both swap slots byte-identical) and restores exactly.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-FAILURES-CLOSE-AND-RESTORE",
@@ -640,6 +682,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Invalid weapon set, cross-set physical slot, and failed candidate calculation all fail closed with the baseline fingerprint and context restored.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-CORRUPT-RESTORE-FAILS-CLOSED",
@@ -650,6 +693,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="A corrupted contextual restore raises RestoreFailed and the next load re-parses a known-good baseline (mirrors the ordinary-path recovery contract).",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="WSCTX-ORDINARY-CHECK-NO-CONTEXT-RPCS",
@@ -660,6 +704,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Ordinary ring Item Check invokes zero contextual RPCs and keeps its FULL/MEANINGFUL_UPGRADE result -- the contextual path is explicit-only.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="XBASE-SAME-BASE-MEASURES",
@@ -670,6 +715,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Same-base replacements in both weapon sets still measure normally with clean restore (the FIX-02 guard never over-fires on compatible placements).",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="XBASE-CROSS-OFFHAND-UNAVAILABLE",
@@ -680,6 +726,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="A cross-base placement that would disturb the paired offhand aborts to UNAVAILABLE/NOT_VALID_IN_CONTEXT naming the disturbed slot, restores exactly, and leaves the worker healthy for the next transaction.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="XBASE-CROSS-PRIMARY-UNAVAILABLE",
@@ -690,6 +737,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="A cross-base placement disturbing the primary pairing aborts to UNAVAILABLE/NOT_VALID_IN_CONTEXT with exact restore and the original weapon set retained.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="CTXDIAG-CATALOGS-ENUMERATE-RESTORE",
@@ -700,6 +748,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Both weapon-set effect catalogs enumerate (set-2 read costs zero settle frames) with disjoint context identities and exact set/fingerprint/weapon restore.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="CTXDIAG-FULL-CHAIN-WEAPON-SWAP",
@@ -710,6 +759,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Full read-only diagnostic chain (candidate -> measurements -> evidence -> proof -> scope -> eligibility) on the weapon-swap fixture: schema-complete, provenance-bound, restore-exact, and ordinary Item Check still uses zero contextual RPCs.",
         archetypes=(Archetype.WEAPON_SWAP,),
         manifest_id="CORE04-WEAPON-SWAP",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="EFFENUM-SIBLING-COMPONENTS",
@@ -719,6 +769,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description="Sibling granted effects (EscapeShot/IceFragment, InfernalCry/CorpseExplosion) share one group but carry distinct semantic and cache identities, all GlobalCache-backed and measured.",
         archetypes=(Archetype.WEAPON_SWAP, Archetype.MELEE),
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="EFFENUM-READS-DETERMINISTIC",
@@ -729,6 +780,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Repeated catalog listings are identical and exact sibling reads return their own identities from GLOBAL_CACHE without cross-contamination and without a restore transaction.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="EFFENUM-CACHE-MISS-FALLBACK",
@@ -739,6 +791,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="A forced cache miss falls back to a transactional recalc that measures the exact requested semantic identity and restores main-skill identity, fingerprint, stat set, part, stage, and calculation mode.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="EFFENUM-MALFORMED-FAIL-CLOSED",
@@ -749,6 +802,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Malformed cache entries and malformed fallback results surface as UNAVAILABLE with the precise reason, never a synthetic output, with the fingerprint restored.",
         archetypes=(Archetype.MELEE,),
         manifest_id="CORE04-MELEE-WEAPON",
+        role=CaseRole.STATE_INTEGRITY,
     ),
     CoverageCase(
         id="EFFENUM-BOUND-AND-ORDINARY-CHECK",
@@ -757,6 +811,7 @@ SLICE_3_4D_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.VERDICT,
         expected=ExpectedResult.CONFIDENT,
         description="Cross-cutting bound: the effect catalog is capped at 8 with explicit truncation, and ordinary ring Item Check keeps its FULL/MEANINGFUL_UPGRADE result.",
+        role=CaseRole.STATE_INTEGRITY,
     ),
 )
 
@@ -807,6 +862,7 @@ CORPUS_02A_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MELEE,),
         manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="CHERNOBOG-SHIELD-LOSS-SEMANTICS-CHANGE-UNCERTAIN",
@@ -820,8 +876,11 @@ CORPUS_02A_REAL_POB_CASES: tuple[CoverageCase, ...] = (
             "primary metric changes from hit+ailment to hit only. Reported PARTIAL/UNCERTAIN "
             "with offense UNMEASURED, never a confident directional verdict."
         ),
-        archetypes=(Archetype.MELEE, Archetype.UNIQUE_INTERACTION),
+        archetypes=(Archetype.MELEE, Archetype.UNIQUE_INTERACTION, Archetype.STAT_STACKER),
         manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+        functional=FunctionalMeasurement.PARTIALLY_MEASURED,
+        audit=UncertaintyAudit.FIXABLE_MEASUREMENT_GAP,
+        audit_note="PoB's CombinedDPS exists on both sides; the primary-skill guard refuses because the quantity changes from hit+ailment to hit only (documented scoring-policy decision, CORPUS-02A section 6). Affects candidates that add or remove an ailment component. Owner decision, small-medium effort; refusal is truthful, not a 1.0 blocker.",
     ),
     CoverageCase(
         id="GIANTS-BLOOD-INELIGIBLE-TWO-HANDER-CLEARS-SHIELD",
@@ -836,6 +895,9 @@ CORPUS_02A_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MELEE,),
         manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+        functional=FunctionalMeasurement.PARTIALLY_MEASURED,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="Decisive NOT_VIABLE (MAIN_SKILL_INVALID): the main skill needs the shield PoB drops, PoB's own output is zero, and the paired-offhand removal is disclosed. Quality is PARTIAL because offense of a build that cannot use its skill is intentionally not scored.",
     ),
     CoverageCase(
         id="GIANTS-BLOOD-REPEATED-EVALUATION-NO-LEAK",
@@ -849,6 +911,7 @@ CORPUS_02A_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MELEE,),
         manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
 )
 
@@ -872,6 +935,7 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION,),
         manifest_id="CORE04-MINION-ACTOR",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MINION-SKILL-LEVEL-LOSS-MEASURED",
@@ -885,6 +949,7 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION,),
         manifest_id="CORE04-MINION-ACTOR",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MINION-PLAYER-DEFENSE-RING-TRADEOFF",
@@ -898,6 +963,7 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION,),
         manifest_id="CORE04-MINION-ACTOR",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MINION-REPEATED-EVALUATION-NO-LEAK",
@@ -911,6 +977,7 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION,),
         manifest_id="CORE04-MINION-ACTOR",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="DJINN-MINION-LEVELS-AND-ALL-DJINN-COMPONENTS",
@@ -925,6 +992,7 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION, Archetype.ASCENDANCY),
         manifest_id="CORPUS02B-VARASHTA-DJINN",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="DJINN-MINION-DAMAGE-RING-UPGRADE",
@@ -938,6 +1006,7 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION, Archetype.ASCENDANCY),
         manifest_id="CORPUS02B-VARASHTA-DJINN",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="DJINN-COMMAND-MAIN-SKILL-UNCERTAIN",
@@ -951,6 +1020,9 @@ CORPUS_02B_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.MINION,),
         manifest_id="CORPUS02B-VARASHTA-DJINN",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='PoB calculates no offense at all when the player-cast Command effect is the main skill; nothing exists to measure. Item Check names the cause and the group sibling that would be measurable (MAIN-SKILL-01).',
     ),
 )
 
@@ -984,6 +1056,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Fists of Stone vs Fists of Stone (exported gloves minus their crit line): FULL, matching a cold PoB load.",
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-FIXED-VALUE-GLOVE-EXACT",
@@ -997,6 +1070,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-NO-DOUBLE-TRANSFORMATION",
@@ -1007,6 +1081,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         description="Exported (already transformed) gloves are never transformed again, as candidate or baseline; metrics equal the export.",
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-ROLL-BOUNDS-MATCH-REFERENCES",
@@ -1020,6 +1095,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-ORDINARY-REAL-GLOVES-VERIFIED",
@@ -1034,6 +1110,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-GUARANTEED-UPGRADE-COMMUNICATED",
@@ -1047,6 +1124,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-ROLL-DEPENDENT-DETERMINISTIC-RESTORE",
@@ -1056,6 +1134,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description="Repeated roll-dependent evaluations are identical and fingerprint/equipment return to baseline.",
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-HAND-BUILT-BASELINE-TRANSFORMED",
@@ -1069,6 +1148,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-CHARACTER-LEVEL",
@@ -1078,6 +1158,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description="At character level 70 the transformed per-level defences match a level-70 reference load.",
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-INEXACT-BASELINE-DISCLOSED",
@@ -1090,6 +1171,9 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
             "(STONEFIST_BASELINE_UNTRANSFORMED), never a confident recommendation on an untransformed baseline."
         ),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="A hand-built PoB with ordinary ranged gloves cannot give an exact transformed baseline; every other slot's effect can depend on the unknown gloves, so a confident verdict would be invented. Disclosed (STONEFIST_BASELINE_UNTRANSFORMED). Way of the Stonefist only.",
     ),
     CoverageCase(
         id="STONEFIST-UNRESOLVABLE-GLOVES-UNSUPPORTED",
@@ -1103,6 +1187,9 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
             "gloves whose lines match no glove-modifier combination, stay UNSUPPORTED with the reason."
         ),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.UNSUPPORTED_MECHANIC,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Unique gloves without real-item evidence of their modifiers, and gloves whose lines match no glove-modifier combination, are refused with the precise reason. Way of the Stonefist gloves only; adding evidence is per-unique data work.',
     ),
     CoverageCase(
         id="STONEFIST-UNIQUE-GLOVES-VERIFIED",
@@ -1116,6 +1203,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-UNIQUE-UNORDERED-RESULTS-UNSUPPORTED",
@@ -1128,6 +1216,9 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
             "UNSUPPORTED with the reason."
         ),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.UNSUPPORTED_MECHANIC,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="Candlemaker: PoB's DPS falls as one transformed roll grows (a resistance-reduction line), so no verdict holds for every roll. PoB output is non-monotone; a verdict would be unsound.",
     ),
     CoverageCase(
         id="STONEFIST-SINGLE-ROLL-PROBES",
@@ -1140,6 +1231,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
             "same PoB transaction; every probe is ordered between worst and best and agrees on the verdict."
         ),
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STONEFIST-NON-GLOVE-CANDIDATES-STAY-MEASURED",
@@ -1149,6 +1241,7 @@ CORPUS_02C_REAL_POB_CASES: tuple[CoverageCase, ...] = (
         expected=ExpectedResult.CONFIDENT,
         description="The transformation is scoped to gloves: an amulet candidate stays FULL and matches PoB.",
         manifest_id="CORPUS02C-STONEFIST",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
 )
 
@@ -1205,6 +1298,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="PARTIAL/UNSUPPORTED/FAILED quality can never produce a directional up/downgrade verdict.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Fail-closed invariant: reduced evidence can never emit a directional verdict.',
     ),
     CoverageCase(
         id="KNOWN-ZERO-VS-MISSING",
@@ -1222,6 +1317,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="Non-numeric/NaN/infinity/bool worker metrics produce FAILED quality + NOT_EVALUATED, never a thrown exception or a silent numeric coercion.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Fail-closed invariant: malformed worker output is FAILED/NOT_EVALUATED, never coerced.',
     ),
     CoverageCase(
         id="RESISTANCE-CAP-STATE-BOUNDARIES",
@@ -1239,6 +1336,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="A missing resistance reads as UNKNOWN state, never silently treated as a zero deficit.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Fail-closed invariant: a missing resistance is UNKNOWN, never a zero deficit.',
     ),
     CoverageCase(
         id="SCORE-BAND-BOUNDARIES",
@@ -1299,6 +1398,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="An explicit restore failure is graded FAILED quality, never silently treated as a successful comparison.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Fail-closed invariant: a restore failure is never presented as a valid comparison.',
     ),
     CoverageCase(
         id="STONEFIST-DECOMPOSITION-POLICY",
@@ -1331,6 +1432,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C: a verdict that changes across the roll range is refused (stubbed PoB results).",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='A verdict that changes across the unknown roll range cannot be stated; refused.',
     ),
     CoverageCase(
         id="STONEFIST-NON-MONOTONE-REFUSED",
@@ -1339,6 +1442,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C: matching verdicts are not proof when PoB outputs are not ordered across the rolls.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="Equal verdicts are not proof when PoB's outputs are not ordered across the rolls; refused.",
     ),
     CoverageCase(
         id="STONEFIST-ALTERNATIVES-MUST-AGREE",
@@ -1347,6 +1452,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C: when displayed lines fit several modifier combinations, all resulting items must share one verdict.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='When displayed lines fit several modifier combinations every alternative must agree, otherwise refused.',
     ),
     CoverageCase(
         id="STONEFIST-VERDICT-STRUCTURE-MUST-MATCH",
@@ -1355,6 +1462,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C review: a verdict reached through different impact patterns across the roll range is refused.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='A verdict reached through different impact patterns across the range is refused.',
     ),
     CoverageCase(
         id="STONEFIST-GUARANTEED-RANGE-REPORTED",
@@ -1380,6 +1489,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C: a PoB revision that parses Way of the Stonefist (e.g. PR #2350) does not lift the guard unvalidated.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='A PoB revision that claims to model Way of the Stonefist does not lift the guard unvalidated.',
     ),
     CoverageCase(
         id="ITEM-TRANSFORM-FLAGGED-IS-UNSUPPORTED",
@@ -1389,6 +1500,8 @@ POLICY_UNIT_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNSUPPORTED,
         description="CORPUS-02C: a flagged comparison is EvaluationQuality.UNSUPPORTED with reason ITEM_TRANSFORM_UNMODELED.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='A flagged item-transform comparison is UNSUPPORTED (ITEM_TRANSFORM_UNMODELED), never scored.',
     ),
 )
 
@@ -1487,6 +1600,8 @@ CORPUS_02D1_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.AILMENT, Archetype.DOT),
         manifest_id="CORE04-POISON-AILMENT",
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="The build's configuration fixes the poison stack count, so duration/application changes cannot move PoisonDPS; claiming a measured poison comparison would be invented.",
     ),
     CoverageCase(
         id="POISON-INERT-PROBE-CARRIER-SKIPPED",
@@ -1509,6 +1624,8 @@ CORPUS_02D1_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="A poison audit whose duration probe is insensitive stays PARTIAL with AILMENT_STACK_SCOPE_UNPROVEN.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Unit proof of the refusal asserted for real PoB by POISON-CONFIGURED-STACKS-UNCERTAIN.',
     ),
     CoverageCase(
         id="AILMENT-HIT-CONFLICT-POLICY",
@@ -1517,6 +1634,8 @@ CORPUS_02D1_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="A scored ailment moving against a material real hit is PARTIAL with AILMENT_HIT_COMPONENTS_DISAGREE.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='A scored ailment moving against a material real hit means the components disagree; refusing is the safe answer.',
     ),
 )
 
@@ -1547,6 +1666,8 @@ CORPUS_02D2_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.ASCENDANCY, Archetype.WEAPON_SWAP),
         manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="The saved main skill (Virtuous Barrier) deals no damage; Item Check never manufactures a verdict from it. The most common 'UNCERTAIN for everything' cause; the actionable diagnostic is asserted by MAINSKILL-VOLTAIC-ACTIONABLE-DIAGNOSTIC.",
     ),
     CoverageCase(
         id="VOLTAIC-BARRIER-AS-EXPORTED-DEFENSE-MEASURED",
@@ -1562,6 +1683,8 @@ CORPUS_02D2_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='Offense is genuinely unmeasurable on the as-exported build; defense is still measured and reported, not discarded.',
     ),
     CoverageCase(
         id="VOLTAIC-BARRIER-MAIN-WEAPON-UPGRADE-FRESH-LOAD",
@@ -1653,6 +1776,8 @@ MAIN_SKILL_01_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.ASCENDANCY,),
         manifest_id="CORPUS02D2-VOLTAIC-BARRIER",
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.COPY_OR_DIAGNOSTIC,
+        audit_note='Refusal is correct; the user-facing remedy (selected skill named by its PoB identity, the PoB-calculated alternatives, how to select in PoB and reload, no automatic switch) shipped in MAIN-SKILL-01 and is what this case asserts. Copy issue resolved.',
     ),
     CoverageCase(
         id="MAINSKILL-SELECT-IN-POB-AND-RELOAD-FULL",
@@ -1684,6 +1809,8 @@ MAIN_SKILL_01_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.MINION, Archetype.ASCENDANCY),
         manifest_id="CORPUS02B-VARASHTA-DJINN",
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note="Different cause from Voltaic Barrier: the Command effect has no offense; the diagnostic offers the selected group's own Navira summon.",
     ),
     CoverageCase(
         id="MAINSKILL-MEASURABLE-BUILDS-UNAFFECTED",
@@ -1714,6 +1841,8 @@ MAIN_SKILL_01_CASES: tuple[CoverageCase, ...] = (
         depth=EvaluationDepth.POLICY_UNIT,
         expected=ExpectedResult.UNCERTAIN,
         description="MAIN_SKILL_NO_OFFENSE is the first quality reason and the evaluation stays PARTIAL.",
+        audit=UncertaintyAudit.CORRECT_UNCERTAINTY,
+        audit_note='The main-skill reason leads the PARTIAL reasons so the user sees the cause first (copy contract of MAIN-SKILL-01).',
     ),
 )
 
@@ -1846,6 +1975,7 @@ CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
         description="The resolver scores TotalDPS (HIT_DPS, showAverage reason), not the per-use CombinedDPS.",
         archetypes=_F_TAGS,
         manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="MORTAR-OFFENSE-UPGRADE-AND-DOWNGRADE",
@@ -1908,6 +2038,8 @@ CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.PROXY_TOTEM, Archetype.AILMENT),
         manifest_id=_F_MORTAR,
         functional=FunctionalMeasurement.PARTIALLY_MEASURED,
+        audit=UncertaintyAudit.FIXABLE_MEASUREMENT_GAP,
+        audit_note="PoB measures IgniteDPS; ExileLens scores a per-use skill's hit rate only (PER_USE_DOT_NOT_MEASURED). Small-medium effort, niche (ignite on per-use cooldown skills); truthful refusal, not a blocker.",
     ),
     CoverageCase(
         id="MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL",
@@ -1922,6 +2054,8 @@ CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.PROXY_TOTEM,),
         manifest_id=_F_MORTAR,
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.FIXABLE_MEASUREMENT_GAP,
+        audit_note="PoB's damage is for one totem; ActiveTotemLimit/TotemsSummoned exist in PoB's output but ExileLens does not compose a total (no formula is invented, POB_NATIVE_DAMAGE_POLICY). +maximum totems is a plausible affix on totem builds. Whether PoB's FullDPS composes the count correctly is unverified. Medium effort; truthful refusal (TOTEM_LIMIT_CHANGED), not a blocker.",
     ),
     CoverageCase(
         id="BALLISTA-IDENTITY-AND-DPS-SEMANTICS",
@@ -1962,6 +2096,8 @@ CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
         archetypes=(Archetype.PROXY_TOTEM,),
         manifest_id=_F_BALLISTA,
         functional=FunctionalMeasurement.EXPECTED_UNCERTAINTY,
+        audit=UncertaintyAudit.FIXABLE_MEASUREMENT_GAP,
+        audit_note="Same as MORTAR-TOTEM-COUNT-CHANGE-IS-PARTIAL for Siege Ballista (PoB's Artillery damage does not move with the totem count).",
     ),
     CoverageCase(
         id="BALLISTA-DEFENCE-RING-MEASURED",
@@ -1983,6 +2119,7 @@ CORPUS_02F_CASES: tuple[CoverageCase, ...] = (
         description="Interleaved evaluations are identical and the fingerprint and equipment return to baseline.",
         archetypes=(Archetype.PROXY_TOTEM,),
         manifest_id=_F_MORTAR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
 )
 
@@ -2082,6 +2219,7 @@ CORPUS_02G_CASES: tuple[CoverageCase, ...] = (
         ),
         archetypes=(Archetype.ATTRIBUTE_STACKER,),
         manifest_id=_G_STR,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
     ),
     CoverageCase(
         id="STRENGTH-REPEATED-EVALUATION-RESTORE",
@@ -2274,6 +2412,199 @@ CORPUS_02H_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# R4 1.0 reliability gate: evidence the audit found missing or never wired into the report.
+#   * identity cases for the two fixtures added by LIFE-01 / RECOVERY-02A (RECOVERY-02A was not even in the manifest);
+#   * the recovery verdict case, the jewel evidence (test_jewel_*.py was never part of the report), the all-slots sweep and
+#     the stat-stacker case. Each points at exactly one test; nothing here duplicates an existing layer.
+# ---------------------------------------------------------------------------
+_R4_FILE = "tests/integration/test_r4_reliability_gate.py"
+_JEWEL_FILE = "tests/integration/test_jewel_real_pob.py"
+_JEWEL_RESTORE_FILE = "tests/integration/test_jewel_restore_remediation.py"
+_JEWEL_FIXTURE = "CORE04-MELEE-WEAPON"
+
+R4_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="LIFE01-BLOOD-MAGE-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[LIFE01-BLOOD-MAGE-GORE-SPIKE]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description="Witch/Blood Mage, Ember Fusillade, PLAYER actor (authentic pobb.in export).",
+        archetypes=(Archetype.SPELL, Archetype.LIFE_SCALING),
+        manifest_id="LIFE01-BLOOD-MAGE-GORE-SPIKE",
+    ),
+    CoverageCase(
+        id="RECOVERY02A-ES-REGEN-INVOKER-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[RECOVERY02A-ES-REGEN-INVOKER]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description="Monk/Invoker, Spark, PLAYER actor (authentic pobb.in export); Energy Shield recovery build.",
+        archetypes=(Archetype.SPELL, Archetype.ES_SCALING),
+        manifest_id="RECOVERY02A-ES-REGEN-INVOKER",
+    ),
+    CoverageCase(
+        id="RECOVERY02A-ES-REGEN-BOOTS-MEASURED",
+        test_file="tests/integration/test_recovery02a_es_regen.py",
+        node_name="test_authentic_invoker_boots_gain_real_es_regeneration_and_restore",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Boots gaining Energy Shield regeneration on an ES build: PoB's EnergyShieldRegenRecovery moves from zero, the "
+            "RECOVERY axis reports it against the ES pool as a distinct channel from Life regeneration (FULL), and the build restores."
+        ),
+        archetypes=(Archetype.ES_SCALING,),
+        manifest_id="RECOVERY02A-ES-REGEN-INVOKER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="GEAR-SLOTS-MEASURED-IN-OWN-SLOT-AND-RESTORED",
+        test_file=_R4_FILE,
+        node_name="test_every_gear_slot_is_measured_in_its_own_slot_and_restored",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Helmet, Body Armour, Gloves, Boots, Belt, Amulet and both Rings on one real build: each candidate resolves to its "
+            "own slot, is applied, is measured FULL with a defence gain, and restores. Belt had no real-PoB verdict test before R4."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id=_JEWEL_FIXTURE,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="DUAL-WIELD-WEAPON-CANDIDATE-BOTH-HANDS",
+        test_file=_R4_FILE,
+        node_name="test_dual_wield_weapon_candidate_is_evaluated_in_both_hands_and_restored",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A one-hand weapon on a build wielding two one-handers (Brutus' Lead Sprinkler in each hand) is legal in both weapon "
+            "slots: each hand is evaluated against its own equipped weapon, FULL with a measured offense gain, restores, and the best "
+            "hand is chosen by measurement. The dual-wield layout had only been exercised with amulet candidates."
+        ),
+        archetypes=(Archetype.MELEE,),
+        manifest_id="CORPUS02G-STRENGTH-BRUTUS",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="JEWEL-OCCUPIED-SOCKET-REPLACEMENT",
+        test_file=_JEWEL_FILE,
+        node_name="test_occupied_socket_replacement_measurable_and_restored",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A rare Ruby against a build with five allocated, occupied sockets (Timeless Jewel, two unique Diamonds, two rare "
+            "Rubies): every socket is evaluated against its own equipped jewel, FULL, and restores."
+        ),
+        manifest_id=_JEWEL_FIXTURE,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="JEWEL-MULTI-SOCKET-RANKING-SELECTS-BEST-PLACEMENT",
+        test_file=_JEWEL_FILE,
+        node_name="test_multi_socket_ranking_reflects_best_valid_placement_not_first_socket",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Deterministic target-socket selection: with materially different verdicts across sockets the recommendation is the "
+            "score-driven best placement, not the first socket (FULL)."
+        ),
+        manifest_id=_JEWEL_FIXTURE,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="JEWEL-MULTI-AXIS-TRADEOFF-REPORTED",
+        test_file=_JEWEL_FILE,
+        node_name="test_multi_axis_tradeoff_is_reported_not_hidden",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Replacing a Timeless Jewel is a PoB-measured offense/defense TRADEOFF, reported as such (FULL).",
+        manifest_id=_JEWEL_FIXTURE,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="JEWEL-REPEATED-EVALUATION-RESTORE",
+        test_file=_JEWEL_FILE,
+        node_name="test_repeated_evaluation_is_stable_and_restores_cleanly",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description="Two identical jewel evaluations give identical socket sets and verdicts, FULL, with a passing restore each time.",
+        manifest_id=_JEWEL_FIXTURE,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="JEWEL-EMPTY-ALLOCATED-SOCKET-COMPARED-AGAINST-NO-JEWEL",
+        test_file=_JEWEL_FILE,
+        node_name="test_empty_allocated_socket_is_compared_against_no_jewel",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "An allocated but empty jewel socket (derived from the public fixture by unslotting one jewel, in both forms PoB "
+            "writes it) is discovered, compared against no jewel (FULL, replacing_empty_slot), leaves every other socket's "
+            "baseline untouched, and leaks nothing. Replaces the old skip, which rested on a code-path argument."
+        ),
+        manifest_id=_JEWEL_FIXTURE,
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+    CoverageCase(
+        id="JEWEL-UNALLOCATED-SOCKETS-NEVER-EVALUATED",
+        test_file=_JEWEL_FILE,
+        node_name="test_unallocated_jewel_socket_ranking_only_sees_legal_candidates",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Wrong-socket safety: a build whose passive tree contains 19 socket nodes but allocates 4 is evaluated on exactly the "
+            "4, each against its own equipped jewel; an unallocated socket can never be selected."
+        ),
+        manifest_id="CORE04-SKILL-NATIVE-DOT",
+        role=CaseRole.STATE_INTEGRITY,
+    ),
+    CoverageCase(
+        id="JEWEL-CONNECTIVITY-JEWEL-RESTORE",
+        test_file=_JEWEL_RESTORE_FILE,
+        node_name="test_previously_failing_fixtures_now_restore_correctly",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Three builds carrying a connectivity-affecting jewel (From Nothing / Split Personality class) evaluate every "
+            "evaluable socket with a passing restore; none delivers RESTORE_FAILED."
+        ),
+        role=CaseRole.STATE_INTEGRITY,
+    ),
+    CoverageCase(
+        id="JEWEL-ALTERNATE-START-SOCKET-EXCLUDED",
+        test_file=_JEWEL_RESTORE_FILE,
+        node_name="test_stage_context_split_personality_socket_is_excluded",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A socket holding a Split Personality-class jewel (alternateClassStart) is left out of the evaluation and counted in "
+            "the diagnostics instead of risking a wrong delivered Life value. Rationale: restoring that socket leaves an unexplained ~2.5% Life discrepancy; user-facing copy does not yet name skipped sockets (P2)."
+        ),
+        manifest_id="CORE04-STAGE-CONTEXT",
+        role=CaseRole.STATE_INTEGRITY,
+    ),
+    CoverageCase(
+        id="STAT-STACKER-BLOCK-CHANCE-DAMAGE-CONVERSION",
+        test_file="tests/integration/test_corpus02_giants_blood_shield.py",
+        node_name="test_block_chance_stacking_is_measured_through_the_damage_conversion",
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "Chernobog's Pillar converts Chance to Block into Fire damage, so the build stacks a stat that is neither an attribute nor a "
+            "pool. Less Block lowers damage and EHP (FULL downgrade on both axes, equal to an independent PoB load); more Block at the cap "
+            "is a SIDEGRADE. One stacker flavour on one build; no Armour/Evasion/Rage/charge stacker is in the corpus."
+        ),
+        archetypes=(Archetype.STAT_STACKER, Archetype.MELEE),
+        manifest_id="CORPUS02-GIANTS-BLOOD-SHIELD",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -2288,5 +2619,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02F_CASES
     + CORPUS_02G_CASES
     + CORPUS_02H_CASES
+    + R4_CASES
     + POLICY_UNIT_CASES
 )

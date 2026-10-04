@@ -650,7 +650,9 @@ def build_decision_summary(
 
     slot = best_slot_label or comparison.get("pob_slot") or comparison.get("product_slot") or ""
     if slot and not best_slot_label:
-        best_slot_label = f"Replace {slot}"
+        from exilelens.items.best_slot import replacement_label
+
+        best_slot_label = replacement_label(str(slot), comparison)
 
     return ItemDecisionSummary(
         headline=headline,

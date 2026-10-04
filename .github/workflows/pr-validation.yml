@@ -79,6 +79,13 @@ jobs:
           python -m pytest -o addopts= -q tests/test_m4_2_update_system.py tests/test_trust_01d_update_awareness.py tests/test_r2_p0_update_trust.py tests/test_r2_p0_updater_transaction.py tests/test_r2_p0_update_state.py tests/test_r2_a_cloud_client.py tests/test_r2_b_patreon_client.py tests/test_r2_c_seamless_updates.py public_tests/test_support_05_github_release_updates.py
           if ($LASTEXITCODE -ne 0) { throw 'Secure update pipeline regressions failed.' }
 
+      - name: Run R4 coverage-gate and refusal-copy regressions (engine-free)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pytest -o addopts= -q tests/test_corpus_coverage_report.py tests/test_r4_refusal_copy.py
+          if ($LASTEXITCODE -ne 0) { throw 'R4 coverage-gate regressions failed.' }
+
       - name: Run native overlay production-wiring regression
         id: native-regression
         shell: pwsh

@@ -133,3 +133,35 @@ class FunctionalMeasurement(str, Enum):
 
 # Only these count as functional coverage of a mechanic.
 FUNCTIONAL_RESULTS = frozenset({FunctionalMeasurement.FULLY_MEASURED})
+
+
+class CaseRole(str, Enum):
+    """R4: what a VERDICT-depth case is for.
+
+    MECHANIC        - measures (or correctly refuses to measure) a build/item mechanic. Must declare `functional`.
+    STATE_INTEGRITY - proves the right loadout/state was evaluated, isolated, enumerated or restored (weapon-set
+                      context plumbing, effect-level enumeration, restore recovery, transaction shape). It asserts no
+                      measurement quality of a mechanic, so it is reported separately and is never counted as, or
+                      against, functional coverage. A restore/integrity failure is still WRONG_RESULT in the headline
+                      grading and blocks the R4 gate.
+    """
+
+    MECHANIC = "MECHANIC"
+    STATE_INTEGRITY = "STATE_INTEGRITY"
+
+
+class UncertaintyAudit(str, Enum):
+    """R4: the audited reason a case's correct answer is a refusal / uncertainty.
+
+    Required for every case whose `expected` is UNCERTAIN or UNSUPPORTED (and for PARTIALLY_MEASURED cases).
+
+    CORRECT_UNCERTAINTY    - the refusal is right and should remain: PoB cannot establish the quantity, or
+                             ExileLens would have to invent evidence to answer.
+    FIXABLE_MEASUREMENT_GAP - PoB/engine evidence exists or could reasonably be obtained; the refusal is a product
+                             limitation, not an information limit. Documented in `audit_note` with its effort.
+    COPY_OR_DIAGNOSTIC     - the measurement is right but the user-facing wording/diagnostic is the problem.
+    """
+
+    CORRECT_UNCERTAINTY = "CORRECT_UNCERTAINTY"
+    FIXABLE_MEASUREMENT_GAP = "FIXABLE_MEASUREMENT_GAP"
+    COPY_OR_DIAGNOSTIC = "COPY_OR_DIAGNOSTIC"

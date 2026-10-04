@@ -158,7 +158,7 @@
 		</ConfigSet>
 	</Config>
 	<TreeView zoomY="2051.2122738911" searchStr="" zoomLevel="10" showStatDifferences="true" zoomX="341.08395480426"/>
-	<Import exportParty="false" lastRealm="PoE2" lastCharacterHash="18cbdea81825f37a0176b09f3cc9271ef8a4f2b1"/>
+	<Import exportParty="false" lastRealm="PoE2"/>
 	<Tree activeSpec="1">
 		<Spec ascendancyInternalId="Witch2" nodes="2244,48773,32404,44373,32054,57821,43036,62677,10131,21984,48552,29148,6891,61403,3251,47976,4739,5501,58215,14446,36880,9782,30808,61333,4346,55947,3165,15885,29502,34621,30117,57513,26762,44420,59538,59342,20236,59362,51184,41965,29959,33830,46819,27626,61601,61419,46088,26135,722,20677,50715,60362,35031,11679,55847,15775,45702,38537,8616,49512,55149,49976,54067,38541,61834,2335,51891,42680,56162,23040,55621,48821,4623,14267,48551,15618,32923,48530,45319,23382,44005,56265,48524,46197,62936,51741,17505,31238,52703,38493,5314,29391,22290,35380,46554,32763,11572,29009,13724,10295,54447,23416,57710,8415,13823,1755,16705,1433,36302,23825,18845,535,15628,16256,52106,4519,31692,34840,7960,59822,1499,26383,28021,31765,13407" ascendClassId="2" masteryEffects="" treeVersion="0_4" secondaryAscendClassId="nil" title="Current Tree" classId="5" classInternalId="1">
 			<URL>
@@ -233,7 +233,6 @@
 			Rarity: RARE
 Phoenix Drop
 Sapphire
-Unique ID: a0086d73fa9a9d438a79f04b2bc5ce670aff643a11e954e8f618a45b80aa4b19
 Item Level: 80
 LevelReq: 0
 Implicits: 0
@@ -250,7 +249,6 @@ Implicits: 0
 			Rarity: RARE
 Luminous Heart
 Time-Lost Ruby
-Unique ID: 840f0cc5a091e3b7bcfd5fc8c9071a6bb8784f9cffea08d638ba43a6e7c0a4b7
 Item Level: 80
 LevelReq: 0
 Radius: Large
@@ -268,7 +266,6 @@ Notable Passive Skills in Radius also grant 5% increased Life Regeneration rate
 			Rarity: UNIQUE
 Undying Hate
 Timeless Jewel
-Unique ID: 03d999d6b3dbc24ccc1758d53c61267db6683d219401b87e4b05a76a98391d8a
 Item Level: 84
 LevelReq: 0
 Radius: Very Large
@@ -289,7 +286,6 @@ Historic
 			Rarity: UNIQUE
 Controlled Metamorphosis
 Diamond
-Unique ID: f7a1ab56b17e94bd232f524fa862c85e53a7bc125e0e9b65e8f5625effab8f5d
 Item Level: 84
 LevelReq: 0
 Radius: Variable
@@ -306,7 +302,6 @@ Passives in Radius can be Allocated without being connected to your tree
 			Rarity: RARE
 Behemoth Star
 Time-Lost Ruby
-Unique ID: 1a14469195fa4c6ab08989b1d6f05d89b255bf1471da79f3903dd16744069838
 Item Level: 80
 LevelReq: 0
 Radius: Small
@@ -323,7 +318,6 @@ Small Passive Skills in Radius also grant 3% increased Thorns damage
 		<Item id="1">
 			Rarity: MAGIC
 Substantial Ultimate Mana Flask of the Continuous
-Unique ID: 74b572d792b26eb1a3aee37f5a30cc72ee1e0c24d893eddc6bc8e58d062cd4f1
 Item Level: 63
 Quality: 0
 LevelReq: 60
@@ -337,7 +331,6 @@ Implicits: 0
 			Rarity: UNIQUE
 Original Sin
 Amethyst Ring
-Unique ID: a443d3c6be9c9a7921fe03080ba5489a85173a06e397d7787dc23eecdf18d2d8
 Item Level: 82
 LevelReq: 20
 Implicits: 1
@@ -351,7 +344,6 @@ Implicits: 1
 		<Item id="3">
 			Rarity: MAGIC
 Investigator&apos;s Thawing Charm of the Verdant
-Unique ID: 9215790e4492bc35c8fc3fe265c420c2d2b3f2e9db98352cd1588be9f647ef9e
 Item Level: 35
 Quality: 0
 LevelReq: 12
@@ -365,7 +357,6 @@ Gains 0.20 Charges per Second
 		<Item id="4">
 			Rarity: MAGIC
 Analyst&apos;s Stone Charm of the Verdant
-Unique ID: b75145ddb5a7ac7c50a1379689afd77e76fa0244b7eaf817e5f51fa7d755be3c
 Item Level: 35
 Quality: 0
 LevelReq: 8
@@ -380,7 +371,6 @@ Gains 0.20 Charges per Second
 			Rarity: RARE
 Oblivion Braid
 Stellar Amulet
-Unique ID: 5799b6ef6732e411e4c2f4e425a6f96f61cbe747c40a0999ae279cfb531a2213
 Item Level: 80
 LevelReq: 24
 Implicits: 2
@@ -406,7 +396,6 @@ Implicits: 2
 Invasion Spark
 Luxurious Slippers
 Energy Shield: 69
-Unique ID: bd3ce29c4cf2fbe3f6d717d52fbbd70a15b8a0d686fe2a102ad1ed830dc5952a
 Item Level: 82
 Quality: 0
 Sockets: S
@@ -437,7 +426,6 @@ Implicits: 3
 Kaom&apos;s Heart
 Conqueror Plate
 Armour: 445
-Unique ID: 8786fe0f7c224a2d8db4e677f4c81ae2bd937a9af5d644b1771c88bcdca43261
 Item Level: 81
 Quality: 0
 Sockets: S S
@@ -458,7 +446,6 @@ Corrupted
 		<Item id="8">
 			Rarity: MAGIC
 Experimenter&apos;s Dousing Charm of the Surgeon
-Unique ID: c483d059134e28e99644dd5962104a0bb90c6cde6f9a851ff903e46cbc5055f7
 Item Level: 80
 Quality: 0
 LevelReq: 32
@@ -472,7 +459,6 @@ Used when you become Ignited
 			Rarity: UNIQUE
 Snakepit
 Pearl Ring
-Unique ID: 9cbc9306371483e2c97865af7bc43a47ca84817cf5a9f48d1b159a4a3b9b9540
 Item Level: 70
 LevelReq: 32
 Implicits: 2
@@ -499,7 +485,6 @@ Corrupted
 		<Item id="10">
 			Rarity: MAGIC
 Potent Ultimate Life Flask of the Ample
-Unique ID: 2dc14162f651aea56048edd56863de4c5f8c44260302bb0cb51befd9f1f6a674
 Item Level: 81
 Quality: 20
 LevelReq: 60
@@ -515,7 +500,6 @@ Behemoth Hold
 Steelmail Gauntlets
 Armour: 81
 Evasion: 74
-Unique ID: 66aa258774aad5835742f6053b6c7fc8d85ce42638950ddcaa59b28a6cd812bb
 Item Level: 84
 Quality: 0
 Sockets: S
@@ -546,7 +530,6 @@ Gain 44 Mana per enemy killed
 Rathpith Globe
 Sacred Focus
 Energy Shield: 123
-Unique ID: e04e87b6efae407655f88bd0e65477fd646e66324ae8889609520a7413cc51fe
 Item Level: 79
 Quality: 0
 Sockets: S
@@ -579,7 +562,6 @@ Veil of the Night
 Martyr Crown
 Armour: 66
 Energy Shield: 25
-Unique ID: 82033cba93a7e098a913d362f6b359664569f91758af4b07c83fb6cef97c6b2d
 Item Level: 56
 Quality: 0
 Sockets: S
@@ -607,7 +589,6 @@ Corrupted
 Ambush Locket
 Rawhide Belt
 Charm Slots: 3
-Unique ID: 500276541068e3f889411f7a2728320f4f4f2a2e73870140547d71e508f8e02e
 Item Level: 75
 LevelReq: 0
 Implicits: 2
@@ -632,7 +613,6 @@ Has 3 Charm Slots
 			Rarity: RARE
 Pain Thirst
 Withered Wand
-Unique ID: 60fb8194872e7932935ce2d1e9dd2f8801deea824dcf6e2dd7ccc04ae4852b46
 Item Level: 78
 Quality: 0
 Sockets: S

@@ -212,6 +212,7 @@ def test_mortar_scores_the_per_second_hit_rate_not_the_per_use_average(real_pob_
     metric = result["primary_metric"]
     assert metric["pob_field"] == "TotalDPS" and metric["semantic_quantity"] == "HIT_DPS"
     assert metric["reason"].startswith("showAverage")
+    assert _row(result, "Ring 1")["evaluation_outcome"]["evaluation_quality"] == "FULL"
 
 
 # --------------------------------------------------------------------------- Mortar: FULL verdicts against fresh loads
@@ -371,6 +372,7 @@ def test_repeated_evaluations_are_identical_and_restore_the_build(real_pob_engin
     second = evaluate_item(RINGS["cooldown"], real_pob_engine, build_path=str(MORTAR))
 
     a, b = _row(first, "Ring 1"), _row(second, "Ring 1")
+    assert a["evaluation_outcome"]["evaluation_quality"] == b["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert a["evaluation_outcome"]["verdict"] == b["evaluation_outcome"]["verdict"]
     assert a["evaluation_outcome"]["final_score"] == b["evaluation_outcome"]["final_score"]
     assert a["candidate"]["metrics"]["TotalDPS"] == b["candidate"]["metrics"]["TotalDPS"]

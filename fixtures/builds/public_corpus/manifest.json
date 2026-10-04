@@ -179,7 +179,16 @@
       "ascendancy": "Blood Mage",
       "primary_skill": "Ember Fusillade",
       "actor": "PLAYER",
-      "purpose": "Authentic PoE2 0.4 Early Endgame Blood Mage by Upto64Bit (pobb.in/duLtV2Cf4TfL), exported without normalization. Gore Spike (node 52703 in tree version 0_4) scales critical damage with current unreserved Life; Original Sin plus 100 maximum Life raises Life, CritMultiplier, selected DPS, and EHP in PoB."
+      "purpose": "Authentic PoE2 0.4 Early Endgame Blood Mage by Upto64Bit (pobb.in/duLtV2Cf4TfL), exported without gameplay normalization (R4 removed only the per-item GGG `Unique ID:` lines and the importing character hash). Gore Spike (node 52703 in tree version 0_4) scales critical damage with current unreserved Life; Original Sin plus 100 maximum Life raises Life, CritMultiplier, selected DPS, and EHP in PoB."
+    },
+    {
+      "id": "RECOVERY02A-ES-REGEN-INVOKER",
+      "file": "fixtures/builds/public_corpus/recovery02a_es_regen_invoker.xml",
+      "class": "Monk",
+      "ascendancy": "Invoker",
+      "primary_skill": "Spark",
+      "actor": "PLAYER",
+      "purpose": "Energy Shield recovery: authentic pobb.in/K6bp-LNAo507 Invoker Spark build (R4 removed only the per-item GGG `Unique ID:` lines and the importing character hash). Boots gaining Energy Shield regeneration move EnergyShieldRegenRecovery from zero, a separate recovery channel from Life regeneration"
     }
   ]
 }

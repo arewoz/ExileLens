@@ -25,6 +25,8 @@ Thumbs.db
 artifacts/m5_*_priorities_validation.json
 # R1 generated validation output (regenerate with scripts/r1_product_validation.py)
 artifacts/r1_*.json
+# R4 generated Build Intelligence / performance measurement (regenerate with scripts/r4_gate_measure.py)
+artifacts/r4_*.json
 
 # ExileLens cloud Worker (cloud/)
 cloud/node_modules/

@@ -129,6 +129,7 @@ def test_ring_tradeoff_and_best_slot_remain_semantic(real_pob_engine) -> None:
     ring_one = next(row for row in result["slot_comparisons"] if row["pob_slot"] == "Ring 1")
     assert {row["pob_slot"] for row in result["slot_comparisons"]} == {"Ring 1", "Ring 2"}
     outcome = ring_one["evaluation_outcome"]
+    assert outcome["evaluation_quality"] == "FULL"
     assert outcome["item_impact"]["pattern"] == "TRADEOFF"
     # SCORING-01a: +21.7% offense against -4.3% EHP is a material but lopsided conflict (raw score 62.5). It is
     # no longer forced to SIDEGRADE: the score decides, and the real loss caps it at MINOR UPGRADE. The trade-off
@@ -155,6 +156,7 @@ def test_empty_ring_slot_is_explicitly_compared_not_inferred_as_missing(real_pob
     ring_two = next(row for row in result["slot_comparisons"] if row["pob_slot"] == "Ring 2")
     assert ring_two["baseline_item"]["empty"] is True
     assert ring_two["evaluation_outcome"]["replacing_empty_slot"] is True
+    assert ring_two["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert ring_two["candidate"]["item_present"] is True
     assert ring_two["restore"]["pass"] is True
 
@@ -168,6 +170,7 @@ def test_bow_quiver_preserves_player_skill_and_restore(real_pob_engine) -> None:
     assert row["baseline"]["primary_skill"]["skill_name"] == "Ice Shot"
     assert row["candidate"]["primary_skill"]["skill_name"] == "Ice Shot"
     assert row["candidate"]["item_present"] is True
+    assert row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert row["restore"]["pass"] is True
 
 
@@ -254,6 +257,7 @@ def test_melee_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine) -
     first_row = first["slot_comparisons"][0]
     second_row = second["slot_comparisons"][0]
     assert first_row["baseline_primary_metric"]["skill_name"] == second_row["baseline_primary_metric"]["skill_name"] == "Sunder"
+    assert first_row["evaluation_outcome"]["evaluation_quality"] == second_row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
@@ -415,6 +419,9 @@ def test_onehand_weapon_repeated_evaluation_does_not_leak_state(real_pob_engine)
         assert first_row["restore"]["pass"] is True
         assert second_row["restore"]["pass"] is True
 
+    for result in (first, second):
+        weapon_1 = next(row for row in result["slot_comparisons"] if row["pob_slot"] == "Weapon 1")
+        assert weapon_1["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert first["recommendation"]["pob_slot"] == second["recommendation"]["pob_slot"] == "Weapon 1"
 
 
@@ -578,6 +585,7 @@ def test_mixed_hit_and_ailment_repeated_evaluation_does_not_leak_state(real_pob_
     first_row = first["slot_comparisons"][0]
     second_row = second["slot_comparisons"][0]
     assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "CombinedDPS"
+    assert first_row["evaluation_outcome"]["evaluation_quality"] == second_row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
@@ -888,6 +896,7 @@ def test_skill_native_dot_repeated_evaluation_does_not_leak_state(real_pob_engin
     second_row = next(r for r in second["slot_comparisons"] if r["pob_slot"] == "Weapon 1")
 
     assert first_row["baseline_primary_metric"]["pob_field"] == second_row["baseline_primary_metric"]["pob_field"] == "TotalDot"
+    assert first_row["evaluation_outcome"]["evaluation_quality"] == second_row["evaluation_outcome"]["evaluation_quality"] == "FULL"
     assert first_row["evaluation_outcome"]["final_score"] == second_row["evaluation_outcome"]["final_score"]
     assert first_row["evaluation_outcome"]["verdict"] == second_row["evaluation_outcome"]["verdict"]
     assert first_row["restore"]["pass"] is True
