@@ -17,6 +17,7 @@ from pathlib import Path
 from tests.corpus_coverage.junit import JUnitOutcome
 from tests.corpus_coverage.registry import ALL_CASES, CoverageCase
 from tests.corpus_coverage.taxonomy import (
+    DERIVED_ARCHETYPES,
     FUNCTIONAL_RESULTS,
     SUPPORTED_RESULTS,
     Archetype,
@@ -48,6 +49,8 @@ class CaseGrade:
     passed_variants: int
     total_variants: int
     failure_messages: tuple[str, ...] = ()
+    # R4: True when the result was copied from an earlier engine run rather than executed now.
+    carried: bool = False
 
 
 def _classname_for(test_file: str) -> str:
@@ -110,6 +113,10 @@ def grade_case(case: CoverageCase, outcomes: list[JUnitOutcome]) -> CaseGrade:
 @dataclass
 class CoverageReport:
     grades: list[CaseGrade] = field(default_factory=list)
+    # R4: where the per-case results came from. "executed" = every result is from a suite run in
+    # this session; "carried_forward" = some results were copied from an earlier engine run
+    # because no engine was available (see `carry_forward`). The gate never passes on carried data.
+    provenance: dict = field(default_factory=lambda: {"mode": "executed"})
 
     @property
     def result_counts(self) -> dict[str, int]:
@@ -137,9 +144,33 @@ class CoverageReport:
                 by_archetype[archetype].append(grade)
         return dict(by_archetype)
 
+    def effective_grades(self, archetype: Archetype) -> list[CaseGrade]:
+        """An archetype's own cases plus, for a derived umbrella, its constituents' (each case once)."""
+        by_archetype = self.archetype_counts()
+        grades = list(by_archetype.get(archetype, []))
+        for constituent in DERIVED_ARCHETYPES.get(archetype, ()):
+            grades.extend(by_archetype.get(constituent, []))
+        seen: set[str] = set()
+        unique = []
+        for grade in grades:
+            if grade.case.id not in seen:
+                seen.add(grade.case.id)
+                unique.append(grade)
+        return unique
+
     def uncovered_archetypes(self) -> list[Archetype]:
-        covered = set(self.archetype_counts())
-        return [a for a in Archetype if a not in covered]
+        return [a for a in Archetype if not self.effective_grades(a)]
+
+    def state_integrity_grades(self) -> list[CaseGrade]:
+        return [g for g in self.grades if g.case.depth is EvaluationDepth.STATE_INTEGRITY]
+
+    def state_integrity_counts(self) -> dict[str, int]:
+        executed = [g for g in self.state_integrity_grades() if g.result is not CoverageResult.NOT_RUN]
+        return {
+            "registered": len(self.state_integrity_grades()),
+            "executed": len(executed),
+            "passed": sum(1 for g in executed if g.result in SUPPORTED_RESULTS),
+        }
 
     # CORPUS-02D1 functional coverage: separate from, and never mixed into, the
     # headline supported-coverage metric above.
@@ -156,7 +187,6 @@ class CoverageReport:
         """Declared measurement of each classified case whose test passed; a failed
         case establishes nothing and is counted as NOT_ESTABLISHED."""
         counts = {m.value: 0 for m in FunctionalMeasurement}
-        counts["NOT_ESTABLISHED"] = 0
         for grade in self.classified_grades():
             if grade.result in SUPPORTED_RESULTS:
                 counts[grade.case.functional.value] += 1
@@ -180,12 +210,48 @@ class CoverageReport:
 
     def functional_by_archetype(self) -> dict[Archetype, dict[str, int]]:
         table: dict[Archetype, dict[str, int]] = {}
-        for grade in self.classified_grades():
-            key = grade.case.functional.value if grade.result in SUPPORTED_RESULTS else "NOT_ESTABLISHED"
-            for archetype in grade.case.archetypes:
-                row = table.setdefault(archetype, {m.value: 0 for m in FunctionalMeasurement} | {"NOT_ESTABLISHED": 0})
+        classified = {g.case.id for g in self.classified_grades()}
+        for archetype in Archetype:
+            for grade in self.effective_grades(archetype):
+                if grade.case.id not in classified:
+                    continue
+                key = grade.case.functional.value if grade.result in SUPPORTED_RESULTS else "NOT_ESTABLISHED"
+                row = table.setdefault(archetype, {m.value: 0 for m in FunctionalMeasurement})
                 row[key] += 1
         return table
+
+
+def carry_forward(report: CoverageReport, prior: dict, results_from: str) -> CoverageReport:
+    """Fill NOT_RUN cases from an earlier report's results (R4: used when no engine is available).
+
+    A result is copied only for a case the earlier report also graded (same id, same test file, same
+    declared expectation) and only when it was an executed result. The copy is flagged, counted, and
+    bannered in the rendered report, and `gate.evaluate_gate` refuses to pass on it: it documents what
+    the last engine run said, it does not re-establish it.
+    """
+    before = {c["id"]: c for c in prior["cases"]}
+    grades: list[CaseGrade] = []
+    carried = 0
+    for grade in report.grades:
+        old = before.get(grade.case.id)
+        if (
+            grade.result is CoverageResult.NOT_RUN
+            and old is not None
+            and old["result"] != CoverageResult.NOT_RUN.value
+            and old["test_file"] == grade.case.test_file
+            and old["expected"] == grade.case.expected.value
+        ):
+            grade = CaseGrade(
+                grade.case, CoverageResult(old["result"]), old["passed_variants"], old["total_variants"],
+                tuple(old.get("failure_messages", ())), carried=True,
+            )
+            carried += 1
+        grades.append(grade)
+    provenance = (
+        {"mode": "carried_forward", "results_from": results_from, "carried_cases": carried}
+        if carried else {"mode": "executed"}
+    )
+    return CoverageReport(grades=grades, provenance=provenance)
 
 
 def build_report(outcomes: list[JUnitOutcome], cases: tuple[CoverageCase, ...] = ALL_CASES) -> CoverageReport:
@@ -203,6 +269,17 @@ def render_markdown(report: CoverageReport) -> str:
         "graded and how to extend this report. This file is generated — do not hand-edit."
     )
     lines.append("")
+    if report.provenance.get("mode") == "carried_forward":
+        lines.append(
+            "> **Provenance: engine results carried forward, not re-established.** No PoB2 engine was available "
+            f"when this report was rendered. {report.provenance.get('carried_cases', 0)} per-case results were copied "
+            f"from the last engine run recorded for this report (`{report.provenance.get('results_from', 'unknown')}`), "
+            "which predates later engine, scoring and test changes; engine-free policy cases were executed now; "
+            "cases with no earlier result are NOT_RUN and excluded from the totals. The reliability gate cannot "
+            "pass on this data. Re-run `python scripts/generate_corpus_coverage_report.py` on a machine with PoB2 "
+            "to replace it."
+        )
+        lines.append("")
 
     total = report.total_count
     supported = report.supported_count
@@ -220,6 +297,12 @@ def render_markdown(report: CoverageReport) -> str:
             f"**Supported real-build coverage (of executed cases): {supported}/{total} "
             f"({pct:.0f}%).**"
         )
+        if report.provenance.get("mode") == "carried_forward":
+            lines.append("")
+            lines.append(
+                "*Most of this figure is carried forward from an earlier engine run (see the provenance note above); "
+                "it is the last recorded engine result, not a measurement of the current code.*"
+            )
         lines.append("")
         lines.append(
             "This measures *executed coverage cases*, not real-build population share — the "
@@ -248,6 +331,18 @@ def render_markdown(report: CoverageReport) -> str:
     by_archetype = report.archetype_counts()
     for archetype in Archetype:
         grades = by_archetype.get(archetype, [])
+        constituents = DERIVED_ARCHETYPES.get(archetype)
+        if constituents:
+            effective = report.effective_grades(archetype)
+            parts = ", ".join(f"{c.value} ({len(by_archetype.get(c, []))})" for c in constituents)
+            if effective:
+                lines.append(
+                    f"| {archetype.value} | {len(effective)} | **DERIVED** umbrella with no cases of its own: "
+                    f"covered through {parts} |"
+                )
+            else:
+                lines.append(f"| {archetype.value} | 0 | **NO COVERAGE** (derived from {parts}) |")
+            continue
         if not grades:
             lines.append(f"| {archetype.value} | 0 | **NO COVERAGE** |")
             continue
@@ -276,6 +371,8 @@ def render_markdown(report: CoverageReport) -> str:
             f"{grade.result.value} | {grade.passed_variants}/{grade.total_variants} |"
         )
     lines.append("")
+
+    lines.extend(_render_state_integrity(report))
 
     lines.append("## Policy safety-net (adversarial unit coverage, not archetype-specific)")
     lines.append("")
@@ -320,8 +417,9 @@ def _render_functional(report: CoverageReport) -> list[str]:
         "The headline metric above counts a correct refusal as supported. This section does "
         "not: it counts what each classified verdict-level case's own assertions establish "
         "about the mechanic (see `FunctionalMeasurement` in `tests/corpus_coverage/taxonomy.py`). "
-        "Only FULLY_MEASURED is functional coverage. Identity, restore/repeatability and policy "
-        "cases are not classified."
+        "Only FULLY_MEASURED is functional coverage. NOT_ESTABLISHED means the case runs but does not assert "
+        "enough to establish the measurement (the missing assertion is named below). Identity, policy and "
+        "state-integrity (restore / determinism / isolation) cases are not classified."
     )
     lines.append("")
     classified = report.classified_grades()
@@ -340,7 +438,7 @@ def _render_functional(report: CoverageReport) -> list[str]:
     for name, count in report.functional_counts().items():
         lines.append(f"| {name} | {count} |")
     lines.append("")
-    columns = [m.value for m in FunctionalMeasurement] + ["NOT_ESTABLISHED"]
+    columns = [m.value for m in FunctionalMeasurement]
     lines.append("| Archetype | " + " | ".join(columns) + " |")
     lines.append("| --- |" + " --- |" * len(columns))
     by_archetype = report.functional_by_archetype()
@@ -354,16 +452,50 @@ def _render_functional(report: CoverageReport) -> list[str]:
     for grade in classified:
         lines.append(f"| {grade.case.id} | {grade.case.functional.value} | {grade.result.value} |")
     lines.append("")
+    gaps = [g for g in classified if g.case.functional is FunctionalMeasurement.NOT_ESTABLISHED]
+    if gaps:
+        lines.append("Declared NOT_ESTABLISHED — the evidence each case is missing:")
+        lines.append("")
+        for grade in gaps:
+            lines.append(f"- **{grade.case.id}**: {grade.case.evidence_gap}")
+        lines.append("")
+    return lines
+
+
+def _render_state_integrity(report: CoverageReport) -> list[str]:
+    grades = report.state_integrity_grades()
+    lines = ["## State-integrity cases (restore, determinism, isolation, legality)", ""]
+    if not grades:
+        return lines + ["None registered.", ""]
+    counts = report.state_integrity_counts()
+    lines.append(
+        "These run against the real engine but assert state hygiene only (exact restore, run-to-run determinism, "
+        "weapon-set / loadout isolation, slot-legality refusal, transaction shape). They make no claim about how well "
+        "a mechanic's value is measured, so they are outside functional coverage and gated on their own: every "
+        "executed case must pass. "
+        f"**{counts['passed']}/{counts['executed']} executed cases pass** ({counts['registered']} registered)."
+    )
+    lines.append("")
+    lines.append("| Case | Result | Variants |")
+    lines.append("| --- | --- | --- |")
+    for grade in grades:
+        lines.append(f"| {grade.case.id} | {grade.result.value} | {grade.passed_variants}/{grade.total_variants} |")
+    lines.append("")
     return lines
 
 
 def to_json_dict(report: CoverageReport) -> dict:
     """Deterministic, diff-friendly machine-readable form (sorted keys, no timestamps)."""
     return {
+        "provenance": report.provenance,
         "result_counts": report.result_counts,
         "supported_count": report.supported_count,
         "total_count": report.total_count,
         "uncovered_archetypes": sorted(a.value for a in report.uncovered_archetypes()),
+        "derived_archetypes": {
+            a.value: sorted(c.value for c in constituents) for a, constituents in DERIVED_ARCHETYPES.items()
+        },
+        "state_integrity": report.state_integrity_counts(),
         "functional": {
             "counts": report.functional_counts(),
             "fully_measured": report.functional_count,
@@ -379,10 +511,12 @@ def to_json_dict(report: CoverageReport) -> dict:
                 "archetypes": sorted(a.value for a in grade.case.archetypes),
                 "manifest_id": grade.case.manifest_id,
                 "functional": grade.case.functional.value if grade.case.functional else None,
+                "evidence_gap": grade.case.evidence_gap,
                 "result": grade.result.value,
                 "passed_variants": grade.passed_variants,
                 "total_variants": grade.total_variants,
                 "failure_messages": list(grade.failure_messages),
+                "carried": grade.carried,
             }
             for grade in sorted(report.grades, key=lambda g: g.case.id)
         ],

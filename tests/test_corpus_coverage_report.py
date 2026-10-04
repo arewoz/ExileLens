@@ -265,12 +265,35 @@ def test_functional_coverage_counts_only_passing_fully_measured_cases() -> None:
     assert to_json_dict(report)["functional"]["fully_measured"] == 1
 
 
+_DIRECTIONAL_VERDICTS = (
+    '"MEANINGFUL_UPGRADE"', '"MINOR_UPGRADE"', '"SIDEGRADE"', '"MINOR_DOWNGRADE"', '"MEANINGFUL_DOWNGRADE"',
+)
 _ASSERTED_QUALITY = {
-    FunctionalMeasurement.FULLY_MEASURED: ('"FULL"',),
+    # A score-derived verdict can only be produced at FULL quality (see
+    # test_score_derived_verdicts_require_full_quality), so asserting one is asserting FULL.
+    FunctionalMeasurement.FULLY_MEASURED: ('"FULL"',) + _DIRECTIONAL_VERDICTS,
     FunctionalMeasurement.PARTIALLY_MEASURED: ('"PARTIAL"', '"UNCERTAIN"'),
     FunctionalMeasurement.EXPECTED_UNCERTAINTY: ('"PARTIAL"', '"UNCERTAIN"'),
     FunctionalMeasurement.UNSUPPORTED_MECHANIC: ('"UNSUPPORTED"',),
 }
+
+
+def test_score_derived_verdicts_require_full_quality() -> None:
+    """R4: the policy fact that lets a test asserting only a directional verdict count as FULL evidence."""
+    from exilelens.items.evaluation_outcome import EvaluationQuality, PublicVerdict, decide_verdict
+
+    score_derived = {
+        PublicVerdict.MEANINGFUL_UPGRADE, PublicVerdict.MINOR_UPGRADE, PublicVerdict.SIDEGRADE,
+        PublicVerdict.MINOR_DOWNGRADE, PublicVerdict.MEANINGFUL_DOWNGRADE,
+    }
+    reasons = [{"code": "TEST", "detail": "reduced evidence"}]
+    for quality in EvaluationQuality:
+        for raw in (-95.0, -40.0, -8.0, -1.0, 0.0, 1.0, 8.0, 40.0, 95.0):
+            verdict = decide_verdict(raw, (), quality, reasons).verdict
+            if quality is not EvaluationQuality.FULL:
+                assert verdict not in score_derived, (quality, raw, verdict)
+    full_verdicts = {decide_verdict(raw, (), EvaluationQuality.FULL, []).verdict for raw in (-95.0, -8.0, 0.0, 8.0, 95.0)}
+    assert full_verdicts <= score_derived
 
 
 def test_declared_functional_measurement_matches_what_the_test_asserts() -> None:
@@ -288,6 +311,122 @@ def test_declared_functional_measurement_matches_what_the_test_asserts() -> None
                 if isinstance(node, ast.FunctionDef)
             }
         body = sources[case.test_file][case.node_name.split("[", 1)[0]]
-        assert any(marker in body for marker in _ASSERTED_QUALITY[case.functional]), case.id
+        if case.functional is FunctionalMeasurement.NOT_ESTABLISHED:
+            # Declared gap: the body must really lack the evidence, and the gap must be named.
+            assert case.evidence_gap, case.id
+            assert not any(marker in body for marker in _ASSERTED_QUALITY[FunctionalMeasurement.FULLY_MEASURED]), (
+                f"{case.id} now asserts quality/verdict: reclassify it"
+            )
+            continue
+        assert case.evidence_gap is None, case.id
+        grounded_refusal = (
+            case.functional is FunctionalMeasurement.FULLY_MEASURED
+            and '"NOT_VIABLE"' in body
+            and ("_fresh(" in body or "_fresh_metrics(" in body)
+        )
+        assert grounded_refusal or any(marker in body for marker in _ASSERTED_QUALITY[case.functional]), case.id
         if case.functional is FunctionalMeasurement.FULLY_MEASURED:
             assert case.expected is ExpectedResult.CONFIDENT, case.id
+
+
+# --------------------------------------------------------------- R4 gate hygiene
+
+
+def _generator_suites() -> set[str]:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("generate_corpus_coverage_report", ROOT / "scripts" / "generate_corpus_coverage_report.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return {test_file for test_file, _marker in module.SUITES}
+
+
+def test_every_registered_test_file_is_run_by_the_report_generator() -> None:
+    """R4: LIFE-01 was registered but its suite was never run, so it could only ever report NOT_RUN."""
+    suites = _generator_suites()
+    missing = sorted({case.test_file for case in ALL_CASES} - suites)
+    assert not missing, f"registered but never run by scripts/generate_corpus_coverage_report.py: {missing}"
+
+
+def test_every_verdict_case_declares_what_it_measures() -> None:
+    unclassified = [c.id for c in ALL_CASES if c.depth is EvaluationDepth.VERDICT and c.functional is None]
+    assert not unclassified, unclassified
+
+
+def test_committed_report_describes_the_current_registry() -> None:
+    """The committed JSON may carry old results, but never an old registry: ids, depth, declaration."""
+    committed = json.loads((ROOT / "docs" / "corpus_coverage" / "coverage_report.json").read_text(encoding="utf-8"))
+    by_id = {c["id"]: c for c in committed["cases"]}
+    assert set(by_id) == {c.id for c in ALL_CASES}
+    for case in ALL_CASES:
+        row = by_id[case.id]
+        assert row["depth"] == case.depth.value, case.id
+        assert row["functional"] == (case.functional.value if case.functional else None), case.id
+        assert row["expected"] == case.expected.value, case.id
+        assert sorted(row["archetypes"]) == sorted(a.value for a in case.archetypes), case.id
+
+
+def test_committed_report_never_fails_the_gate() -> None:
+    """INCONCLUSIVE (no current engine results) is allowed to be committed; FAIL is not."""
+    from tests.corpus_coverage.gate import evaluate_gate
+
+    committed = json.loads((ROOT / "docs" / "corpus_coverage" / "coverage_report.json").read_text(encoding="utf-8"))
+    result = evaluate_gate(committed)
+    assert result.verdict != "FAIL", [c for c in result.criteria if not c.ok]
+
+
+def _gate_payload(**overrides):
+    base_case = {
+        "id": "X", "depth": "VERDICT", "functional": "FULLY_MEASURED", "result": "PASS", "archetypes": list(MAJOR),
+        "carried": False,
+    }
+    state_case = {"id": "S", "depth": "STATE_INTEGRITY", "functional": None, "result": "PASS", "archetypes": [], "carried": False}
+    payload = {
+        "provenance": {"mode": "executed"},
+        "cases": [base_case, state_case],
+        "uncovered_archetypes": [],
+        "functional": {"fully_measured": 10_000},
+    }
+    payload.update(overrides)
+    return payload
+
+
+from tests.corpus_coverage.gate import MAJOR_ARCHETYPES as MAJOR  # noqa: E402
+from tests.corpus_coverage.gate import evaluate_gate as _evaluate_gate  # noqa: E402
+
+
+def test_gate_passes_clean_executed_data() -> None:
+    assert _evaluate_gate(_gate_payload()).verdict == "PASS"
+
+
+def test_gate_fails_on_a_wrong_result() -> None:
+    payload = _gate_payload()
+    payload["cases"][0]["result"] = "WRONG_RESULT"
+    assert _evaluate_gate(payload).verdict == "FAIL"
+
+
+def test_gate_fails_when_an_archetype_is_unrepresented() -> None:
+    assert _evaluate_gate(_gate_payload(uncovered_archetypes=["spell"])).verdict == "FAIL"
+
+
+def test_gate_is_conditional_when_a_verdict_case_does_not_establish_its_measurement() -> None:
+    payload = _gate_payload()
+    payload["cases"].append({"id": "G", "depth": "VERDICT", "functional": "NOT_ESTABLISHED", "result": "PASS",
+                             "archetypes": [], "carried": False})
+    assert _evaluate_gate(payload).verdict == "CONDITIONAL"
+
+
+def test_gate_is_inconclusive_on_carried_or_missing_results_but_still_fails_on_structure() -> None:
+    payload = _gate_payload()
+    payload["cases"][0]["carried"] = True
+    payload["provenance"] = {"mode": "carried_forward", "results_from": "abc"}
+    assert _evaluate_gate(payload).verdict == "INCONCLUSIVE"
+    payload["cases"].append({"id": "U", "depth": "VERDICT", "functional": None, "result": "NOT_RUN",
+                             "archetypes": [], "carried": False})
+    assert _evaluate_gate(payload).verdict == "FAIL"  # an unclassified verdict case is structural
+
+
+def test_gate_fails_when_a_state_integrity_case_fails() -> None:
+    payload = _gate_payload()
+    payload["cases"][1]["result"] = "WRONG_RESULT"
+    assert _evaluate_gate(payload).verdict == "FAIL"

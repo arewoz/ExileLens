@@ -12,6 +12,12 @@ Usage:
     python scripts/generate_corpus_coverage_report.py --skip-engine
         (grades only the engine-free policy-unit suite; build_corpus/real_pob cases
         report as NOT_RUN — use when no local PoB2 install is available)
+    python scripts/generate_corpus_coverage_report.py --skip-engine --carry-forward-from <commit>
+        (R4: additionally copies results for engine cases from the existing
+        coverage_report.json, flagged as carried; the reliability gate will not pass on it)
+    python scripts/generate_corpus_coverage_report.py --check-gate
+        (after writing the report, evaluate the R4 reliability gate; exit 0 PASS/CONDITIONAL,
+        1 FAIL, 2 INCONCLUSIVE)
 
 Requires a local PoB2 install (via POB2_PATH or auto-detection) for the build_corpus
 and real_pob suites, same as running them directly with pytest -m build_corpus /
@@ -21,6 +27,7 @@ pytest -m real_pob. See docs/BUILD_CORPUS_SOURCES.md.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import tempfile
@@ -30,7 +37,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from tests.corpus_coverage.junit import JUnitOutcome, read_junit_outcomes  # noqa: E402
-from tests.corpus_coverage.report import build_report, render_markdown, to_json_dict  # noqa: E402
+from tests.corpus_coverage.gate import evaluate_gate, render_gate  # noqa: E402
+from tests.corpus_coverage.report import build_report, carry_forward, render_markdown, to_json_dict  # noqa: E402
 
 SUITES: tuple[tuple[str, str], ...] = (
     ("tests/integration/test_public_build_corpus.py", "build_corpus"),
@@ -49,6 +57,10 @@ SUITES: tuple[tuple[str, str], ...] = (
     ("tests/integration/test_corpus02f_mortar_ballista.py", "real_pob"),
     ("tests/integration/test_corpus02g_attribute_stacking.py", "real_pob"),
     ("tests/integration/test_corpus02h_energy_shield_mana.py", "real_pob"),
+    ("tests/integration/test_life01_blood_mage.py", "real_pob"),
+    ("tests/integration/test_recovery02a_es_regen.py", "real_pob"),
+    ("tests/integration/test_jewel_real_pob.py", "real_pob"),
+    ("tests/integration/test_jewel_restore_remediation.py", "real_pob"),
     ("tests/test_core_04_adversarial_item_check.py", "itemcheck"),
     ("tests/test_item_transform_guard.py", "itemcheck"),
     ("tests/test_stonefist_transform.py", "itemcheck"),
@@ -85,24 +97,39 @@ def main() -> int:
         action="store_true",
         help="Skip build_corpus/real_pob suites (no local PoB2 install available).",
     )
+    parser.add_argument(
+        "--carry-forward-from",
+        metavar="COMMIT",
+        help="Fill NOT_RUN cases from the existing coverage_report.json, recorded as the engine run at COMMIT.",
+    )
+    parser.add_argument("--check-gate", action="store_true", help="Evaluate the R4 reliability gate on the result.")
     args = parser.parse_args()
-
-    outcomes = collect_outcomes(skip_engine=args.skip_engine)
-    report = build_report(outcomes)
 
     out_dir = ROOT / "docs" / "corpus_coverage"
     out_dir.mkdir(parents=True, exist_ok=True)
+    prior_path = out_dir / "coverage_report.json"
+    prior = json.loads(prior_path.read_text(encoding="utf-8")) if prior_path.exists() else None
+
+    outcomes = collect_outcomes(skip_engine=args.skip_engine)
+    report = build_report(outcomes)
+    if args.carry_forward_from:
+        if prior is None:
+            parser.error("--carry-forward-from needs an existing coverage_report.json")
+        report = carry_forward(report, prior, args.carry_forward_from)
     (out_dir / "COVERAGE_REPORT.md").write_text(render_markdown(report), encoding="utf-8")
 
-    import json
-
+    payload = to_json_dict(report)
     (out_dir / "coverage_report.json").write_text(
-        json.dumps(to_json_dict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
     print(f"Wrote {out_dir / 'COVERAGE_REPORT.md'}")
     print(f"Wrote {out_dir / 'coverage_report.json'}")
     print(f"Supported: {report.supported_count}/{report.total_count}")
+    if args.check_gate:
+        gate = evaluate_gate(payload)
+        print(render_gate(gate))
+        return {"PASS": 0, "CONDITIONAL": 0, "FAIL": 1, "INCONCLUSIVE": 2}[gate.verdict]
     return 0
 
 

@@ -56,6 +56,12 @@ class EvaluationDepth(str, Enum):
     # build fixture) — e.g. guardrails, resistance-cap state machine, malformed
     # metric handling. Exercises the safety net, not a build archetype.
     POLICY_UNIT = "POLICY_UNIT"
+    # R4: runs against the real engine but asserts only state hygiene — restore
+    # after evaluation, run-to-run determinism, loadout/weapon-set isolation,
+    # slot-legality refusal, transaction shape — and no claim about how well a
+    # mechanic's value is measured. It is gated separately (every such case must
+    # pass) and is never counted as, or against, functional measurement.
+    STATE_INTEGRITY = "STATE_INTEGRITY"
 
 
 class ExpectedResult(str, Enum):
@@ -123,13 +129,30 @@ class FunctionalMeasurement(str, Enum):
     EXPECTED_UNCERTAINTY - the asserted PARTIAL/UNCERTAIN outcome is correct because
                             the specific information is genuinely insufficient.
     UNSUPPORTED_MECHANIC - the case asserts an explicit UNSUPPORTED refusal.
+    NOT_ESTABLISHED      - R4: the case runs a real evaluation but its assertions do
+                            not establish the measurement (no quality/verdict is
+                            asserted). The missing evidence is named in the case's
+                            `evidence_gap`. A *failed* declared case is also reported
+                            here at report time, whatever it declared.
     """
 
     FULLY_MEASURED = "FULLY_MEASURED"
     PARTIALLY_MEASURED = "PARTIALLY_MEASURED"
     EXPECTED_UNCERTAINTY = "EXPECTED_UNCERTAINTY"
     UNSUPPORTED_MECHANIC = "UNSUPPORTED_MECHANIC"
+    NOT_ESTABLISHED = "NOT_ESTABLISHED"
 
 
 # Only these count as functional coverage of a mechanic.
 FUNCTIONAL_RESULTS = frozenset({FunctionalMeasurement.FULLY_MEASURED})
+
+# R4: archetypes that are an umbrella over more specific ones rather than a distinct
+# population. `stat_stacker` was in the original M1.1 list but was never defined
+# anywhere; the mechanic it names (damage or defence driven by an accumulated stat)
+# is represented, case by case, by the attribute (Strength / Dexterity / Intelligence)
+# and maximum-Mana stackers. It is reported as covered exactly when one of its
+# constituents is, and is listed with them, so it can neither be silently dropped nor
+# filled with an invented case. See docs/R4-1.0-RELIABILITY-GATE.md.
+DERIVED_ARCHETYPES: dict[Archetype, tuple[Archetype, ...]] = {
+    Archetype.STAT_STACKER: (Archetype.ATTRIBUTE_STACKER, Archetype.MANA_SCALING),
+}

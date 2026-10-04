@@ -188,3 +188,31 @@ real corpus growth into, so the metric becomes meaningful as coverage grows.
 Do not add a `CoverageCase` for a fixture or test that does not exist yet, and do
 not invent a fixture merely to fill an empty archetype cell — an empty cell is a
 correct, reportable answer.
+
+## R4 additions (1.0 reliability gate)
+
+See `docs/R4-1.0-RELIABILITY-GATE.md` for the audit these implement.
+
+- **`EvaluationDepth.STATE_INTEGRITY`.** A case that runs against the real engine but asserts only state hygiene
+  (exact restore, run-to-run determinism, weapon-set / loadout / socket isolation, slot-legality refusal, transaction
+  shape) and makes no claim about how well a mechanic's value is measured. These are not classified as functional
+  measurement (a "repeated evaluation" test proves nothing about whether the number is right); they are gated
+  separately: every executed one must pass. A case belongs here only if its assertions are *exclusively* of that kind.
+- **`FunctionalMeasurement.NOT_ESTABLISHED`, declared.** A verdict-level case whose assertions do not establish the
+  measurement (no `evaluation_quality` and no verdict asserted). `CoverageCase.evidence_gap` names the missing
+  assertion, and a drift test fails if the test later gains that assertion without the case being reclassified.
+  (A declared case whose test *fails* is still reported NOT_ESTABLISHED at report time.)
+- **What may be declared FULLY_MEASURED.** The test asserts `evaluation_quality == "FULL"`, or a score-derived
+  verdict (`MEANINGFUL_/MINOR_ UPGRADE/DOWNGRADE`, `SIDEGRADE`), which `decide_verdict` can only emit at FULL quality
+  (proved by `test_score_derived_verdicts_require_full_quality`), or a hard-guardrail `NOT_VIABLE` whose trigger is a
+  PoB-reported fact compared with an independent fresh PoB load. A correct refusal is never FULLY_MEASURED.
+- **Derived archetypes.** `stat_stacker` is an umbrella with no cases of its own, covered exactly when one of its
+  constituents (`attribute_stacker`, `mana_scaling`) is. `DERIVED_ARCHETYPES` in `taxonomy.py`.
+- **Provenance.** A report is `executed` (every result from a suite run now) or `carried_forward` (some engine results
+  copied from an earlier report because no engine was available, `--carry-forward-from`). Carried data is flagged per
+  case and the gate never passes on it.
+- **Generator hygiene.** `test_every_registered_test_file_is_run_by_the_report_generator` fails if a registered case's
+  suite is not in `scripts/generate_corpus_coverage_report.py::SUITES` (a registered-but-never-run case can only ever be
+  NOT_RUN). `test_committed_report_describes_the_current_registry` fails if the committed JSON drifts from the registry.
+- **The gate.** `tests/corpus_coverage/gate.py` (`evaluate_gate`), run by
+  `python scripts/generate_corpus_coverage_report.py --check-gate` (exit 0 PASS/CONDITIONAL, 1 FAIL, 2 INCONCLUSIVE).
