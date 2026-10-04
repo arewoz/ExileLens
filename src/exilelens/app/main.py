@@ -46,6 +46,39 @@ def _maybe_write_update_trust_report() -> None:
     raise SystemExit(0)
 
 
+WHATS_NEW_REPORT_ARG = "--exilelens-whats-new-report"
+
+
+def _maybe_write_whats_new_report() -> None:
+    """Release evidence: ``ExileLens.exe --exilelens-whats-new-report <path>`` writes whether *this* binary can load
+    its packaged release notes for its own version, then exits before any UI starts."""
+    if WHATS_NEW_REPORT_ARG not in sys.argv:
+        return
+    import json
+
+    from exilelens._version import __version__
+    from exilelens.app.updates.version import ExileLensVersion
+    from exilelens.whats_new import content
+
+    index = sys.argv.index(WHATS_NEW_REPORT_ARG)
+    if index + 1 >= len(sys.argv):
+        raise SystemExit(2)
+    path = content.content_path()
+    catalog = content.load_catalog()
+    installed = ExileLensVersion.parse(__version__)
+    report = {
+        "frozen": bool(getattr(sys, "frozen", False)),
+        "path": str(path),
+        "file_present": path.is_file(),
+        "loaded": catalog is not None,
+        "version": __version__,
+        "has_entry": bool(catalog is not None and catalog.get(installed) is not None),
+        "problems": content.lint_catalog(catalog, installed) if catalog is not None and installed is not None else ["not loaded"],
+    }
+    Path(sys.argv[index + 1]).write_text(json.dumps(report, sort_keys=True), encoding="utf-8")
+    raise SystemExit(0)
+
+
 def _maybe_defer_to_updater() -> None:
     """Packaged builds only: never start from an install that an updater is replacing or must recover."""
     if not getattr(sys, "frozen", False):
@@ -64,6 +97,7 @@ def _maybe_defer_to_updater() -> None:
 _maybe_run_worker_subprocess()
 _maybe_run_updater_subprocess()
 _maybe_write_update_trust_report()
+_maybe_write_whats_new_report()
 _maybe_defer_to_updater()
 
 from PySide6.QtCore import Qt, QTimer
@@ -120,6 +154,7 @@ class ExileLensApp:
         load_result = load_settings_result()
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
+        self._record_fresh_install_release_notes(load_result)
         self._pob_autodetected = False
         # Install-on-exit is only ever considered for a clean, user-initiated exit that is not part of a
         # Windows logoff/shutdown. Both flags default to the safe value (no install).
@@ -165,6 +200,22 @@ class ExileLensApp:
         self._tray_retries_left = 0
         self._setup_dialog: OnboardingDialog | None = None
         self._refine_dialog = None
+    def _record_fresh_install_release_notes(self, load_result) -> None:
+        """A brand-new profile starts "caught up": What's New is for people who already had ExileLens."""
+        try:
+            from exilelens._version import __version__
+            from exilelens.app.updates.version import ExileLensVersion
+            from exilelens.whats_new.trigger import record_fresh_install
+
+            record_fresh_install(
+                self.settings,
+                ExileLensVersion.parse(__version__),
+                loaded_from_disk=load_result.loaded_from_disk,
+                load_error=load_result.load_error,
+            )
+        except Exception:  # noqa: BLE001 - release notes must never affect startup
+            logger.exception("whats_new_fresh_install_record_failed")
+
     def run(self) -> int:
         apply_windows_app_id()
         app = QApplication(sys.argv)

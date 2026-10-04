@@ -4,8 +4,8 @@ One native dark dialog, about 560 px wide: a fixed header (title and an optional
 scrolls only when it has to, and a fixed footer with an optional secondary link on the left and a default **Close**
 button on the right. No tabs, no cards per section, no nested boxes: short sections with concise headings.
 
-``CollectedDialog`` ("What ExileLens collects") is built on it, and the planned What's New release-notes dialog is
-meant to use the same shell, so the two share one visual language instead of growing two.
+``CollectedDialog`` ("What ExileLens collects") and ``WhatsNewDialog`` are built on it, so the two share one visual
+language instead of growing two.
 
 The dialog is styled by ``redesign_style`` (rules scoped under the dashboard root), so give it the dashboard window
 or one of its widgets as parent.
@@ -18,6 +18,8 @@ from typing import Callable
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QDialog, QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
+from exilelens.branding import app_icon
+from exilelens.platform.windows.dark_titlebar import apply_dark_title_bar
 from exilelens.ui import theme
 from exilelens.ui.components import make_button
 from exilelens.ui.dashboard_widgets import Hairline, WrapLabel, set_property
@@ -28,6 +30,8 @@ MAX_HEIGHT_SHARE = 0.8   # of the app window (a short page should fit at the def
 
 class InfoDialog(QDialog):
     """Fixed header, scrolling body, fixed footer. Esc, the title-bar close button and **Close** all dismiss it."""
+
+    max_height_share = MAX_HEIGHT_SHARE
 
     def __init__(
         self,
@@ -46,6 +50,9 @@ class InfoDialog(QDialog):
         self.setModal(True)
         self.setSizeGripEnabled(False)
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
+        icon = app_icon()
+        if icon is not None:
+            self.setWindowIcon(icon)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -177,7 +184,7 @@ class InfoDialog(QDialog):
         screen = (parent.screen() if parent is not None else QApplication.primaryScreen()).availableGeometry()
         width = min(theme.scaled_px(DIALOG_WIDTH), int(screen.width() * 0.92))
         reference = parent.height() if parent is not None and parent.height() > 0 else screen.height()
-        cap = min(int(reference * MAX_HEIGHT_SHARE), int(screen.height() * 0.92))
+        cap = min(int(reference * self.max_height_share), int(screen.height() * 0.92))
         inner = width - 48
         body_height = self.body.totalHeightForWidth(inner)           # both include their own margins
         header_height = self._header.layout().totalHeightForWidth(inner)
@@ -188,4 +195,5 @@ class InfoDialog(QDialog):
     def showEvent(self, event) -> None:  # noqa: N802
         self.fit_to_content()
         super().showEvent(event)
+        apply_dark_title_bar(int(self.winId()))
         self.close_button.setFocus(Qt.FocusReason.OtherFocusReason)   # opens with Close focused: Enter dismisses

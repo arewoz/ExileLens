@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-CURRENT_SCHEMA_VERSION = 24
+CURRENT_SCHEMA_VERSION = 25
 ONBOARDING_VERSION = 1
 DEFAULT_PRICE_CHECK_HOTKEY = "shift+c"
 DEFAULT_REFINE_PRICE_HOTKEY = "ctrl+shift+r"
@@ -181,6 +181,8 @@ class AppSettings:
     # they do nothing for free installs; the user can turn either off.
     updates_auto_download: bool = True
     updates_install_on_exit: bool = True
+    # The installed version whose release notes the player last dismissed. Empty on a profile that predates What's New.
+    last_seen_release_notes_version: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -285,6 +287,7 @@ class AppSettings:
             privacy_card_resolved=bool(data.get("privacy_card_resolved", False)),
             updates_auto_download=data.get("updates_auto_download", True) is not False,
             updates_install_on_exit=data.get("updates_install_on_exit", True) is not False,
+            last_seen_release_notes_version=str(data.get("last_seen_release_notes_version") or "").strip(),
         )
 
 

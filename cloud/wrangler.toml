@@ -119,9 +119,9 @@ crons = ["17 * * * *", "47 */6 * * *"]
 
 [env.production.vars]
 INGEST_ENABLED = "true"
-# Production Patreon client configured and validated (2026-10-03). Linking/leases are switched OFF until the public R2 release; flip both to "true" and redeploy to enable.
-PATREON_LINK_ENABLED = "false"
-LEASE_ISSUANCE_ENABLED = "false"
+# Production Patreon client configured and validated (2026-10-03). Linking and entitlement leases are enabled for the public R2 release.
+PATREON_LINK_ENABLED = "true"
+LEASE_ISSUANCE_ENABLED = "true"
 PATREON_API_BASE = "https://www.patreon.com"
 # Production Patreon API client id is set once the client exists (the id is public; the secret is a Worker secret).
 PATREON_CLIENT_ID = "dJ88CEKMSJYYmDAo5Nr4prXHKhIMfztiPjUfNY-iD2fXi8ZHM6YvM9nzQ1OWicyJ"

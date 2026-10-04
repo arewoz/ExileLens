@@ -194,9 +194,53 @@ class _StatusBlock(QPushButton):
         self.setToolTip(self.accessibleName() if compact else "")
 
 
+class _VersionText(QPushButton):
+    """The installed version. Plain text until packaged notes exist; then a quiet button that opens them.
+
+    Always a button with the same metrics, so the text sits on the rail's x = 24 axis either way. Hover lightens the
+    text, adds a faint fill and underlines it; keyboard focus uses the shared focus ring.
+    """
+
+    def __init__(self, text: str, parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self.setObjectName("railVersion")
+        self.setFlat(True)
+        self._interactive = False
+        self.set_interactive(False)
+
+    def is_interactive(self) -> bool:
+        return self._interactive
+
+    def set_interactive(self, interactive: bool, tooltip: str = "") -> None:
+        self._interactive = interactive
+        set_property(self, "interactive", interactive)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, not interactive)
+        self.setFocusPolicy(Qt.FocusPolicy.TabFocus if interactive else Qt.FocusPolicy.NoFocus)
+        self.setCursor(Qt.CursorShape.PointingHandCursor if interactive else Qt.CursorShape.ArrowCursor)
+        self.setToolTip(tooltip if interactive else "")
+        self.setAccessibleName(tooltip if interactive else self.text())
+        self._underline(False)
+
+    def _underline(self, on: bool) -> None:
+        font = self.font()
+        if font.underline() != on:
+            font.setUnderline(on)
+            self.setFont(font)
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        if self._interactive:
+            self._underline(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._underline(False)
+        super().leaveEvent(event)
+
+
 class StatusRail(QWidget):
     navigate_requested = Signal(str)
     update_action_requested = Signal()
+    whats_new_requested = Signal()
 
     def __init__(
         self,
@@ -280,10 +324,10 @@ class StatusRail(QWidget):
         column.addLayout(links)
 
         version_row = QVBoxLayout()  # the update action sits under the version so neither ever clips
-        version_row.setContentsMargins(12, 10, 0, 0)
+        version_row.setContentsMargins(8, 10, 0, 0)   # the version button's 4px border + padding puts its text back on x = 24
         version_row.setSpacing(2)
-        self._version = QLabel(version_text)
-        self._version.setObjectName("railVersion")
+        self._version = _VersionText(version_text)
+        self._version.clicked.connect(self.whats_new_requested.emit)
         self._update_button = QPushButton("")
         self._update_button.setObjectName("railUpdate")
         self._update_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -357,6 +401,13 @@ class StatusRail(QWidget):
 
     def version_text(self) -> str:
         return self._version.text()
+
+    def version_button(self) -> QPushButton:
+        return self._version
+
+    def set_whats_new_available(self, version: str) -> None:
+        """Make the version text open the local release notes (only when packaged notes exist for it)."""
+        self._version.set_interactive(bool(version), f"What's new in {version}" if version else "")
 
     def update_text(self) -> str:
         """The actionable update link label shown beside the version, or ''."""

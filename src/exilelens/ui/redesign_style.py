@@ -57,7 +57,13 @@ _TEMPLATE = """
 @ROOT@ QPushButton#railSupport { color: @TEXT@; font-size: 14px; font-weight: 600; }
 @ROOT@ QPushButton#railLink:hover, @ROOT@ QPushButton#railSupport:hover { background: @SURFACE_1@; color: @TEXT@; }
 @ROOT@ QPushButton#railLink:focus, @ROOT@ QPushButton#railSupport:focus { border-color: @FOCUS@; }
-@ROOT@ QLabel#railVersion { color: @TEXT_MUTED@; font-size: 12px; }
+@ROOT@ QPushButton#railVersion {
+    color: @TEXT_MUTED@; font-size: 12px; background: transparent; border: 2px solid transparent;
+    border-radius: @R4@px; padding: 0 2px; text-align: left;
+}
+@ROOT@ QPushButton#railVersion[interactive="true"]:hover { color: @TEXT_BODY@; background: @SURFACE_1@; }
+@ROOT@ QPushButton#railVersion[interactive="true"]:pressed { color: @TEXT@; background: @SURFACE_2@; }
+@ROOT@ QPushButton#railVersion:focus { border-color: @FOCUS@; }
 @ROOT@ QPushButton#railUpdate {
     background: transparent; border: 2px solid transparent; border-radius: @R4@px;
     color: @ACCENT@; font-size: 12px; font-weight: 600; padding: 0 4px; text-align: left;
@@ -145,6 +151,11 @@ _TEMPLATE = """
 @ROOT@ QDialog#infoDialog QLabel#infoHeading { font-size: 14px; font-weight: 600; color: @TEXT@; }
 @ROOT@ QDialog#infoDialog QLabel#infoItem { font-size: 13px; color: @TEXT_BODY@; }
 @ROOT@ QDialog#infoDialog QLabel#infoNote { font-size: 13px; color: @TEXT_MUTED@; }
+@ROOT@ QDialog#infoDialog QLabel#whatsNewHeadline { font-size: 14.5px; font-weight: 600; color: @TEXT@; }
+@ROOT@ QDialog#infoDialog QLabel#whatsNewText { font-size: 13.5px; color: @TEXT_BODY@; }
+@ROOT@ QDialog#infoDialog QLabel#whatsNewSince { font-size: 12.5px; color: @TEXT_MUTED@; }
+@ROOT@ QDialog#infoDialog QLabel#whatsNewListHeading { font-size: 13.5px; font-weight: 600; color: @TEXT_MUTED@; }
+@ROOT@ QDialog#infoDialog QScrollArea#infoScroll:focus { border: 2px solid @FOCUS@; }
 
 /* notices: tinted only when they ask for action */
 @ROOT@ QWidget#notice { border: 1px solid @HAIRLINE_STRONG@; border-radius: @R4@px; background: @SURFACE_1@; }
@@ -174,6 +185,7 @@ _TEMPLATE = """
 @ROOT@ QPushButton#btnDestructive:hover { background: @ERROR_TINT@; }
 @ROOT@ QPushButton[compact="true"] { min-height: @CONTROL_HC@px; padding: 0 12px; }
 @ROOT@ QPushButton#btnTertiary[compact="true"] { padding: 0 8px; }
+@ROOT@ QPushButton#btnTertiary[flush="true"] { padding: 0 2px; }
 @ROOT@ QPushButton#btnPrimary:focus, @ROOT@ QPushButton#btnSecondary:focus, @ROOT@ QPushButton#btnTertiary:focus,
 @ROOT@ QPushButton#btnDestructive:focus, @ROOT@ QPushButton#btnBranded:focus, @ROOT@ QPushButton#linkButton:focus { border: 2px solid @FOCUS@; }
 @ROOT@ QPushButton#linkButton {

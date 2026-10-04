@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -29,6 +29,7 @@ from exilelens.ui.redesign_style import build_stylesheet
 from exilelens.ui.status_rail import StatusRail
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
 from exilelens.ui.tree_window import TreeWorkspace
+from exilelens.ui.whats_new_flow import ReleaseNotesFlow
 from exilelens.ui.update_actions import restart_and_update, update_notice_view
 from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_extended_style
 
@@ -102,6 +103,9 @@ class DashboardWindow(ManagedToolWindow):
         self.settings = settings
         self.controller = controller
         self.update_service = UpdateService(settings)
+        self.release_notes = ReleaseNotesFlow(
+            self, settings, controller, navigate=self.open_destination, blocked=self._setup_in_progress
+        )
         self.setObjectName("dashboardRoot")
         # Initial keyboard focus goes to the window itself, so no control shows a focus ring
         # until the user presses Tab.
@@ -138,7 +142,9 @@ class DashboardWindow(ManagedToolWindow):
         self._market = MarketHubPage(controller, settings) if is_enabled(FeatureModule.MARKET) else None
         self._tree = TreeWorkspace(controller, embed_mode=True) if is_enabled(FeatureModule.TREE_TOOLS) else None
         self._gear = GearOptimizerPage(controller) if is_enabled(FeatureModule.GEAR_OPTIMIZER) else None
-        self._settings_page = SettingsPage(settings, controller, self.update_service, navigate=self.navigate)
+        self._settings_page = SettingsPage(
+            settings, controller, self.update_service, navigate=self.navigate, release_notes=self.release_notes
+        )
         self._diagnostics = DiagnosticsPage(controller, settings, self.update_service, navigate=self.navigate)
         for page_id, widget in (
             ("overview", self._overview),
@@ -173,6 +179,8 @@ class DashboardWindow(ManagedToolWindow):
         )
         self._rail.navigate_requested.connect(self.navigate)
         self._rail.update_action_requested.connect(self._rail_update_action)
+        self._rail.whats_new_requested.connect(self.release_notes.show_manual)
+        self._sync_whats_new_entry()
 
         # --- content pane --------------------------------------------------------------
         content_pane = QWidget()
@@ -299,6 +307,34 @@ class DashboardWindow(ManagedToolWindow):
         from exilelens.ui.recovery_actions import open_github_issues
 
         open_github_issues()
+
+    def _sync_whats_new_entry(self) -> None:
+        """The rail's version is a link only while packaged notes exist for the installed version."""
+        notes = self.release_notes
+        self._rail.set_whats_new_available(notes.installed_text() if notes.has_notes() else "")
+        panel = getattr(self._settings_page, "_updates_panel", None)
+        if panel is not None:
+            panel.sync_installed_links()
+
+    def open_destination(self, destination: str) -> None:
+        """Where a What's New link goes. Only the allowlisted destinations of the release content are accepted."""
+        if destination == "supporter":
+            self.show_supporter_area()
+        elif destination == "updates":
+            self.navigate("settings")
+            focus = getattr(self._settings_page, "focus_updates", None)
+            if callable(focus):
+                focus()
+        elif destination in ("overview", "build_analysis", "settings", "diagnostics"):
+            self.navigate(destination)
+
+    def _setup_in_progress(self) -> bool:
+        """The first-run setup window is open: What's New never stacks over it."""
+        from PySide6.QtWidgets import QApplication
+
+        shell = QApplication.instance().property("exilelens_app_shell") if QApplication.instance() else None
+        setup = getattr(shell, "_setup_dialog", None)
+        return setup is not None and setup.isVisible()
 
     def tree_workspace(self) -> TreeWorkspace | None:
         return self._tree
@@ -432,7 +468,7 @@ class DashboardWindow(ManagedToolWindow):
         self._update_notice_action = make_button("Download && install", "primary", compact=True)
         self._update_notice_action.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._update_notice_action.clicked.connect(self._footer_update_action)
-        self._update_notice_whats_new = make_button("What's new", "tertiary", compact=True)
+        self._update_notice_whats_new = make_button("Full release notes", "tertiary", compact=True, icon="github")
         self._update_notice_whats_new.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._update_notice_whats_new.clicked.connect(self._open_release_page)
         self._update_notice_later = make_button("Later", "tertiary", compact=True)
@@ -556,5 +592,8 @@ class DashboardWindow(ManagedToolWindow):
         apply_native_extended_style(self, WindowInteractionPolicy.INTERACTIVE_APP_WINDOW)
         apply_dark_title_bar(int(self.winId()))
         self._rail.refresh()
+        self._sync_whats_new_entry()
         recover_window_geometry(self, cap_size=True)
         self.setFocus(Qt.FocusReason.OtherFocusReason)
+        # Evaluated once the window is really on screen, i.e. the player opened it (never in tray-only startup).
+        QTimer.singleShot(0, self.release_notes.on_dashboard_shown)

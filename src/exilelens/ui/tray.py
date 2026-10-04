@@ -479,9 +479,18 @@ class TrayManager(QSystemTrayIcon):
             8000,
         )
 
+    def _whats_new_will_acknowledge(self) -> bool:
+        flow = getattr(self.dashboard, "release_notes", None)
+        try:
+            return bool(flow is not None and flow.pending())
+        except Exception:  # noqa: BLE001
+            return False
+
     def _show_install_outcome(self, notice) -> None:
         """One-time, non-modal result of the previous external-updater run."""
         kind = str(getattr(notice, "kind", ""))
+        if kind == "updated" and self._whats_new_will_acknowledge():
+            return   # the What's New dialog is the acknowledgement; failures and rollbacks are never suppressed
         icon = QSystemTrayIcon.MessageIcon.Information if kind == "updated" else QSystemTrayIcon.MessageIcon.Warning
         self.showMessage(str(getattr(notice, "title", APP_NAME)), str(getattr(notice, "message", "")), icon, 8000)
 
