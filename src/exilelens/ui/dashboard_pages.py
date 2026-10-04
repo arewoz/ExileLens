@@ -592,6 +592,18 @@ class SettingsPage(ColumnPage):
         self.controller.restart_engine()
         self.refresh_setup_status()
 
+    def _apply_pob_folder(self, path: str) -> None:
+        """A folder chosen with Change folder or found by Detect: validate, save and reconnect, or keep what works.
+
+        An invalid folder is reported and never replaces the configured one. A folder that is already the configured
+        one changes nothing (Reconnect is the explicit way to restart against it).
+        """
+        if path == self.settings.pob_path:
+            self.refresh_setup_status()
+            return
+        self._set_pob_path(path)
+        self._reconnect_pob()
+
     def _set_pob_path(self, path: str) -> None:
         self._pob_path = path
         if self._pob_path_label.full_text() != path:
@@ -711,40 +723,20 @@ class SettingsPage(ColumnPage):
             f"({result.status.replace('_', ' ').lower()}). The saved list is still in use.",
         )
 
-    def _persist_pob_path(self) -> None:
-        path = self._pob_path.strip()
-        if path == self.settings.pob_path:
-            return
-        from exilelens.app.setup_status import check_pob_folder
-
-        check = check_pob_folder(path)
-        if not check.ok:
-            self._set_pob_path(self.settings.pob_path)
-            self.refresh_setup_status()
-            return
-        self.settings.pob_path = path
-        save_settings(self.settings)
-        self.refresh_setup_status()
-
     def _auto_detect_pob(self) -> None:
         """Rerun bounded local discovery: one result is applied, several are offered, none keeps the current path."""
         from exilelens.ui.pob_detect import detect_pob_path
 
         path = detect_pob_path(self)
-        if path is None:
-            return
-        self._set_pob_path(path)
-        if path != self.settings.pob_path:
-            self._reconnect_pob()
+        if path is not None:
+            self._apply_pob_folder(path)
 
     def _browse_pob(self) -> None:
         from exilelens.ui.setup_dialog import pick_pob_directory
 
         path = pick_pob_directory(self._pob_path)
         if path:
-            self._set_pob_path(path)
-            self._persist_pob_path()
-            self.refresh_setup_status()
+            self._apply_pob_folder(path)
 
     def _on_context_changed(self) -> None:
         context = str(self._context.currentData() or "MAP")

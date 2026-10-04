@@ -1,4 +1,8 @@
-"""Focused regression coverage for PoB folder selection state handling."""
+"""Focused regression coverage for PoB folder selection state handling.
+
+The supported flow is the visible **Change folder** action on the Path of Building card (and **Detect**, which
+ends in the same place); the tests drive that action and assert what the user can rely on, not private widgets.
+"""
 
 from __future__ import annotations
 
@@ -62,6 +66,16 @@ class _DummyController(QObject):
         return ItemCheckProSettings.from_dict(self.settings.item_check_pro)
 
 
+def _choose_folder(monkeypatch, page: SettingsPage, folder: Path) -> list[str]:
+    """Click Change folder with the native folder picker answering ``folder``; returns the saved pob_path values."""
+    saved: list[str] = []
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
+    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr("exilelens.ui.setup_dialog.pick_pob_directory", lambda _current: str(folder))
+    page._change_pob_btn.click()
+    return saved
+
+
 def _page(settings: AppSettings, controller: _DummyController | None = None) -> SettingsPage:
     app = QApplication.instance() or QApplication([])
     assert app is not None
@@ -74,34 +88,24 @@ def test_invalid_candidate_keeps_valid_connection(monkeypatch, tmp_path: Path) -
     settings = AppSettings(pob_path=str(valid_path))
     controller = _DummyController(settings)
     page = _page(settings, controller)
-    page._pob_edit.setText(str(tmp_path / "not-a-pob"))
 
-    saved: list[str] = []
-    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
-    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
+    saved = _choose_folder(monkeypatch, page, tmp_path / "not-a-pob")
 
-    page._apply_pob_path()
-
-    assert settings.pob_path == str(valid_path)
-    assert page._pob_edit.text() == str(valid_path)
-    assert saved == []
-    assert controller.restart_calls == 0
+    assert settings.pob_path == str(valid_path)                    # the known-good folder is untouched
+    assert page._pob_path_label.full_text() == str(valid_path)     # and still what the card shows
+    assert saved == []                                             # the invalid folder was never persisted
+    assert controller.restart_calls == 0                           # nothing reconnected against invalid state
 
 
 def test_invalid_candidate_keeps_unconfigured_state(monkeypatch, tmp_path: Path) -> None:
     settings = AppSettings(pob_path="")
     controller = _DummyController(settings)
     page = _page(settings, controller)
-    page._pob_edit.setText(str(tmp_path / "not-a-pob"))
 
-    saved: list[str] = []
-    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
-    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
+    saved = _choose_folder(monkeypatch, page, tmp_path / "not-a-pob")
 
-    page._apply_pob_path()
-
-    assert settings.pob_path == ""
-    assert page._pob_edit.text() == ""
+    assert settings.pob_path == ""                                 # still unconfigured
+    assert page._pob_path_label.full_text() == ""                  # no phantom path on the card
     assert saved == []
     assert controller.restart_calls == 0
 
@@ -111,14 +115,21 @@ def test_valid_candidate_persists_and_restarts(monkeypatch, tmp_path: Path) -> N
     controller = _DummyController(settings)
     page = _page(settings, controller)
     candidate = _make_valid_pob(tmp_path / "next-good")
-    page._pob_edit.setText(str(candidate))
 
-    saved: list[str] = []
-    monkeypatch.setattr("exilelens.ui.dashboard_pages.save_settings", lambda _settings: saved.append(_settings.pob_path))
-    monkeypatch.setattr("exilelens.ui.dashboard_pages.QMessageBox.warning", lambda *args, **kwargs: None)
-
-    page._apply_pob_path()
+    saved = _choose_folder(monkeypatch, page, candidate)
 
     assert settings.pob_path == str(candidate)
-    assert saved == [str(candidate)]
-    assert controller.restart_calls == 1
+    assert saved == [str(candidate)]                               # persisted once, after validation
+    assert controller.restart_calls == 1                           # the worker is restarted against it
+    assert page._pob_path_label.full_text() == str(candidate)      # and the card shows it
+
+
+def test_choosing_the_already_configured_folder_changes_nothing(monkeypatch, tmp_path: Path) -> None:
+    valid_path = _make_valid_pob(tmp_path / "current")
+    settings = AppSettings(pob_path=str(valid_path))
+    controller = _DummyController(settings)
+    page = _page(settings, controller)
+
+    saved = _choose_folder(monkeypatch, page, valid_path)
+
+    assert saved == [] and controller.restart_calls == 0           # Reconnect, not Change folder, restarts the same folder
