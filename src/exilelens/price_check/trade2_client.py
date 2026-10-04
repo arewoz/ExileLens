@@ -2,18 +2,25 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import statistics
-import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass, field
 from threading import Lock
 from typing import Any, Callable
 
 from exilelens.price_check.cache import TimedResponseCache
+from exilelens.price_check.market_policy import current_market_access
 from exilelens.price_check.rate_limit import RateLimitState, shared_rate_limit_state
 from exilelens.price_check.trade2_query_validation import ensure_valid_trade2_search_body
+from exilelens.price_check.transport import (
+    AuthorizedTransport,
+    TransportError,
+    TransportNotPermitted,
+    TransportRequest,
+    TransportResponse,
+    Trade2Transport,
+    UrllibTransport,
+)
 from exilelens.price_check.rate_policy import (
     EXCHANGE,
     FETCH,
@@ -24,8 +31,15 @@ from exilelens.price_check.rate_policy import (
 )
 
 TRADE2_BASE_URL = "https://www.pathofexile.com"
-USER_AGENT = "poe2-value-overlay/0.5 (price-check)"
+# Internal identifier only. The live trade2 provider is production-disabled (market_policy.LIVE_TRADE2_AUTHORIZATION =
+# BLOCKED_PENDING_PROVIDER_AUTHORIZATION): the User-Agent/identification format GGG would require for any live access is
+# unresolved, so this string makes NO compliance claim. No OAuth client id and no contact address is asserted here.
+USER_AGENT = "ExileLens-market/1 (internal; live provider disabled)"
 FETCH_BATCH_SIZE = 10
+# R5-A sample bound: one search never fetches more than 20 listings, in at most 2 batches. Enforced here as well as in the provider
+# so no caller can widen it.
+MAX_FETCH_IDS_PER_SEARCH = 20
+MAX_FETCH_BATCHES_PER_SEARCH = 2
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +144,10 @@ def parse_exchange_rate(
 
 @dataclass
 class Trade2Client:
-    """Anonymous-first trade2 HTTP client. Session only from runtime env."""
+    """Anonymous trade2 HTTP client over an injected transport. No credentials or session cookie are ever sent.
+
+    The default transport refuses every request unless central market access permits it (it does not, while the provider is
+    unauthorized), so constructing a client can never reach the network by accident."""
 
     base_url: str = TRADE2_BASE_URL
     timeout_seconds: float = 30.0
@@ -142,6 +159,7 @@ class Trade2Client:
     _leagues_cache: list[str] | None = field(default=None, init=False)
     _cache_lock: Lock = field(default_factory=Lock, init=False)
     policy_registry: TradePolicyRegistry | None = None
+    transport: Trade2Transport | None = None
     _last_response_headers: dict[str, str] = field(default_factory=dict, init=False)
     _last_http_status: int = 200
     search_requests: int = field(default=0, init=False)
@@ -156,15 +174,12 @@ class Trade2Client:
             self.query_cache = _QUERY_CACHE
         if self.listing_cache is None:
             self.listing_cache = _LISTING_CACHE
-
-    @property
-    def session_id(self) -> str | None:
-        raw = os.environ.get("POE2VALUE_TRADE2_SESSION", "").strip()
-        return raw or None
+        if self.transport is None:
+            self.transport = AuthorizedTransport(UrllibTransport(), current_market_access)
 
     @property
     def authentication_mode(self) -> str:
-        return "SESSION" if self.session_id else "ANONYMOUS"
+        return "ANONYMOUS"
 
     @property
     def total_http_requests(self) -> int:
@@ -237,9 +252,11 @@ class Trade2Client:
             raise Trade2Error("trade2 fetch missing query id", code="fetch_error")
         rows: list[dict[str, Any]] = []
         batch_size = max(1, int(self.fetch_batch_size))
+        result_ids = list(result_ids)[:MAX_FETCH_IDS_PER_SEARCH]
+        batch_cap = MAX_FETCH_BATCHES_PER_SEARCH if max_fetch_requests is None else min(max_fetch_requests, MAX_FETCH_BATCHES_PER_SEARCH)
         fetch_batches = 0
         for offset in range(0, len(result_ids), batch_size):
-            if max_fetch_requests is not None and fetch_batches >= max_fetch_requests:
+            if fetch_batches >= batch_cap:
                 break
             batch = result_ids[offset : offset + batch_size]
             batch_rows = self._fetch_batch(batch, query_id)
@@ -349,13 +366,10 @@ class Trade2Client:
         return parse_exchange_rate(payload, have=have, want=want)
 
     def _headers(self) -> dict[str, str]:
-        headers = {
+        return {
             "User-Agent": USER_AGENT,
             "Accept": "application/json",
         }
-        if self.session_id:
-            headers["Cookie"] = f"POESESSID={self.session_id}"
-        return headers
 
     def seconds_until_safe(self, endpoint: str) -> float:
         """How long before a request to this endpoint is allowed by server policy."""
@@ -372,6 +386,11 @@ class Trade2Client:
         one. The error carries the exact wait so the caller can queue instead of
         failing.
         """
+        # A request the transport will refuse is not a request: it must neither be paced nor consume rate-limit budget.
+        refusal = getattr(self.transport, "refusal", None)
+        reason = refusal() if callable(refusal) else None
+        if reason is not None:
+            raise Trade2Error(f"trade2 access not permitted: {reason}", code="not_permitted")
         registry = self.policy_registry
         if registry is not None:
             prediction = registry.predict_before_dispatch(endpoint)
@@ -439,96 +458,54 @@ class Trade2Client:
         if self.rate_limit_state is not None:
             self.rate_limit_state.wait_if_needed()
         data = json.dumps(body).encode("utf-8")
-        request = urllib.request.Request(
-            url,
-            data=data,
-            headers={**self._headers(), "Content-Type": "application/json"},
-            method="POST",
-        )
-        return self._request_json(request)
+        return self._send(TransportRequest("POST", url, {**self._headers(), "Content-Type": "application/json"}, data, self.timeout_seconds))
 
     def _get_json(self, url: str) -> dict[str, Any]:
         if self.rate_limit_state is not None:
             self.rate_limit_state.wait_if_needed()
-        request = urllib.request.Request(url, headers=self._headers(), method="GET")
-        return self._request_json(request)
+        return self._send(TransportRequest("GET", url, self._headers(), None, self.timeout_seconds))
 
-    def _request_json(self, request: urllib.request.Request) -> dict[str, Any]:
-        import time
-
+    def _send(self, request: TransportRequest) -> dict[str, Any]:
+        """One request through the transport. Every outcome is a `Trade2Error` with a stable `code`; nothing else escapes."""
         self._last_http_status = 200
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
-                self._last_http_status = int(response.status or 200)
-                self._last_response_headers = self._headers_to_dict(response.headers)
-                if self.rate_limit_state is not None:
-                    self.rate_limit_state.update_from_headers(
-                        self._last_response_headers,
-                        http_status=self._last_http_status,
-                    )
-                    self.rate_limit_state.wait_if_needed()
-                payload = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            self._last_http_status = exc.code
-            self._last_response_headers = self._headers_to_dict(exc.headers)
-            retry_after = self._parse_retry_after(exc.headers)
+            response: TransportResponse = self.transport(request)
+        except TransportNotPermitted as exc:
+            raise Trade2Error(str(exc), code="not_permitted") from exc
+        except TransportError as exc:
+            raise Trade2Error(str(exc), code="timeout" if exc.kind == "timeout" else "network_error") from exc
+        self._last_http_status = int(response.status)
+        self._last_response_headers = self._headers_to_dict(response.headers)
+        status = self._last_http_status
+        retry_after = self._parse_retry_after(response.headers)
+        if self.rate_limit_state is not None:
+            self.rate_limit_state.update_from_headers(self._last_response_headers, retry_after=retry_after if status >= 400 else None, http_status=status)
+        if status == 429:
+            remaining = retry_after
             if self.rate_limit_state is not None:
-                self.rate_limit_state.update_from_headers(
-                    self._last_response_headers,
-                    retry_after=retry_after,
-                    http_status=exc.code,
-                )
-            if exc.code == 429:
-                remaining = retry_after
-                if self.rate_limit_state is not None:
-                    remaining = self.rate_limit_state.seconds_until_allowed() or retry_after
-                raise Trade2Error(
-                    "trade2 rate limited",
-                    code="rate_limited",
-                    http_status=exc.code,
-                    retry_after=remaining,
-                    response_headers=self._last_response_headers,
-                ) from exc
-            if exc.code == 401:
-                raise Trade2Error(
-                    "trade2 authentication required",
-                    code="auth_required",
-                    http_status=exc.code,
-                    response_headers=self._last_response_headers,
-                ) from exc
-            if exc.code == 403:
-                raise Trade2Error(
-                    "trade2 forbidden",
-                    code="forbidden",
-                    http_status=exc.code,
-                    response_headers=self._last_response_headers,
-                ) from exc
-            if exc.code == 400:
-                detail = ""
-                try:
-                    detail = exc.read().decode("utf-8", errors="replace")[:500]
-                except Exception:
-                    detail = ""
-                raise Trade2Error(
-                    f"trade2 HTTP {exc.code}" + (f": {detail}" if detail else ""),
-                    code="bad_request",
-                    http_status=exc.code,
-                    retry_after=retry_after,
-                    response_headers=self._last_response_headers,
-                ) from exc
-            raise Trade2Error(
-                f"trade2 HTTP {exc.code}",
-                code="http_error",
-                http_status=exc.code,
-                retry_after=retry_after,
-                response_headers=self._last_response_headers,
-            ) from exc
-        except urllib.error.URLError as exc:
-            raise Trade2Error(str(exc), code="network_error") from exc
-        except json.JSONDecodeError as exc:
-            raise Trade2Error("invalid trade2 response", code="parse_error") from exc
+                remaining = self.rate_limit_state.seconds_until_allowed() or retry_after
+            raise Trade2Error("trade2 rate limited", code="rate_limited", http_status=status, retry_after=remaining,
+                              response_headers=self._last_response_headers)
+        if status == 401:
+            raise Trade2Error("trade2 authentication required", code="auth_required", http_status=status,
+                              response_headers=self._last_response_headers)
+        if status == 403:
+            raise Trade2Error("trade2 forbidden", code="forbidden", http_status=status, response_headers=self._last_response_headers)
+        if status == 400:
+            detail = response.body.decode("utf-8", errors="replace")[:500] if response.body else ""
+            raise Trade2Error(f"trade2 HTTP {status}" + (f": {detail}" if detail else ""), code="bad_request", http_status=status,
+                              retry_after=retry_after, response_headers=self._last_response_headers)
+        if status >= 400:
+            raise Trade2Error(f"trade2 HTTP {status}", code="http_error", http_status=status, retry_after=retry_after,
+                              response_headers=self._last_response_headers)
+        if self.rate_limit_state is not None:
+            self.rate_limit_state.wait_if_needed()
+        try:
+            payload = json.loads(response.body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise Trade2Error("invalid trade2 response", code="parse_error", http_status=status) from exc
         if not isinstance(payload, dict):
-            raise Trade2Error("invalid trade2 response", code="parse_error")
+            raise Trade2Error("invalid trade2 response", code="parse_error", http_status=status)
         return payload
 
     @staticmethod

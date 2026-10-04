@@ -1,0 +1,47 @@
+{
+ "result": [
+  {
+   "id": "syn000",
+   "listing": {
+    "indexed": "2099-01-01T00:00:00Z",
+    "account": {
+     "name": "SyntheticSeller00"
+    },
+    "price": {
+     "type": "~price",
+     "amount": 34,
+     "currency": "exalted"
+    }
+   },
+   "item": {
+    "rarity": "Rare",
+    "typeLine": "Sapphire Ring",
+    "explicitMods": [
+     "+89 to maximum Energy Shield",
+     "40% increased Cast Speed"
+    ]
+   }
+  },
+  {
+   "id": "syn001",
+   "listing": {
+    "indexed": "2099-01-01T00:00:00Z",
+    "account": {
+     "name": "SyntheticSeller01"
+    },
+    "price": {
+     "type": "~price",
+     "amount": 2,
+     "currency": "divine"
+    }
+   },
+   "item": {
+    "rarity": "Rare",
+    "typeLine": "Sapphire Ring",
+    "explicitMods": [
+     "+85 to maximum Energy Shield"
+    ]
+   }
+  }
+ ]
+}

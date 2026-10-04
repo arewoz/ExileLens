@@ -7,7 +7,7 @@ simply not sent.
 Two things were wrong before:
 
 1. There was a single global cooldown shared by every endpoint, but trade2 publishes a
-   *separate* policy per endpoint (observed live)::
+   *separate* policy per endpoint (historical figures, illustrative only; not authoritative)::
 
        trade-search-request-limit     5/10s(60s)  15/60s(300s)  30/300s(1800s)  600/6h(3600s)
        trade-fetch-request-limit     12/4s(10s)   16/12s(300s)  50/300s(300s)  1000/6h(1800s)
@@ -47,8 +47,10 @@ WINDOW_SAFETY_MARGIN_SECONDS = 0.35
 # MARKET-02F2A1: cap unexplained server drift reserve so one cliff does not wedge the app.
 MAX_UNCERTAINTY_RESERVE = 12
 
-# Observed live on 2026-09-08. Used as a cold-start floor until the first 200 teaches
-# the current policy. Headers always replace these.
+# NON-AUTHORITATIVE cold-start fallback. These numbers are historical and are NOT taken from any GGG documentation (the
+# provider is not authorized, see market_policy.LIVE_TRADE2_AUTHORIZATION), so nothing may treat them as the server's limits.
+# They only keep a client that has seen no response yet conservative; the server's X-Rate-Limit-* headers always replace them
+# (`update_from_headers`), and the tests drive the scheduler from synthetic headers, never from these values.
 _DEFAULT_RULES: dict[str, tuple[tuple[int, int, int], ...]] = {
     SEARCH: ((5, 10, 60), (15, 60, 300), (30, 300, 1800), (600, 21600, 3600)),
     FETCH: ((12, 4, 10), (16, 12, 300), (50, 300, 300), (1000, 21600, 1800)),

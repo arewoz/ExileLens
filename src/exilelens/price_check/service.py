@@ -115,6 +115,26 @@ def _live_provider_disabled_result(request: PriceCheckRequest) -> PriceCheckResu
     )
 
 
+def _contained_provider_result(request: PriceCheckRequest, provider_id: str, exc: Exception) -> PriceCheckResult:
+    """A provider raised. Nothing from the market stack may escape into Item Check, so the failure becomes a typed result."""
+    import logging
+
+    logging.getLogger(__name__).warning("market provider %s raised %s; contained", provider_id, type(exc).__name__)
+    message = "The market lookup failed internally; no estimate is shown."
+    return PriceCheckResult(
+        request=request,
+        estimate=PriceEstimate(
+            source_kind=PriceSourceKind.LIVE_MARKET,
+            confidence=PriceConfidence.NONE,
+            summary=message,
+            disclaimer=message,
+        ),
+        provider_id=provider_id,
+        message=message,
+        live_search_state=LiveSearchState.LIVE_PROVIDER_ERROR,
+    )
+
+
 class PriceCheckService:
     """Orchestrates provider chain for Shift+C price check. No PoB evaluation."""
 
@@ -226,7 +246,10 @@ class PriceCheckService:
                     provider_attempted=tuple(provider_attempted),
                     provider_result=";".join(provider_results),
                 )
-            result = provider.lookup(request)
+            try:
+                result = provider.lookup(request)
+            except Exception as exc:  # noqa: BLE001 - R5-A containment boundary
+                result = _contained_provider_result(request, provider.provider_id, exc)
             provider_results.append(_provider_result_label(provider.provider_id, result))
             if result is None:
                 continue

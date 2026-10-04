@@ -36,6 +36,15 @@ def canary_enabled() -> bool:
 
 
 def run_market_canary(*, force: bool = False, item_raw: str | None = None) -> MarketCanaryReport:
+    from exilelens.price_check.market_policy import LIVE_TRADE2_AUTHORIZATION, LIVE_TRADE2_AUTHORIZED
+
+    if not LIVE_TRADE2_AUTHORIZED:
+        # R5-A: the live trade2 provider is production-disabled until GGG documents or authorizes this access. The canary is
+        # therefore inert, whatever flag or environment variable asks for it: it makes no request.
+        return MarketCanaryReport(
+            ran=False,
+            notes=[f"Live trade2 is production-disabled ({LIVE_TRADE2_AUTHORIZATION}); the canary makes no request."],
+        )
     if not force and not canary_enabled():
         return MarketCanaryReport(
             ran=False,

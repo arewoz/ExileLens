@@ -14,6 +14,7 @@ from exilelens.price_check.comparable_pricing import (
     build_band_estimate,
     confidence_reason,
     count_fx_usable_listings,
+    seller_stats,
 )
 from exilelens.price_check.comparable_query import (
     RelaxationTier,
@@ -74,27 +75,35 @@ from exilelens.price_check.network_withhold import (
     build_fetch_withhold,
 )
 from exilelens.price_check.rate_policy import FETCH
-from exilelens.price_check.trade2_client import Trade2Client, Trade2Error
+from exilelens.price_check.trade2_client import (
+    MAX_FETCH_BATCHES_PER_SEARCH,
+    MAX_FETCH_IDS_PER_SEARCH,
+    Trade2Client,
+    Trade2Error,
+)
 from exilelens.price_check.trade2_query import build_trade2_search_body
 
 logger = logging.getLogger(__name__)
 
 _MIN_BAND_COMPARABLES = 3
-# MARKET-01B11: search is the scarce endpoint (5/10s, 30/300s) while fetch is far more
-# permissive (12/4s, 50/300s). Fetching a larger sample from ONE search makes the
-# neighbourhood reusable for nearby items instead of pricing a single item and
-# discarding it. Batches are 10, so 4 fetch requests cover this target.
-_TARGET_SAMPLE = 36
-_MAX_FETCH_IDS = 40
+# R5-A sample bound. One search fetches at most 20 listings in at most 2 batches of 10, and the second batch is read only when the
+# server reports more results than the first batch returned (see `_make_stop_when`). This replaces the earlier 36/40-id,
+# 4-batch design, which spent four fetches per search with no estimator that needed them. The same bound is enforced in
+# `Trade2Client.fetch_progressive`, so no caller can widen it.
+_TARGET_SAMPLE = MAX_FETCH_IDS_PER_SEARCH
+_MAX_FETCH_IDS = MAX_FETCH_IDS_PER_SEARCH
 # MARKET-02C: ordinary healthy AUTO is still one search. Difficult cold items may
 # spend one extra H2 search. Never three.
 _MAX_SEARCH_REQUESTS = 2
-# MARKET-02C: H1 may fetch a 40-id sample (4 batches). That must not starve the
-# one legal H2 search — fetch is the cheap bucket. Two searches × 4 batches.
-_MAX_FETCH_REQUESTS = 8
+# Two searches x two batches.
+_MAX_FETCH_REQUESTS = _MAX_SEARCH_REQUESTS * MAX_FETCH_BATCHES_PER_SEARCH
 _RELAXATION_ORDER = (RelaxationTier.STRICT,)
 
 _INFLIGHT = InFlightCoalescer()
+
+# What an estimate from this provider is: the cost to BUY comparable listings (cheapest first, one per seller, outliers trimmed).
+# It is not what the item is worth, a fair value, or what it will sell for.
+_COST_DISCLAIMER = "Asking prices of comparable listings (cheapest first): the cost to buy a comparable item, not its worth."
 
 _MOD_LINE_RE = re.compile(r"^(\+?\d+%?|\d+%)\s+(.+)$|^.+(increased|reduced|to)\s+.+$", re.I)
 
@@ -206,6 +215,13 @@ def _parse_fetched_listings(
     ]
 
 
+def _record_seller_stats(pass_diag: RelaxationPassDiagnostics, similar: list[ComparableListing]) -> None:
+    stats = seller_stats(similar)
+    pass_diag.seller_listing_count = stats.listing_count
+    pass_diag.distinct_sellers = stats.distinct_sellers
+    pass_diag.top_seller_share = stats.top_seller_share
+
+
 def _market_status_rate_limited(retry_after: float | None) -> str:
     seconds = max(1, int(math.ceil(retry_after or 1)))
     return f"LIVE MARKET TEMPORARILY LIMITED — Retry in {seconds}s"
@@ -262,7 +278,7 @@ class LiveTradeComparableProvider:
 
     @property
     def capabilities(self) -> ProviderCapabilities:
-        mode = AuthenticationMode.SESSION if self._client.session_id else AuthenticationMode.ANONYMOUS
+        mode = AuthenticationMode.ANONYMOUS  # no session cookie is ever sent (R5-A)
         if self._auth_required:
             mode = AuthenticationMode.AUTH_REQUIRED
         return ProviderCapabilities(
@@ -276,15 +292,83 @@ class LiveTradeComparableProvider:
         )
 
     def lookup(self, request: PriceCheckRequest) -> PriceCheckResult | None:
+        """Never raises. Any exception from the compiler check, transport, FX or estimator is turned into a typed failure result, so
+        nothing from the market stack can escape into Item Check."""
+        try:
+            return self._lookup_checked(request)
+        except Exception as exc:  # noqa: BLE001 - R5-A containment boundary
+            return self._contained_failure(request, exc)
+
+    def _lookup_checked(self, request: PriceCheckRequest) -> PriceCheckResult | None:
         if isinstance(request, CompiledPriceCheckRequest):
             from exilelens.price_check.trade2_query_validation import validate_trade2_search_body, InvalidTradeQuery
             validation = validate_trade2_search_body(request.compiled_query.body)
             if not validation.ok or validation.body != request.compiled_query.body:
                 raise InvalidTradeQuery(validation.fatal or "compiled body requires repair; recompile offline")
+            if str(request.plan.base.rarity or "").strip().upper() == "UNIQUE":
+                # R5-A: a base-type search does not price a unique. Refuse before any request is made; live unique retrieval is
+                # not implemented here.
+                return apply_price_trust(replace(self._unique_refusal(request), request=request, hypothesis=None))
         result = self._lookup(request)
         if result is not None and isinstance(request, CompiledPriceCheckRequest):
             result = apply_price_trust(replace(result, request=request, hypothesis=None))
         return result
+
+    def _unique_refusal(self, request: PriceCheckRequest) -> PriceCheckResult:
+        diagnostics = LiveAcquisitionDiagnostics(price_check_id=request.request_id, league_source=request.league_source)
+        diagnostics.live_state = LiveSearchState.LIVE_ITEM_CLASS_UNSUPPORTED
+        diagnostics.final_source = "unique_not_priced"
+        return self._failure_result(
+            request,
+            LiveSearchState.LIVE_ITEM_CLASS_UNSUPPORTED,
+            diagnostics,
+            message="Unique items are not priced from their base type, so there is no trustworthy estimate.",
+        )
+
+    def _contained_failure(self, request: PriceCheckRequest, exc: Exception) -> PriceCheckResult:
+        from exilelens.price_check.trade2_query_validation import InvalidTradeQuery
+
+        if isinstance(exc, InvalidTradeQuery):
+            state, message = LiveSearchState.LIVE_SEARCH_BAD_REQUEST, "The market query could not be built."
+        elif isinstance(exc, Trade2Error):
+            state, message = map_trade2_error_code(exc.code, exc.http_status), str(exc)
+        else:
+            state, message = LiveSearchState.LIVE_PROVIDER_ERROR, "The market lookup failed internally."
+        # The class only: an exception message can carry request details that must not reach logs or the UI.
+        logger.warning("market lookup contained %s -> %s", type(exc).__name__, state.value)
+        diagnostics = LiveAcquisitionDiagnostics(price_check_id=request.request_id, league_source=request.league_source)
+        diagnostics.live_state = state
+        diagnostics.final_source = "contained_error"
+        result = self._failure_result(request, state, diagnostics, message=message)
+        if isinstance(request, CompiledPriceCheckRequest):
+            try:
+                result = apply_price_trust(replace(result, request=request, hypothesis=None))
+            except Exception:  # noqa: BLE001 - the typed failure is already a complete answer
+                pass
+        return result
+
+    def _make_stop_when(
+        self,
+        fetch_state: dict[str, Any],
+        league: str,
+        fx_table: CurrencyFxTable,
+        search_total: int,
+    ) -> Callable[[list[dict[str, Any]]], bool]:
+        """Batch policy: keep the parsed/similar listings current and decide whether another batch is worth a request.
+
+        A further batch is read only when the server reports more results than we already hold, and never past the hard bound.
+        A search whose total fits in the first batch therefore costs exactly one fetch."""
+
+        def _stop_when(rows: list[dict[str, Any]]) -> bool:
+            listings = _parse_fetched_listings(rows, league=league, source=self.provider_id)
+            similar = _filter_similar_listings(listings, fetch_state["query"])
+            fetch_state["similar"] = len(similar)
+            fetch_state["listings"] = similar
+            if len(rows) >= _MAX_FETCH_IDS:
+                return True
+            return int(search_total or 0) <= len(rows)
+
+        return _stop_when
 
     def _lookup(self, request: PriceCheckRequest) -> PriceCheckResult | None:
         meta = parse_lightweight_metadata(RawItemInput.from_text(request.item_raw))
@@ -510,14 +594,7 @@ class LiveTradeComparableProvider:
                     diagnostics.relaxation_passes.append(pass_diag)
                     return withhold
 
-                def _stop_when(rows: list[dict[str, Any]]) -> bool:
-                    listings = _parse_fetched_listings(rows, league=league, source=self.provider_id)
-                    similar = _filter_similar_listings(listings, fetch_state["query"])
-                    fetch_state["similar"] = len(similar)
-                    fetch_state["listings"] = similar
-                    if len(similar) >= _TARGET_SAMPLE:
-                        return True
-                    return count_fx_usable_listings(similar, fx_table=fx_table) >= _MIN_BAND_COMPARABLES
+                _stop_when = self._make_stop_when(fetch_state, league, fx_table, search.total)
 
                 fetch_requests_before = self._client.fetch_requests
                 try:
@@ -577,6 +654,8 @@ class LiveTradeComparableProvider:
                 best_similar_count = max(best_similar_count, len(similar))
                 fx_usable = count_fx_usable_listings(similar, fx_table=fx_table)
                 pass_diag.fx_usable = fx_usable
+                _record_seller_stats(pass_diag, similar)
+                pass_diag.fetch_batches = fetch_requests_delta
 
                 if len(similar) <= 2:
                     best_weak_count = max(best_weak_count, len(similar))
@@ -646,7 +725,7 @@ class LiveTradeComparableProvider:
                     currency_bands=band.to_currency_bands(),
                     comparables=comparables,
                     summary=summary,
-                    disclaimer="Live trade comparables — verify listing before trading.",
+                    disclaimer=_COST_DISCLAIMER,
                     display_currency=band.currency,
                     confidence_reason=reason,
                 )
@@ -1663,10 +1742,11 @@ class LiveTradeComparableProvider:
         rows: list[dict[str, Any]] = []
         batch_size = max(1, self._client.fetch_batch_size)
         offset = int(fetch_cont.fetch_offset or 0)
-        result_ids = list(fetch_cont.result_ids)
+        result_ids = list(fetch_cont.result_ids)[:MAX_FETCH_IDS_PER_SEARCH]
+        batch_cap = min(self._max_fetch_requests, MAX_FETCH_BATCHES_PER_SEARCH)
         fetch_batches = 0
         while offset < len(result_ids):
-            if fetch_batches >= self._max_fetch_requests:
+            if fetch_batches >= batch_cap:
                 break
             batch = result_ids[offset : offset + batch_size]
             if self._fetch_fn is not None:
@@ -1724,14 +1804,7 @@ class LiveTradeComparableProvider:
             diagnostics.relaxation_passes.append(pass_diag)
             return withhold
 
-        def _stop_when(rows: list[dict[str, Any]]) -> bool:
-            listings = _parse_fetched_listings(rows, league=league, source=self.provider_id)
-            similar = _filter_similar_listings(listings, fetch_state["query"])
-            fetch_state["similar"] = len(similar)
-            fetch_state["listings"] = similar
-            if len(similar) >= _TARGET_SAMPLE:
-                return True
-            return count_fx_usable_listings(similar, fx_table=fx_table) >= _MIN_BAND_COMPARABLES
+        _stop_when = self._make_stop_when(fetch_state, league, fx_table, fetch_cont.search_total)
 
         fetch_requests_before = self._client.fetch_requests
         try:
@@ -1774,6 +1847,8 @@ class LiveTradeComparableProvider:
         diagnostics.similarity_counts[f"pass_{pass_index}"] = len(similar)
         fx_usable = count_fx_usable_listings(similar, fx_table=fx_table)
         pass_diag.fx_usable = fx_usable
+        _record_seller_stats(pass_diag, similar)
+        pass_diag.fetch_batches = fetch_requests_delta
         if len(similar) <= 2:
             diagnostics.relaxation_passes.append(pass_diag)
             return self._apply_discovery(
@@ -1821,7 +1896,7 @@ class LiveTradeComparableProvider:
             currency_bands=band.to_currency_bands(),
             comparables=comparables,
             summary=summary,
-            disclaimer="Live trade comparables — verify listing before trading.",
+            disclaimer=_COST_DISCLAIMER,
             display_currency=band.currency,
             confidence_reason=reason,
         )

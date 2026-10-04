@@ -3,9 +3,10 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from exilelens.price_check.trade2_client import Trade2Client
+if TYPE_CHECKING:
+    from exilelens.price_check.trade2_client import Trade2Client
 
 _CURRENCY_ALIASES = {
     "divine": "divine",
@@ -101,5 +102,14 @@ class CurrencyFxTable:
     def _fetch_rate(self, have: str, want: str) -> float | None:
         if self._fetch_fn is not None:
             return self._fetch_fn(self.league, have, want)
+        from exilelens.price_check.trade2_client import Trade2Client
+
         client = self.client or Trade2Client()
         return client.exchange_rate(self.league, have, want)
+
+
+def reset_fx_cache() -> None:
+    """Drop every cached exchange rate (process-global). Used by tests so one case never reads another's rates."""
+    with _GLOBAL_FX_LOCK:
+        _GLOBAL_FX_RATES.clear()
+        _GLOBAL_FX_FETCHED_AT.clear()

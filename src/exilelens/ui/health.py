@@ -252,17 +252,16 @@ def _market_item(settings) -> HealthItem:
     render a green "Available" tick that implies a successful connection check.
     """
     try:
-        from exilelens.price_check.market_policy import resolve_live_market_mode
+        from exilelens.price_check.market_policy import MarketAccessState, market_access_for_settings
 
-        # Takes the mode string, not the settings object: passing the dataclass
-        # stringifies to a repr that never matches "disabled", so the row silently
-        # read "Live" even when the user had switched live market off.
-        mode = str(resolve_live_market_mode(getattr(settings, "live_market_mode", None)) or "auto")
+        state = market_access_for_settings(settings).state
     except Exception:  # noqa: BLE001
         return HealthItem("market", "Market", "Unknown", NEUTRAL)
-    if mode == "disabled":
-        return HealthItem("market", "Market", "Disabled", NEUTRAL)
-    return HealthItem("market", "Market", "Live", NEUTRAL, "Availability is checked per lookup.")
+    if state is MarketAccessState.PROVIDER_NOT_AUTHORIZED:
+        return HealthItem("market", "Market", "Not available", NEUTRAL, "The market provider has not been authorized.")
+    if state is MarketAccessState.AVAILABLE:
+        return HealthItem("market", "Market", "On", NEUTRAL, "Availability is checked per lookup.")
+    return HealthItem("market", "Market", "Off", NEUTRAL)
 
 
 def _elevation_item() -> HealthItem | None:

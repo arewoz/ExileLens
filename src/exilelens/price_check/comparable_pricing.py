@@ -85,39 +85,80 @@ class PriceNormalizer:
         return max(counts, key=counts.get)
 
 
+#: Scale that makes MAD comparable to a standard deviation for roughly normal data (1 / 0.6745).
+_MAD_SIGMA = 1.4826
+_MAD_Z_LIMIT = 3.5
+#: When more than half the prices are identical MAD is 0 and any difference would look infinite. Fall back to a share of the median
+#: (never an absolute amount: the display currency may be chaos, exalted or divine) so a 1.2x ask is not an outlier but a 3x ask is.
+_MAD_ZERO_FALLBACK_SHARE = 0.5
+
+
+@dataclass(frozen=True)
+class SellerStats:
+    """Who is behind a set of listings. Computed BEFORE per-seller dedupe so concentration stays visible afterwards."""
+
+    listing_count: int
+    distinct_sellers: int
+    top_seller_share: float
+
+
+def seller_stats(listings: Iterable[ComparableListing]) -> SellerStats:
+    rows = list(listings)
+    counts: dict[str, int] = {}
+    for row in rows:
+        seller = getattr(row, "seller_id", None)
+        if seller:
+            counts[seller] = counts.get(seller, 0) + 1
+    anonymous = sum(1 for row in rows if not getattr(row, "seller_id", None))
+    top = max(counts.values()) if counts else 0
+    return SellerStats(
+        listing_count=len(rows),
+        distinct_sellers=len(counts) + anonymous,
+        top_seller_share=round(top / len(rows), 3) if rows else 0.0,
+    )
+
+
 class OutlierFilter:
-    """Remove price outliers via IQR and dedupe sellers."""
+    """Robust cleaning of a price sample, in a fixed order: (prices are already normalized) -> one listing per seller -> outliers.
+
+    Deduping BEFORE the outlier pass matters: a single seller who lists many items cheaply would otherwise drag the quartiles down
+    and make every honest ask look like a high outlier. No ML; IQR fences then a scaled-MAD check on a unimodal sample."""
 
     def __init__(self, *, iqr_multiplier: float = 1.5, use_mad: bool = True) -> None:
         self._iqr_multiplier = iqr_multiplier
         self._use_mad = use_mad
 
     def filter(self, prices: list[NormalizedPrice]) -> list[NormalizedPrice]:
-        if len(prices) < 4:
-            return self._dedupe_sellers(prices)
+        deduped = self._dedupe_sellers(prices)
+        if len(deduped) < 4:
+            return deduped
         from exilelens.price_check.price_trust import PriceStructure, classify_price_structure
 
-        structure = classify_price_structure(row.amount for row in prices)
+        structure = classify_price_structure(row.amount for row in deduped)
         if structure is PriceStructure.MULTIMODAL:
             # MARKET-02E: do not MAD-trim one cluster away and call it a market.
-            return self._dedupe_sellers(prices)
-        amounts = sorted(row.amount for row in prices)
+            return deduped
+        amounts = sorted(row.amount for row in deduped)
         q1 = statistics.quantiles(amounts, n=4)[0]
         q3 = statistics.quantiles(amounts, n=4)[2]
         iqr = q3 - q1
         lower = q1 - self._iqr_multiplier * iqr
         upper = q3 + self._iqr_multiplier * iqr
-        filtered = [row for row in prices if lower <= row.amount <= upper]
+        filtered = [row for row in deduped if lower <= row.amount <= upper]
         if self._use_mad and len(filtered) >= 4:
             filtered = self._mad_filter(filtered)
-        return self._dedupe_sellers(filtered or prices)
+        return filtered or deduped
 
     def _mad_filter(self, prices: list[NormalizedPrice]) -> list[NormalizedPrice]:
         amounts = [row.amount for row in prices]
         median = statistics.median(amounts)
-        deviations = [abs(value - median) for value in amounts]
-        mad = statistics.median(deviations) or 1.0
-        threshold = 3.5 * mad
+        mad = statistics.median([abs(value - median) for value in amounts])
+        if mad > 0:
+            threshold = _MAD_Z_LIMIT * _MAD_SIGMA * mad
+        else:
+            threshold = _MAD_ZERO_FALLBACK_SHARE * median
+        if threshold <= 0:
+            return prices
         return [row for row in prices if abs(row.amount - median) <= threshold]
 
     @staticmethod

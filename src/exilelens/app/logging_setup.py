@@ -188,13 +188,19 @@ def install_crash_handlers() -> None:
 def log_price_check_startup_mode(settings) -> dict[str, object]:
     """Emit the startup mode banner required by MARKET-01B9 section 13."""
     from exilelens.price_check.diagnostic_mode import resolve_price_check_diagnostic_mode
-    from exilelens.price_check.market_policy import is_live_market_enabled, resolve_strict_live
+    from exilelens.price_check.market_policy import (
+        is_live_market_enabled,
+        live_market_mode_for_settings,
+        market_access_for_settings,
+        resolve_strict_live,
+    )
 
     mode = resolve_price_check_diagnostic_mode(getattr(settings, "price_check_diagnostic_mode", ""))
     saved_league = str(getattr(settings, "market_league", "") or "") or None
     payload = {
         "price_check_mode": "NORMAL" if mode.value == "" else mode.value.upper(),
-        "live_provider_enabled": is_live_market_enabled(getattr(settings, "live_market_mode", None)),
+        "live_provider_enabled": is_live_market_enabled(live_market_mode_for_settings(settings)),
+        "market_access": market_access_for_settings(settings).state.value,
         "strict_live": resolve_strict_live(getattr(settings, "strict_live", None)),
         "price_check_enabled": bool(getattr(settings, "price_check_enabled", False)),
         "overlay_enabled": bool(getattr(settings, "overlay_enabled", False)),

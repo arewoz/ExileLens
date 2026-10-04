@@ -64,7 +64,7 @@ It currently provides:
 - Offensive, defensive and utility impact analysis
 - Comparison against your currently selected PoB2 equipment and build context
 - Overlay results without manually moving every candidate item into PoB
-- Optional live market pricing using Path of Exile trade data
+- Market-price groundwork (off by default; live prices are not enabled in this build)
 - Detailed reasoning for supported evaluations
 - Local operation without an ExileLens account; optional, off-by-default usage statistics and error reports (see [PRIVACY.md](PRIVACY.md))
 
@@ -81,7 +81,7 @@ Current limitations include:
 - Some minion, proxy, triggered or otherwise complex damage setups may not produce a definitive evaluation
 - Some items may return an `UNCERTAIN` result rather than an upgrade or downgrade
 - The selected PoB2 build is the comparison baseline; ExileLens does not automatically treat your live equipped character state as authoritative
-- Live market estimates may be less reliable for unusual items with few meaningful comparable listings
+- Live market prices are not available in this build. ExileLens makes no request to the Path of Exile trade service by default, and the live provider stays disabled until that access is documented or authorized
 
 ExileLens is intentionally designed to surface uncertainty instead of presenting an unsupported calculation as definitive.
 

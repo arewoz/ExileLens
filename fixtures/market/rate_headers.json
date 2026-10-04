@@ -1,0 +1,17 @@
+{
+ "_note": "Synthetic X-Rate-Limit-* header sets for rate-policy tests (invented numbers).",
+ "learned_search": {
+  "X-Rate-Limit-Policy": "synthetic-search",
+  "X-Rate-Limit-Rules": "Ip,Account",
+  "X-Rate-Limit-Ip": "4:8:20,10:30:120",
+  "X-Rate-Limit-Ip-State": "1:8:0,1:30:0",
+  "X-Rate-Limit-Account": "2:5:30",
+  "X-Rate-Limit-Account-State": "1:5:0"
+ },
+ "penalty_active": {
+  "X-Rate-Limit-Policy": "synthetic-search",
+  "X-Rate-Limit-Rules": "Ip",
+  "X-Rate-Limit-Ip": "3:10:60",
+  "X-Rate-Limit-Ip-State": "4:10:45"
+ }
+}

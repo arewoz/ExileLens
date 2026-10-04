@@ -48,7 +48,7 @@ foot (**Reset configuration** and a pointer to Diagnostics).
 * **Removed: Advanced › Troubleshooting & diagnostics.** Every control was a duplicate, dead or misplaced:
   folder field + Browse / Auto-detect / Apply → the card's Change folder / Detect / Reconnect; build field + Browse /
   Load → Change build; Reload build → the card's Reload; read-only Live market → the hint under Market league
-  ("Live prices on · …"); Dedup window → removed (below).
+  ("Market prices off · …" by default, "Market prices unavailable · …" if enabled while the provider is not authorized; R5-A); Dedup window → removed (below).
 * **Dedup window (removed).** `AppSettings.dedup_window_seconds` was written by the UI but read by no runtime code
   (checked by a test over `src/`). The field and its UI are deleted. Existing `settings.json` files that still contain
   the key load normally (`from_dict` picks known keys only) and drop it on the next save. The fixed clipboard-event

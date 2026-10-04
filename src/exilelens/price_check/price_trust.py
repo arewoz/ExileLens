@@ -118,6 +118,13 @@ class TrustReason(str, Enum):
     COVERAGE_GROUP_OMITTED = "COVERAGE_GROUP_OMITTED"
     #: A modifier no trade stat can express at all.
     COVERAGE_UNSEARCHABLE = "COVERAGE_UNSEARCHABLE"
+    #: The listings came back from a compiled STRICT server search whose coverage omitted nothing material. The server did the
+    #: matching; ExileLens invents no similarity number for it.
+    SIMILARITY_SERVER_MATCHED = "SIMILARITY_SERVER_MATCHED"
+    #: One or two sellers hold most of the sampled listings, so the sample says less about the market than its size suggests.
+    SELLER_CONCENTRATED = "SELLER_CONCENTRATED"
+    #: Uniques are not priced from their base type: the comparable set is a different question from "this unique".
+    UNIQUE_NOT_PRICED = "UNIQUE_NOT_PRICED"
 
 
 class SampleQuality(str, Enum):
@@ -130,6 +137,8 @@ class SampleQuality(str, Enum):
 
 class SimilarityBand(str, Enum):
     STRONG = "STRONG"
+    #: Evidence is the server's own match of a compiled STRICT query with full anchor/group coverage (no client-side score).
+    SERVER_MATCHED = "SERVER_MATCHED"
     OK = "OK"
     WEAK = "WEAK"
     UNKNOWN = "UNKNOWN"
@@ -212,6 +221,19 @@ class PriceTrustEvidence:
     omitted_anchor_labels: tuple[str, ...] = ()
     omitted_flexible_labels: tuple[str, ...] = ()
     unsearchable_labels: tuple[str, ...] = ()
+    #: The listings were returned by the server for a compiled STRICT query (no relaxation, no client-side similarity filter).
+    server_matched: bool = False
+    #: The item is a unique: a base-type search does not price it.
+    is_unique: bool = False
+    #: Seller structure of the sample before per-seller dedupe (0 = unknown).
+    seller_listing_count: int = 0
+    distinct_sellers: int = 0
+    top_seller_share: float = 0.0
+
+
+#: Share one seller may hold of the sampled listings before the sample is called concentrated (needs >= SELLER_CONCENTRATION_MIN_LISTINGS).
+SELLER_CONCENTRATION_SHARE = 0.5
+SELLER_CONCENTRATION_MIN_LISTINGS = 4
 
 
 @dataclass(frozen=True)
@@ -514,6 +536,17 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
     median_sim = statistics.median(sims) if sims else None
     low_sim = _quantile(sims, 25) if sims else None
     similarity = classify_similarity(median_sim, low_sim)
+    # A compiled STRICT query is matched by the server, not by us. That is truthful evidence of similarity only when the query
+    # asked everything that defines the item: any omitted anchor or flexible group leaves it UNKNOWN (and an omitted anchor
+    # additionally vetoes below). No similarity number is invented either way.
+    coverage_clean = not evidence.omitted_anchor_labels and not evidence.omitted_flexible_labels
+    server_matched = bool(evidence.server_matched) and coverage_clean and similarity is SimilarityBand.UNKNOWN
+    if server_matched:
+        similarity = SimilarityBand.SERVER_MATCHED
+    concentrated = (
+        int(evidence.seller_listing_count or 0) >= SELLER_CONCENTRATION_MIN_LISTINGS
+        and float(evidence.top_seller_share or 0.0) >= SELLER_CONCENTRATION_SHARE
+    )
     dispersion_band, q25, q75, disp = classify_dispersion(prices)
     median = statistics.median(prices) if prices else None
     structure = classify_price_structure(prices)
@@ -542,6 +575,14 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
         remote_count=int(evidence.remote_count or 0),
         auto_adjusted=bool(evidence.auto_adjusted),
     )
+    if (
+        specificity is SpecificityBand.OVER_SPECIFIC
+        and evidence.server_matched
+        and int(evidence.remote_count or 0) >= REMOTE_THIN
+    ):
+        # Many ANDed filters make a query narrow, but a compiled strict query the server demonstrably matched with a healthy result
+        # count is not too narrow to price. The over-specific rule still applies when the result set is thin.
+        specificity = SpecificityBand.USEFUL
     stability = str(evidence.hypothesis_stability or HypothesisStability.UNMEASURED.value)
     maturity = str(evidence.signature_maturity or "")
     source = str(evidence.hypothesis_source or HypothesisSource.AUTO_PRIOR.value)
@@ -589,10 +630,16 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
         add(TrustReason.SAMPLE_HEALTHY)
     if similarity is SimilarityBand.STRONG:
         add(TrustReason.SIMILARITY_STRONG)
+    elif similarity is SimilarityBand.SERVER_MATCHED:
+        add(TrustReason.SIMILARITY_SERVER_MATCHED)
     elif similarity is SimilarityBand.WEAK:
         add(TrustReason.SIMILARITY_WEAK)
         if sample in {SampleQuality.UNUSABLE, SampleQuality.THIN, SampleQuality.LIMITED}:
             veto(TrustReason.SIMILARITY_WEAK)
+    if concentrated:
+        add(TrustReason.SELLER_CONCENTRATED)
+    if evidence.is_unique:
+        veto(TrustReason.UNIQUE_NOT_PRICED)
     if multimodal:
         veto(TrustReason.MARKET_MULTIMODAL)
     elif dispersion_band is DispersionBand.TIGHT:
@@ -641,7 +688,8 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
 
     current_excellent = (
         sample in {SampleQuality.HEALTHY, SampleQuality.STRONG}
-        and similarity is SimilarityBand.STRONG
+        and similarity in {SimilarityBand.STRONG, SimilarityBand.SERVER_MATCHED}
+        and not concentrated
         and dispersion_band in {DispersionBand.TIGHT, DispersionBand.NORMAL}
         and not multimodal
         and liquidity is not LiquidityBand.ILLIQUID
@@ -654,6 +702,8 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
         stability == HypothesisStability.STABLE.value
         or (maturity == SignatureMaturity.MATURE.value and current_excellent)
         or (source == HypothesisSource.USER_REFINED.value and current_excellent)
+        # The compiled path has no hypothesis/stability probe. Its own proof is the server match over a fully covered strict query.
+        or (similarity is SimilarityBand.SERVER_MATCHED and current_excellent)
     )
     user_refined = source == HypothesisSource.USER_REFINED.value
     auto_adjusted = bool(evidence.auto_adjusted)
@@ -671,7 +721,10 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
     if evidence.unsearchable_labels:
         reasons.append(TrustReason.COVERAGE_UNSEARCHABLE.value)
 
-    if base_only:
+    if evidence.is_unique:
+        # No base-type estimate for a unique, whatever the listings look like.
+        state = EstimateState.NEEDS_REFINEMENT
+    elif base_only:
         state = EstimateState.BASE_MARKET_ESTIMATE
     elif vetoes:
         # Hard vetoes make HIGH impossible. SENSITIVE / multimodal / unusable /
@@ -685,6 +738,9 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
             TrustReason.PRICE_DATA_STALE.value,
             TrustReason.SIMILARITY_WEAK.value,
             TrustReason.PRICE_WIDE.value,
+            TrustReason.UNIQUE_NOT_PRICED.value,
+            # The query did not ask about something that defines the item, so consistent listings still answer another question.
+            TrustReason.COVERAGE_ANCHOR_OMITTED.value,
         }
         if any(code in needs_vetoes for code in vetoes) or evidence.already_needs_refinement:
             state = EstimateState.NEEDS_REFINEMENT
@@ -702,7 +758,9 @@ def assess_price_trust(evidence: PriceTrustEvidence) -> PriceTrustAssessment:
     if state is EstimateState.HIGH_CONFIDENCE and vetoes:
         state = EstimateState.ASSISTED_ESTIMATE if sample is not SampleQuality.UNUSABLE else EstimateState.NEEDS_REFINEMENT
 
-    if state is EstimateState.BASE_MARKET_ESTIMATE:
+    if evidence.is_unique:
+        display = DisplayPriceMode.NONE
+    elif state is EstimateState.BASE_MARKET_ESTIMATE:
         display = DisplayPriceMode.FULL_BANDS if median is not None else DisplayPriceMode.NONE
     elif state is EstimateState.NEEDS_REFINEMENT:
         display = DisplayPriceMode.OBSERVED_RANGE if prices else DisplayPriceMode.NONE
@@ -768,6 +826,8 @@ def evidence_from_result(result: PriceCheckResult, *, now: float | None = None) 
     from exilelens.price_check.models import CompiledPriceCheckRequest
     compiled_request = result.request if isinstance(result.request, CompiledPriceCheckRequest) else None
     hypothesis = None if compiled_request else result.hypothesis
+    seller_listings = distinct_sellers = 0
+    top_seller_share = 0.0
     estimate = result.estimate
     comparables = tuple(estimate.comparables or ())
     prices: list[float] = []
@@ -798,6 +858,9 @@ def evidence_from_result(result: PriceCheckResult, *, now: float | None = None) 
                 remote = int(last.get("search_total") or remote)
                 priced = int(last.get("priced_listings") or priced)
                 fx_usable = int(last.get("fx_usable") or fx_usable)
+                seller_listings = int(last.get("seller_listing_count") or 0)
+                distinct_sellers = int(last.get("distinct_sellers") or 0)
+                top_seller_share = float(last.get("top_seller_share") or 0.0)
     signature = discovery.get("signature") if isinstance(discovery.get("signature"), dict) else {}
     selected = list(hypothesis.selected_drivers) if hypothesis is not None else []
     available = list(hypothesis.available_drivers) if hypothesis is not None else []
@@ -845,6 +908,9 @@ def evidence_from_result(result: PriceCheckResult, *, now: float | None = None) 
         slot_family=slot,
         item_class_unsupported=unsupported_class and not selected,
         discovery_estimate_state=str(result.estimate_state or ""),
+        seller_listing_count=seller_listings,
+        distinct_sellers=distinct_sellers,
+        top_seller_share=top_seller_share,
     )
     if compiled_request is not None:
         from dataclasses import replace
@@ -856,7 +922,12 @@ def evidence_from_result(result: PriceCheckResult, *, now: float | None = None) 
                            identity_source="PRIMARY" if selected_count else "BASE_ONLY",
                            unsupported_selected_count=0, item_class_unsupported=False,
                            hypothesis_source="USER_REFINED" if compiled_request.user_refined else "AUTO_PRIOR",
-                           already_needs_refinement=False)
+                           already_needs_refinement=False,
+                           # The compiled path has no discovery stage. Feeding the result's own previous state back in would make a
+                           # second assessment of the same result differ from the first (spurious QUERY_IDENTITY_WEAKENED).
+                           discovery_estimate_state="",
+                           server_matched=True,
+                           is_unique=str(plan.base.rarity or "").strip().upper() == "UNIQUE")
     return evidence
 
 
@@ -951,6 +1022,53 @@ def format_price_check_overlay_text(model: dict[str, Any]) -> str:
     if model.get("refine_hint"):
         lines.append(str(model.get("refine_hint")))
     return "\n".join(line for line in lines if line).strip()
+
+
+class MarketHeadline(str, Enum):
+    """The five things a market answer can honestly say. A pure label over an assessment: no numeric score, no UI wiring (R5-A)."""
+
+    STRONG_COMPARABLE_SET = "STRONG_COMPARABLE_SET"
+    WEAK_COMPARABLE_SET = "WEAK_COMPARABLE_SET"
+    SPARSE_MARKET = "SPARSE_MARKET"
+    VOLATILE_ESTIMATE = "VOLATILE_ESTIMATE"
+    NO_TRUSTWORTHY_ESTIMATE = "NO_TRUSTWORTHY_ESTIMATE"
+
+
+#: Vetoes after which no price should be offered, however the numbers look.
+_NO_ESTIMATE_VETOES = frozenset(
+    {
+        TrustReason.UNIQUE_NOT_PRICED.value,
+        TrustReason.BASE_ONLY.value,
+        TrustReason.SAMPLE_TOO_SMALL.value,
+        TrustReason.COVERAGE_ANCHOR_OMITTED.value,
+        TrustReason.UNSUPPORTED_IDENTITY.value,
+        TrustReason.SIMILARITY_WEAK.value,
+        TrustReason.PRICE_DATA_STALE.value,
+    }
+)
+_VOLATILE_VETOES = frozenset(
+    {TrustReason.MARKET_MULTIMODAL.value, TrustReason.PRICE_WIDE.value, TrustReason.STABILITY_SENSITIVE.value}
+)
+
+
+def market_headline(assessment: PriceTrustAssessment) -> MarketHeadline:
+    """Deterministic, side-effect-free headline for an assessment. Hard vetoes decide first; the product state decides the rest."""
+    vetoes = set(assessment.hard_vetoes)
+    if assessment.price_median is None or vetoes & _NO_ESTIMATE_VETOES:
+        return MarketHeadline.NO_TRUSTWORTHY_ESTIMATE
+    if vetoes & _VOLATILE_VETOES:
+        return MarketHeadline.VOLATILE_ESTIMATE
+    if assessment.state is EstimateState.HIGH_CONFIDENCE:
+        return MarketHeadline.STRONG_COMPARABLE_SET
+    if assessment.state is EstimateState.NEEDS_REFINEMENT:
+        return MarketHeadline.NO_TRUSTWORTHY_ESTIMATE
+    if assessment.sample_quality == SampleQuality.THIN.value or assessment.liquidity in {
+        LiquidityBand.THIN.value,
+        LiquidityBand.ILLIQUID.value,
+    }:
+        # Few listings exist or were usable: say the market is sparse rather than imply a set that merely disagrees.
+        return MarketHeadline.SPARSE_MARKET
+    return MarketHeadline.WEAK_COMPARABLE_SET
 
 
 # Re-export product states used by presentation.

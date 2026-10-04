@@ -693,7 +693,13 @@ class SettingsPage(ColumnPage):
         )
 
     def _league_status_text(self) -> str:
-        live = "Live prices off" if str(self.settings.live_market_mode or "auto") == "disabled" else "Live prices on"
+        from exilelens.price_check.market_policy import MarketAccessState, market_access_for_settings
+
+        state = market_access_for_settings(self.settings).state
+        live = {
+            MarketAccessState.AVAILABLE: "Market prices on",
+            MarketAccessState.PROVIDER_NOT_AUTHORIZED: "Market prices unavailable",
+        }.get(state, "Market prices off")
         saved = str(self.settings.market_league or "").strip()
         if not saved:
             return f"{live} · league not resolved yet"
@@ -701,9 +707,12 @@ class SettingsPage(ColumnPage):
         return f"{live} · {saved} ({'pinned' if mode == 'PINNED' else 'auto-detected'})"
 
     def _refresh_leagues(self) -> None:
-        from exilelens.price_check.league_catalog import LOOKUP_OK
+        from exilelens.price_check.league_catalog import LOOKUP_DISABLED, LOOKUP_OK
 
         result = self._league_catalog.refresh(force=True)
+        if result.status == LOOKUP_DISABLED:
+            QMessageBox.information(self, "Market", "Market prices are off, so no league list was requested.")
+            return
         if result.status == LOOKUP_OK:
             self._league_catalog.write_to_settings(self.settings)
             selected = self._league_combo.currentData()

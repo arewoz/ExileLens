@@ -45,3 +45,22 @@ def real_pob_engine(pob_config):
 
     with Engine(pob_config, use_subprocess=True) as engine:
         yield engine
+
+
+@pytest.fixture(autouse=True)
+def _r5a_market_tests_never_touch_the_network(request, monkeypatch):
+    """R5-A: the market foundation is tested entirely against injected fake transports. Any attempt to open a real connection from
+    a `test_r5a_*` module fails the test loudly, so a regression in the transport seam cannot silently reach pathofexile.com."""
+    name = Path(str(request.node.fspath)).name
+    if not name.startswith("test_r5a_"):
+        return
+
+    def _refuse(*args, **kwargs):
+        raise AssertionError("a real network connection was attempted from an R5-A market test")
+
+    import socket
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", _refuse)
+    monkeypatch.setattr(socket.socket, "connect", _refuse)
+    monkeypatch.setattr(socket, "create_connection", _refuse)

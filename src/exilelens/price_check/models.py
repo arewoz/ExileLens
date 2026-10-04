@@ -52,6 +52,10 @@ class LiveSearchState(str, Enum):
     LIVE_FETCH_NO_PRICES = "LIVE_FETCH_NO_PRICES"
     LIVE_COMPARABLES_TOO_WEAK = "LIVE_COMPARABLES_TOO_WEAK"
     LIVE_PROVIDER_DISABLED = "LIVE_PROVIDER_DISABLED"
+    # R5-A: an exception inside the market stack was contained at the provider/service boundary and turned into this typed result.
+    LIVE_PROVIDER_ERROR = "LIVE_PROVIDER_ERROR"
+    # R5-A: the item class has no trustworthy market estimate (uniques are not priced from their base type).
+    LIVE_ITEM_CLASS_UNSUPPORTED = "LIVE_ITEM_CLASS_UNSUPPORTED"
     LEAGUE_REQUIRED = "LEAGUE_REQUIRED"
 
 

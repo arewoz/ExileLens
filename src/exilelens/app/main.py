@@ -613,8 +613,17 @@ class ExileLensApp:
             logger.exception("could not persist trade2 penalties")
 
     def _refresh_league_catalog_at_startup(self) -> None:
-        """Warm the league cache once per launch; never fatal, never blocking a search."""
+        """Warm the league cache once per launch; never fatal, never blocking a search.
+
+        R5-A: initiates NOTHING unless central market access permits network use, which is never the case by default (market prices
+        are off) and never while the live provider is unauthorized. Default launches make zero requests to GGG."""
         if not self.controller:
+            return
+        from exilelens.price_check.market_policy import market_access_for_settings
+
+        access = market_access_for_settings(self.controller.settings)
+        if not access.network_permitted:
+            logger.info("price_check_league_catalog startup skipped market_access=%s", access.state.value)
             return
         try:
             result = self.controller.refresh_league_catalog()
