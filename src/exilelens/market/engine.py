@@ -21,6 +21,7 @@ from exilelens.market.models import (
     CandidateListing,
     MarketCandidatePool,
     MarketCandidateResult,
+    MarketQueryPlan,
     MarketSearchProgress,
     MarketSearchRequest,
     MarketSearchResult,
