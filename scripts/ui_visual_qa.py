@@ -292,6 +292,10 @@ class Harness:
             self.app.processEvents()
         out.mkdir(parents=True, exist_ok=True)
         path = out / f"{name}.png"
+        # PrintWindow reads the window's backing store, which can still hold a frame painted before the final layout
+        # (the widget tree is already correct). Repaint first so the capture matches the tree.
+        self.window.repaint()
+        self.app.processEvents()
         image = print_window(int(self.window.winId())) if frame else None
         if image is None or image.isNull():
             image = self.window.grab().toImage()
