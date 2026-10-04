@@ -1,6 +1,6 @@
 # R5 — Economy / Market Intelligence: repository audit and implementation plan
 
-**Status:** R5-A is complete and merged (#75, `25959b9`). R5-B (MarketEvidence + async enrichment) is implemented on `r5-b/market-evidence-enrichment`; see the records at the end. The live trade2 provider remains **policy-blocked**.
+**Status:** R5-A complete and merged (#75, `25959b9`). R5-B complete and merged (#76, `ae17d1d`). R5-C (product surface) implemented on `r5-c/market-product-surface`; see the records at the end. **LIVE PROVIDER ACTIVATION REMAINS POLICY-BLOCKED**: no market control, request or Item Check market line exists in a shipped build.
 
 Base: `origin/main` `a6dc07b` (R4 squash-merged). Branch `r5/market-intelligence-1.0`. Planning pass only: the one code change is the verified
 `MarketQueryPlan` import fix (§2). Nothing here changes behaviour of Item Check. Version unchanged (not 1.0.0); this is not R6 (Upgrade Finder) and not R3 (character sync).
@@ -423,3 +423,33 @@ set by the controller after the stale guards.
 
 **R5-C prerequisites:** a consent/Settings surface that records `market_consent_version`; the compact line / More Info section reading `result["market_evidence"]`; removal of
 `power_per_currency` and the `fair` label; copy review.
+
+---
+
+# R5-C implementation record (product surface)
+
+Reference: [MARKET_EVIDENCE_CONTRACT.md](MARKET_EVIDENCE_CONTRACT.md). **Live provider activation remains policy-blocked.**
+
+**Delivered**
+- **Old universal value system removed** (P0): `power_per_currency`, the EXCELLENT/GOOD/FAIR/LOW/BAD classes, `PPC_CLASS_THRESHOLDS`, `compute_/classify_power_per_currency`, the
+  "VALUE / COST ... Build Value / currency" and "Power / Cost" lines, "BEST VALUE SO FAR", the market-assist "Best value" row and `best_value_observation_id`, and the parked
+  `BEST_VALUE` categories in `market/` and `gear/` (gear's was `build_value_delta / price`, the same ratio). Nothing replaces them: no scalar, no ratio. Build Value itself and the
+  plain price facts (manual price, `~b/o` note, capture-session price) are untouched; old saved payloads that still carry the removed keys load and the keys are ignored.
+  A source-wide test fails if any of those tokens returns.
+- The internal band label `fair` is now `typical` (and `Fair price` -> `Typical ask` in the dormant legacy panel), so no surface can read as a "fair value".
+- `items/market_presentation.py`, compact line + More Info "MARKET" section, impact+price pairing, listed-price context (all in the contract doc).
+- `market_capability()` / `set_market_prices_enabled()` in `market_policy.py`; Settings "Market prices" row and Diagnostics Market row; in-place overlay update wiring.
+
+**Decisions / deviations**
+1. **Provider-blocked UX: hide, don't grey** (accepted by the owner). The Market prices and Market league rows are not created visible while `provider_available` is False. A disabled row would advertise an unfinished feature
+   and Settings has no precedent for permanently inert controls. Diagnostics says `Provider unavailable`, neutral, no action.
+2. Item Check says nothing about the market without usable `AVAILABLE` evidence (no "N/A", no "unavailable" lines), including in the policy-blocked case.
+3. The pairing replaces the price line (one compact line), not an extra row (accepted by the owner). It is a single-axis rule: it exists only when exactly one pairable axis (Damage, or EHP with Max hit as fallback only when EHP is not a usable gain) is materially positive; percentages across axes are never ranked, so a broad Damage + EHP upgrade keeps its impact rows and the ordinary price line; the compact market area is at most two lines and never changes the impact rows, reasons, notes or verdict (tested).
+4. The old Price Check panel and refine flow stay dormant and are not used as the market UI. Its dead copy that could mislead (`Fair price`, value classes, best-value notes) was changed or removed; no larger legacy deletion.
+5. Manual price (`manual_price`, `ManualPrice`) stays a plain fact shown in the existing price block; it has no UI entry in the shipped overlay and none was added.
+
+**Residual references** (intentional, unrelated to the removed system): `LOW_VALUE`/`HIGH_VALUE` tiers in `analysis/search_intent.py` and the legacy theoretical tier enum in `price_check/models.py`,
+and `build_value_delta` (Build Value) throughout the parked market/gear packages.
+
+**Remaining before 1.0 (R5-D / owner):** provider authorization outcome (then flip the single constant and revisit the consent copy), a real-world copy review of the Market section once prices can exist,
+retiring the legacy Price Check panel code and `ops/*.json` claims, the missing synthetic test layer for `market/`, and R6 inputs.

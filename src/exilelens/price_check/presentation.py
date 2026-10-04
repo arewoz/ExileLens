@@ -30,7 +30,7 @@ _DESIRABILITY_LABELS = {
 
 _CURRENCY_LABELS = {
     "quick_sale": "Quick sell",
-    "fair": "Fair price",
+    "typical": "Typical ask",
     "optimistic": "Optimistic",
 }
 
@@ -133,8 +133,8 @@ def _around_text(bands: list[dict[str, Any]]) -> str:
     MARKET-01B13: used for base-only estimates, where quick / fair / optimistic would
     imply the sample says something about the item rather than about its base type.
     """
-    fair = next((row for row in bands if str(row.get("label", "")).lower().startswith("fair")), None)
-    row = fair or (bands[0] if bands else None)
+    typical = next((row for row in bands if str(row.get("label", "")).lower().startswith("typical")), None)
+    row = typical or (bands[0] if bands else None)
     if row is None:
         return ""
     low = row.get("amount")

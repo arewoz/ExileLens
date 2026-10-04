@@ -31,6 +31,7 @@ MORE_INFO_SECTION_ORDER = (
     "resists",
     "why_verdict",
     "build_context",
+    "market",
     "unmodeled",
     "build_source",
     "flexibility",
@@ -482,6 +483,12 @@ def _build_source_section(model: dict[str, Any]) -> dict[str, Any] | None:
     return {"id": "build_source", "title": "BUILD SOURCE", "lines": lines} if lines else None
 
 
+def _market_section(model: dict[str, Any]) -> dict[str, Any] | None:
+    """R5-C: what the market evidence says, in words. Absent (the normal case) means no section at all."""
+    lines = list((model.get("market") or {}).get("more_info_lines") or [])
+    return {"id": "market", "title": "MARKET", "lines": lines} if lines else None
+
+
 def _unmodeled(outcome: dict[str, Any]) -> dict[str, Any] | None:
     lines: list[str] = []
     for item in list(outcome.get("unsupported_or_unmodeled") or []) + list(
@@ -513,6 +520,7 @@ _BUILDERS = {
     "flexibility": lambda model, outcome: _flexibility_section(outcome),
     "why_verdict": _why_verdict,
     "build_context": _build_context_section,
+    "market": lambda model, outcome: _market_section(model),
     "unmodeled": lambda model, outcome: _unmodeled(outcome),
     "build_source": lambda model, outcome: _build_source_section(model),
 }

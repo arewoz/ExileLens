@@ -1226,7 +1226,7 @@ class LiveTradeComparableProvider:
             confidence=PriceConfidence.LOW,
             currency_bands=(
                 CurrencyBand(label="quick_sale", amount=low, currency="exalted"),
-                CurrencyBand(label="fair", amount=median, currency="exalted", amount_high=high),
+                CurrencyBand(label="typical", amount=median, currency="exalted", amount_high=high),
                 CurrencyBand(label="optimistic", amount=high, currency="exalted"),
             ),
             summary="Cached neighbourhood estimate",

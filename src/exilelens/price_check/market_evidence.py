@@ -355,22 +355,22 @@ def _convert(result: Any, *, fetched_at: float | None, now: float | None, listed
     estimate = result.estimate
     bands = {row.label: row for row in (estimate.currency_bands or ())}
     # The range is the interquartile range of comparable asks (quick_sale = p25, optimistic = p75): wide enough to be a market range,
-    # unlike the narrow p40-p60 "fair" band, which is an internal label and is not exposed.
+    # unlike the narrow p40-p60 "typical" band, which is an internal label and is not exposed.
     low_band = bands.get("quick_sale")
     high_band = bands.get("optimistic")
-    fair = low_band or bands.get("fair")
+    low_row = low_band or bands.get("typical")
     price: MarketPrice | None = None
     if (
         headline is not MarketHeadline.NO_TRUSTWORTHY_ESTIMATE
         and headline is not MarketHeadline.VOLATILE_ESTIMATE
         and assessment.display_price_mode == DisplayPriceMode.FULL_BANDS.value
-        and fair is not None
+        and low_row is not None
     ):
-        top = high_band.amount if high_band is not None else (fair.amount_high if fair.amount_high is not None else fair.amount)
+        top = high_band.amount if high_band is not None else (low_row.amount_high if low_row.amount_high is not None else low_row.amount)
         price = MarketPrice(
-            display_currency=str(fair.currency),
-            low=float(min(fair.amount, top)),
-            high=float(max(fair.amount, top)),
+            display_currency=str(low_row.currency),
+            low=float(min(low_row.amount, top)),
+            high=float(max(low_row.amount, top)),
             point=float(assessment.price_median) if assessment.price_median is not None else None,
         )
     reasons = tuple(assessment.compact_reasons) + tuple(r for r in assessment.reason_codes if r not in assessment.compact_reasons)

@@ -52,7 +52,7 @@ def _r5a_market_tests_never_touch_the_network(request, monkeypatch):
     """R5-A: the market foundation is tested entirely against injected fake transports. Any attempt to open a real connection from
     a `test_r5a_*` module fails the test loudly, so a regression in the transport seam cannot silently reach pathofexile.com."""
     name = Path(str(request.node.fspath)).name
-    if not name.startswith(("test_r5a_", "test_r5b_")):
+    if not name.startswith(("test_r5a_", "test_r5b_", "test_r5c_")):
         return
 
     def _refuse(*args, **kwargs):

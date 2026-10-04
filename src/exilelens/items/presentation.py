@@ -18,6 +18,7 @@ from exilelens.items.presentation_copy import (
 )
 from exilelens.items.decision import derive_swap_risk
 from exilelens.items.evaluation_outcome import authoritative_public_verdict
+from exilelens.items.market_presentation import market_view
 from exilelens.items.item_impact import negligible_opposition_note
 from exilelens.items.slots import is_jewel_socket_pob_slot, jewel_socket_display_label
 from exilelens.items.offense_coverage import (
@@ -202,7 +203,6 @@ def build_presentation(
     warnings = list(recommendation.get("warnings") or [])
     resist = recommendation.get("resist_caps") or {}
     value = recommendation.get("value") or result.get("value") or {}
-    power = recommendation.get("power_per_currency") or result.get("power_per_currency")
     primary_metric = result.get("primary_metric") or {}
     native_discovery = recommendation.get("native_damage_discovery") or result.get("native_damage_discovery") or {}
     offense_coverage = result.get("offense_coverage")
@@ -401,7 +401,7 @@ def build_presentation(
     if primary_metric.get("selected") == "UNRESOLVED":
         flags.append("OFFENSE_UNRESOLVED")
 
-    price_block = _build_price_block(result, power=power, value_profile=value_profile)
+    price_block = _build_price_block(result, value_profile=value_profile)
 
     intel = result.get("build_comparison") or recommendation.get("build_comparison") or {}
     intel_axes = _axis_rows(intel)
@@ -620,6 +620,8 @@ def build_presentation(
         "popup_density": density.value,
         "value": value_block,
         "price": price_block,
+        # R5-C: view of result["market_evidence"]; None (the normal case today) renders nothing.
+        "market": market_view(result.get("market_evidence"), outcome),
         "flags": flags,
         "badges": badges,
         "sections": sections,
@@ -759,13 +761,12 @@ _BUILD_FIX_STATES = frozenset({"CAP_REACHED", "CAP_GAINED", "BELOW_CAP_IMPROVED"
 def _build_price_block(
     result: dict[str, Any],
     *,
-    power: dict[str, Any] | None,
     value_profile: str,
 ) -> dict[str, Any] | None:
     market_ctx = result.get("market_context") or {}
     parsed = market_ctx.get("parsed_price") or {}
     parsed_price = parsed.get("price") if isinstance(parsed, dict) else None
-    manual = result.get("manual_price") or (power or {}).get("price") or {}
+    manual = result.get("manual_price") or {}
     amount = None
     currency = None
     source = ""
@@ -781,7 +782,7 @@ def _build_price_block(
         currency = parsed_price.get("currency")
         source = "note"
         label_prefix = "PRICE NOTE"
-    elif power and manual:
+    elif manual:
         amount = manual.get("amount")
         currency = manual.get("currency")
         source = "manual"
@@ -795,15 +796,11 @@ def _build_price_block(
         "amount": amount,
         "currency": currency,
         "label": f"{amount:g} {currency}",
-        "classification": (power or {}).get("classification"),
-        "classification_label": str((power or {}).get("classification") or "").replace("_", " ").title(),
-        "power_per_currency": (power or {}).get("power_per_currency"),
         "profile": value_profile,
     }
     if source == "market":
         block["session_rank"] = market_ctx.get("session_rank")
         block["session_total"] = market_ctx.get("session_total")
-        block["is_best_value"] = bool(market_ctx.get("is_best_value"))
         block["is_new_best"] = bool(market_ctx.get("is_new_best"))
     return block
 

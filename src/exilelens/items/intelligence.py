@@ -48,7 +48,6 @@ def enrich_fast_result(
         result["recommendation"] = best
         result["value"] = best.get("value")
         result["damage_claim"] = best.get("damage_claim") or (best.get("evaluation_outcome") or {}).get("damage_claim") or {}
-        result["power_per_currency"] = best.get("power_per_currency")
         result["best_slot"] = {
             "pob_slot": best.get("pob_slot"),
             "product_slot": best.get("product_slot"),
@@ -67,7 +66,6 @@ def enrich_fast_result(
         result["value"] = (ranking["recommendation"] or {}).get("value")
         selected = ranking["recommendation"] or {}
         result["damage_claim"] = selected.get("damage_claim") or (selected.get("evaluation_outcome") or {}).get("damage_claim") or {}
-        result["power_per_currency"] = (ranking["recommendation"] or {}).get("power_per_currency")
         result["pareto"] = ranking["pareto"]
         best = ranking["recommendation"]
 

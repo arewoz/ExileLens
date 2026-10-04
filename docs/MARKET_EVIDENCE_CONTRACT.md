@@ -1,8 +1,8 @@
 # MarketEvidence contract (v1)
 
-Status: R5-B. The contract, the service and the post-paint lifecycle exist and are tested with injected providers. **The production live provider
-remains policy-blocked** (`market_policy.LIVE_TRADE2_AUTHORIZED = False`), so in a shipped build every enabled lookup resolves to
-`UNAVAILABLE / PROVIDER_NOT_AUTHORIZED` without a request. There is no user-facing market UI yet (R5-C).
+Status: R5-B (contract, service, lifecycle) and R5-C (presentation, consent/Settings, Diagnostics) are implemented and tested with injected providers.
+**LIVE PROVIDER ACTIVATION REMAINS POLICY-BLOCKED** (`market_policy.LIVE_TRADE2_AUTHORIZED = False`): no market control is offered, no request is made,
+and Item Check shows nothing about the market. The UI below is complete but dormant until a provider is authorized.
 
 ## Shape (`price_check/market_evidence.py`)
 
@@ -50,3 +50,44 @@ the provider may finish, its result is dropped. `market_evidence_updated(request
 
 Operational state only: access state, pending, cache size, attempted-lookup count (service), plus provider id, status/reason code, freshness and rate-limited of the last evidence the controller ACCEPTED (set only after the stale guards, so a late superseded lookup never looks current). Never queries, listing
 ids, sellers, prices, item text, PoB XML or build/character identity. No telemetry events.
+
+## Presentation (R5-C)
+
+`items/market_presentation.py::market_view` is the only place evidence becomes words; widgets render its strings and never read price_check internals.
+`result["market_evidence"]` stays the canonical input and absence is the normal state: no evidence, DISABLED, UNAVAILABLE (including policy-blocked, unique),
+RATE_LIMITED or PENDING produce **no view at all** (no placeholder, no "unavailable" line). Only `AVAILABLE` evidence is rendered.
+
+| Headline | Compact tooltip (<= 2 lines, under the notes) | More Info "MARKET" section (after Build Context) |
+| --- | --- | --- |
+| Strong | `Price ~30–36 Ex · Strong market` | range, `Strong comparable set · N listings`, basis, freshness, coverage |
+| Weak | `Price ~30–36 Ex · Limited comparables` | same with "Limited" |
+| Sparse | `Sparse market · use cautiously` | `Only N comparable listings were found...`, `Observed ~a–b Ex` if the contract has one |
+| Volatile | `Volatile market · no reliable price` | `No reliable price: <reason>.` |
+| No trustworthy estimate | nothing | `No trustworthy estimate` + the reason |
+
+Listed price: a comparable `listed_vs_market` (BELOW/WITHIN/ABOVE) becomes `Listed 40 Ex · above market ~30–36 Ex`; never for Sparse, Volatile, no estimate,
+stale or a different currency (those show only `Listed 40 Ex` in More Info). "Above" is only relative to the observed comparable range.
+
+Build impact + price pairing (`Damage +6.8% · Comparable cost ~33 Ex`, `EHP +11.0% · ...`) uses the measured `evaluation_outcome.item_impact` as is, with no
+ratio and no combined score. Shown only for: quality FULL, a MEANINGFUL/MINOR upgrade, no material conflict or negative axis, a Strong/Weak price that is not stale,
+and **exactly one** materially positive pairable axis (Damage; or EHP, with Max hit only as a fallback when EHP is not a usable gain). Percentages on different axes are never compared, so Damage + EHP both improving shows the ordinary price line instead. It replaces the price line; hidden for SIDEGRADE, TRADEOFF, PARTIAL, UNCERTAIN, UNSUPPORTED, NOT_VIABLE-like
+outcomes, Sparse, Volatile, stale and no-price evidence.
+
+## Capability, Settings and consent
+
+`market_policy.market_capability(settings)` is derived only from `resolve_market_access` (`provider_available`, `user_enabled`, `consent_current`, `access_state`).
+Settings shows the **Market prices** switch (and the Market league row, which only matters to it) **only when `provider_available`**; while the provider is
+policy-blocked neither row exists, so nothing invites the player to enable a feature that cannot work (chosen over a disabled row: Settings has no other
+"unavailable feature" rows, and a permanently greyed control reads as an unfinished feature). Turning it on asks one compact confirmation with the data
+statement and then records exactly `MARKET_CONSENT_VERSION` through `set_market_prices_enabled`; turning it off clears the consent record, cancels pending
+evidence and removes it from the current result. A consent version that is not current behaves as off. No telemetry or Patreon setting is coupled. Opening
+Settings starts no lookup and builds no service.
+
+Diagnostics Market row (always neutral, never an action): `Off`, `Provider unavailable` (current production), `Ready` (+ last listings freshness),
+`Looking up…`, `Rate limited`, `Unavailable`.
+
+## Async update
+
+`market_evidence_updated(request_id, result)` -> `ExileLensApp._on_market_evidence_updated` re-renders the open overlay in place through
+`update_result_in_place` (a no-op when it is not showing; no reopen, reposition or focus change) after the presentation-generation check. Pinned snapshots and
+history are not rewritten. The R5-B identity guards stay authoritative.

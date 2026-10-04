@@ -49,6 +49,8 @@ foot (**Reset configuration** and a pointer to Diagnostics).
   folder field + Browse / Auto-detect / Apply → the card's Change folder / Detect / Reconnect; build field + Browse /
   Load → Change build; Reload build → the card's Reload; read-only Live market → the hint under Market league
   ("Market prices off · …" by default, "Market prices unavailable · …" if enabled while the provider is not authorized; R5-A); Dedup window → removed (below).
+* **Market prices (R5-C).** The "Market prices" switch and the "Market league" row are created only when the provider can serve prices (`market_capability().provider_available`);
+  in a shipped build they are hidden. Diagnostics' Market row reads Off / Provider unavailable / Ready / Looking up… / Rate limited / Unavailable, always neutral.
 * **Dedup window (removed).** `AppSettings.dedup_window_seconds` was written by the UI but read by no runtime code
   (checked by a test over `src/`). The field and its UI are deleted. Existing `settings.json` files that still contain
   the key load normally (`from_dict` picks known keys only) and drop it on the next save. The fixed clipboard-event

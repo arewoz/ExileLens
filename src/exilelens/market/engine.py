@@ -8,7 +8,7 @@ from exilelens.analysis.pipeline import analyze_slot
 from exilelens.items.primary_metric import resolve_primary_metric
 from exilelens.app.build_revision import BuildFileRevision, read_build_revision
 from exilelens.errors import EvaluationInvalidBuildState
-from exilelens.items.price import ManualPrice, compute_power_per_currency
+from exilelens.items.price import ManualPrice
 from exilelens.items.ranking import enrich_slot_comparison
 from exilelens.items.raw_input import ItemInputSource, RawItemInput
 from exilelens.items.value_profiles import ValueProfile
@@ -103,7 +103,6 @@ def _evaluate_listing(
             offense_delta=float(cached.get("offense_delta") or 0.0),
             defense_delta=float(cached.get("defense_delta") or 0.0),
             verdict=str(cached.get("verdict") or "UNRESOLVED"),
-            power_per_currency=cached.get("power_per_currency"),
             restore_pass=bool(cached.get("restore_pass", True)),
             cache_hit=True,
             status=str(cached.get("status") or "ok"),
@@ -141,7 +140,6 @@ def _evaluate_listing(
             offense_delta=offense,
             defense_delta=defense,
             verdict=str(enriched.get("verdict") or "UNRESOLVED"),
-            power_per_currency=enriched.get("power_per_currency"),
             restore_pass=bool((result.get("restore") or {}).get("pass", True)),
             cache_hit=False,
             status="ok",
@@ -170,7 +168,6 @@ def _evaluate_listing(
             "offense_delta": evaluation.offense_delta,
             "defense_delta": evaluation.defense_delta,
             "verdict": evaluation.verdict,
-            "power_per_currency": evaluation.power_per_currency,
             "restore_pass": evaluation.restore_pass,
             "status": evaluation.status,
             "error": evaluation.error,

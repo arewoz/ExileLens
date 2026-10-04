@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from exilelens.items.price import ManualPrice, compute_power_per_currency
+from exilelens.items.price import ManualPrice
 from exilelens.items.ranking import enrich_slot_comparison
 from exilelens.items.raw_input import ItemInputSource, RawItemInput
 from exilelens.items.value_layer import parse_profile
@@ -71,8 +71,6 @@ def evaluate_capture_observation(
         evaluation.comparison = enriched
         evaluation.verdict = str(enriched.get("verdict") or evaluation.verdict)
         evaluation.build_value_delta = float((enriched.get("value") or {}).get("score_delta") or evaluation.build_value_delta)
-        profile_gain = float((enriched.get("value") or {}).get("score_delta") or 0.0)
-        evaluation.power_per_currency = compute_power_per_currency(profile_gain, manual)
 
     return {
         "comparison": evaluation.comparison,
@@ -80,7 +78,6 @@ def evaluate_capture_observation(
         "offense_delta": evaluation.offense_delta,
         "defense_delta": evaluation.defense_delta,
         "verdict": evaluation.verdict,
-        "power_per_currency": evaluation.power_per_currency,
         "restore_pass": evaluation.restore_pass,
         "cache_hit": evaluation.cache_hit,
         "status": evaluation.status,

@@ -685,6 +685,7 @@ class ExileLensApp:
         self.controller.presentation_invalidated.connect(self._on_presentation_invalidated)
         self.controller.last_result_rescored.connect(self._on_result_rescored)
         self.controller.upgrade_path_updated.connect(self._on_upgrade_path_updated)
+        self.controller.market_evidence_updated.connect(self._on_market_evidence_updated)
         self.controller.tree_overlay_show_requested.connect(self._on_tree_overlay_show)
         self.controller.tree_overlay_calibrate_requested.connect(self._on_tree_overlay_calibrate)
         self.controller.tree_overlay_invalidated.connect(self._refresh_tree_overlay)
@@ -1028,6 +1029,16 @@ class ExileLensApp:
         self.overlay.update_result_in_place(request_id, result)
         if self.controller:
             self.controller.refresh_pinned_results(result)
+
+    def _on_market_evidence_updated(self, request_id: int, result: dict) -> None:
+        """R5-C: market evidence arrived for the CURRENT Item Check. Re-renders the open overlay in place (no reopen, no reposition, no focus
+        change: `update_result_in_place` is a no-op when the overlay is not showing). Pinned snapshots and history are not rewritten."""
+        if not self.settings.overlay_enabled or not self.overlay or not self.controller:
+            return
+        meta = result.get("request_meta") or {}
+        if meta.get("presentation_generation") != self.controller.presentation_generation:
+            return
+        self.overlay.update_result_in_place(request_id, result)
 
     def _on_presentation_invalidated(self) -> None:
         if self.overlay:

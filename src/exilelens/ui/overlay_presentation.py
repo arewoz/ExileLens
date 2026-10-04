@@ -232,6 +232,12 @@ class ItemOverlayPanel(QWidget):
         self._note_widgets: list[QWidget] = []
         self._notes_host.hide()
 
+        # R5-C: market evidence lines (plain text; the meaning never depends on colour). Hidden unless usable evidence exists.
+        self._market_line = QLabel("")
+        self._market_line.setObjectName("compactNote")
+        self._market_line.setWordWrap(True)
+        self._market_line.hide()
+
         self._risk = QLabel("")
         self._risk.setObjectName("compactNote")
         self._risk.hide()
@@ -278,8 +284,6 @@ class ItemOverlayPanel(QWidget):
         self._price_note = QLabel("")
         self._price_note.setObjectName("compactNote")
         self._price_note.hide()
-        self._power = QLabel("")
-        self._power.setObjectName("priceLabel")
 
         self._rule_upgrade = _rule()
         self._why_not_upgrade_host = QWidget()
@@ -346,6 +350,7 @@ class ItemOverlayPanel(QWidget):
         root.addWidget(self._reasons_title)
         root.addWidget(self._why_host)
         root.addWidget(self._notes_host)
+        root.addWidget(self._market_line)
         root.addWidget(self._tradeoff_host)
         root.addWidget(self._mods_host)
         root.addWidget(self._multi_profile)
@@ -357,7 +362,6 @@ class ItemOverlayPanel(QWidget):
         root.addWidget(self._value_host)
         root.addWidget(self._price)
         root.addWidget(self._price_note)
-        root.addWidget(self._power)
         root.addWidget(self._rule_upgrade)
         root.addWidget(self._why_not_upgrade_host)
         root.addWidget(self._upgrade_path_host)
@@ -713,6 +717,9 @@ class ItemOverlayPanel(QWidget):
         self._reasons_title.setText(reasons_title)
         self._reasons_title.setVisible(bool(reasons_title) and bool(why))
         self._populate_notes(model.get("critical_notes") or [])
+        market_lines = [str(line) for line in (model.get("market_lines") or []) if str(line).strip()]
+        self._market_line.setText("\n".join(market_lines))
+        self._market_line.setVisible(bool(market_lines))
 
         profile_row = model.get("multi_profile_row") or []
         if profile_row and (pinned_extended or not compact_density):
@@ -872,29 +879,14 @@ class ItemOverlayPanel(QWidget):
             total = price.get("session_total")
             if rank and total:
                 note_lines.append(f"#{rank} / {total}")
-            if price.get("is_best_value"):
-                note_lines.append("★ BEST VALUE SO FAR")
             if price.get("is_new_best"):
                 note_lines.append("NEW PERSONAL BEST")
             self._price_note.setText("\n".join(note_lines))
             self._price_note.setVisible(bool(note_lines))
-            classification = price.get("classification_label") or str(price.get("classification") or "").replace("_", " ")
-            ppc = price.get("power_per_currency")
-            if ppc is not None and classification:
-                self._power.setText(
-                    f"VALUE / COST    {ppc:+.1f} Build Value / {price.get('currency') or ''} · {classification}"
-                )
-            elif classification:
-                self._power.setText(f"Power / Cost    {classification}")
-            else:
-                self._power.hide()
             self._price.show()
-            if ppc is not None or classification:
-                self._power.show()
         else:
             self._price.hide()
             self._price_note.hide()
-            self._power.hide()
         self._rule_value.setVisible(rating is not None or bool(price))
         why_not = list(model.get("why_not_upgrade") or [])
         if inline_current_edge:
@@ -985,7 +977,6 @@ class ItemOverlayPanel(QWidget):
         self._value_host.setVisible(visible)
         self._price.setVisible(visible)
         self._price_note.setVisible(visible and bool(self._price_note.text()))
-        self._power.setVisible(visible)
         self._baseline_strip.setVisible(visible)
         self._build_fix_host.setVisible(visible)
         self._axis_host.setVisible(visible)
@@ -1009,6 +1000,7 @@ class ItemOverlayPanel(QWidget):
         self._impact_title.setVisible(visible and bool(self._impact_title.isVisible()))
         self._reasons_title.setVisible(visible and bool(self._reasons_title.text()))
         self._notes_host.setVisible(visible and bool(self._note_widgets))
+        self._market_line.setVisible(visible and bool(self._market_line.text()))
         self._build_value.setVisible(visible and bool(self._build_value.text()))
 
     def _populate_current_edge(self, block: dict[str, Any]) -> None:

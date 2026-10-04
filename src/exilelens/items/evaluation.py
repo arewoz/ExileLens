@@ -812,7 +812,6 @@ def _evaluate_item_steps(
         "offense_coverage": coverage_payload,
         "value_profile": selected_profile.value,
         "value": (ranking["recommendation"] or {}).get("value"),
-        "power_per_currency": (ranking["recommendation"] or {}).get("power_per_currency"),
         "compatible_slots": [
             {
                 "product_slot": _product_slot_value(slot, pob_parse.item.get("type")),
