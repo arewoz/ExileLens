@@ -220,6 +220,14 @@ class Harness:
         health_mod.derive_health = lambda controller, settings, _h=health: _h  # type: ignore[assignment]
         has_build = (state not in ("setup",)) if build is None else build
         path = r"C:\PoB2\Builds\Spark_Stormweaver_v3.xml" if has_build else ""
+        # The sample build file does not exist on this machine; the real file check must not flag it.
+        import exilelens.app.setup_status as setup_status
+
+        real_check = getattr(setup_status, "_qa_real_check_build_file", setup_status.check_build_file)
+        setup_status._qa_real_check_build_file = real_check
+        setup_status.check_build_file = lambda value, _real=real_check, _fake=path: (
+            setup_status.SetupCheck(True, "FOUND") if _fake and str(value) == _fake else _real(value)
+        )
         status = SimpleNamespace(
             build_path=path,
             display_name="Spark Stormweaver" if has_build else "",
@@ -229,6 +237,7 @@ class Harness:
             freshness="CURRENT",
             last_error="",
         )
+        self.settings.build_path = path
         self.controller.active_build_status = lambda: status  # type: ignore[method-assign]
         self.controller.build_info = self.BuildInfo(
             path=path, name="Spark Stormweaver" if has_build else "",
@@ -268,6 +277,9 @@ class Harness:
             bar.setValue(0)
         elif title == "__bottom__":
             bar.setValue(bar.maximum())
+        elif title == "__supporter__":
+            zone = page._patreon_panel
+            bar.setValue(max(0, zone.mapTo(page.scroll.widget(), zone.rect().topLeft()).y() - 96))
         else:
             for section in page.findChildren(SettingsSection):
                 if section.title() == title:

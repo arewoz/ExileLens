@@ -17,7 +17,7 @@ def _page(page: str, state: str = "ready"):
     return build
 
 
-def _settings(section: str | None, *, state: str = "ready", update=None, patreon=None, advanced: bool = False, consent: bool = False):
+def _settings(section: str | None, *, state: str = "ready", update=None, patreon=None, consent: bool = False):
     def build(h):
         h.set_state(state)
         h.patreon("not_connected")
@@ -27,8 +27,29 @@ def _settings(section: str | None, *, state: str = "ready", update=None, patreon
         if patreon:
             h.patreon(patreon[0], **(patreon[1] if len(patreon) > 1 else {}))
         h.window.navigate("settings")
-        h.window._settings_page._advanced.set_expanded(advanced)
         h.scroll_settings(section)
+    return build
+
+
+def _diagnostics(state: str, *, advanced: bool = False, mode: str = "events", scroll: str | None = None, notes: str = ""):
+    def build(h):
+        h.set_state(state)
+        h.window.navigate("diagnostics")
+        page = h.window._diagnostics
+        page._advanced.set_expanded(advanced)
+        page._repro_notes.setPlainText(notes)
+        page._set_viewer_mode(mode)
+        h.app.processEvents()
+        bar = page.scroll.verticalScrollBar()
+        bar.setValue(0)
+        if scroll == "__bottom__":
+            h.app.processEvents()
+            bar.setValue(bar.maximum())
+        elif scroll == "__report__":
+            h.app.processEvents()
+            zone = page._help_zone
+            bar.setValue(max(0, zone.mapTo(page.scroll.widget(), zone.rect().topLeft()).y() - 12))
+        h.app.processEvents()
     return build
 
 
@@ -83,7 +104,12 @@ STATE_REGISTRY = {
     "settings-patreon-expired": _settings("Updates", patreon=("expired",)),
     "settings-patreon-reconnect": _settings("Updates", patreon=("reconnect_required",)),
     "settings-patreon-unavailable": _settings("Updates", patreon=("service_unavailable",)),
-    "settings-advanced": _settings("Advanced", advanced=True),
+    "settings-supporter": _settings("__supporter__"),
+    "settings-supporter-active": _settings("__supporter__", update=("ahead", "0.6.0"), patreon=("active",)),
+    "settings-supporter-grace": _settings("__supporter__", patreon=("offline_grace", {"expires_at": _GRACE_UNTIL})),
+    "settings-pob-down": _settings(None, state="disconnected"),
+    "settings-pob-setup": _settings(None, state="setup"),
+    "settings-pob-attention": _settings(None, state="attention"),
     "settings-reset": _settings("__bottom__"),
     "overview-ready": _overview("ready"),
     "overview-setup": _overview("setup"),
@@ -95,6 +121,11 @@ STATE_REGISTRY = {
     "settings-top": _page("settings"),
     "diagnostics-healthy": _page("diagnostics", "ready"),
     "diagnostics-degraded": _page("diagnostics", "disconnected"),
+    "diagnostics-report": _diagnostics("disconnected", scroll="__report__", notes="Shift + C does nothing since Path of Building closed while I was changing gear."),
+    "diagnostics-advanced-collapsed": _diagnostics("disconnected", scroll="__bottom__"),
+    "diagnostics-advanced": _diagnostics("disconnected", advanced=True, scroll="__bottom__"),
+    "diagnostics-advanced-report": _diagnostics("disconnected", advanced=True, mode="report", scroll="__bottom__"),
+    "diagnostics-healthy-advanced": _diagnostics("ready", advanced=True, scroll="__bottom__"),
     "analyze-empty": _analysis("empty"),
     "analyze-results": _analysis("results"),
     "analyze-stale": _analysis("stale"),

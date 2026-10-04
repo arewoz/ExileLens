@@ -74,7 +74,7 @@ def check_layout(h) -> None:
     page, rows = _rows(h)
     assert rows
     for row in rows:
-        needed = theme.scaled_px(row.LABEL_WIDTH) + 16 + 28 + theme.scaled_px(110) + 220
+        needed = theme.scaled_px(row.LABEL_WIDTH) + 16 + 28 + theme.scaled_px(110) + 220 + 2 * row._pad
         expected = row.width() < max(row.NARROW, needed)
         assert row._stacked == expected, (row.label(), row.width(), row._stacked)
         want = "TopToBottom" if expected else "LeftToRight"

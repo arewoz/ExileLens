@@ -304,7 +304,8 @@ def test_dashboard_follows_the_windows_text_size(harness, monkeypatch) -> None:
 
 @pytest.mark.parametrize(
     "state", ["overview-ready", "overview-attention", "overview-consent", "settings-privacy", "settings-updates-available",
-              "settings-patreon-active", "settings-advanced", "diagnostics-degraded", "analyze-results", "analyze-error"],
+              "settings-patreon-active", "settings-supporter", "settings-pob-down", "diagnostics-degraded",
+                  "diagnostics-report", "diagnostics-advanced", "analyze-results", "analyze-error"],
 )
 def test_no_visible_text_is_left_at_the_unscaled_size_when_text_is_larger(harness, monkeypatch, state) -> None:
     """Qt resolves widgets that a style sheet gives only a weight against the 9pt application font, so without the

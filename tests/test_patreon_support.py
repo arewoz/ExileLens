@@ -42,7 +42,7 @@ def test_open_patreon_handles_browser_exception(monkeypatch: pytest.MonkeyPatch)
     assert recovery_actions.open_patreon() is False
 
 
-def test_rail_and_tray_expose_same_patreon_action_and_overview_has_no_promo(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+def test_rail_navigates_to_the_supporter_zone_tray_opens_patreon_and_overview_has_no_promo(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     _app(monkeypatch)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
@@ -73,8 +73,12 @@ def test_rail_and_tray_expose_same_patreon_action_and_overview_has_no_promo(monk
         assert "Enjoying ExileLens?" not in [label.text() for label in overview.findChildren(QLabel)]
         assert not [b for b in overview.findChildren(QPushButton) if "Patreon" in b.text()]
 
+        # The rail's Support ExileLens is internal navigation now: it opens Settings at the supporter zone and
+        # never opens the browser itself. The tray action is still the direct external link.
         rail_button = dashboard._rail.link_buttons()["support"]
         rail_button.click()
+        assert calls == []
+        assert dashboard.current_page_id() == "settings"
 
         tray_action = next(
             action
@@ -84,7 +88,7 @@ def test_rail_and_tray_expose_same_patreon_action_and_overview_has_no_promo(monk
         )
         assert not tray_action.icon().isNull()
         tray_action.trigger()
-        assert calls == [True, True]
+        assert calls == [True]
     finally:
         controller.shutdown()
         tray.deleteLater()
