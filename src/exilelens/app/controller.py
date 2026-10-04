@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from PySide6.QtCore import QObject, QPoint, QThread, QTimer, Signal
 
@@ -221,6 +221,13 @@ class UpgradePathRequest:
     kind: str = "upgrade_path"
     priority: int = 22
 
+
+
+def _spawn_market_thread(job: Callable[[], None]) -> None:
+    """Run a market lookup on its own daemon thread (never the PoB worker queue). Tests replace this hook to control completion."""
+    import threading
+
+    threading.Thread(target=job, name="market-evidence", daemon=True).start()
 
 @dataclass
 class BuildDecompRequest:
@@ -925,6 +932,10 @@ class EvaluationController(QObject):
     active_build_status_changed = Signal(object)
     value_profile_changed = Signal(str)
     upgrade_path_updated = Signal(int, object)
+    #: R5-B: (parent request id, enriched result) after a market evidence lookup was applied to the CURRENT Item Check result.
+    market_evidence_updated = Signal(int, object)
+    #: Internal: market worker thread -> GUI thread hand-off.
+    _market_evidence_ready = Signal(object)
     tree_overlay_invalidated = Signal()
     tree_overlay_show_requested = Signal(bool)
     tree_overlay_calibrate_requested = Signal()
@@ -1009,6 +1020,7 @@ class EvaluationController(QObject):
         self._worker.finished_upgrade_path.connect(self._on_upgrade_path_finished)
         self._worker.finished_build_decomp.connect(self._on_build_decomp_finished)
         self._worker.analysis_progress.connect(self._on_analysis_progress)
+        self._market_evidence_ready.connect(self._on_market_evidence_ready)
         self._worker.market_progress.connect(self._on_market_progress)
         self._worker.gear_progress.connect(self._on_gear_progress)
         self._thread.start()
@@ -1061,6 +1073,13 @@ class EvaluationController(QObject):
         self._offense_coverage: dict[str, Any] | None = None
         self._upgrade_path_jobs: dict[int, UpgradePathRequest] = {}
         self._active_upgrade_parent_id: int | None = None
+        # R5-B: post-paint market enrichment. Created lazily; never part of the PoB worker queue.
+        self._market_service: Any = None
+        self._market_job_seq = 0
+        self._market_active: dict[str, Any] | None = None
+        #: Operational snapshot of the last market evidence the controller ACCEPTED (after every stale guard). Status fields only.
+        self._market_accepted: dict[str, Any] = {}
+        self._market_spawn: Callable[[Callable[[], None]], None] = _spawn_market_thread
         self._prices: dict[tuple[str, str], ManualPrice] = {}
         self._last_analysis: dict[str, Any] | None = None
         # R1: Build Intelligence from the last explicit Analyze Build, read (never produced) by Item Check.
@@ -2293,6 +2312,7 @@ class EvaluationController(QObject):
         self._item_check_lifecycle.begin(request_id, content_hash=raw.content_hash, item_class=item_class)
         self._item_check_lifecycle.advance(request_id, ItemCheckPhase.RECOGNIZED, item_class=item_class)
         self._cancel_upgrade_path_work()
+        self._cancel_market_evidence_work()
         self._presentation_generation += 1
         presentation_generation = self._presentation_generation
         received_ms = time.perf_counter() * 1000
@@ -4474,6 +4494,7 @@ class EvaluationController(QObject):
         self._item_check_lifecycle.advance(request_id, ItemCheckPhase.TERMINAL_PAINT, slot=slot)
         self._maybe_schedule_upgrade_path(request_id, result, pro)
         self._maybe_schedule_build_decomp(request_id, result)
+        self._maybe_schedule_market_evidence(request_id, result)
         if self._analysis_resume is not None and self._scheduler.active is None:
             resume = self._analysis_resume
             if resume.baseline_generation == self._baseline_generation:
@@ -5014,6 +5035,137 @@ class EvaluationController(QObject):
             resume = self._analysis_resume
             if resume.baseline_generation == self._baseline_generation:
                 self._scheduler.submit(resume)
+
+    # --- R5-B: market evidence enrichment (post-paint, off the PoB queue, identity-guarded) ---
+
+    def _get_market_evidence_service(self) -> Any:
+        if self._market_service is None:
+            from exilelens.price_check.market_evidence_service import MarketEvidenceService
+
+            self._market_service = MarketEvidenceService()
+        return self._market_service
+
+    def _market_settings_key(self) -> tuple[bool, int, str]:
+        return (
+            bool(getattr(self.settings, "market_prices_enabled", False)),
+            int(getattr(self.settings, "market_consent_version", 0) or 0),
+            str(getattr(self.settings, "market_league", "") or ""),
+        )
+
+    def _cancel_market_evidence_work(self) -> None:
+        """Obsolete any pending lookup. The provider may finish internally; its result is discarded by identity."""
+        self._market_active = None
+
+    def market_evidence_diagnostics(self) -> dict[str, Any]:
+        """Operational state only (no query, listing, seller, price, item text or identity)."""
+        from exilelens.price_check.market_policy import market_access_for_settings
+
+        access = market_access_for_settings(self.settings)
+        out: dict[str, Any] = {
+            "access_state": access.state.value,
+            "network_permitted": access.network_permitted,
+            "provider_id": "",
+            "last_status": None,
+            "last_reason_code": "",
+            "freshness": None,
+            "rate_limited": False,
+            "cache_entries": 0,
+            "provider_lookups": 0,
+        }
+        if self._market_service is not None:
+            attempts = self._market_service.diagnostics()
+            out["cache_entries"] = attempts.get("cache_entries", 0)
+            out["provider_lookups"] = attempts.get("provider_lookups", 0)
+        out.update(self._market_accepted)
+        out["pending"] = self._market_active is not None
+        return out
+
+    def _maybe_schedule_market_evidence(self, request_id: int, result: dict[str, Any]) -> None:
+        """Runs only after TERMINAL_PAINT. Never raises into Item Check, never enters the PoB engine."""
+        try:
+            from exilelens.price_check.market_evidence import listed_price_from_note
+            from exilelens.price_check.market_policy import MarketAccessState, market_access_for_settings
+
+            self._market_active = None
+            access = market_access_for_settings(self.settings)
+            if access.state in {MarketAccessState.DISABLED_BY_USER, MarketAccessState.NETWORK_DISABLED}:
+                return  # off: inert, nothing scheduled, no evidence attached
+            meta = result.get("request_meta") or {}
+            raw_input = result.get("raw_input") or {}
+            raw_text = str(raw_input.get("raw_text") or raw_input.get("text") or "")
+            if not raw_text:
+                return
+            resolution = self.resolve_price_check_league(allow_network=False)
+            league = str(resolution.context.league or "") if resolution.resolved else ""
+            self._market_job_seq += 1
+            job = {
+                "job_id": self._market_job_seq,
+                "parent_request_id": request_id,
+                "content_hash": str(raw_input.get("content_hash") or meta.get("content_hash") or ""),
+                "presentation_generation": int(meta.get("presentation_generation") or self._presentation_generation),
+                "baseline_generation": self._baseline_generation,
+                "settings_key": self._market_settings_key(),
+                "league": league,
+            }
+            self._market_active = job
+            service = self._get_market_evidence_service()
+            listed = listed_price_from_note(raw_text)
+
+            def run() -> None:
+                try:
+                    evidence = service.evidence_for(raw_text, league=league, listed=listed)
+                except Exception:  # noqa: BLE001 - the service contains its own failures; this is the last line of defence
+                    from exilelens.price_check.market_evidence import EvidenceStatus, status_evidence
+
+                    evidence = status_evidence(EvidenceStatus.UNAVAILABLE, "PROVIDER_ERROR", league=league, listed=listed)
+                self._market_evidence_ready.emit({**job, "evidence": evidence})
+
+            if access.state is MarketAccessState.PROVIDER_NOT_AUTHORIZED:
+                run()  # the service answers from the access decision alone: no I/O, so no thread
+            else:
+                self._market_spawn(run)
+        except Exception:  # noqa: BLE001 - market enrichment must never disturb Item Check
+            logger.exception("market evidence scheduling failed")
+            self._market_active = None
+
+    def _on_market_evidence_ready(self, payload: object) -> None:
+        try:
+            if not isinstance(payload, dict):
+                return
+            active = self._market_active
+            if active is None or payload.get("job_id") != active.get("job_id"):
+                return
+            if int(payload.get("parent_request_id") or 0) != int(active["parent_request_id"]):
+                return
+            if int(payload.get("presentation_generation") or 0) != self._presentation_generation:
+                return
+            if payload.get("baseline_generation") != self._baseline_generation:
+                return
+            if tuple(payload.get("settings_key") or ()) != self._market_settings_key():
+                return
+            if not self._last_result:
+                return
+            last_hash = str((self._last_result.get("raw_input") or {}).get("content_hash") or "")
+            if last_hash and last_hash != str(payload.get("content_hash") or ""):
+                return
+            evidence = payload.get("evidence")
+            if evidence is None:
+                return
+            self._market_active = None
+            self._market_accepted = {
+                "provider_id": evidence.provider_id,
+                "last_status": evidence.status.value,
+                "last_reason_code": evidence.reason_code,
+                "freshness": evidence.freshness.value if evidence.freshness else None,
+                "rate_limited": evidence.status.value == "RATE_LIMITED",
+            }
+            updated = dict(self._last_result)
+            updated["market_evidence"] = evidence.to_dict()
+            updated["request_meta"] = dict(self._last_result.get("request_meta") or {})
+            self._last_result = updated
+            self.market_evidence_updated.emit(int(payload.get("parent_request_id") or 0), updated)
+        except Exception:  # noqa: BLE001
+            logger.exception("market evidence application failed")
 
     def _maybe_schedule_build_decomp(self, request_id: int, result: dict[str, Any]) -> None:
         if not self._engine:

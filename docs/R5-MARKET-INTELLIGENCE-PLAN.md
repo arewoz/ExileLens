@@ -1,5 +1,7 @@
 # R5 — Economy / Market Intelligence: repository audit and implementation plan
 
+**Status:** R5-A is complete and merged (#75, `25959b9`). R5-B (MarketEvidence + async enrichment) is implemented on `r5-b/market-evidence-enrichment`; see the records at the end. The live trade2 provider remains **policy-blocked**.
+
 Base: `origin/main` `a6dc07b` (R4 squash-merged). Branch `r5/market-intelligence-1.0`. Planning pass only: the one code change is the verified
 `MarketQueryPlan` import fix (§2). Nothing here changes behaviour of Item Check. Version unchanged (not 1.0.0); this is not R6 (Upgrade Finder) and not R3 (character sync).
 
@@ -387,3 +389,37 @@ and the result-contract field disappears from `ItemEvaluation` consumers. No R5-
 2. A consent UI that records `market_consent_version` (only backing fields exist now).
 3. The MarketEvidence contract and async Item Check enrichment (R5-B), built on `market_headline` and `MarketLookupStatus`.
 4. R5-C: remove `power_per_currency`, and rename the internal band label `fair` (it is still `quick_sale / fair / optimistic`), so no surface can read as "fair value".
+
+---
+
+# R5-B implementation record (MarketEvidence + asynchronous enrichment)
+
+Contract reference: [MARKET_EVIDENCE_CONTRACT.md](MARKET_EVIDENCE_CONTRACT.md). Production is unchanged in substance: the live provider is policy-blocked, so an
+enabled lookup resolves to `UNAVAILABLE / PROVIDER_NOT_AUTHORIZED` with no request and no trade2 stack loaded. R5-B does not expose the final R5-C UX.
+
+**Delivered:** `price_check/market_evidence.py` (contract v1, the one conversion, listed-price comparison, freshness aging), `price_check/market_evidence_service.py`
+(access gate, compile, evidence cache, one synchronous provider lookup on a per-lookup provider, containment), controller post-paint scheduling with identity guards, operational diagnostics,
+tests `test_r5b_market_evidence.py` / `test_r5b_market_lifecycle.py`, CI step.
+
+**Deviations from §7/§14, and why:**
+1. `headline`, `estimate_state` and `reasons` are null/empty unless a lookup produced evidence (statuses DISABLED/UNAVAILABLE/RATE_LIMITED/PENDING carry none): a headline on
+   a state where nothing was looked up would be a claim without evidence.
+2. `price` is also null for `VOLATILE_ESTIMATE`, not only `NO_TRUSTWORTHY_ESTIMATE`: a band over two price clusters is not a market range. The observed range stays internal.
+3. `price.low/high` are the 25th/75th percentile of comparable asks (the internal `quick_sale`/`optimistic` bands), not the narrow 40th-60th `fair` band, so the listed-price
+   comparison is meaningful. `fair` is not exposed.
+4. Market work runs on its own daemon thread, not the scheduler/worker used by upgrade-path and build-decomp: that queue is the single PoB engine queue, and market I/O must never
+   wait behind (or in front of) PoB jobs. The stale guards are the same ones (parent request id, presentation and baseline generation, content hash) plus a job id and the market
+   settings (enabled, consent version, league).
+5. `MarketValueContext` is not a separate type: the paired impact lives in the existing result and the market half in `result["market_evidence"]`; `efficiency` is not computed
+   (R5-B has no efficiency; `power_per_currency` removal stays with R5-C).
+6. `market_evidence_updated` is emitted for in-place re-rendering but `main.py` does not connect it: no surface renders market evidence yet (R5-C), and a re-render with
+   unchanged presentation would only cost a repaint.
+
+**Concurrency model (hardening pass):** the controller owns the single async layer (one background job per Item Check); the service runs inside it with no thread of its own.
+Python cannot cancel a running thread, so there is no wall-clock service timeout: the bound is the transport's 30 s per request, at most 1 search + 2 fetch batches (20
+listings) + one exchange request per distinct non-base currency, and pacing waits capped at 5 s. A superseded job finishes and is discarded by identity; every lookup builds its
+own provider so it can never share one with a still-running older job (shared rate state, caches and the in-flight coalescer stay shared). The accepted-evidence diagnostics are
+set by the controller after the stale guards.
+
+**R5-C prerequisites:** a consent/Settings surface that records `market_consent_version`; the compact line / More Info section reading `result["market_evidence"]`; removal of
+`power_per_currency` and the `fair` label; copy review.
