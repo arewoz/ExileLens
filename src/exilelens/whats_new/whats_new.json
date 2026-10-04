@@ -59,13 +59,7 @@
           "introduced": "0.7.0b1"
         }
       ],
-      "limitations": [
-        {
-          "id": "patreon-linking-beta",
-          "text": "Patreon linking may be unavailable in this beta. Manual updates are not affected.",
-          "introduced": "0.7.0b1"
-        }
-      ],
+      "limitations": [],
       "action": null
     }
   ]
