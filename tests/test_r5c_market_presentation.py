@@ -288,6 +288,67 @@ def test_pairing_offense_and_defense():
     assert pairing_line(_ev(WEAK), _outcome()) == "Damage +6.8% · Comparable cost ~33 Ex"
 
 
+def _axes(offense=None, defense=None, **extra):
+    def axis(metrics, positive, negative=False):
+        return {"material_positive": positive, "material_negative": negative, "metrics": [{"key": k, "percent_delta": v} for k, v in metrics]}
+
+    out = {}
+    if offense is not None:
+        out["OFFENSE"] = axis(*offense)
+    if defense is not None:
+        out["DEFENSE"] = axis(*defense)
+    out.update(extra)
+    return out
+
+
+def test_offense_only_pairs_damage():
+    assert pairing_line(_ev(STRONG), _outcome(axes=_axes(offense=([("primary_offense", 6.8)], True)))) == "Damage +6.8% · Comparable cost ~33 Ex"
+
+
+def test_defense_only_pairs_ehp():
+    outcome = _outcome(axes=_axes(offense=([("primary_offense", 0.1)], False), defense=([("ehp", 11.0)], True)))
+    assert pairing_line(_ev(STRONG), outcome) == "EHP +11.0% · Comparable cost ~33 Ex"
+
+
+def test_ehp_is_used_even_when_max_hit_moved_more():
+    outcome = _outcome(axes=_axes(defense=([("ehp", 5.0), ("worst_max_hit", 15.0)], True)))
+    assert pairing_line(_ev(STRONG), outcome) == "EHP +5.0% · Comparable cost ~33 Ex"
+    assert "Max hit" not in pairing_line(_ev(STRONG), outcome)
+
+
+@pytest.mark.parametrize("ehp", [None, 0.0, -2.0])
+def test_max_hit_is_only_the_fallback_when_ehp_is_not_a_usable_gain(ehp):
+    metrics = ([("worst_max_hit", 15.0)] if ehp is None else [("ehp", ehp), ("worst_max_hit", 15.0)], True)
+    assert pairing_line(_ev(STRONG), _outcome(axes=_axes(defense=metrics))) == "Max hit +15.0% · Comparable cost ~33 Ex"
+
+
+def test_a_broad_upgrade_gets_no_pairing_and_keeps_the_ordinary_price_line_and_impact_rows():
+    outcome = _outcome(axes=_axes(offense=([("primary_offense", 6.8)], True), defense=([("ehp", 11.0)], True)))
+    assert pairing_line(_ev(STRONG), outcome) == ""
+    broad = _model(_ev(STRONG), outcome)
+    assert broad["market_lines"] == ["Price ~30–36 Ex · Strong market"]
+    plain = _model(None, outcome)
+    for key in ("impact_rows", "primary_reasons", "critical_notes", "verdict_headline"):
+        assert broad[key] == plain[key], key
+
+
+@pytest.mark.parametrize(
+    "axes",
+    [
+        _axes(offense=([("primary_offense", 6.8)], True), defense=([("ehp", -5.0)], False, True)),
+        _axes(offense=([("primary_offense", 6.8)], True, True), defense=([("ehp", 11.0)], True)),
+        _axes(offense=([("primary_offense", 6.8)], True), defense=([("ehp", 11.0)], True, True)),
+        _axes(offense=([("primary_offense", 6.8)], True), UTILITY={"material_positive": True, "material_negative": False,
+                                                                     "metrics": [{"key": "movement_speed", "percent_delta": 9.0}]}),
+        _axes(UTILITY={"material_positive": True, "material_negative": False, "metrics": [{"key": "movement_speed", "percent_delta": 9.0}]}),
+        _axes(RECOVERY={"material_positive": True, "material_negative": False, "metrics": [{"key": "life_regen", "percent_delta": 9.0}]}),
+    ],
+    ids=["defense-loss", "offense-loss-and-gain", "defense-gain-and-loss", "offense-plus-utility", "utility-only", "recovery-only"],
+)
+def test_negative_mixed_or_unpairable_axes_keep_the_pairing_hidden(axes):
+    assert pairing_line(_ev(STRONG), _outcome(axes=axes)) == ""
+
+
 def test_the_pairing_replaces_the_price_line_and_is_one_compact_line():
     assert _model(_ev(STRONG))["market_lines"] == ["Damage +6.8% · Comparable cost ~33 Ex"]
     listed = _model(_ev(STRONG, listed=ListedPrice(40.0, "Exalted")))["market_lines"]

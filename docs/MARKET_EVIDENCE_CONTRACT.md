@@ -70,7 +70,7 @@ stale or a different currency (those show only `Listed 40 Ex` in More Info). "Ab
 
 Build impact + price pairing (`Damage +6.8% · Comparable cost ~33 Ex`, `EHP +11.0% · ...`) uses the measured `evaluation_outcome.item_impact` as is, with no
 ratio and no combined score. Shown only for: quality FULL, a MEANINGFUL/MINOR upgrade, no material conflict or negative axis, a Strong/Weak price that is not stale,
-and a material positive Damage/EHP/Max-hit metric. It replaces the price line; hidden for SIDEGRADE, TRADEOFF, PARTIAL, UNCERTAIN, UNSUPPORTED, NOT_VIABLE-like
+and **exactly one** materially positive pairable axis (Damage; or EHP, with Max hit only as a fallback when EHP is not a usable gain). Percentages on different axes are never compared, so Damage + EHP both improving shows the ordinary price line instead. It replaces the price line; hidden for SIDEGRADE, TRADEOFF, PARTIAL, UNCERTAIN, UNSUPPORTED, NOT_VIABLE-like
 outcomes, Sparse, Volatile, stale and no-price evidence.
 
 ## Capability, Settings and consent

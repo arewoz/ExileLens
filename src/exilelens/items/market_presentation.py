@@ -35,6 +35,7 @@ _UPGRADES = frozenset({"MEANINGFUL_UPGRADE", "MINOR_UPGRADE"})
 # Measured metrics the pairing may name. Anything else (resistances, movement, recovery) is not paired.
 _PAIR_LABELS = {"primary_offense": "Damage", "ehp": "EHP", "worst_max_hit": "Max hit"}
 _PAIR_AXES = ("OFFENSE", "DEFENSE")
+_PAIR_PREFERENCE = {"OFFENSE": ("primary_offense",), "DEFENSE": ("ehp", "worst_max_hit")}
 _MAX_COVERAGE_LINES = 3
 
 
@@ -87,21 +88,19 @@ def pairing_line(evidence: Mapping[str, Any], outcome: Mapping[str, Any] | None)
         return ""
     if any(bool((axis or {}).get("material_negative")) for axis in axes.values()):
         return ""
-    best: tuple[float, str] | None = None
-    for axis_name in _PAIR_AXES:
-        axis = axes.get(axis_name) or {}
-        if not axis.get("material_positive"):
-            continue
-        for metric in axis.get("metrics") or ():
-            label = _PAIR_LABELS.get(str(metric.get("key") or ""))
-            delta = metric.get("percent_delta")
-            if label is None or not isinstance(delta, (int, float)) or delta <= 0:
-                continue
-            if best is None or delta > best[0]:
-                best = (float(delta), label)
-    if best is None:
+    # Percentages on different axes are never ranked against each other. The pairing exists only when exactly ONE axis is materially
+    # positive and it is a pairable decision axis; a broad upgrade keeps its impact rows and the ordinary price line.
+    positive = [name for name, axis in axes.items() if (axis or {}).get("material_positive")]
+    if len(positive) != 1 or positive[0] not in _PAIR_AXES:
         return ""
-    return f"{best[1]} +{best[0]:.1f}% · Comparable cost {_point_text(price)}"
+    axis = axes[positive[0]] or {}
+    measured = {str(m.get("key") or ""): m.get("percent_delta") for m in axis.get("metrics") or ()}
+    # Fixed preference per axis (never "the larger percentage"): Damage; else EHP, falling back to Max hit only when EHP is not a usable gain.
+    for key in _PAIR_PREFERENCE[positive[0]]:
+        delta = measured.get(key)
+        if isinstance(delta, (int, float)) and not isinstance(delta, bool) and delta > 0:
+            return f"{_PAIR_LABELS[key]} +{float(delta):.1f}% · Comparable cost {_point_text(price)}"
+    return ""
 
 
 def _compact_lines(evidence: Mapping[str, Any], outcome: Mapping[str, Any] | None) -> list[str]:

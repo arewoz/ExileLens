@@ -441,10 +441,10 @@ Reference: [MARKET_EVIDENCE_CONTRACT.md](MARKET_EVIDENCE_CONTRACT.md). **Live pr
 - `market_capability()` / `set_market_prices_enabled()` in `market_policy.py`; Settings "Market prices" row and Diagnostics Market row; in-place overlay update wiring.
 
 **Decisions / deviations**
-1. **Provider-blocked UX: hide, don't grey.** The Market prices and Market league rows are not created visible while `provider_available` is False. A disabled row would advertise an unfinished feature
+1. **Provider-blocked UX: hide, don't grey** (accepted by the owner). The Market prices and Market league rows are not created visible while `provider_available` is False. A disabled row would advertise an unfinished feature
    and Settings has no precedent for permanently inert controls. Diagnostics says `Provider unavailable`, neutral, no action.
 2. Item Check says nothing about the market without usable `AVAILABLE` evidence (no "N/A", no "unavailable" lines), including in the policy-blocked case.
-3. The pairing replaces the price line (one compact line), not an extra row; the compact market area is at most two lines and never changes the impact rows, reasons, notes or verdict (tested).
+3. The pairing replaces the price line (one compact line), not an extra row (accepted by the owner). It is a single-axis rule: it exists only when exactly one pairable axis (Damage, or EHP with Max hit as fallback only when EHP is not a usable gain) is materially positive; percentages across axes are never ranked, so a broad Damage + EHP upgrade keeps its impact rows and the ordinary price line; the compact market area is at most two lines and never changes the impact rows, reasons, notes or verdict (tested).
 4. The old Price Check panel and refine flow stay dormant and are not used as the market UI. Its dead copy that could mislead (`Fair price`, value classes, best-value notes) was changed or removed; no larger legacy deletion.
 5. Manual price (`manual_price`, `ManualPrice`) stays a plain fact shown in the existing price block; it has no UI entry in the shipped overlay and none was added.
 
