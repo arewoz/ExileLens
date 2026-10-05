@@ -205,8 +205,7 @@ function Assert-ReleaseVenvUncontaminated {
     # installed later) is rejected: delete .release-venv and let this preflight recreate it. Never `pip install` into it.
     $lock = Get-ReleaseLockPins -RepoRoot $RepoRoot
     $allowed = @($lock.Keys) + @("pip")
-    $installed = & $PythonExecutable -c "import importlib.metadata as m; print('
-'.join(sorted({(d.metadata['Name'] or '').lower().replace('_', '-') for d in m.distributions()})))"
+    $installed = & $PythonExecutable -c "import importlib.metadata as m; print(chr(10).join(sorted({(d.metadata['Name'] or '').lower().replace('_', '-') for d in m.distributions()})))"
     if ($LASTEXITCODE -ne 0) { throw "Could not list the packages in the release venv" }
     $extra = @($installed | Where-Object { $_ -and ($allowed -notcontains $_) })
     if ($extra.Count -gt 0) {
