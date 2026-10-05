@@ -95,6 +95,10 @@ def test_third_party_texts_are_byte_identical_copies_not_rewrites():
     assert sizes["packaging/third_party_licenses/cryptography/LICENSE.APACHE"] == 11360
     assert sizes["packaging/third_party_licenses/pyinstaller/COPYING.txt"] == 32138
     assert all(size > 100 for size in sizes.values())
+    for rel in THIRD_PARTY_LICENSE_FILES[1:]:
+        assert b"
+" not in (ROOT / rel).read_bytes(), f"{rel}: line endings were rewritten (.gitattributes pins them)"
+    assert "third_party_licenses/** -text" in (ROOT / ".gitattributes").read_text(encoding="utf-8")
 
 
 # ----------------------------------------------------------------------------------------------- stale-copy guard
