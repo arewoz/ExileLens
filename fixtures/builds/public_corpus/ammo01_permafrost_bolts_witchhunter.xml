@@ -1,0 +1,890 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding2>
+	<Build ascendClassName="Witchhunter" viewMode="IMPORT" mainSocketGroup="8" level="85" targetVersion="0_1" characterLevelAutoMode="false" className="Mercenary">
+		<Buffs curseList="Freezing Mark" combatList="" buffList="Blazing Critical, EternalRage, Freezing Mark, Herald of Ice, Herbalism II, Ice Bite, Load Permafrost Bolts, Permafrost Bolts, Precision II, Rage, Sorcery Ward, Thunderstorm, Wind Dancer"/>
+		<TimelessData socketFilterDistance="0" searchListFallback="" searchList="" devotionVariant1="1" devotionVariant2="1"/>
+	</Build>
+	<Tree activeSpec="1">
+		<Spec secondaryAscendClassId="nil" classId="9" treeVersion="0_5" masteryEffects="" nodes="58814,244,49657,16680,35901,43155,53683,30082,20830,56910,10671,61973,26068,42250,43423,62464,24786,25170,59028,44430,38601,37220,37767,18897,5802,11825,8697,14340,19442,50884,3985,27705,7218,6935,2455,17955,64140,56818,42794,25700,47374,5227,9020,44776,46882,55802,64990,59915,54984,55275,48773,2582,2847,9472,48137,23736,43578,50342,51048,13081,53185,50986,27853,30905,34813,37078,41096,18923,38463,11774,17077,24287,60203,3660,63731,62510,32155,25619,3543,41210,30820,35878,22532,30657,37389,58109,16602,33848,28061,18049,57196,17702,34201,61897,24922,19998,25055,17854,43131,36576,51463,33887,34015,48588,26786,38779,14045,41580,14418,44836,31433,46402,8092,58513,47150,48116,31825,52576,3717,7120,44605,4364,51336,60735,16484,64550,65176,7062,16142,47677,34501,12611,23702,5332,63888" ascendClassId="2" classInternalId="9" ascendancyInternalId="Mercenary2">
+			<URL>
+				https://www.pathofexile.com/passive-skill-tree/AAAABgkCheW-APTB-UEojD2ok9GzdYJRXt5OKa_yFWXUpQqpn_QAYNJiUuaUrY6WyZFkk4dJ0RaqLjEh-TgES_LGxA-RbDkcMhsXCZdGI_qM3fKnKmRkuQ4UayM8rui3Itn6_d7qC9bI1-u-hQoWCx8lALwJXLiqOsSmx2gzGc_BbM14uYf9kNagiEnrlj8t_kK1Xt_rKw5M-PP0Ln2bZBMN16D6eGSMJlgEd8GSDeL9QNqEOG2dRoHfbEUmhZnxyWFaTh5h30W-qHuO4MkHhF-E373MaKKXezbdomw4Uq8kesm1Qh-c5JG4Lrv0fFHNYA6Frj0RDMiI7T9AZPwm_pgblj8Ouj2GxTFDXJYU1PmQAAA=
+			</URL>
+			<WeaponSet1 nodes="16680,43155,53683,30082,43423,9472,48137,3660,25619,22532,33848,57196,33887,7062,16142,47677,23702"/>
+			<WeaponSet2 nodes="244,10671,25170,37767,5802,8697,19442,25700,47374,9020,41096,63731,62510,32155,30820,18049,12611"/>
+			<Sockets>
+				<Socket itemId="2" nodeId="60735"/>
+				<Socket itemId="1" nodeId="46882"/>
+			</Sockets>
+			<Overrides>
+				<AttributeOverride dexNodes="48773,48116,2582,17702,27705,24786,38463,51048,30657,54984" intNodes="49657,16484,26786,34015,24287" strNodes="58814,24922,2847,18923,35901,58109,11825,55802,42250,14340,34201,63888"/>
+			</Overrides>
+		</Spec>
+	</Tree>
+	<Skills activeSkillSet="1" showSupportGemTypes="ALL" defaultGemQuality="0" sortGemsByDPSField="CombinedDPS" showLegacyGems="false" sortGemsByDPS="true" defaultGemLevel="normalMaximum">
+		<SkillSet id="1">
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemAscendancySorceryWard" variantId="SorceryWard" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Sorcery Ward" count="1" quality="0" level="18" enableGlobal2="false" skillId="SorceryWardPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFreezingMark" variantId="FreezingMark" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Freezing Mark" count="1" quality="0" level="9" enableGlobal2="true" skillId="FreezingMarkPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemEternalMark" variantId="EternalMarkSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Eternal Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEternalMarkPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemChargedMark" variantId="ChargedMarkSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Charged Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportChargedMarkPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemWindDancer" variantId="WindDancer" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Wind Dancer" count="1" quality="0" level="12" enableGlobal2="true" skillId="WindDancerPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemGlaciation" variantId="FreezeSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Freeze" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportFreezePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemEmbitter" variantId="EmbitterSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Embitter" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEmbitterPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemHeraldOfIce" variantId="HeraldOfIce" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Herald of Ice" count="1" quality="20" level="15" enableGlobal2="true" skillId="HeraldOfIcePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemMagnifiedEffectTwo" variantId="MagnifiedAreaSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Magnified Area II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportMagnifiedAreaPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemShardScavenger" variantId="ShardScavenger" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Shard Scavenger" count="1" quality="15" level="16" enableGlobal2="true" skillId="ShardScavengerPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrecisionTwo" variantId="PrecisionSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Precision II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPrecisionPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemHerbalismTwo" variantId="HerbalismSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Herbalism II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportHerbalismPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemThunderstorm" variantId="Thunderstorm" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Thunderstorm" count="1" quality="0" level="15" enableGlobal2="true" skillId="ThunderstormPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemBlazingCritical" variantId="BlazingCriticalSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Blazing Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportBlazingCriticalPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemInevitableCriticalTwo" variantId="InevitableCriticalsSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Inexorable Critical II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportInevitableCriticalsPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPinpointCritical" variantId="PinpointCritical" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Pinpoint Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPinpointCriticalPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemExpanse" variantId="ExpanseSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Expanse" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportExpansePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFragmentationRounds" variantId="FragmentationRounds" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Fragmentation Rounds" count="1" quality="20" level="16" enableGlobal2="true" skillId="FragmentationRoundsAmmoPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemConcentratedEffect" variantId="ConcentratedAreaSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Concentrated Area" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportConcentratedAreaPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemRageforgedTwo" variantId="RageforgedSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Rageforged II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportRageforgedPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="2" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemPermafrostBolts" variantId="PermafrostBolts" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Permafrost Bolts" count="1" quality="20" level="16" enableGlobal2="true" skillId="PermafrostBoltsAmmoPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemIceBiteTwo" variantId="IceBiteSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Ice Bite II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportIceBitePlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemAccelerationThree" variantId="ProjectileAccelerationSupportThree" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Projectile Acceleration III" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportProjectileAccelerationPlayerThree" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" source="Tree:38601" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemAscendancySorceryWard" variantId="SorceryWard" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Sorcery Ward" count="1" quality="0" level="1" enableGlobal2="false" skillId="SorceryWardPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" source="Explode" mainActiveSkill="1" label="On Kill Monster Explosion">
+				<Gem corruptLevel="nil" enabled="true" enableGlobal1="nil" corrupted="nil" nameSpec="" count="nil" quality="0" level="1" enableGlobal2="nil" skillId="EnemyExplode"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemAscendancySorceryWard" variantId="SorceryWard" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Sorcery Ward" count="1" quality="0" level="18" enableGlobal2="true" skillId="SorceryWardPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFreezingMark" variantId="FreezingMark" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Freezing Mark" count="1" quality="0" level="9" enableGlobal2="true" skillId="FreezingMarkPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemEternalMark" variantId="EternalMarkSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Eternal Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEternalMarkPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemChargedMark" variantId="ChargedMarkSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Charged Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportChargedMarkPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemWindDancer" variantId="WindDancer" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Wind Dancer" count="1" quality="0" level="12" enableGlobal2="true" skillId="WindDancerPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemGlaciation" variantId="FreezeSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Freeze" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportFreezePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemEmbitter" variantId="EmbitterSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Embitter" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEmbitterPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemHeraldOfIce" variantId="HeraldOfIce" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Herald of Ice" count="1" quality="20" level="15" enableGlobal2="true" skillId="HeraldOfIcePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemMagnifiedEffectTwo" variantId="MagnifiedAreaSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Magnified Area II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportMagnifiedAreaPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemShardScavenger" variantId="ShardScavenger" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Shard Scavenger" count="1" quality="15" level="16" enableGlobal2="true" skillId="ShardScavengerPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrecisionTwo" variantId="PrecisionSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Precision II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPrecisionPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemHerbalismTwo" variantId="HerbalismSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Herbalism II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportHerbalismPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemThunderstorm" variantId="Thunderstorm" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Thunderstorm" count="1" quality="0" level="15" enableGlobal2="true" skillId="ThunderstormPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemBlazingCritical" variantId="BlazingCriticalSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Blazing Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportBlazingCriticalPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemInevitableCriticalTwo" variantId="InevitableCriticalsSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Inexorable Critical II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportInevitableCriticalsPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPinpointCritical" variantId="PinpointCritical" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Pinpoint Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPinpointCriticalPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemExpanse" variantId="ExpanseSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Expanse" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportExpansePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFragmentationRounds" variantId="FragmentationRounds" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Fragmentation Rounds" count="1" quality="20" level="16" enableGlobal2="true" skillId="FragmentationRoundsAmmoPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemConcentratedEffect" variantId="ConcentratedAreaSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Concentrated Area" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportConcentratedAreaPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemRageforgedTwo" variantId="RageforgedSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Rageforged II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportRageforgedPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="false" enabled="true" mainActiveSkillCalcs="1" mainActiveSkill="1" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemPermafrostBolts" variantId="PermafrostBolts" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Permafrost Bolts" count="1" quality="20" level="16" enableGlobal2="true" skillId="PermafrostBoltsAmmoPlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemIceBiteTwo" variantId="IceBiteSupportTwo" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Ice Bite II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportIceBitePlayerTwo" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer" statSetIndex="nil" statSetIndexCalcs="nil"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemAccelerationThree" variantId="ProjectileAccelerationSupportThree" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="false" nameSpec="Projectile Acceleration III" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportProjectileAccelerationPlayerThree" statSetIndex="nil" statSetIndexCalcs="nil"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemAscendancySorceryWard" variantId="SorceryWard" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Sorcery Ward" count="1" quality="0" level="19" enableGlobal2="true" skillId="SorceryWardPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFreezingMark" variantId="FreezingMark" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Freezing Mark" count="1" quality="0" level="17" enableGlobal2="true" skillId="FreezingMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemEternalMark" variantId="EternalMarkSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Eternal Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEternalMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemChargedMark" variantId="ChargedMarkSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Charged Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportChargedMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemLightningExposure" variantId="LightningExposureSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Lightning Exposure" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportLightningExposurePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemWindDancer" variantId="WindDancer" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Wind Dancer" count="1" quality="0" level="16" enableGlobal2="true" skillId="WindDancerPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemGlaciation" variantId="FreezeSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Freeze" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportFreezePlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemEmbitter" variantId="EmbitterSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Embitter" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEmbitterPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemHeraldOfIce" variantId="HeraldOfIce" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Herald of Ice" count="1" quality="20" level="15" enableGlobal2="true" skillId="HeraldOfIcePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemMagnifiedEffectTwo" variantId="MagnifiedAreaSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Magnified Area II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportMagnifiedAreaPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemShardScavenger" variantId="ShardScavenger" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Shard Scavenger" count="1" quality="15" level="16" enableGlobal2="true" skillId="ShardScavengerPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemThunderstorm" variantId="Thunderstorm" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Thunderstorm" count="1" quality="10" level="17" enableGlobal2="true" skillId="ThunderstormPlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemExpanse" variantId="ExpanseSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Expanse" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportExpansePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemInevitableCriticalTwo" variantId="InevitableCriticalsSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Inexorable Critical II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportInevitableCriticalsPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemBlazingCritical" variantId="BlazingCriticalSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Blazing Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportBlazingCriticalPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPinpointCritical" variantId="PinpointCritical" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Pinpoint Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPinpointCriticalPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemPermafrostBolts" variantId="PermafrostBolts" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Permafrost Bolts" count="1" quality="20" level="19" enableGlobal2="true" skillId="PermafrostBoltsAmmoPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemIceBiteTwo" variantId="IceBiteSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Ice Bite II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportIceBitePlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemAccelerationThree" variantId="ProjectileAccelerationSupportThree" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Projectile Acceleration III" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportProjectileAccelerationPlayerThree"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemEternalRage" variantId="EternalRage" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Eternal Rage" count="1" quality="0" level="18" enableGlobal2="true" skillId="EternalRagePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFragmentationRounds" variantId="FragmentationRounds" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Fragmentation Rounds" count="1" quality="20" level="17" enableGlobal2="true" skillId="FragmentationRoundsAmmoPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemConcentratedEffect" variantId="ConcentratedAreaSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Concentrated Area" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportConcentratedAreaPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemRageforgedTwo" variantId="RageforgedSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Rageforged II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportRageforgedPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" source="Thorns" mainActiveSkill="nil" label="Thorns">
+				<Gem corruptLevel="nil" enabled="true" enableGlobal1="nil" corrupted="nil" nameSpec="" count="nil" quality="0" level="1" enableGlobal2="nil" skillId="ThornsPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemAscendancySorceryWard" variantId="SorceryWard" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Sorcery Ward" count="1" quality="0" level="19" enableGlobal2="true" skillId="SorceryWardPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFreezingMark" variantId="FreezingMark" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Freezing Mark" count="1" quality="0" level="17" enableGlobal2="true" skillId="FreezingMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemEternalMark" variantId="EternalMarkSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Eternal Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEternalMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemChargedMark" variantId="ChargedMarkSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Charged Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportChargedMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemLightningExposure" variantId="LightningExposureSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Lightning Exposure" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportLightningExposurePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemWindDancer" variantId="WindDancer" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Wind Dancer" count="1" quality="0" level="16" enableGlobal2="true" skillId="WindDancerPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemGlaciation" variantId="FreezeSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Freeze" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportFreezePlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemEmbitter" variantId="EmbitterSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Embitter" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEmbitterPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemHeraldOfIce" variantId="HeraldOfIce" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Herald of Ice" count="1" quality="20" level="15" enableGlobal2="true" skillId="HeraldOfIcePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemMagnifiedEffectTwo" variantId="MagnifiedAreaSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Magnified Area II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportMagnifiedAreaPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemShardScavenger" variantId="ShardScavenger" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Shard Scavenger" count="1" quality="15" level="16" enableGlobal2="true" skillId="ShardScavengerPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemThunderstorm" variantId="Thunderstorm" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Thunderstorm" count="1" quality="10" level="17" enableGlobal2="true" skillId="ThunderstormPlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemExpanse" variantId="ExpanseSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Expanse" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportExpansePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemInevitableCriticalTwo" variantId="InevitableCriticalsSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Inexorable Critical II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportInevitableCriticalsPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemBlazingCritical" variantId="BlazingCriticalSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Blazing Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportBlazingCriticalPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPinpointCritical" variantId="PinpointCritical" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Pinpoint Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPinpointCriticalPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemPermafrostBolts" variantId="PermafrostBolts" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Permafrost Bolts" count="1" quality="20" level="19" enableGlobal2="true" skillId="PermafrostBoltsAmmoPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemIceBiteTwo" variantId="IceBiteSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Ice Bite II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportIceBitePlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemAccelerationThree" variantId="ProjectileAccelerationSupportThree" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Projectile Acceleration III" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportProjectileAccelerationPlayerThree"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemEternalRage" variantId="EternalRage" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Eternal Rage" count="1" quality="0" level="18" enableGlobal2="true" skillId="EternalRagePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFragmentationRounds" variantId="FragmentationRounds" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Fragmentation Rounds" count="1" quality="20" level="17" enableGlobal2="true" skillId="FragmentationRoundsAmmoPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemConcentratedEffect" variantId="ConcentratedAreaSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Concentrated Area" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportConcentratedAreaPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemRageforgedTwo" variantId="RageforgedSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Rageforged II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportRageforgedPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemAscendancySorceryWard" variantId="SorceryWard" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Sorcery Ward" count="1" quality="0" level="19" enableGlobal2="true" skillId="SorceryWardPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFreezingMark" variantId="FreezingMark" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Freezing Mark" count="1" quality="0" level="17" enableGlobal2="true" skillId="FreezingMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemEternalMark" variantId="EternalMarkSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Eternal Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEternalMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemChargedMark" variantId="ChargedMarkSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Charged Mark" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportChargedMarkPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemLightningExposure" variantId="LightningExposureSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Lightning Exposure" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportLightningExposurePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemWindDancer" variantId="WindDancer" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Wind Dancer" count="1" quality="0" level="16" enableGlobal2="true" skillId="WindDancerPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemGlaciation" variantId="FreezeSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Freeze" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportFreezePlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemEmbitter" variantId="EmbitterSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Embitter" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportEmbitterPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemHeraldOfIce" variantId="HeraldOfIce" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Herald of Ice" count="1" quality="20" level="15" enableGlobal2="true" skillId="HeraldOfIcePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemMagnifiedEffectTwo" variantId="MagnifiedAreaSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Magnified Area II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportMagnifiedAreaPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemShardScavenger" variantId="ShardScavenger" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Shard Scavenger" count="1" quality="15" level="16" enableGlobal2="true" skillId="ShardScavengerPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPersistenceTwo" variantId="ProlongedDurationSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Prolonged Duration II" count="1" quality="0" level="1" enableGlobal2="true" skillId="ProlongedDurationSupportPlayerTwo"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemThunderstorm" variantId="Thunderstorm" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Thunderstorm" count="1" quality="10" level="17" enableGlobal2="true" skillId="ThunderstormPlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemExpanse" variantId="ExpanseSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Expanse" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportExpansePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemInevitableCriticalTwo" variantId="InevitableCriticalsSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Inexorable Critical II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportInevitableCriticalsPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemBlazingCritical" variantId="BlazingCriticalSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Blazing Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportBlazingCriticalPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPinpointCritical" variantId="PinpointCritical" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Pinpoint Critical" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportPinpointCriticalPlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemPermafrostBolts" variantId="PermafrostBolts" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Permafrost Bolts" count="1" quality="20" level="19" enableGlobal2="true" skillId="PermafrostBoltsAmmoPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemIceBiteTwo" variantId="IceBiteSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Ice Bite II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportIceBitePlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemColdInfusion" variantId="AddedColdDamageSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Cold Attunement" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportAddedColdDamagePlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemAccelerationThree" variantId="ProjectileAccelerationSupportThree" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Projectile Acceleration III" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportProjectileAccelerationPlayerThree"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gems/SkillGemEternalRage" variantId="EternalRage" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Eternal Rage" count="1" quality="0" level="18" enableGlobal2="true" skillId="EternalRagePlayer"/>
+			</Skill>
+			<Skill includeInFullDPS="nil" enabled="true" mainActiveSkillCalcs="nil" mainActiveSkill="nil" label="">
+				<Gem gemId="Metadata/Items/Gem/SkillGemFragmentationRounds" variantId="FragmentationRounds" corruptLevel="0" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Fragmentation Rounds" count="1" quality="20" level="17" enableGlobal2="true" skillId="FragmentationRoundsAmmoPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemPrimalArmamentTwo" variantId="ElementalArmamentSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Armament II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalArmamentPlayerTwo"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemConcentratedEffect" variantId="ConcentratedAreaSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Concentrated Area" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportConcentratedAreaPlayer"/>
+				<Gem gemId="Metadata/Items/Gems/SupportGemElementalFocus" variantId="ElementalFocusSupport" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Elemental Focus" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportElementalFocusPlayer"/>
+				<Gem gemId="Metadata/Items/Gem/SupportGemRageforgedTwo" variantId="RageforgedSupportTwo" corruptLevel="nil" enabled="true" enableGlobal1="true" corrupted="nil" nameSpec="Rageforged II" count="1" quality="0" level="1" enableGlobal2="true" skillId="SupportRageforgedPlayerTwo"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+	<Config activeConfigSet="1">
+		<ConfigSet title="Default" id="1">
+			<Input string="+5% to Cold Resistance" name="questAct 4Halls Of The DeadTasalio&apos;s Test"/>
+			<Input string="+5% to all Elemental Resistances" name="questInterlude 2QimahSeven Pillars"/>
+			<Input string="+5% to Lightning Resistance" name="questAct 4Halls Of The DeadTawhoa&apos;s Test"/>
+			<Input string="+5% to Fire Resistance" name="questAct 4Halls Of The DeadNgamahu&apos;s Test"/>
+			<Input string="30% increased Life Recovery from Flasks" name="questAct 4Abandoned PrisonGoddess of Justice"/>
+			<Input string="30% increased Charm Charges Gained
+	+1 Charm Slot" name="questAct 2Valley of the TitansMedallion"/>
+			<Input string="30% increased Global Armour, Evasion and Energy Shield" name="questAct 4Eye of HinekoraTribal Medicine"/>
+			<Input string="30% increased Elemental Ailment Threshold" name="questAct 3Venom CryptsVenom Draught"/>
+			<Placeholder number="700" name="enemySpeed"/>
+			<Placeholder number="3" name="enemyLightningPen"/>
+			<Placeholder number="10" name="conditionCorruptingCryStages"/>
+			<Placeholder number="20" name="enemyDistance"/>
+			<Placeholder number="3" name="enemyColdPen"/>
+			<Placeholder number="1" name="ChillStacks"/>
+			<Placeholder number="3" name="enemyFirePen"/>
+			<Placeholder number="1" name="ScorchStacks"/>
+			<Placeholder number="8063" name="enemyArmour"/>
+			<Placeholder number="1" name="ShockStacks"/>
+			<Placeholder number="1175" name="enemyEvasion"/>
+			<Placeholder number="1" name="multiplierDifferentAmmoFired"/>
+			<Placeholder number="60" name="configBossFaceBroken"/>
+			<Placeholder number="1" name="sigilOfPowerStages"/>
+			<Placeholder number="10" name="demonFormStacks"/>
+			<Placeholder number="965" name="enemyFireDamage"/>
+			<Placeholder number="100" name="multiplierCurrentEnergyShield"/>
+			<Placeholder number="1" name="multiplierWarcryUsedRecently"/>
+			<Placeholder number="50" name="enemyFireResist"/>
+			<Placeholder number="50" name="enemyColdResist"/>
+			<Placeholder number="965" name="enemyPhysicalDamage"/>
+			<Placeholder number="50" name="enemyLightningResist"/>
+			<Placeholder number="82" name="enemyLevel"/>
+			<Placeholder number="1" name="multiplierStunnedRecently"/>
+			<Placeholder number="15" name="multiplierWitheredStackCountSelf"/>
+			<Placeholder number="386" name="enemyChaosDamage"/>
+			<Placeholder number="965" name="enemyColdDamage"/>
+			<Placeholder number="0" name="enemyChaosResist"/>
+			<Placeholder number="965" name="enemyLightningDamage"/>
+			<Placeholder number="5" name="enemyCritChance"/>
+			<Placeholder number="20" name="enemyCriticalWeaknessStacks"/>
+			<Placeholder number="1" name="multiplierDifferentGrenadeFired"/>
+			<Placeholder number="70" name="enemyDamageRollRange"/>
+			<Placeholder number="30" name="enemyCritDamage"/>
+		</ConfigSet>
+	</Config>
+	<TreeView searchStr="" zoomLevel="1" zoomY="-1.3981481481481" showStatDifferences="true" zoomX="-43.958333333333"/>
+	<Items showStatDifferences="true" activeItemSet="1" useSecondWeaponSet="false">
+		<Item id="3">
+			Rarity: RARE
+Victory Torc
+Pearlescent Amulet
+Item Level: 46
+LevelReq: 35
+Implicits: 1
++10% to all Elemental Resistances
++16 to maximum Life
++26 to maximum Mana
+4% increased maximum Mana
+12% increased Rarity of Items found
+27% increased Critical Hit Chance
++14 to Strength
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+		</Item>
+		<Item id="4">
+			Rarity: RARE
+Blight Core
+Bleak Crossbow
+Item Level: 65
+Quality: 20
+Sockets: S S
+Rune: Greater Iron Rune
+Rune: Greater Glacial Rune
+LevelReq: 62
+Implicits: 4
+{enchant}{rune}18% increased Physical Damage
+{enchant}{rune}Adds 9 to 15 Cold Damage
+{enchant}{rune}Bonded: 30% increased Freeze Buildup
+{enchant}{rune}Bonded: 20% increased effect of Fully Broken Armour
+Adds 17 to 25 Physical Damage
++4 to Level of all Projectile Skills
+Gain 4 Life per enemy killed
+Gain 22 Mana per enemy killed
+Adds 57 to 81 Cold Damage
+Adds 63 to 94 Fire Damage
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+			<ModRange range="0.5" id="10"/>
+		</Item>
+		<Item id="5">
+			Rarity: UNIQUE
+Birthright Buckle
+Wide Belt
+Charm Slots: 2
+Item Level: 65
+LevelReq: 14
+Implicits: 2
+Has 2 Charm Slots
+20% increased Flask Charges gained
++111 to Armour
+12% reduced Flask Charges used
+26% increased Flask Charges gained
+Life Flasks used while on Low Life apply Recovery Instantly
+Mana Flasks used while on Low Mana apply Recovery Instantly
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+		</Item>
+		<Item id="6">
+			Rarity: MAGIC
+Dizzying Transcendent Life Flask of the Apprentice
+Item Level: 54
+Quality: 8
+LevelReq: 50
+Implicits: 0
+74% increased Life Recovered
+Removes 15% of Life Recovered from Mana when used
+15% reduced Charges per use
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+		</Item>
+		<Item id="7">
+			Rarity: MAGIC
+Floral Thawing Charm of the Verdant
+Item Level: 38
+Quality: 0
+LevelReq: 20
+Implicits: 1
+Used when you become Frozen
+Gains 0.20 Charges per Second
+Recover 51 Life when Used
+			<ModRange range="0.5" id="3"/>
+		</Item>
+		<Item id="8">
+			Rarity: RARE
+Blood Hoof
+Charmed Shoes
+Evasion: 227
+Energy Shield: 69
+Item Level: 72
+Quality: 16
+Sockets: S
+Rune: Greater Desert Rune
+LevelReq: 70
+Implicits: 3
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}+18% to Fire Resistance
+25% increased Movement Speed
+53% increased Evasion and Energy Shield
++32 to maximum Mana
++31% to Cold Resistance
++246 to Stun Threshold
++26% to Lightning Resistance
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+		</Item>
+		<Item id="9">
+			Rarity: UNIQUE
+Breath of the Mountains
+Sapphire Charm
+Item Level: 32
+Quality: 0
+LevelReq: 5
+Implicits: 1
+Used when you take Cold damage from a Hit
+13% reduced Charges per use
+Grants a Power Charge on use
+			<ModRange range="0.5" id="3"/>
+		</Item>
+		<Item id="10">
+			Rarity: UNIQUE
+Ventor&apos;s Gamble
+Gold Ring
+Item Level: 70
+LevelReq: 64
+Implicits: 1
+15% increased Rarity of Items found
++34 to maximum Life
++19 to Spirit
+18% increased Rarity of Items found
++22% to Fire Resistance
++12% to Cold Resistance
+-15% to Lightning Resistance
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+		</Item>
+		<Item id="11">
+			Rarity: RARE
+Blight Salvation
+Slipstrike Vest
+Evasion: 1907
+Item Level: 73
+Quality: 21
+Sockets: S S
+Rune: Greater Iron Rune
+Rune: Greater Iron Rune
+LevelReq: 70
+Implicits: 3
+{enchant}{rune}36% increased Armour, Evasion and Energy Shield
+{enchant}{rune}Bonded: +40 to maximum Life
+{enchant}{rune}Bonded: +40 to maximum Mana
+116% increased Evasion Rating
++37 to maximum Life
++18 to Dexterity
++28% to Lightning Resistance
+22.7 Life Regeneration per second
++44 to Evasion Rating
+28% increased Evasion Rating
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+			<ModRange range="0.5" id="10"/>
+		</Item>
+		<Item id="12">
+			Rarity: UNIQUE
+Beira&apos;s Anguish
+Dousing Charm
+Item Level: 53
+Quality: 0
+LevelReq: 32
+Implicits: 1
+Used when you become Ignited
+25% Chance to gain a Charge when you kill an enemy
+Creates Ignited Ground for 4 seconds when used, Igniting enemies as though dealing Fire damage equal to 500% of your maximum Life
+		</Item>
+		<Item id="13">
+			Rarity: RARE
+Dread Grasp
+Knightly Mitts
+Armour: 181
+Item Level: 74
+Quality: 0
+Sockets: S
+Rune: Greater Desert Rune
+LevelReq: 65
+Implicits: 3
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}+18% to Fire Resistance
++19 to Armour
+Adds 20 to 34 Fire damage to Attacks
+Adds 16 to 25 Cold damage to Attacks
+14% increased Attack Speed
++11% to Cold Resistance
++27% to Lightning Resistance
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+		</Item>
+		<Item id="14">
+			Rarity: RARE
+Blood Knot
+Ruby Ring
+Item Level: 49
+LevelReq: 36
+Implicits: 1
++31% to Fire Resistance
+Adds 2 to 3 Fire damage to Attacks
+22% increased Fire Damage
++127 to Evasion Rating
++8 to Strength
++11% to Cold Resistance
+9.3 Life Regeneration per second
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+		</Item>
+		<Item id="15">
+			Rarity: MAGIC
+Fermented Colossal Mana Flask of the Wide
+Item Level: 35
+Quality: 6
+LevelReq: 30
+Implicits: 0
+71% increased Mana Recovered
+Removes 15% of Mana Recovered from Life when used
+23% increased Charges
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+		</Item>
+		<Item id="16">
+			Rarity: RARE
+Rune Crown
+Wrapped Cap
+Evasion: 511
+Item Level: 57
+Quality: 0
+Sockets: S
+Rune: Greater Storm Rune
+LevelReq: 54
+Implicits: 3
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}+18% to Lightning Resistance
++154 to Evasion Rating
+27% increased Evasion Rating
++28 to maximum Life
++32 to maximum Mana
++26 to Dexterity
+Gain Deflection Rating equal to 11% of Evasion Rating
+6.2 Life Regeneration per second
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+			<ModRange range="0.5" id="10"/>
+		</Item>
+		<Item id="1">
+			Rarity: RARE
+Damnation Delirium
+Emerald
+Item Level: 72
+LevelReq: 0
+Implicits: 0
+4% increased Attack Speed
+6% increased Damage with Crossbows
+4% increased Attack Speed with Crossbows
+19% increased Evasion Rating
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+		</Item>
+		<Item id="2">
+			Rarity: RARE
+Glyph Creed
+Emerald
+Item Level: 55
+LevelReq: 0
+Implicits: 0
+7% increased Accuracy Rating
+6% increased Poison Duration
+Mark Skills have 25% increased Skill Effect Duration
+8% increased Lightning Damage
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+		</Item>
+		<Item id="17">
+			Rarity: RARE
+Spirit Core
+Stout Crossbow
+Item Level: 76
+Quality: 20
+Sockets: S S S
+Rune: Saqawal&apos;s Rune of the Sky
+Rune: Greater Glacial Rune
+Rune: Greater Iron Rune
+LevelReq: 67
+Implicits: 6
+{enchant}{rune}18% increased Physical Damage
+{enchant}{rune}Adds 9 to 15 Cold Damage
+{enchant}{rune}Bonded: 30% increased Freeze Buildup
+{enchant}{rune}Bonded: 20% increased effect of Fully Broken Armour
+{enchant}{rune}Bonded: 8% chance to gain an additional random Charge when you gain a Charge
+{enchant}{rune}Gain 5% of Damage as Extra Damage of all Elements
+Adds 56 to 84 Cold Damage
+Adds 1 to 202 Lightning Damage
+5% increased Attack Speed
++4 to Level of all Projectile Skills
+Adds 67 to 88 Fire Damage
+Attacks Chain an additional time
+Corrupted
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+			<ModRange range="0.5" id="10"/>
+			<ModRange range="0.5" id="11"/>
+			<ModRange range="0.5" id="12"/>
+		</Item>
+		<Item id="18">
+			Rarity: RARE
+Maelstrom Bond
+Wide Belt
+Charm Slots: 3
+Item Level: 76
+LevelReq: 48
+Implicits: 2
+Has 3 Charm Slots
+29% increased Flask Charges gained
++11 to maximum Life
+31% increased Flask Mana Recovery rate
++32% to Lightning Resistance
+7% increased Charm Charges gained
+11 to 18 Physical Thorns damage
++31% to Cold Resistance
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+		</Item>
+		<Item id="19">
+			Rarity: RARE
+Torment Gyre
+Prismatic Ring
+Item Level: 76
+LevelReq: 56
+Implicits: 1
++10% to all Elemental Resistances
+Adds 16 to 26 Cold damage to Attacks
++87 to Accuracy Rating
++79 to maximum Life
++20 to Strength
++26 to Dexterity
++36% to Cold Resistance
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+		</Item>
+		<Item id="20">
+			Rarity: MAGIC
+Sustained Ultimate Mana Flask of the Brewer
+Item Level: 78
+Quality: 20
+LevelReq: 60
+Implicits: 0
+52% more Recovery if used while on Low Mana
+29% reduced Charges per use
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+		</Item>
+		<Item id="21">
+			Rarity: RARE
+Loath Medallion
+Solar Amulet
+Item Level: 75
+LevelReq: 44
+Implicits: 1
++14 to Spirit
++15 to Accuracy Rating
++33 to maximum Energy Shield
++78 to maximum Life
+19% increased Critical Damage Bonus
++17 to all Attributes
++15 to Intelligence
+			<ModRange range="0.5" id="1"/>
+			<ModRange range="0.5" id="2"/>
+			<ModRange range="0.5" id="3"/>
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+		</Item>
+		<Item id="22">
+			Rarity: RARE
+Torment Dome
+Desert Cap
+Evasion: 582
+Item Level: 79
+Quality: 20
+Sockets: S
+Rune: Greater Desert Rune
+LevelReq: 70
+Implicits: 3
+{enchant}{rune}Bonded: +20 to maximum Life
+{enchant}{rune}Bonded: +20 to maximum Mana
+{enchant}{rune}+18% to Fire Resistance
+56% increased Evasion Rating
++132 to maximum Life
++16 to maximum Mana
+23% increased Critical Hit Chance
++29 to Intelligence
++28% to Fire Resistance
+			<ModRange range="0.5" id="4"/>
+			<ModRange range="0.5" id="5"/>
+			<ModRange range="0.5" id="6"/>
+			<ModRange range="0.5" id="7"/>
+			<ModRange range="0.5" id="8"/>
+			<ModRange range="0.5" id="9"/>
+		</Item>
+		<ItemSet id="1" useSecondWeaponSet="false" title="Default">
+			<Slot itemId="18" itemPbURL="" name="Belt"/>
+			<Slot itemId="0" itemPbURL="" name="Weapon 1 Swap"/>
+			<Slot itemId="12" itemPbURL="" name="Charm 2"/>
+			<SocketIdURL nodeId="60735" itemPbURL="" name="Jewel 60735"/>
+			<Slot itemId="6" itemPbURL="" name="Flask 1"/>
+			<Slot itemId="0" itemPbURL="" name="Arm 1"/>
+			<SocketIdURL nodeId="46882" itemPbURL="" name="Jewel 46882"/>
+			<Slot itemId="0" itemPbURL="" name="Leg 1"/>
+			<Slot itemId="0" itemPbURL="" name="Weapon 2 Swap"/>
+			<Slot itemId="4" itemPbURL="" name="Weapon 1"/>
+			<Slot itemId="21" itemPbURL="" name="Amulet"/>
+			<Slot itemId="22" itemPbURL="" name="Helmet"/>
+			<Slot itemId="0" itemPbURL="" name="Weapon 2"/>
+			<Slot itemId="11" itemPbURL="" name="Body Armour"/>
+			<Slot itemId="13" itemPbURL="" name="Gloves"/>
+			<Slot itemId="8" itemPbURL="" name="Boots"/>
+			<Slot itemId="19" itemPbURL="" name="Ring 1"/>
+			<Slot itemId="10" itemPbURL="" name="Ring 2"/>
+			<Slot itemId="0" itemPbURL="" name="Ring 3"/>
+			<Slot itemId="0" itemPbURL="" name="Leg 2"/>
+			<Slot itemId="0" itemPbURL="" name="Arm 2"/>
+			<Slot itemId="20" itemPbURL="" name="Flask 2"/>
+			<Slot itemId="9" itemPbURL="" name="Charm 3"/>
+			<Slot itemId="7" itemPbURL="" name="Charm 1"/>
+		</ItemSet>
+		<TradeSearchWeights/>
+	</Items>
+	<Calcs>
+		<Input number="1" name="skill_number"/>
+		<Input string="EFFECTIVE" name="misc_buffMode"/>
+		<Section subsection="ViewSkillDetails" collapsed="false" id="SkillSelect"/>
+		<Section subsection="SkillHitDamage" collapsed="false" id="HitDamage"/>
+		<Section subsection="EmpoweredStats" collapsed="false" id="Warcries"/>
+		<Section subsection="SkillDamageoverTime" collapsed="false" id="Dot"/>
+		<Section subsection="AttackCastRate" collapsed="false" id="Speed"/>
+		<Section subsection="Crits" collapsed="false" id="Crit"/>
+		<Section subsection="Impale" collapsed="false" id="Impale"/>
+		<Section subsection="SkilltypespecificStats" collapsed="false" id="SkillTypeStats"/>
+		<Section subsection="Accuracy" collapsed="false" id="HitChance"/>
+		<Section subsection="Bleed" collapsed="false" id="Bleed"/>
+		<Section subsection="Poison" collapsed="false" id="Poison"/>
+		<Section subsection="Ignite" collapsed="false" id="Ignite"/>
+		<Section subsection="Decay" collapsed="false" id="Decay"/>
+		<Section subsection="LeechGainonHit" collapsed="false" id="LeechGain"/>
+		<Section subsection="NonDamagingAilments" collapsed="false" id="EleAilments"/>
+		<Section subsection="OtherEffects" collapsed="false" id="MiscEffects"/>
+		<Section subsection="Attributes" collapsed="false" id="Attributes"/>
+		<Section subsection="Life" collapsed="false" id="Life"/>
+		<Section subsection="Mana" collapsed="false" id="Mana"/>
+		<Section subsection="Spirit" collapsed="false" id="Spirit"/>
+		<Section subsection="EnergyShield" collapsed="false" id="EnergyShield"/>
+		<Section subsection="Resists" collapsed="false" id="Resist"/>
+		<Section subsection="Armour" collapsed="false" id="Armour"/>
+		<Section subsection="Evasion" collapsed="false" id="Evasion"/>
+		<Section subsection="DamageAvoidance" collapsed="false" id="DamageAvoidance"/>
+		<Section subsection="Block" collapsed="false" id="DamageAvoidance"/>
+		<Section subsection="Dodge" collapsed="false" id="DamageAvoidance"/>
+		<Section subsection="Deflection" collapsed="false" id="DamageAvoidance"/>
+		<Section subsection="Flasks" collapsed="false" id="Flasks"/>
+		<Section subsection="UtilityFlasks" collapsed="true" id="Flasks"/>
+		<Section subsection="LifeFlasks" collapsed="true" id="Flasks"/>
+		<Section subsection="ManaFlasks" collapsed="true" id="Flasks"/>
+		<Section subsection="Charms" collapsed="true" id="Flasks"/>
+		<Section subsection="Rage" collapsed="true" id="Rage"/>
+		<Section subsection="Charges" collapsed="true" id="Charges"/>
+		<Section subsection="Endurance" collapsed="true" id="Charges"/>
+		<Section subsection="Frenzy" collapsed="true" id="Charges"/>
+		<Section subsection="Power" collapsed="true" id="Charges"/>
+		<Section subsection="OtherDefences" collapsed="false" id="MiscDefences"/>
+		<Section subsection="StunDuration" collapsed="false" id="MiscDefences"/>
+		<Section subsection="OtherAvoidance" collapsed="true" id="MiscDefences"/>
+		<Section subsection="OtherAilmentDefences" collapsed="true" id="MiscDefences"/>
+		<Section subsection="DamageTaken" collapsed="false" id="DamageTaken"/>
+		<Section subsection="DamagingHits" collapsed="false" id="DamageTaken"/>
+		<Section subsection="EffectiveHealthPool" collapsed="false" id="DamageTaken"/>
+		<Section subsection="MaximumHitTaken" collapsed="false" id="DamageTaken"/>
+		<Section subsection="RecoupandHitTakenOverTime" collapsed="true" id="DamageTaken"/>
+		<Section subsection="DotsandBuildDegens" collapsed="false" id="DamageTaken"/>
+		<Section subsection="EnemyDegens" collapsed="true" id="DamageTaken"/>
+	</Calcs>
+	<Party ShowAdvanceTools="false" append="false" destination="All"/>
+	<Import lastLeague="SSF Forbidden Rites" exportParty="false" lastRealm="PoE2"/>
+	<Notes>
+		
+	</Notes>
+</PathOfBuilding2>

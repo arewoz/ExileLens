@@ -90,8 +90,8 @@
     },
     "ranged_attack": {
       "failing": 0,
-      "fully_measured": 8,
-      "other": 3,
+      "fully_measured": 9,
+      "other": 4,
       "partially_measured": 0,
       "refusals": 0,
       "status": "FUNCTIONALLY MEASURED"
@@ -130,11 +130,11 @@
     },
     "unusual_skill_part": {
       "failing": 0,
-      "fully_measured": 0,
-      "other": 2,
+      "fully_measured": 1,
+      "other": 3,
       "partially_measured": 1,
       "refusals": 0,
-      "status": "PARTIAL"
+      "status": "FUNCTIONALLY MEASURED"
     },
     "weapon_swap": {
       "failing": 0,
@@ -178,6 +178,46 @@
       "result": "EXPECTED_UNCERTAIN",
       "role": "MECHANIC",
       "test_file": "tests/test_corpus02d1_ailment_intel.py",
+      "total_variants": 1
+    },
+    {
+      "archetypes": [
+        "ranged_attack",
+        "unusual_skill_part"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "VERDICT",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": "FULLY_MEASURED",
+      "id": "AMMO01-CROSSBOW-REPLACEMENT-MEASURED-ON-FIRED-EFFECT",
+      "manifest_id": "AMMO01-PERMAFROST-BOLTS-WITCHHUNTER",
+      "passed_variants": 2,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_ammo01_permafrost_bolts_weapon.py",
+      "total_variants": 2
+    },
+    {
+      "archetypes": [
+        "ranged_attack",
+        "unusual_skill_part"
+      ],
+      "audit": null,
+      "audit_note": "",
+      "blocks_1_0": false,
+      "depth": "IDENTITY_ONLY",
+      "expected": "CONFIDENT",
+      "failure_messages": [],
+      "functional": null,
+      "id": "AMMO01-PERMAFROST-BOLTS-IDENTITY",
+      "manifest_id": "AMMO01-PERMAFROST-BOLTS-WITCHHUNTER",
+      "passed_variants": 1,
+      "result": "PASS",
+      "role": "MECHANIC",
+      "test_file": "tests/integration/test_public_build_corpus.py",
       "total_variants": 1
     },
     {
@@ -3681,15 +3721,15 @@
     }
   ],
   "functional": {
-    "classified_executed": 107,
+    "classified_executed": 108,
     "counts": {
       "EXPECTED_UNCERTAINTY": 9,
-      "FULLY_MEASURED": 91,
+      "FULLY_MEASURED": 92,
       "NOT_ESTABLISHED": 0,
       "PARTIALLY_MEASURED": 4,
       "UNSUPPORTED_MECHANIC": 3
     },
-    "fully_measured": 91,
+    "fully_measured": 92,
     "unclassified_verdict_executed": 0
   },
   "gate": {
@@ -3698,7 +3738,7 @@
   },
   "result_counts": {
     "EXPECTED_UNCERTAIN": 19,
-    "PASS": 160,
+    "PASS": 162,
     "UNSUPPORTED": 9
   },
   "runtime": {
@@ -3707,8 +3747,8 @@
   },
   "skipped_tests": [],
   "state_integrity_cases": 24,
-  "supported_count": 188,
-  "total_count": 188,
+  "supported_count": 190,
+  "total_count": 190,
   "uncovered_archetypes": [],
   "unmapped_failures": []
 }

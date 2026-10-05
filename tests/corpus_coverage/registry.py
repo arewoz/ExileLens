@@ -2605,6 +2605,41 @@ R4_CASES: tuple[CoverageCase, ...] = (
     ),
 )
 
+# ---------------------------------------------------------------------------
+# AMMO-01: a crossbow ammo gem is two PoB effects (the fired skill and its "Load" action). A tester's build saved the load
+# action as its main effect; PoB's number for it ignores the weapon, so a much stronger crossbow compared as a confident
+# zero. The identity case proves the saved selection resolves to the fired effect; the verdict case proves the weapon is
+# then measured on that effect (and equals what selecting it in PoB itself gives).
+# ---------------------------------------------------------------------------
+AMMO01_CASES: tuple[CoverageCase, ...] = (
+    CoverageCase(
+        id="AMMO01-PERMAFROST-BOLTS-IDENTITY",
+        test_file="tests/integration/test_public_build_corpus.py",
+        node_name="test_public_corpus_loads_with_expected_primary_actor[AMMO01-PERMAFROST-BOLTS-WITCHHUNTER]",
+        depth=EvaluationDepth.IDENTITY_ONLY,
+        expected=ExpectedResult.CONFIDENT,
+        description="Mercenary/Witchhunter, Permafrost Bolts (saved effect is the ammo Load action, resolved to the fired effect), PLAYER actor.",
+        archetypes=(Archetype.RANGED_ATTACK, Archetype.UNUSUAL_SKILL_PART),
+        manifest_id="AMMO01-PERMAFROST-BOLTS-WITCHHUNTER",
+    ),
+    CoverageCase(
+        id="AMMO01-CROSSBOW-REPLACEMENT-MEASURED-ON-FIRED-EFFECT",
+        test_file="tests/integration/test_ammo01_permafrost_bolts_weapon.py",
+        node_name="test_stronger_crossbow_is_measured_on_the_fired_skill_not_a_false_measured_zero",
+        node_name_is_prefix=True,
+        depth=EvaluationDepth.VERDICT,
+        expected=ExpectedResult.CONFIDENT,
+        description=(
+            "A stronger crafted crossbow against the equipped one, with the saved main effect being the ammo Load action: both frames "
+            "measure the fired Permafrost Bolts effect (FULL), the candidate really replaces Weapon 1, offense moves (never the "
+            "weapon-blind identical figures of the load action) and the build restores."
+        ),
+        archetypes=(Archetype.RANGED_ATTACK, Archetype.UNUSUAL_SKILL_PART),
+        manifest_id="AMMO01-PERMAFROST-BOLTS-WITCHHUNTER",
+        functional=FunctionalMeasurement.FULLY_MEASURED,
+    ),
+)
+
 ALL_CASES: tuple[CoverageCase, ...] = (
     BUILD_CORPUS_IDENTITY_CASES
     + REAL_POB_VERDICT_CASES
@@ -2620,5 +2655,6 @@ ALL_CASES: tuple[CoverageCase, ...] = (
     + CORPUS_02G_CASES
     + CORPUS_02H_CASES
     + R4_CASES
+    + AMMO01_CASES
     + POLICY_UNIT_CASES
 )

@@ -117,6 +117,12 @@ class PrimarySkill:
     # ("display_statset_no_hit_damage", e.g. Poisonburst Arrow's Poison Burst). PoB
     # still reports a TotalDPS for that fake hit and adds it into CombinedDPS.
     no_hit_damage: bool = False
+    # AMMO-01: the selected effect is a crossbow ammo "Load" action. PoB's game data gives it no damage of its own and
+    # its figures do not read the weapon; the fired sibling is the damage-bearing effect.
+    ammo_load_effect: bool = False
+    # AMMO-01: set when the bridge resolved a saved ammo "Load" selection to the gem's fired effect (PoB's own pairing
+    # of the two effects). Names the effect the build file selected so the change is never silent.
+    effect_redirect: dict[str, Any] | None = None
 
     @property
     def known(self) -> bool:
@@ -151,6 +157,8 @@ class PrimarySkill:
             "output_table": self.output_table,
             "show_average": self.show_average,
             "no_hit_damage": self.no_hit_damage,
+            "ammo_load_effect": self.ammo_load_effect,
+            "effect_redirect": dict(self.effect_redirect) if self.effect_redirect else None,
         }
 
     @classmethod
@@ -187,6 +195,8 @@ class PrimarySkill:
             output_table=str(identity.get("output_table") or "mainOutput"),
             show_average=bool(identity.get("show_average")),
             no_hit_damage=bool(identity.get("stat_set_no_hit_damage")),
+            ammo_load_effect=bool(identity.get("ammo_load_effect")),
+            effect_redirect=dict(identity["effect_redirect"]) if isinstance(identity.get("effect_redirect"), dict) else None,
         )
 
 
@@ -471,6 +481,19 @@ def resolve_primary_metric(
             f"selected skill belongs to {skill.damage_owner.value}, but {skill.output_table}.CombinedDPS is unavailable",
             PrimaryMetricConfidence.LOW,
             OffenseKind.UNRESOLVED,
+        )
+
+    if skill.ammo_load_effect and (combined > 0 or total_hit > 0):
+        # AMMO-01: the bridge resolves a saved "Load" selection to the fired effect, so this is only reached when that
+        # pairing was ambiguous or absent. PoB's figures for the load action itself are weapon-blind: reporting them
+        # as measured offense turned a much stronger crossbow into a confident zero.
+        return select(
+            "CombinedDPS",
+            f"selected effect '{skill.name}' only loads ammunition and deals no damage; "
+            "PoB's figures for it do not measure the fired skill",
+            PrimaryMetricConfidence.LOW,
+            OffenseKind.UNRESOLVED,
+            DamageQuantity.UNRESOLVED,
         )
 
     if metrics is not None and combined <= 0 and full <= 0 and total_hit <= 0 and total_dot <= 0 and full_dot <= 0 and ailment_total <= 0:

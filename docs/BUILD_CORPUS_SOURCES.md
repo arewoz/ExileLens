@@ -41,7 +41,7 @@ PoB2 runtime.
 | `fixtures/items/core04_*.txt` | Deterministic ring candidates used by the strategic suite. |
 
 `fixtures/builds/public_corpus/manifest.json` is the authoritative corpus manifest
-(21 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, CORPUS-02G Strength and Dexterity/Intelligence stacker, CORPUS-02H Eldritch Battery, LIFE-01 Blood Mage and RECOVERY-02A Invoker builds). It contains repository-relative paths and expected semantic
+(22 scenarios: 9 from M1.1, plus the CORPUS-02A Giant's Blood, CORPUS-02B Varashta Djinn, CORPUS-02C Stonefist, CORPUS-02D2 Voltaic Barrier, CORPUS-02E Spell Totem, CORPUS-02F Mortar Cannon and Ballista, CORPUS-02G Strength and Dexterity/Intelligence stacker, CORPUS-02H Eldritch Battery, LIFE-01 Blood Mage, RECOVERY-02A Invoker and AMMO-01 Permafrost Bolts builds). It contains repository-relative paths and expected semantic
 identity, not captured output snapshots.
 
 ## Provenance and sanitization
@@ -180,6 +180,16 @@ endings): `67d06d522604f1e9cc99d53689104db8d83c723ca6a9291a0d7dcc2f73bef5e2`. Th
 was failing, unnoticed, for LIFE-01. The R4 gate removed exactly those lines/attribute from both files and changed nothing else: PoB's raw
 metrics, equipment names and main-skill identity are identical before and after (checked on the installed PoB 0.23.1). The identifiers remain
 in the Git history of #58; rewriting history is an owner decision. The privacy scan now covers every XML in the corpus directory.
+
+`ammo01_permafrost_bolts_witchhunter.xml` (AMMO-01) is a tester's public Maxroll PoB2 export
+(`maxroll.gg/poe2/pob/t77rg80g`, fetched 2026-10-05 through the same `maxroll.gg/poe2/api/pob/<id>` endpoint PoB's own
+importer uses) of a level-85 Mercenary/Witchhunter whose saved main effect is the Permafrost Bolts gem's "Load" action
+(`mainActiveSkill="2"`), the exact state of a tester-reported false SIDEGRADE on a crossbow replacement. Sanitization
+removed the 22 per-item `Unique ID:` lines, the 105-line `<PlayerStat>` display cache and the `<Import>` element's
+`lastCharacterHash` attribute, and changed nothing else; the saved effect selection is deliberately left as the tester had
+it (the tests prove it is resolved, and a temporary copy selecting the fired effect is the independent gold standard). It
+contains an empty `<Notes>` and only the standard passive-tree `<URL>`. Committed SHA-256 (LF line endings):
+`fd0f22c5c68bb3ed69fcec319dc607a060d8d73d3556c7bf9b9198c0613ab210`. See `docs/AMMO-01.md`.
 
 ### Snapshot evidence vs. fresh real-engine evidence
 

@@ -156,9 +156,31 @@ def _offense_measurement_state(recommendation: Mapping[str, Any], outcome: Mappi
     return ""
 
 
+def _effect_redirect_row(redirect: Any) -> dict[str, Any]:
+    """AMMO-01: the effect the build file selected versus the one PoB was asked to measure (ids and names only)."""
+    if not isinstance(redirect, Mapping) or not redirect:
+        return {}
+    return {
+        key: redirect.get(key)
+        for key in ("reason", "from_skill_id", "from_skill_name", "from_stat_set",
+                    "to_skill_id", "to_skill_name", "to_stat_set")
+        if redirect.get(key) not in (None, "")
+    }
+
+
 def _identity_row(identity: Mapping[str, Any]) -> dict[str, Any]:
     if not identity:
         return {}
+    row = _identity_row_base(identity)
+    if identity.get("ammo_load_effect"):
+        row["ammo_load_effect"] = True
+    redirect = _effect_redirect_row(identity.get("effect_redirect"))
+    if redirect:
+        row["effect_redirect"] = redirect
+    return row
+
+
+def _identity_row_base(identity: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "name": identity.get("skill_name") or identity.get("name") or "",
         "skill_id": identity.get("skill_id") or "",
@@ -267,6 +289,45 @@ def _comparison_identity(
     }
 
 
+def _slot_item_row(raw: Any, name: Any = "", item_id: Any = None) -> dict[str, Any]:
+    text = str(raw or "")
+    row: dict[str, Any] = {"empty": not text.strip()}
+    if name:
+        row["name"] = str(name)
+    if item_id not in (None, ""):
+        row["item_id"] = str(item_id)
+    if text.strip():
+        row["text_hash"] = _key_hash(text)
+    return row
+
+
+def _replacement_slot_state(recommendation: Mapping[str, Any]) -> dict[str, Any]:
+    """Which item sat in the replacement slot for the baseline and for the candidate calculation (names and hashes only)."""
+    slot = str(recommendation.get("pob_slot") or "")
+    if not slot:
+        return {}
+    baseline = recommendation.get("baseline") or {}
+    candidate = recommendation.get("candidate") or {}
+    baseline_text = (baseline.get("equipment") or {}).get(slot)
+    candidate_text = (candidate.get("equipment") or {}).get(slot)
+    if baseline_text is None and candidate_text is None:
+        return {}
+    baseline_item = recommendation.get("baseline_item") or {}
+    candidate_item = recommendation.get("candidate_item") or {}
+    baseline_row = _slot_item_row(baseline_text, baseline_item.get("name"), baseline_item.get("item_id"))
+    candidate_row = _slot_item_row(candidate_text, candidate_item.get("name"))
+    return {
+        "slot": slot,
+        "baseline_in_calc": baseline_row,
+        "candidate_in_calc": candidate_row,
+        # False means PoB calculated the same item text twice: a zero delta then says nothing about the candidate.
+        "candidate_item_active_in_calc": bool(
+            candidate_row.get("text_hash") and candidate_row.get("text_hash") != baseline_row.get("text_hash")
+        ),
+        "candidate_item_present_flag": candidate.get("item_present"),
+    }
+
+
 def _state_integrity(result: Mapping[str, Any], recommendation: Mapping[str, Any]) -> dict[str, Any]:
     """Candidate-transaction integrity: which skill/loadout was measured at each phase."""
     phases = {name: recommendation.get(name) or {} for name in ("baseline", "candidate", "restored")}
@@ -347,6 +408,7 @@ def build_item_diagnostics(
         "offense_measurement_state": _safe(_offense_measurement_state(recommendation, outcome)),
         "comparison": _safe(_comparison_identity(recommendation, primary, outcome)),
         "state_integrity": _safe(_state_integrity(result, recommendation)),
+        "replacement_slot_state": _safe(_replacement_slot_state(recommendation)),
         "socket_normalization": _safe(
             _pick(
                 result.get("socket_normalization") or {},

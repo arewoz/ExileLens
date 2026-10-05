@@ -59,6 +59,8 @@ SUITES: tuple[tuple[str, str], ...] = (
     # R4: real-PoB suites that existed but were never part of the report (LIFE-01 was registered yet always NOT_RUN).
     ("tests/integration/test_life01_blood_mage.py", "real_pob"),
     ("tests/integration/test_recovery02a_es_regen.py", "real_pob"),
+    # AMMO-01: a crossbow ammo "Load" main effect must resolve to the fired effect so weapon replacements are measured.
+    ("tests/integration/test_ammo01_permafrost_bolts_weapon.py", "real_pob"),
     ("tests/integration/test_jewel_real_pob.py", "real_pob"),
     ("tests/integration/test_jewel_restore_remediation.py", "real_pob"),
     ("tests/integration/test_trust01a_equipability_real_pob.py", "real_pob"),
