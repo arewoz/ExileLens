@@ -56,6 +56,11 @@ function Start-Probe([string]$Label) {
         if (-not $proc.WaitForExit(30000)) { $proc.Kill() }
     }
     elseif (-not $proc.HasExited) { $proc.Kill(); $proc.WaitForExit(10000) | Out-Null }
+    # The PoB worker child process shares the folder: wait for every process started from this copy to end before touching its files.
+    $until = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $until -and @(Get-Process -Name ExileLens -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$Copy*" }).Count -gt 0) { Start-Sleep -Milliseconds 300 }
+    Get-Process -Name ExileLens -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$Copy*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
     return [pscustomobject]@{ Label = $Label; Started = $ready; Modules = $modules }
 }
 

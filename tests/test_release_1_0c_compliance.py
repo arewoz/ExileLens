@@ -134,10 +134,22 @@ def test_every_listed_qt_component_has_a_notice_and_license_text_in_the_shipped_
     for must_have in ("PCRE2", "FreeType", "HarfBuzz", "LibPNG", "Data Compression Library (zlib)", "Unicode Common Locale Data Repository",
                       "LibJPEG-turbo", "XSVG", "Wintab API", "The Public Suffix List"):
         assert must_have in text
-    assert "=== Apache-2.0 " in text and "=== MIT " in text and "=== Zlib " in text and "=== Unicode-3.0 " in text
+    appendix = {m for m in re.findall(r"(?m)^=== (\S+) \(", text)}
+    assert {"Apache-2.0", "Unicode-3.0", "CC0-1.0", "BSD-3-Clause", "IJG"} <= appendix
+    details = text.split("COMPONENT DETAILS", 1)[1].split("APPENDIX: SPDX LICENSE TEXTS", 1)[0]
+    # a component block starts with "### <name>" immediately followed by its "Component id" line (license texts may contain "###" too)
+    blocks = re.split(r"(?m)^### (?=[^\n]*\nComponent id : )", details)[1:]
+    assert len(blocks) == len(generator.COMPONENTS)
+    for block in blocks:  # every component carries its own license text or points at an SPDX text that is in the appendix
+        if "-- begin license text --" in block.replace("-" * 20, "--"):
+            continue
+        spdx = re.search(r"SPDX id\s+: (.+)", block).group(1)
+        needed = {token for token in re.split(r"[ ()]+", spdx) if token and token not in ("AND", "OR", "WITH")}
+        assert needed & appendix, (block.splitlines()[0], needed)
     # nothing for modules / platforms that do not ship
     for absent in ("SQLite", "libdbus", "Wayland", "Catch2", "Cocoa Platform Plugin", "Vulkan API Registry"):
-        assert absent not in text.split("APPENDIX")[0].split("COMPONENT DETAILS")[0]
+        component_list = text.split("COMPONENTS\n----------", 1)[1].split("COMPONENT DETAILS", 1)[0]
+        assert absent not in component_list  # the list names nothing for modules / platforms that do not ship
 
 
 def test_notices_and_license_folder_describe_the_measured_package():
@@ -192,3 +204,33 @@ def test_packaging_docs_describe_the_actual_pipeline():
     assert "Upload all assets to the GitHub Release" not in signing
     for needed in ("concurrency", "persist", "production-release", "dry_run", "smoke_disposable_update_tests.ps1", "main"):
         assert needed in signing, needed
+
+
+def _spec_binary_filter(rows):
+    """Apply the spec's own `a.binaries = [...]` comprehension (parsed from packaging/exilelens-gui.spec, not re-implemented) to rows."""
+    import ast
+    from types import SimpleNamespace
+
+    tree = ast.parse(_read("packaging/exilelens-gui.spec"))
+    namespace: dict = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id.startswith("_") and node.targets[0].id.endswith("TOKENS"):
+            namespace[node.targets[0].id] = eval(compile(ast.Expression(node.value), "spec", "eval"), {}, dict(namespace))  # noqa: S307
+    target = next(n for n in tree.body if isinstance(n, ast.Assign) and ast.unparse(n.targets[0]) == "a.binaries")
+    namespace["a"] = SimpleNamespace(binaries=rows)
+    return eval(compile(ast.Expression(target.value), "spec", "eval"), {}, namespace)  # noqa: S307
+
+
+def test_the_spec_filter_removes_every_gpl_only_and_unused_qt_binary_it_could_be_offered():
+    rows = [(name, "src", "BINARY") for name in (
+        "PySide6/Qt6VirtualKeyboard.dll", "PySide6/plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll", "PySide6/Qt6Charts.dll",
+        "PySide6/Qt6DataVisualization.dll", "PySide6/Qt6Graphs.dll", "PySide6/Qt6HttpServer.dll", "PySide6/Qt6NetworkAuth.dll",
+        "PySide6/Qt6Pdf.dll", "PySide6/plugins/imageformats/qpdf.dll", "PySide6/Qt6Qml.dll", "PySide6/Qt6QmlModels.dll",
+        "PySide6/Qt6Quick.dll", "PySide6/Qt6OpenGL.dll", "PySide6/opengl32sw.dll", "PySide6/plugins/imageformats/qwebp.dll",
+        "PySide6/plugins/imageformats/qtiff.dll", "PySide6/plugins/imageformats/qtga.dll", "PySide6/plugins/imageformats/qicns.dll",
+        "PySide6/plugins/imageformats/qwbmp.dll",
+    )]
+    keep = [(f"PySide6/{lib}.dll", "src", "BINARY") for lib in rg.EXPECTED_QT_LIBRARIES]
+    keep += [(f"PySide6/plugins/{plugin}.dll", "src", "BINARY") for plugin in rg.EXPECTED_QT_PLUGINS]
+    keep += [("python312.dll", "src", "BINARY"), ("cryptography/hazmat/bindings/_rust.pyd", "src", "EXTENSION")]
+    assert _spec_binary_filter(rows + keep) == keep
