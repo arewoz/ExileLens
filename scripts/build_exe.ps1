@@ -64,6 +64,17 @@ try {
     if (Test-Path -LiteralPath $ThirdPartyLicenseDest) { Remove-Item -LiteralPath $ThirdPartyLicenseDest -Recurse -Force }
     Copy-Item -LiteralPath (Join-Path $RepoRoot "packaging\third_party_licenses") -Destination $ThirdPartyLicenseDest -Recurse -Force
 
+    # The updater is built EXACTLY ONCE, here, before provenance is recorded: the binary that is hashed, validated and gated
+    # is the binary that ships (release.yml no longer builds it again). It is staged into _internal by build_updater.ps1.
+    Write-Host "==> Building and staging external updater (once)..."
+    & (Join-Path $PSScriptRoot "build_updater.ps1")
+    if ($LASTEXITCODE -ne 0) { throw "Updater build failed" }
+    $UpdaterPath = Join-Path $DistDir "_internal\ExileLensUpdater.exe"
+    if (-not (Test-Path -LiteralPath $UpdaterPath)) {
+        throw "Expected updater not staged in distribution: $UpdaterPath"
+    }
+    $UpdaterBuilt = Join-Path $RepoRoot "dist\ExileLensUpdater.exe"
+
     $Version = Get-CanonicalVersion
     if ($Version -notmatch '^\d+\.\d+\.\d+(b\d+)?$') { throw "Canonical version has an unsupported format: $Version" }
     $Deps = Get-BuildDependencyVersions -PythonExecutable $PythonExe
@@ -75,6 +86,7 @@ try {
         --build-root $BuildDir `
         --dist-root $DistDir `
         --collect-toc $CollectToc `
+        --updater-built $UpdaterBuilt `
         --manifest $BinaryManifestPath `
         --git-commit $Commit `
         --application-version $Version `
@@ -94,16 +106,9 @@ try {
         pyinstaller_version = $Deps.pyinstaller_version
         pyside6_version     = $Deps.pyside6_version
         binary_manifest     = "binary_manifest.json"
+        updater             = "_internal/ExileLensUpdater.exe"
     } | ConvertTo-Json -Compress
     [System.IO.File]::WriteAllText($StampPath, $Stamp)
-
-    Write-Host "==> Building and staging external updater..."
-    & (Join-Path $PSScriptRoot "build_updater.ps1")
-    if ($LASTEXITCODE -ne 0) { throw "Updater build failed" }
-    $UpdaterPath = Join-Path $DistDir "_internal\ExileLensUpdater.exe"
-    if (-not (Test-Path -LiteralPath $UpdaterPath)) {
-        throw "Expected updater not staged in distribution: $UpdaterPath"
-    }
 
     Write-Host ("==> Build metadata: python={0} pyinstaller={1} git={2} mode=onedir" -f $Deps.python_version, $Deps.pyinstaller_version, $Commit)
     Write-Host "==> Build complete: $ExePath ($Version)"

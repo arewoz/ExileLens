@@ -199,6 +199,20 @@ function Test-ReleaseVenv {
     }
 }
 
+function Assert-ReleaseVenvUncontaminated {
+    param([string]$PythonExecutable, [string]$RepoRoot)
+    # The release venv must hold ONLY the hash-locked release dependencies (plus pip). Anything else (pytest, ruff, a tool a script
+    # installed later) is rejected: delete .release-venv and let this preflight recreate it. Never `pip install` into it.
+    $lock = Get-ReleaseLockPins -RepoRoot $RepoRoot
+    $allowed = @($lock.Keys) + @("pip")
+    $installed = & $PythonExecutable -c "import importlib.metadata as m; print(chr(10).join(sorted({(d.metadata['Name'] or '').lower().replace('_', '-') for d in m.distributions()})))"
+    if ($LASTEXITCODE -ne 0) { throw "Could not list the packages in the release venv" }
+    $extra = @($installed | Where-Object { $_ -and ($allowed -notcontains $_) })
+    if ($extra.Count -gt 0) {
+        throw ("Release venv is contaminated with packages that are not in requirements-release.lock: " + ($extra -join ", ") + ". Delete .release-venv and rebuild; tests and tools must use another environment.")
+    }
+}
+
 function Assert-ReleaseVenvPreflight {
     param([string]$RepoRoot)
     $base = Assert-ReleasePythonPreflight -RepoRoot $RepoRoot
@@ -220,6 +234,7 @@ function Assert-ReleaseVenvPreflight {
     if (-not (Test-ReleaseVenv -PythonExecutable $venvPython -PinnedVersion $base.PinnedVersion -Pins $pins)) {
         throw "Release venv does not match packaging\requirements-release.txt after installation"
     }
+    Assert-ReleaseVenvUncontaminated -PythonExecutable $venvPython -RepoRoot $RepoRoot
     Write-Host ("==> Release venv ready: {0}" -f $venvPython)
     return @{
         Root            = $venvRoot

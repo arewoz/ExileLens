@@ -23,6 +23,12 @@ on:
 permissions:
   contents: write
 
+# Two release / signing runs must never race over the same repository state. A run that is already publishing is never cancelled:
+# cancelling between tag creation and asset upload could leave a partial release.
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: windows-latest
@@ -40,11 +46,26 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
+          # No step below needs the checkout's git credential: the only GitHub API/release steps pass GH_TOKEN explicitly.
+          persist-credentials: false
 
       - name: Set up the pinned release Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
         with:
           python-version-file: .python-version
+
+      - name: Release inputs are reproducible and secret-free (static, offline)
+        shell: pwsh
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python scripts/lock_release_deps.py --check
+          if ($LASTEXITCODE -ne 0) { throw 'Release dependency lock drifted from packaging/requirements-release.txt.' }
+          python scripts/generate_packaging_version_info.py --check
+          if ($LASTEXITCODE -ne 0) { throw 'Windows version resources are stale.' }
+          python -m exilelens.ops.leak_scan source .
+          if ($LASTEXITCODE -ne 0) { throw 'Source secret scan found committed credential-like material (categories above, values never printed).' }
 
       - name: Validate release request and existing remote state
         shell: pwsh
@@ -111,13 +132,11 @@ jobs:
             [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($false))
             Write-Host "Cloud features configured for release against $($url.TrimEnd('/'))"
           }
+      # build_exe.ps1 builds the updater exactly once (before provenance is recorded) and stages that exact binary; there is no
+      # second updater build step.
       - name: Build the official Windows onedir distribution
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -SkipShortcut
-
-      - name: Build external updater binary
-        shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_updater.ps1
 
       - name: Run packaged-artifact release gate
         shell: pwsh
@@ -240,6 +259,25 @@ jobs:
             --expect-tag $env:RELEASE_VERSION
           if ($LASTEXITCODE -ne 0) { throw 'Signed update manifest does not verify under the production trust profile.' }
           "UPDATE_MANIFEST_PATH=$signedManifestPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Remove production update signing key material
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $path = $env:EXILELENS_UPDATE_SIGNING_KEY_PATH
+          if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path)) {
+            Remove-Item -LiteralPath $path -Force
+          }
+          "EXILELENS_UPDATE_SIGNING_KEY_PATH=" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Leak scan the package directory and the final ZIP
+        shell: pwsh
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m exilelens.ops.leak_scan package dist\ExileLens --zip $env:ARCHIVE_PATH --literal $env:GITHUB_WORKSPACE --literal $env:USERPROFILE
+          if ($LASTEXITCODE -ne 0) { throw 'Release package leak scan failed (categories and counts only above).' }
 
       - name: Validate official release notes
         shell: pwsh

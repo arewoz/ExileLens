@@ -20,10 +20,22 @@ The Qt Company offers these libraries under LGPL-3.0-only, GPL-2.0-only,
 GPL-3.0-only or a commercial license; ExileLens uses them under LGPL-3.0.
 
 ExileLens's source imports these Qt modules: QtCore, QtGui, QtWidgets,
-QtSvg and QtNetwork. The Qt platform and image-format plugins those modules
-need are collected with them. ExileLens does not intentionally ship any Qt
-module that is not available under the LGPL (for example Qt Virtual
-Keyboard, Qt Charts or Qt Data Visualization).
+QtSvg and QtNetwork, and the package contains exactly those five Qt
+libraries (Qt6Core, Qt6Gui, Qt6Widgets, Qt6Svg and Qt6Network) with the Qt
+platform, style, TLS, image-format and icon plugins they need. Every one of
+them comes from the Qt qtbase and qtsvg source modules. The build removes
+the other Qt libraries and plugins that PyInstaller would otherwise collect
+(Qt Virtual Keyboard, Qt Charts, Qt Data Visualization, Qt Graphs, Qt HTTP
+Server and Qt Network Authorization, which have no LGPL option, and also Qt
+Qml, Qt Quick, Qt PDF, Qt OpenGL, the software OpenGL renderer and the
+qtimageformats plugins, which ExileLens does not use). The release gate
+checks the shipped Qt files against this list.
+
+Third-party components inside the shipped Qt libraries (for example PCRE2,
+zlib, FreeType, HarfBuzz, libpng and the Unicode data) have their own
+notices and license texts in:
+
+    third_party_licenses\qt\QT_THIRD_PARTY_ATTRIBUTIONS.txt
 
 The full license texts are in:
 
@@ -107,17 +119,26 @@ To request it, open an issue titled "Qt source request" at
 https://github.com/arewoz/ExileLens/issues (or ask in the ExileLens Discord:
 https://discord.gg/4jrhBbSwEn) and say which ExileLens version you have.
 
-The same source is published by the Qt Company. These are the upstream files
-the request will be answered with (the Qt MD5 is the one published on
-download.qt.io; the SHA-256 was computed by the ExileLens maintainers from the
-downloaded file):
+The same source is published by the Qt Company. The libraries ExileLens ships
+come from exactly these three upstream archives, which the request will be
+answered with (the MD5 values are the ones published on download.qt.io; the
+SHA-256 values were computed by the ExileLens maintainers from the downloaded
+files, and the archives were re-downloaded and re-verified for this release):
 
-    Qt 6.11.2 (everything, single archive)
-      https://download.qt.io/official_releases/qt/6.11/6.11.2/single/qt-everywhere-src-6.11.2.tar.xz
-      MD5 669c1f3a41c37fdda389094882044d7a (md5sums.txt on download.qt.io)
+    Qt Base 6.11.2 (QtCore, QtGui, QtWidgets, QtNetwork and the plugins)
+      https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/qtbase-everywhere-src-6.11.2.tar.xz
+      MD5 cb3b718e2e589b61bd781b4596604a5b (md5sums.txt on download.qt.io)
+      SHA-256 5b2e00eccaf5a4d8c14134ffa0ea8dfd0a35ae1ffc7f8d87fa4305a1ed23cf22
+    Qt SVG 6.11.2 (QtSvg and its plugins)
+      https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/qtsvg-everywhere-src-6.11.2.tar.xz
+      MD5 fb1c8366fe3de6ed3ca248bf4ae88c37 (md5sums.txt on download.qt.io)
+      SHA-256 d594337feca84c26fb67fe87b85e6a5c12fda404b611d905f9d138210c311876
     Qt for Python 6.11.2 (PySide6 and shiboken6)
       https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/pyside-setup-everywhere-src-6.11.2.tar.xz
       SHA-256 cba47efbaad1bedd529725cbc14e21f156c7a19366f07b3edfbb076ffd7afdf8
+
+(The complete Qt 6.11.2 source, "qt-everywhere-src-6.11.2.tar.xz" in the
+"single" folder of the same release, also contains all of the above.)
 
 Qt and PySide6 are trademarks of The Qt Company Ltd. ExileLens is not
 affiliated with or endorsed by The Qt Company.

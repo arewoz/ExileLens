@@ -190,10 +190,23 @@ removes *automation*, the manual updater always works.
 
 ## Publishing a release
 
-1. Run the draft release workflow from `main` with the new tag.
-2. The workflow builds the onedir ZIP, SHA256SUMS, signed `.update.json`, and
-   `ExileLensUpdater.exe` (copied into `_internal` for bootstrap).
-3. Upload all assets to the GitHub Release.
+Releases are published only by the `Windows release` workflow (`.github/workflows/release.yml`); there is no manual asset upload.
+
+1. Dispatch it from `main` with the new tag (and `dry_run` on first). It refuses any other ref, runs one at a time
+   (`concurrency: release-production`, never cancelled mid-publication) and checks out without persisted git credentials.
+2. It runs the static checks (release lock `--check`, version resources, source secret scan), the source gate and regressions, builds the
+   onedir package **once** (`scripts\build_exe.ps1`; the updater is built once inside it, hashed in provenance and shipped as that exact
+   binary), and runs the artifact gate (`release-gate --require-artifact`).
+3. The production signing key exists only for the signing step: it is decoded from the `production-release` environment secret by one step,
+   used to sign the manifest, verified under the production trust profile, and the key file is deleted by an `always()` step before anything
+   is leak-scanned or published. Nothing echoes key material.
+4. It leak-scans the package directory and the final ZIP, validates the release notes, and (unless `dry_run`) creates the tag and the GitHub
+   Release with the ZIP, `SHA256SUMS.txt` and the signed `.update.json` in one `gh release create` call.
+
+`update-signing-validation.yml` is split so that `use_production_secret=false` runs a job with **no environment**: the production key cannot
+reach it. The production variant runs only on `main`, inside `production-release`, materializes the key in one step and always removes it.
+`cloud-deploy.yml` runs only from `main`, serializes per target environment, and exposes the Cloudflare credentials only to the three steps
+that talk to Cloudflare (not to `npm ci`, typecheck or tests).
 
 Local signing (test key):
 
@@ -409,7 +422,12 @@ a journal exists or an updater runs.
 
 `release.yml` has a `dry_run` input (default **false**). With it on, the workflow runs every gate, the packaged build, the packaged-artifact
 gate, production signing in the protected `production-release` environment, verification of the signed manifest under the *production* trust
-profile with tag/version/URL binding, and the release-notes check, then stops: no tag, no GitHub Release, no assets, no Discord post and no
-uploaded artifacts (the log shows the SHA-256 and the signed manifest). Dispatch it from `main` on the exact commit and tag you intend to release;
-if it is green, the real release is the same dispatch with `dry_run` off. It cannot replace the first real N -> N+1 field update, which
-additionally exercises GitHub release discovery and asset download.
+profile with tag/version/URL binding, the leak scan of the directory and ZIP, and the release-notes check, then stops: no tag, no GitHub
+Release, no assets, no Discord post and no uploaded artifacts (the log shows the SHA-256 and the signed manifest). Dispatch it from `main` on
+the exact commit and tag you intend to release; if it is green, the real release is the same dispatch with `dry_run` off. **The workflow only
+runs from `main`, so a feature branch cannot dry-run it** (deliberate; the guard is not weakened for testing). It cannot replace the first
+real N -> N+1 field update, which additionally exercises GitHub release discovery and asset download.
+
+Local checks that need no secret: `scripts\smoke_disposable_update_tests.ps1` runs the update-system **pytest** files only (it is not a
+binary end-to-end test and never installs into `.release-venv`); the real 0.6.0 -> release-candidate update with the packaged binaries is a
+separate manual procedure on a Windows VM.
