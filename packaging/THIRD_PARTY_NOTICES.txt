@@ -8,12 +8,18 @@ you must install Path of Building separately.
 Bundled with this distribution
 ------------------------------
 
-Python runtime (via PyInstaller)
+Python runtime 3.12.10 (via PyInstaller)
   Copyright (c) Python Software Foundation
   License: Python Software Foundation License Version 2
-  https://docs.python.org/3/license.html
+  (full text, and the acknowledgements for software incorporated in Python:
+  third_party_licenses\python\LICENSE.txt and
+  third_party_licenses\python\LICENSES-incorporated-software.rst)
+  The Python runtime's own ssl and hashlib modules use an OpenSSL 3.x library
+  that ships with Python; its license is reproduced in the incorporated-software
+  file above.
+  https://docs.python.org/3.12/license.html
 
-PyInstaller bootloader and bundling tools
+PyInstaller bootloader and bundling tools 6.22.2
   Copyright (c) 2010-2023, PyInstaller Development Team;
   (c) 2005-2009, Giovanni Bajo; based on work (c) 2002 McMillan Enterprises, Inc.
   License: GPL-2.0-or-later with a special exception that allows the bootloader
@@ -21,39 +27,55 @@ PyInstaller bootloader and bundling tools
   third_party_licenses\pyinstaller\COPYING.txt)
   https://pyinstaller.org/en/stable/license.html
 
-PySide6 (Qt for Python) and Qt 6 runtime
-  Copyright (C) The Qt Company Ltd. and contributors
-  License (package metadata): LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-  (a commercial license is also offered by The Qt Company)
-  https://www.qt.io/licensing/
+Qt 6.11.2, PySide6 6.11.2 and shiboken6 6.11.2 (the user interface)
+  Copyright (C) The Qt Company Ltd. and other contributors
+  License: ExileLens uses these libraries under the GNU Lesser General Public
+  License version 3 (LGPL-3.0). (The Qt Company offers them under
+  LGPL-3.0-only, GPL-2.0-only, GPL-3.0-only or a commercial license.)
+    - The Qt libraries are dynamically loaded and are shipped as separate
+      DLL files in the _internal\PySide6 folder, not compiled into
+      ExileLens.exe. You may replace them with a modified, interface-compatible
+      version, and you may reverse engineer ExileLens to the extent needed to
+      debug such a modification.
+    - ExileLens itself is free and open source under the MIT license (LICENSE).
+    - The LGPL-3.0 and GPL-3.0 texts are in third_party_licenses\qt\LGPL-3.0.txt
+      and third_party_licenses\qt\GPL-3.0.txt.
+    - How to replace the libraries, how to rebuild ExileLens from source, and
+      the written offer of the Qt, PySide6 and shiboken6 source code are in
+      QT_LGPL_COMPLIANCE.txt (next to this file).
+  https://www.qt.io/licensing/  https://doc.qt.io/qtforpython/
 
-Shiboken6 (Python/Qt bindings generator runtime)
-  Copyright (C) The Qt Company Ltd. and contributors
-  License (package metadata): LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-  https://doc.qt.io/qtforpython/
-
-cryptography (update-manifest signature verification)
+cryptography 50.0.0 (update-manifest signature verification)
   Copyright (c) Individual contributors.
   License: Apache-2.0 OR BSD-3-Clause, at your option
   (full texts: third_party_licenses\cryptography\LICENSE.APACHE and
   third_party_licenses\cryptography\LICENSE.BSD; chooser:
   third_party_licenses\cryptography\LICENSE)
+  The Windows wheel also contains the Rust libraries listed, with their
+  licenses, in third_party_licenses\cryptography\SBOM-rust-crates.cyclonedx.json.
   https://github.com/pyca/cryptography
 
-cffi (a dependency of cryptography)
+OpenSSL 4.0.1 (statically linked into the cryptography 50.0.0 Windows wheel)
+  Copyright (c) The OpenSSL Project Authors
+  License: Apache License 2.0
+  (full text: third_party_licenses\openssl\LICENSE.txt; the version is recorded
+  in the wheel's own SBOM, third_party_licenses\cryptography\SBOM-openssl.json)
+  https://www.openssl.org/
+
+cffi 2.1.1 (a dependency of cryptography)
   License: MIT No Attribution (MIT-0)
   (full text: third_party_licenses\cffi\LICENSE)
   https://github.com/python-cffi/cffi
 
-pycparser (a dependency of cffi)
+pycparser 3.0 (a dependency of cffi)
   Copyright (c) 2008-2022, Eli Bendersky
   License: BSD-3-Clause
   (full text: third_party_licenses\pycparser\LICENSE)
   https://github.com/eliben/pycparser
 
-Standard Python wheels and native extensions pulled in by the above
-(PySide6 plugins, MSVC runtime redistributables, Windows system APIs) are
-distributed under their respective upstream licenses.
+Other files that Python, PyInstaller and PySide6 pull in (the Qt plugins, the
+Microsoft Visual C++ runtime DLLs, Windows system APIs) are distributed under
+their respective upstream licenses.
 
 Path of Building Community (PoE2) headless support definitions
   Files adapted/vendored from:

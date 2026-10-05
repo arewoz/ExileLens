@@ -12,9 +12,9 @@ class UpdateChannel(str, Enum):
     @classmethod
     def parse(cls, raw: object) -> "UpdateChannel":
         value = str(raw or "").strip().lower()
-        if value == cls.STABLE.value:
-            return cls.STABLE
-        return cls.BETA
+        if value == cls.BETA.value:
+            return cls.BETA
+        return cls.STABLE  # missing or unknown is stable: pre-releases are never offered by default
 
 
 def release_matches_channel(release: Release, channel: UpdateChannel) -> bool:

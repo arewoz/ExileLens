@@ -60,9 +60,8 @@ def test_the_notices_must_point_at_every_shipped_license_text(tmp_path: Path):
 def _fake_dist(root: Path) -> Path:
     dist = root / "dist" / "ExileLens"
     (dist / "third_party_licenses").mkdir(parents=True)
-    for name in DISTRIBUTION_FILES:
-        source = root / ("packaging/" + name if name != "LICENSE" else "LICENSE")
-        shutil.copyfile(source, dist / name)
+    for name, source_rel in DISTRIBUTION_FILES:
+        shutil.copyfile(root / source_rel, dist / name)
     for rel in THIRD_PARTY_LICENSE_FILES:
         target = dist / "third_party_licenses" / rel.split("third_party_licenses/", 1)[1]
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -82,21 +81,56 @@ def test_a_built_package_without_the_license_is_blocked_and_with_it_passes(tmp_p
     assert "differs" in _distribution_files(root, required=True).detail
 
 
-def test_a_package_missing_a_third_party_text_is_blocked(tmp_path: Path):
+@pytest.mark.parametrize("name", [name for name, _ in DISTRIBUTION_FILES])
+def test_every_top_level_distribution_file_is_required_and_byte_identical(tmp_path: Path, name: str):
     root = _valid_root(tmp_path)
     dist = _fake_dist(root)
-    (dist / "third_party_licenses" / "cryptography" / "LICENSE.APACHE").unlink()
+    (dist / name).write_bytes(b"altered")
+    assert "differs" in _distribution_files(root, required=True).detail
+    (dist / name).unlink()
+    assert "missing" in _distribution_files(root, required=True).detail
+
+
+@pytest.mark.parametrize("rel", THIRD_PARTY_LICENSE_FILES)
+def test_every_third_party_text_must_be_packaged_unaltered(tmp_path: Path, rel: str):
+    root = _valid_root(tmp_path)
+    dist = _fake_dist(root)
+    target = dist / "third_party_licenses" / rel.split("third_party_licenses/", 1)[1]
+    target.write_bytes(target.read_bytes() + b" ")
     assert _distribution_files(root, required=True).status is GateVerdict.BLOCKED
+    target.unlink()
+    assert "missing" in _distribution_files(root, required=True).detail
 
 
-def test_third_party_texts_are_byte_identical_copies_not_rewrites():
-    """They must be upstream files. Sizes are pinned so an accidental edit is noticed."""
-    sizes = {rel: (ROOT / rel).stat().st_size for rel in THIRD_PARTY_LICENSE_FILES[1:]}
-    assert sizes["packaging/third_party_licenses/cryptography/LICENSE.APACHE"] == 11360
-    assert sizes["packaging/third_party_licenses/pyinstaller/COPYING.txt"] == 32138
-    assert all(size > 100 for size in sizes.values())
-    for rel in THIRD_PARTY_LICENSE_FILES[1:]:
-        assert b"\r\n" not in (ROOT / rel).read_bytes(), f"{rel}: line endings were rewritten (.gitattributes pins them)"
+#: SHA-256 of each upstream-copied license file (exact bytes). The sources are listed in packaging/third_party_licenses/README.txt and
+#: docs/1.0-HARDENING-PLAN.md. A change here is a deliberate re-verification against upstream, never an edit.
+CANONICAL_SHA256 = {
+    "qt/LGPL-3.0.txt": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+    "qt/GPL-3.0.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+    "python/LICENSE.txt": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+    "python/LICENSES-incorporated-software.rst": "341832873fd316a37927e79385093fbbfd40a467428480835fe435a80cadf4e5",
+    "openssl/LICENSE.txt": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+    "cryptography/LICENSE": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb",
+    "cryptography/LICENSE.APACHE": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe",
+    "cryptography/LICENSE.BSD": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb",
+    "cryptography/SBOM-openssl.json": "944f37dcc1c3f415199717dc9a0cbc927efba2c2e452ac900acdd6a5ab1381a6",
+    "cryptography/SBOM-rust-crates.cyclonedx.json": "b3c1ee14948dbe807f42ebfa07b2719820d4bb5abe54b97d9c0ad501d8618028",
+    "cffi/LICENSE": "5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63",
+    "pycparser/LICENSE": "0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1",
+    "pyinstaller/COPYING.txt": "dcf75fdb959db1e3b41c0f8505069d2ece781b5ec6b3d0a4d30975cfc6580245",
+}
+
+
+def test_third_party_texts_are_the_exact_upstream_bytes():
+    import hashlib
+
+    base = ROOT / "packaging" / "third_party_licenses"
+    for inner, expected in CANONICAL_SHA256.items():
+        data = (base / inner).read_bytes()
+        if not inner.endswith(".json"):  # the wheel SBOMs are upstream-written JSON and keep their own line endings
+            assert b"\r\n" not in data, f"{inner}: line endings were rewritten (.gitattributes pins them)"
+        assert hashlib.sha256(data).hexdigest() == expected, inner
+    assert {"packaging/third_party_licenses/" + inner for inner in CANONICAL_SHA256} == set(THIRD_PARTY_LICENSE_FILES[1:])
     assert "third_party_licenses/** -text" in (ROOT / ".gitattributes").read_text(encoding="utf-8")
 
 

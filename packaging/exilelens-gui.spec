@@ -170,6 +170,25 @@ a = Analysis(
     noarchive=False,
 )
 
+# Licensing (1.0-A): ExileLens uses Qt under LGPL-3.0 (see packaging/QT_LGPL_COMPLIANCE.txt). These Qt modules have no LGPL
+# option in the official 6.11.2 sources (GPL-3.0 or commercial only), so they must never ship. The Python modules for most of
+# them are in `excludes` above, but PyInstaller's PySide6 hook also collects Qt's platform input-context plugin, which pulls in
+# Qt Virtual Keyboard (a plugin has no Python module to exclude), so the collected binaries are filtered by name as well. The
+# release gate (release_gate._gpl_only_qt) keeps this list and the built artifact honest; keep the tuple in sync with it.
+_GPL_ONLY_QT_BINARY_TOKENS = (
+    "qt6virtualkeyboard",
+    "qtvirtualkeyboardplugin",
+    "qt6charts",
+    "qt6datavisualization",
+    "qt6graphs",
+    "qt6httpserver",
+    "qt6networkauth",
+)
+a.binaries = [
+    row for row in a.binaries
+    if not any(token in str(row[0]).replace("\\", "/").lower() for token in _GPL_ONLY_QT_BINARY_TOKENS)
+]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

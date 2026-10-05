@@ -292,4 +292,7 @@ This folder includes:
 
     LICENSE                  the ExileLens license (MIT)
     THIRD_PARTY_NOTICES.txt  third-party components and their licenses
+    QT_LGPL_COMPLIANCE.txt   Qt/PySide6 (LGPL-3.0): how to replace the Qt
+                             libraries, rebuild from source, and the written
+                             offer of the Qt source code
     third_party_licenses\    license texts for bundled components

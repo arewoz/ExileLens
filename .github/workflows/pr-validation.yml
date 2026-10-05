@@ -98,7 +98,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m pytest -o addopts= -q tests/test_release_1_0a_distribution.py tests/test_release_gate.py tests/test_r5_closeout.py
+          python -m pytest -o addopts= -q tests/test_release_1_0a_distribution.py tests/test_release_1_0a_compliance.py tests/test_release_gate.py tests/test_r5_closeout.py tests/test_ui_redesign_update_channels.py
           if ($LASTEXITCODE -ne 0) { throw '1.0-A release regressions failed.' }
 
       - name: Run native overlay production-wiring regression
