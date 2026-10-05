@@ -1,0 +1,96 @@
+{
+  "_draft": "DRAFT, NOT ACTIVE. Applied by slice 1.0-E together with the version bump: the What's New lint rejects an entry above the running version, so this must not be merged into src/exilelens/whats_new/whats_new.json before then. 'released' is a placeholder to be set at release time. Describes 0.6.0 -> 1.0.0.",
+  "schema": 1,
+  "releases": [
+    {
+      "version": "1.0.0",
+      "released": "TBD-AT-RELEASE",
+      "previous": "0.6.0",
+      "highlights": [
+        {
+          "id": "build-context-in-item-check",
+          "title": "Item Check says what your build needs",
+          "text": "When an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result.",
+          "introduced": "1.0.0",
+          "priority": 1,
+          "link": null
+        },
+        {
+          "id": "analyze-build-next-actions",
+          "title": "Analyze Build shows what to do next",
+          "text": "See what to fix first, which stats your build responds to most, and up to three next actions, each with the change that was tested.",
+          "introduced": "1.0.0",
+          "priority": 2,
+          "link": {
+            "label": "Open Analyze Build",
+            "destination": "build_analysis"
+          }
+        },
+        {
+          "id": "redesigned-desktop-app",
+          "title": "A redesigned desktop app",
+          "text": "A status panel on the left shows your build and whether ExileLens is ready, with Overview, Analyze Build, Settings and Diagnostics beside it.",
+          "introduced": "1.0.0",
+          "priority": 3,
+          "link": null
+        },
+        {
+          "id": "verified-updates",
+          "title": "Verified updates that can roll back",
+          "text": "Updates are checked before they install and are rolled back if something fails. Patreon supporters can have them download in the background and install when ExileLens closes. Manual updates stay free.",
+          "introduced": "1.0.0",
+          "priority": 4,
+          "link": {
+            "label": "Learn about supporter updates",
+            "destination": "supporter"
+          }
+        }
+      ],
+      "minor": [
+        {
+          "id": "plainer-refusals",
+          "text": "Jewels and off-hand items that cannot be compared now say why in plain words, without internal socket numbers.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "crossbow-ammo",
+          "text": "Crossbows with ammunition skills are measured on the skill that actually fires, so a stronger crossbow no longer shows no change.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "optional-privacy-switches",
+          "text": "Usage stats and crash reports are optional and off until you turn them on; Settings shows exactly what would be sent.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "update-result-notice",
+          "text": "After an update, ExileLens tells you whether it installed or the previous version was restored.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "diagnostics-attention-count",
+          "text": "The Diagnostics entry shows how many things need your attention.",
+          "introduced": "1.0.0"
+        }
+      ],
+      "limitations": [
+        {
+          "id": "partial-mechanics",
+          "text": "Some Path of Exile 2 mechanics are not fully modeled, so some results are marked partial or uncertain.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "build-baseline",
+          "text": "Your Path of Building build is the comparison baseline, not your live in-game gear.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "connectivity-jewels",
+          "text": "Jewels that change passive-tree connectivity cannot be evaluated.",
+          "introduced": "1.0.0"
+        }
+      ],
+      "action": null
+    }
+  ]
+}

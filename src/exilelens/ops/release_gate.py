@@ -14,7 +14,54 @@ from exilelens.ops.paths import repo_root
 from exilelens.ops.packaging_version import render_version_info
 from exilelens.ops.regression import load_registry
 
+#: Verified third-party license material that ships in the package, byte-for-byte as committed under packaging/third_party_licenses
+#: (provenance: that folder's README.txt and docs/1.0-HARDENING-PLAN.md). Identity is checked by comparing the packaged copy with the
+#: committed one, never by size.
+THIRD_PARTY_LICENSE_FILES = (
+    "packaging/third_party_licenses/README.txt",
+    "packaging/third_party_licenses/qt/LGPL-3.0.txt",
+    "packaging/third_party_licenses/qt/GPL-3.0.txt",
+    "packaging/third_party_licenses/python/LICENSE.txt",
+    "packaging/third_party_licenses/python/LICENSES-incorporated-software.rst",
+    "packaging/third_party_licenses/openssl/LICENSE.txt",
+    "packaging/third_party_licenses/cryptography/LICENSE",
+    "packaging/third_party_licenses/cryptography/LICENSE.APACHE",
+    "packaging/third_party_licenses/cryptography/LICENSE.BSD",
+    "packaging/third_party_licenses/cryptography/SBOM-openssl.json",
+    "packaging/third_party_licenses/cryptography/SBOM-rust-crates.cyclonedx.json",
+    "packaging/third_party_licenses/cffi/LICENSE",
+    "packaging/third_party_licenses/pycparser/LICENSE",
+    "packaging/third_party_licenses/pyinstaller/COPYING.txt",
+)
+
+#: What must sit next to ExileLens.exe in the release package: (name in dist/ExileLens, committed source).
+DISTRIBUTION_FILES = (
+    ("README.txt", "packaging/README.txt"),
+    ("LICENSE", "LICENSE"),
+    ("THIRD_PARTY_NOTICES.txt", "packaging/THIRD_PARTY_NOTICES.txt"),
+    ("QT_LGPL_COMPLIANCE.txt", "packaging/QT_LGPL_COMPLIANCE.txt"),
+)
+
+#: Qt binaries that have no LGPL option in the official 6.11.2 sources (GPL-3.0 or commercial only: checked in the qtvirtualkeyboard,
+#: qtcharts, qtdatavis3d, qtgraphs, qthttpserver and qtnetworkauth source archives). ExileLens uses Qt under the LGPL, so none may
+#: ship. Keep in sync with `_GPL_ONLY_QT_BINARY_TOKENS` in packaging/exilelens-gui.spec (a test compares the two).
+GPL_ONLY_QT_BINARY_TOKENS = (
+    "qt6virtualkeyboard",
+    "qtvirtualkeyboardplugin",
+    "qt6charts",
+    "qt6datavisualization",
+    "qt6graphs",
+    "qt6httpserver",
+    "qt6networkauth",
+)
+
 REQUIRED_PACKAGING = (
+    "LICENSE",
+    "packaging/THIRD_PARTY_NOTICES.txt",
+    "packaging/QT_LGPL_COMPLIANCE.txt",
+    "packaging/requirements-release.lock",
+    ".python-version",
+    *THIRD_PARTY_LICENSE_FILES,
     "packaging/CHANGELOG.txt",
     "packaging/RELEASE_NOTES.md",
     "packaging/README.txt",
@@ -210,6 +257,176 @@ def _packaging(root: Path) -> CheckResult:
     if missing:
         return CheckResult("packaging_files", GateVerdict.BLOCKED, Severity.P0, "missing " + ", ".join(missing))
     return CheckResult("packaging_files", GateVerdict.PASS, detail="required packaging files present")
+
+
+def _locked_version(root: Path, name: str) -> str | None:
+    """The exact pinned version of `name` in the hash-locked release requirements, or None."""
+    import re
+
+    lock = root / "packaging" / "requirements-release.lock"
+    if not lock.is_file():
+        return None
+    match = re.search(rf"(?mi)^{re.escape(name)}==([0-9][^\s\\;]*)", lock.read_text(encoding="utf-8"))
+    return match.group(1) if match else None
+
+
+def _license_documentation_problems(root: Path) -> list[str]:
+    """Source-level consistency of the licensing documentation with what the release actually pins. Proves the documents agree with
+    the lock; it does NOT prove what a built package contains (that is the artifact check below and the 1.0-C inventory)."""
+    import json
+
+    problems: list[str] = []
+    notices = root / "packaging" / "THIRD_PARTY_NOTICES.txt"
+    qt_doc = root / "packaging" / "QT_LGPL_COMPLIANCE.txt"
+    notices_text = notices.read_text(encoding="utf-8") if notices.is_file() else ""
+    qt_text = qt_doc.read_text(encoding="utf-8") if qt_doc.is_file() else ""
+    pin_file = root / ".python-version"
+    python_version = pin_file.read_text(encoding="utf-8").strip() if pin_file.is_file() else ""
+    expected = [("Python runtime " + python_version, "the pinned Python (.python-version)")] if python_version else []
+    for package, phrase in (
+        ("pyinstaller", "bootloader and bundling tools {v}"),
+        ("PySide6", "PySide6 {v}"),
+        ("shiboken6", "shiboken6 {v}"),
+        ("cryptography", "cryptography {v}"),
+        ("cffi", "cffi {v}"),
+        ("pycparser", "pycparser {v}"),
+    ):
+        version = _locked_version(root, package)
+        if version is None:
+            problems.append(f"{package} is not pinned in packaging/requirements-release.lock")
+            continue
+        expected.append((phrase.format(v=version), f"{package} {version} (release lock)"))
+    for phrase, what in expected:
+        if phrase not in notices_text:
+            problems.append(f"THIRD_PARTY_NOTICES.txt does not name {what}")
+    qt_version = _locked_version(root, "PySide6")
+    if qt_version and (f"Qt                 {qt_version}" not in qt_text or f"PySide6            {qt_version}" not in qt_text):
+        problems.append(f"QT_LGPL_COMPLIANCE.txt does not state Qt/PySide6 {qt_version} (release lock)")
+    if "written offer" not in qt_text.lower() and "source code offer" not in qt_text.lower():
+        problems.append("QT_LGPL_COMPLIANCE.txt has no source code offer")
+    sbom = root / "packaging" / "third_party_licenses" / "cryptography" / "SBOM-openssl.json"
+    if sbom.is_file():
+        try:
+            versions = {c.get("version") for c in json.loads(sbom.read_text(encoding="utf-8")).get("components", []) if c.get("name") == "openssl"}
+        except (OSError, ValueError):
+            versions = set()
+        if not versions or not all(f"OpenSSL {v}" in notices_text for v in versions):
+            problems.append("THIRD_PARTY_NOTICES.txt does not state the OpenSSL version recorded in the cryptography wheel SBOM")
+    return problems
+
+
+def _distribution_files(root: Path, *, required: bool = False) -> CheckResult:
+    """The project LICENSE, the third-party notices, the Qt compliance notice and the verified license texts must ship in the package
+    (not only live in the repo), byte-identical to the committed copies."""
+    problems: list[str] = []
+    build = root / "scripts" / "build_exe.ps1"
+    build_text = build.read_text(encoding="utf-8") if build.is_file() else ""
+    for token in ('"LICENSE"', "THIRD_PARTY_NOTICES.txt", "QT_LGPL_COMPLIANCE.txt", "third_party_licenses"):
+        if token not in build_text:
+            problems.append(f"scripts/build_exe.ps1 does not copy {token.strip(chr(34))} into dist")
+    notices = root / "packaging" / "THIRD_PARTY_NOTICES.txt"
+    notices_text = notices.read_text(encoding="utf-8") if notices.is_file() else ""
+    for rel in THIRD_PARTY_LICENSE_FILES[1:]:
+        folder_and_file = "third_party_licenses\\" + rel.split("third_party_licenses/", 1)[1].replace("/", "\\")
+        if folder_and_file not in notices_text:
+            problems.append(f"THIRD_PARTY_NOTICES.txt does not reference {folder_and_file}")
+    if "QT_LGPL_COMPLIANCE.txt" not in notices_text:
+        problems.append("THIRD_PARTY_NOTICES.txt does not point to QT_LGPL_COMPLIANCE.txt")
+    problems.extend(_license_documentation_problems(root))
+    if required:
+        dist = root / "dist" / "ExileLens"
+        for name, source_rel in DISTRIBUTION_FILES:
+            shipped, source = dist / name, root / source_rel
+            if not shipped.is_file():
+                problems.append(f"dist/ExileLens/{name} missing from the package")
+            elif source.is_file() and shipped.read_bytes() != source.read_bytes():
+                problems.append(f"dist/ExileLens/{name} differs from {source_rel}")
+        for rel in THIRD_PARTY_LICENSE_FILES:
+            inner = rel.split("third_party_licenses/", 1)[1]
+            shipped, source = dist / "third_party_licenses" / inner, root / rel
+            if not shipped.is_file():
+                problems.append(f"dist/ExileLens/third_party_licenses/{inner} missing from the package")
+            elif source.is_file() and shipped.read_bytes() != source.read_bytes():
+                problems.append(f"dist/ExileLens/third_party_licenses/{inner} differs from {rel}")
+    if problems:
+        return CheckResult("distribution_files", GateVerdict.BLOCKED, Severity.P0, "; ".join(problems))
+    return CheckResult("distribution_files", GateVerdict.PASS, detail="license material is documented, consistent with the lock and packaged")
+
+
+def _gpl_only_qt(root: Path, *, required: bool = False) -> CheckResult:
+    """No Qt binary that lacks an LGPL option may be intentionally bundled. Source level: the spec filters them out. Built artifact
+    (--require-artifact): no such file is present in dist. A passing result is NOT a claim about the full Qt module inventory, which
+    is a separate, still-open release step."""
+    import re
+
+    problems: list[str] = []
+    spec = root / "packaging" / "exilelens-gui.spec"
+    spec_text = spec.read_text(encoding="utf-8") if spec.is_file() else ""
+    match = re.search(r"_GPL_ONLY_QT_BINARY_TOKENS\s*=\s*\(([^)]*)\)", spec_text)
+    if match is None:
+        problems.append("packaging/exilelens-gui.spec does not filter the GPL-only Qt binaries")
+    else:
+        in_spec = tuple(re.findall(r'"([^"]+)"', match.group(1)))
+        if in_spec != GPL_ONLY_QT_BINARY_TOKENS:
+            problems.append("packaging/exilelens-gui.spec _GPL_ONLY_QT_BINARY_TOKENS differs from the release gate list")
+        if "a.binaries = [" not in spec_text:
+            problems.append("packaging/exilelens-gui.spec defines the GPL-only token list but never applies it to a.binaries")
+    for forbidden in ("PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtGraphs", "PySide6.QtHttpServer", "PySide6.QtNetworkAuth"):
+        quoted = f'"{forbidden}"'
+        if spec_text.count(quoted) != 1:  # present exactly once: in `excludes`, never in `hiddenimports`
+            problems.append(f"{forbidden} must be listed once, in the spec excludes")
+    if required:
+        dist = root / "dist" / "ExileLens"
+        found = sorted(
+            {str(path.relative_to(dist)) for path in dist.rglob("*") if path.is_file() and any(token in path.name.lower() for token in GPL_ONLY_QT_BINARY_TOKENS)}
+        ) if dist.is_dir() else []
+        if found:
+            problems.append("GPL-only Qt binaries in the package: " + ", ".join(found[:6]))
+    if problems:
+        return CheckResult("gpl_only_qt", GateVerdict.BLOCKED, Severity.P0, "; ".join(problems))
+    return CheckResult("gpl_only_qt", GateVerdict.PASS, detail="the spec filters the GPL-only Qt binaries" + ("; none in the built package" if required else ""))
+
+
+#: Current shipped/public release surfaces. Historical docs (plans, changelog history, R-milestone records) are deliberately NOT scanned.
+SHIPPING_COPY_FILES = ("packaging/README.txt", "README.md", "PRIVACY.md", "packaging/RELEASE_NOTES.md", "src/exilelens/whats_new/whats_new.json")
+#: Product claims that are false for every build since R5-C / R2.
+_STALE_ALWAYS = (
+    (r"value for my build", "removed Build Value / price rating"),
+    (r"power\s*/\s*cost", "removed Build Value / price rating"),
+    (r"value\s*/\s*cost", "removed Build Value / price rating"),
+    (r"best value", "removed Build Value / price rating"),
+    (r"no analytics", "claims there is no analytics/telemetry (optional usage statistics and error reports exist)"),
+    (r"telemetry system", "claims there is no analytics/telemetry (optional usage statistics and error reports exist)"),
+)
+#: "Early beta" copy: stale as soon as the version is a final release; always stale on the two files below.
+_BETA_PATTERNS = (r"early beta", r"still in beta", r"current beta", r"beta page", r"in this beta")
+_BETA_ALWAYS_FILES = ("packaging/README.txt", "README.md")
+_LIVE_MARKET = r"live market pric"
+_NEGATION = r"\b(not|no|never|isn't|without)\b"
+
+
+def _shipping_copy(root: Path) -> CheckResult:
+    """Reject known stale production claims on the current shipped/public surfaces (never the repository's history)."""
+    import re
+
+    final = "b" not in __version__.rsplit(".", 1)[-1]
+    hits: list[str] = []
+    for rel in SHIPPING_COPY_FILES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            lowered = line.lower()
+            for pattern, why in _STALE_ALWAYS:
+                if re.search(pattern, lowered):
+                    hits.append(f"{rel}:{number} ({why})")
+            if (final or rel in _BETA_ALWAYS_FILES) and any(re.search(pattern, lowered) for pattern in _BETA_PATTERNS):
+                hits.append(f"{rel}:{number} (beta wording)")
+            if re.search(_LIVE_MARKET, lowered) and not re.search(_NEGATION, lowered):
+                hits.append(f"{rel}:{number} (implies live market pricing is available)")
+    if hits:
+        return CheckResult("shipping_copy", GateVerdict.BLOCKED, Severity.P0, "stale shipping copy: " + "; ".join(hits[:8]))
+    return CheckResult("shipping_copy", GateVerdict.PASS, detail="no known stale claims on the shipped/public copy")
 
 
 def _debug_deps(root: Path) -> CheckResult:
@@ -434,6 +651,9 @@ def evaluate_release_gate(
         _p0_registry(base),
         _dirty_tree(base, allow_dirty=allow_dirty),
         _packaging(base),
+        _distribution_files(base, required=require_artifact),
+        _gpl_only_qt(base, required=require_artifact),
+        _shipping_copy(base),
         _debug_deps(base),
         _update_trust_set(base),
         _cloud_config(base),

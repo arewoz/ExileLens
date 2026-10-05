@@ -24,8 +24,8 @@ def test_one_highlight_has_a_complete_release_layout(tmp_path: Path) -> None:
     payload = announcement.build_payload("v0.2.1b3", changelog)
     embed = payload["embeds"][0]
     fields = _fields(payload)
-    assert embed["title"] == "🚀 ExileLens 0.2.1b3 is out!"
-    assert embed["description"] == "A new ExileLens beta is available."
+    assert embed["title"] == "ExileLens 0.2.1b3"
+    assert embed["description"] == "A new ExileLens beta is out."
     assert fields["What's new"] == "• One real change."
     assert fields["Download"].endswith("/releases/tag/v0.2.1b3)")
     assert announcement.CHANGELOG_URL in fields["Full changelog"]
@@ -69,3 +69,21 @@ def test_workflow_posts_after_release_and_treats_discord_as_best_effort() -> Non
     assert "DISCORD_RELEASE_WEBHOOK is not configured" in workflow
     assert "catch {" in workflow
     assert "the release remains published" in workflow
+
+
+def test_stable_release_is_announced_as_a_release_not_a_beta(tmp_path: Path) -> None:
+    changelog = tmp_path / "CHANGELOG.txt"
+    changelog.write_text("1.0.0\n-----\n- One real change.\n", encoding="utf-8")
+    embed = announcement.build_payload("v1.0.0", changelog)["embeds"][0]
+    assert embed["title"] == "ExileLens 1.0.0"
+    assert embed["description"] == "ExileLens 1.0.0 is out."
+    assert "beta" not in (embed["title"] + embed["description"]).lower()
+
+
+def test_release_title_and_name_in_the_workflow_follow_the_version() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert workflow.splitlines()[0] == "name: Windows release"
+    assert "--title $releaseTitle" in workflow
+    assert "-match 'b\\d+$'" in workflow
+    assert '"ExileLens $env:RELEASE_VERSION - Beta" } else { "ExileLens $env:RELEASE_VERSION" }' in workflow
+    assert '--title "ExileLens $env:RELEASE_VERSION - Beta"' not in workflow

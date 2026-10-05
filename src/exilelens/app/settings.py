@@ -172,7 +172,11 @@ class AppSettings:
     update_last_check_at: float = 0.0
     update_latest_version: str = ""
     update_notified_version: str = ""
-    update_channel: str = "beta"
+    # Which GitHub releases the update check offers (UpdateService.channel()). "stable" (the default) offers final, non-prerelease
+    # versions only. There is no user-facing beta opt-in and no public prerelease channel, so a stored "beta" (the old automatic
+    # default, never a user choice) is normalized to "stable" on load (see _normalize_update_channel). An installed pre-release
+    # build (for example 0.7.0b1) still sees the newer final 1.0.0.
+    update_channel: str = "stable"
     update_last_error: str = ""
     diagnostic_verbose_until: float = 0.0
     # R2 optional cloud services. Two independent opt-ins, both OFF by default. Neither implies the other,
@@ -285,7 +289,7 @@ class AppSettings:
             update_last_check_at=float(data.get("update_last_check_at") or 0.0),
             update_latest_version=str(data.get("update_latest_version") or ""),
             update_notified_version=str(data.get("update_notified_version") or ""),
-            update_channel=str(data.get("update_channel") or "beta"),
+            update_channel=_normalize_update_channel(data.get("update_channel")),
             update_last_error=str(data.get("update_last_error") or ""),
             diagnostic_verbose_until=float(data.get("diagnostic_verbose_until") or 0.0),
             send_usage_stats=data.get("send_usage_stats") is True,
@@ -328,6 +332,13 @@ def _normalize_ui_scale(raw: Any) -> float:
     except (TypeError, ValueError):
         return 1.0
     return float(min(choices, key=lambda choice: abs(choice - scale)))
+
+
+def _normalize_update_channel(raw: Any) -> str:
+    """Every stored value becomes "stable". "beta" was the automatic default of every profile, never an explicit choice (nothing in
+    the product ever offered one), so it is migrated rather than honoured; an unknown or empty value is stable too. In memory only:
+    loading never writes the file, starts a check, or enables anything."""
+    return "stable"
 
 
 def _normalize_league_mode(raw: Any) -> str:

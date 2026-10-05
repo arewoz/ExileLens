@@ -1,0 +1,2 @@
+# Third-party license texts are shipped byte-for-byte as upstream distributed them: never normalise their line endings.
+packaging/third_party_licenses/** -text

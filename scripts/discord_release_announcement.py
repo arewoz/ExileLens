@@ -51,6 +51,15 @@ def extract_highlights(changelog: Path, version: str, *, limit: int = 4) -> list
     return highlights
 
 
+def is_prerelease(version: str) -> bool:
+    """A canonical beta version carries a bN suffix (0.7.0b1); anything else is a stable release."""
+    return re.search(r"b\d+$", version) is not None
+
+
+def announcement_line(version: str) -> str:
+    return "A new ExileLens beta is out." if is_prerelease(version) else f"ExileLens {version} is out."
+
+
 def build_payload(version: str, changelog: Path) -> dict[str, object]:
     """Return a webhook payload containing only fixed official links and safe text."""
     version = version.removeprefix("v")
@@ -63,8 +72,8 @@ def build_payload(version: str, changelog: Path) -> dict[str, object]:
         "allowed_mentions": {"parse": []},
         "embeds": [
             {
-                "title": f"🚀 ExileLens {version} is out!",
-                "description": "A new ExileLens beta is available.",
+                "title": f"ExileLens {version}",
+                "description": announcement_line(version),
                 "color": 0x5865F2,
                 "fields": [
                     {"name": "What's new", "value": whats_new, "inline": False},

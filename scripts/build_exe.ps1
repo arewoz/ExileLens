@@ -55,6 +55,14 @@ try {
     # Ship the install/setup/troubleshooting guide alongside the executable;
     # release.yml zips this directory verbatim.
     Copy-Item -LiteralPath (Join-Path $RepoRoot "packaging\README.txt") -Destination (Join-Path $DistDir "README.txt") -Force
+    # Distribution compliance (1.0-A): the project license, the third-party notices and the verified third-party license texts ship
+    # next to the executable. The release gate (release_gate._distribution_files) fails the release if any of them is missing.
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "LICENSE") -Destination (Join-Path $DistDir "LICENSE") -Force
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "packaging\THIRD_PARTY_NOTICES.txt") -Destination (Join-Path $DistDir "THIRD_PARTY_NOTICES.txt") -Force
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "packaging\QT_LGPL_COMPLIANCE.txt") -Destination (Join-Path $DistDir "QT_LGPL_COMPLIANCE.txt") -Force
+    $ThirdPartyLicenseDest = Join-Path $DistDir "third_party_licenses"
+    if (Test-Path -LiteralPath $ThirdPartyLicenseDest) { Remove-Item -LiteralPath $ThirdPartyLicenseDest -Recurse -Force }
+    Copy-Item -LiteralPath (Join-Path $RepoRoot "packaging\third_party_licenses") -Destination $ThirdPartyLicenseDest -Recurse -Force
 
     $Version = Get-CanonicalVersion
     if ($Version -notmatch '^\d+\.\d+\.\d+(b\d+)?$') { throw "Canonical version has an unsupported format: $Version" }

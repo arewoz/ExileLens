@@ -1,4 +1,4 @@
-name: Draft Windows release
+name: Windows release
 
 on:
   workflow_dispatch:
@@ -283,9 +283,11 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $commit = (git rev-parse HEAD).Trim()
           if ($commit -notmatch '^[0-9a-f]{40}$') { throw 'Could not determine the exact checked-out commit.' }
+          # The title follows the version, like the manifest channel: a beta version (bN suffix) is titled "- Beta", a stable one is not.
+          $releaseTitle = if ($env:RELEASE_VERSION -match 'b\d+$') { "ExileLens $env:RELEASE_VERSION - Beta" } else { "ExileLens $env:RELEASE_VERSION" }
           & gh release create $env:RELEASE_VERSION $env:ARCHIVE_PATH $env:SUMS_PATH $env:UPDATE_MANIFEST_PATH `
             --target $commit `
-            --title "ExileLens $env:RELEASE_VERSION - Beta" `
+            --title $releaseTitle `
             --latest `
             --notes-file $env:RELEASE_NOTES_PATH
           if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI failed to create the release.' }

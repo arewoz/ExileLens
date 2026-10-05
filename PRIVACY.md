@@ -73,11 +73,21 @@ described below.
 
 | Destination | What is sent | When |
 |---|---|---|
-| `api.github.com`, `github.com` (ExileLens releases) | A request for the list of ExileLens releases and, if a newer one exists, its signed update manifest. The update package is downloaded only when you choose to install it. No account, no identifier. | Packaged builds check at startup and at most about once every 24 hours. |
+| `api.github.com`, `github.com` (ExileLens releases) | A request for the list of ExileLens releases and, if a newer one exists, its signed update manifest. The update package is downloaded when you choose Download & install, or automatically if you are a linked Patreon supporter (see "Update checks and downloads"). No account, no identifier. | Packaged builds check at startup and then at most about once every 24 hours (about every 6 hours for linked supporters). There is no setting to turn the check off. |
 | `www.pathofexile.com` (official Path of Exile site) | **Nothing, in this build.** Market prices are off by default and the live market provider is not enabled while its authorization is unresolved, so no request to the market service is made, not at startup and not on an item check. See "Market prices". | Never in this build. |
 | ExileLens cloud service (`api` host of the project; **only if this build has it configured**) | Opt-in usage statistics / error reports (items listed below), and, if you link Patreon, the device credential and lease refresh described below. | Only for what you switched on or linked. |
 
 **Your raw clipboard/item text is not sent over the network.**
+
+## Update checks and downloads
+
+- Packaged builds check GitHub Releases automatically: at startup and then about every 24 hours. Source runs make no update request. The request carries no identifier.
+- A signed update manifest is fetched only when a newer release exists. Every package is verified against it (signature, size and SHA-256) before it can be installed; a failed install is rolled back.
+- For everyone, the update package is downloaded when you choose **Download & install**, and installed when you choose **Restart & update**.
+- If you link Patreon and your membership includes seamless updates, two settings apply and both are **on by default** once the link is active: the package is downloaded in the background after a verified check, and it can be installed when you close ExileLens cleanly. Turn either off in Settings -> Updates. These supporters' checks also run about every 6 hours. Linking, the supporter state and what is stored are described under "Optional Patreon supporter link" below.
+- Entitlement only turns on this convenience. It cannot choose what is installed: the update and its source are the same for everyone.
+
+Opening the Patreon, GitHub or Discord pages from ExileLens is a browser action you trigger by clicking: your browser makes that request, not ExileLens, and ExileLens uploads nothing when it opens the page.
 
 ## Market prices
 
@@ -226,7 +236,7 @@ automatically. You can copy a diagnostics report yourself from the app's
 | Destination | Purpose | Trigger |
 |---|---|---|
 | `www.pathofexile.com` (official PoE trade API) | None in this build: market prices are off by default and the live provider is not enabled (see "Market prices") | Never in this build |
-| `api.github.com` / `github.com` | Update check and (on your action) update download | Packaged builds, about once per 24 h |
+| `api.github.com` / `github.com` | Update check, and update download (on your action; automatic for linked supporters unless turned off) | Packaged builds, about once per 24 h (about 6 h for linked supporters) |
 | ExileLens cloud service (Cloudflare Workers + D1) | Opt-in usage statistics and error reports; optional Patreon link and lease refresh | Only if configured in this build and you opted in / linked |
 | Patreon (through the ExileLens service, in your browser) | Optional supporter sign-in | Only when you click Link Patreon |
 

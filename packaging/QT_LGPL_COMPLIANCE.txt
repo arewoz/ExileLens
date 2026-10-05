@@ -1,0 +1,123 @@
+QT AND PYSIDE6 - LGPL NOTICE, REPLACEMENT INSTRUCTIONS AND SOURCE OFFER
+=======================================================================
+
+ExileLens is free and open source under the MIT license (the LICENSE file
+in this folder). Its user interface uses Qt 6 through PySide6, which
+ExileLens uses under the GNU Lesser General Public License version 3
+(LGPL-3.0). This file is the notice, the way to replace the Qt libraries,
+and the offer of their source code.
+
+
+1. What is used
+---------------
+
+    Qt                 6.11.2
+    PySide6            6.11.2   (with PySide6-Essentials and PySide6-Addons 6.11.2)
+    shiboken6          6.11.2
+
+These are the versions pinned by packaging\requirements-release.lock.
+The Qt Company offers these libraries under LGPL-3.0-only, GPL-2.0-only,
+GPL-3.0-only or a commercial license; ExileLens uses them under LGPL-3.0.
+
+ExileLens's source imports these Qt modules: QtCore, QtGui, QtWidgets,
+QtSvg and QtNetwork. The Qt platform and image-format plugins those modules
+need are collected with them. ExileLens does not intentionally ship any Qt
+module that is not available under the LGPL (for example Qt Virtual
+Keyboard, Qt Charts or Qt Data Visualization).
+
+The full license texts are in:
+
+    third_party_licenses\qt\LGPL-3.0.txt
+    third_party_licenses\qt\GPL-3.0.txt     (LGPL-3.0 is written as additional
+                                              permissions on top of the GPL-3.0)
+
+They are the LICENSES\LGPL-3.0-only.txt and LICENSES\GPL-3.0-only.txt files
+of the official Qt 6.11.2 source.
+
+
+2. The Qt libraries are separate files
+--------------------------------------
+
+ExileLens is a PyInstaller "one-folder" build. The Qt and PySide6 libraries
+are separate files in the _internal folder next to ExileLens.exe (the Qt
+DLLs, such as Qt6Core.dll, Qt6Gui.dll, Qt6Widgets.dll, Qt6Svg.dll and
+Qt6Network.dll, and the PySide6 files, are under _internal\PySide6\). They are
+not compiled into ExileLens.exe, and ExileLens does not check or restrict
+them. You may replace them as described below, and you may reverse
+engineer ExileLens to the extent needed to debug such a modification.
+
+
+3. Replacing the Qt libraries with a modified version
+-----------------------------------------------------
+
+1. Build or obtain a PySide6 / Qt 6 that is interface-compatible with
+   6.11.2 (the same Qt 6.11 series; PySide6, shiboken6 and Qt must come
+   from the same build). To build your own modified Qt, use the source in
+   section 5 and the build instructions that come with it.
+2. Close ExileLens (including its tray icon).
+3. In the ExileLens folder, replace the corresponding files under
+   _internal\PySide6\ (the Qt6*.dll files, the plugins folder, and the
+   PySide6 .pyd and .dll files) and _internal\shiboken6\ with the files from
+   your build. Replace the set together, not one file at a time.
+4. Start ExileLens.exe.
+
+Notes: an ExileLens update replaces the whole folder, including files you
+replaced, so repeat the steps after an update. If the replacement is not
+interface-compatible, ExileLens will not start; restore the original files
+from the release ZIP.
+
+
+4. Rebuilding ExileLens from source
+-----------------------------------
+
+The ExileLens source for every release is at https://github.com/arewoz/ExileLens
+(the release tag matches the version in the release name).
+
+To run ExileLens from source with any PySide6 you choose:
+
+    git clone https://github.com/arewoz/ExileLens
+    cd ExileLens
+    git checkout <release tag>
+    py -3.12 -m pip install -e .
+    exilelens-gui
+
+(pyproject.toml asks for PySide6 6.6 or newer; install your build of PySide6
+before or after, as you prefer.)
+
+To rebuild the packaged folder with your PySide6, use the Windows release
+build described in docs\PACKAGING.md and the README ("Build from source"):
+change the PySide6, PySide6-Essentials, PySide6-Addons and shiboken6 pins in
+packaging\requirements-release.txt and the matching entries in the RESOLVED
+table of scripts\lock_release_deps.py, run that script to rewrite
+packaging\requirements-release.lock (the lock is hash-checked, so it must be
+rewritten for different files), then run scripts\build_exe.ps1.
+
+
+5. Source code offer
+--------------------
+
+The ExileLens maintainers will provide, on request, the complete
+corresponding source code of Qt 6.11.2, PySide6 6.11.2 and shiboken6 6.11.2
+as distributed with this version of ExileLens, and of any modification we
+made to them (we have made none). This offer is valid for at least three
+years from the date this version of ExileLens is released, and for as long
+as ExileLens releases containing these libraries remain available.
+
+To request it, open an issue titled "Qt source request" at
+https://github.com/arewoz/ExileLens/issues (or ask in the ExileLens Discord:
+https://discord.gg/4jrhBbSwEn) and say which ExileLens version you have.
+
+The same source is published by the Qt Company. These are the upstream files
+the request will be answered with (the Qt MD5 is the one published on
+download.qt.io; the SHA-256 was computed by the ExileLens maintainers from the
+downloaded file):
+
+    Qt 6.11.2 (everything, single archive)
+      https://download.qt.io/official_releases/qt/6.11/6.11.2/single/qt-everywhere-src-6.11.2.tar.xz
+      MD5 669c1f3a41c37fdda389094882044d7a (md5sums.txt on download.qt.io)
+    Qt for Python 6.11.2 (PySide6 and shiboken6)
+      https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/pyside-setup-everywhere-src-6.11.2.tar.xz
+      SHA-256 cba47efbaad1bedd529725cbc14e21f156c7a19366f07b3edfbb076ffd7afdf8
+
+Qt and PySide6 are trademarks of The Qt Company Ltd. ExileLens is not
+affiliated with or endorsed by The Qt Company.

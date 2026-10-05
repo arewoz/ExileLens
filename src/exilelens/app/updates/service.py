@@ -159,7 +159,7 @@ class UpdateService(QObject):
         return __version__
 
     def channel(self) -> UpdateChannel:
-        return UpdateChannel.parse(getattr(self.settings, "update_channel", UpdateChannel.BETA.value))
+        return UpdateChannel.parse(getattr(self.settings, "update_channel", UpdateChannel.STABLE.value))
 
     def set_channel(self, channel: UpdateChannel) -> None:
         self.settings.update_channel = channel.value
