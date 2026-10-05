@@ -125,7 +125,7 @@ from exilelens.app.logging_setup import configure_logging, install_crash_handler
 from exilelens.app.modules.registry import FeatureModule, is_enabled
 from exilelens.app.build_cache import BuildCache
 from exilelens.app.legacy_migration import migrate_character_build
-from exilelens.app.settings import AppSettings, load_settings_result, onboarding_required, save_settings
+from exilelens.app.settings import AppSettings, load_settings_result, onboarding_required, recovery_notice_text, save_settings
 from exilelens.app.single_instance import InstanceLock, acquire_single_instance_lock
 from exilelens.platform.windows.clipboard import ClipboardEvent, ClipboardWatcher
 from exilelens.tree.calibration_session import CapturePhase
@@ -155,6 +155,14 @@ class ExileLensApp:
         self.settings = load_result.settings
         self._settings_load_error = load_result.load_error
         self._record_fresh_install_release_notes(load_result)
+        # load_settings_result already preserved an unreadable settings.json (before anything below can save). Only after
+        # that backup exists is the reset profile written, so the next launch reads a valid file and shows no second notice.
+        self._settings_recovery_notice = recovery_notice_text(load_result)
+        if load_result.recovery_backup is not None:
+            try:
+                save_settings(self.settings)
+            except OSError:
+                logger.exception("settings_recovery_save_failed")
         self._pob_autodetected = False
         # Install-on-exit is only ever considered for a clean, user-initiated exit that is not part of a
         # Windows logoff/shutdown. Both flags default to the safe value (no install).
@@ -163,10 +171,7 @@ class ExileLensApp:
         migrate_character_build(self.settings)
         self._auto_configure_pob_path()
         if self._settings_load_error:
-            from exilelens.app.settings import backup_settings_file
-
-            backup = backup_settings_file("corrupt")
-            logger.warning("settings_load_failed defaults_in_use backup=%s", backup)
+            logger.warning("settings_load_failed defaults_in_use backup=%s", load_result.recovery_backup)
         log_price_check_startup_mode(self.settings)
         self._restore_trade_penalties()
         # Optional cloud services (opt-in usage statistics / error reports). Constructed inert: nothing is
@@ -405,6 +410,7 @@ class ExileLensApp:
             self.tray.show()
             self.tray.show_startup_notification()
             logger.info("tray_ready visible=%s", self.tray.isVisible())
+            self._show_settings_recovery_notice()
             return
         # Explorer can still be starting (autostart, fresh login). Retry silently so a
         # briefly unavailable tray never flashes the full dashboard; surface it only
@@ -426,6 +432,7 @@ class ExileLensApp:
             if self.dashboard is not None:
                 self.dashboard.exit_on_close = False
             logger.info("tray_ready after_retry visible=%s", self.tray.isVisible())
+            self._show_settings_recovery_notice()
             return
         if self._tray_retries_left <= 0 and self._tray_retry_timer is not None:
             self._tray_retry_timer.stop()
@@ -433,6 +440,15 @@ class ExileLensApp:
             if self.dashboard is not None:
                 self.dashboard.exit_on_close = True
                 self._surface_dashboard("build")
+
+    def _show_settings_recovery_notice(self) -> None:
+        """One quiet tray message after a whole-file settings reset; cleared once shown so it cannot repeat."""
+        message = getattr(self, "_settings_recovery_notice", None)
+        if not message or not self._tray_visible():
+            return
+        self._settings_recovery_notice = None
+        logger.info("settings_recovery_notice_shown")
+        self.tray.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Warning, 10000)
 
     def _tray_visible(self) -> bool:
         return self.tray is not None and self.tray.isVisible()

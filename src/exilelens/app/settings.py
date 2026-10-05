@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import shutil
 import time
@@ -198,107 +199,114 @@ class AppSettings:
         return payload
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> AppSettings:
-        version = int(data.get("schema_version", 1))
+    def from_dict(cls, data: Any) -> AppSettings:
+        """Build settings from a stored dict, one field at a time.
+
+        A valid value is kept; a missing or unusable one (wrong type, bad number, unknown mode) falls back to that field's
+        default and never affects the other fields. Persisted booleans must be real JSON booleans. A non-object input
+        yields the defaults. A newer ``schema_version`` is read as far as this build understands it and is stamped current
+        only on the next normal save.
+        """
+        if not isinstance(data, dict):
+            return cls()
+        version = _as_int(data.get("schema_version"), 1)
         if version > CURRENT_SCHEMA_VERSION:
-            data = {**data, "schema_version": CURRENT_SCHEMA_VERSION}
-        pos = data.get("overlay_position") or {}
+            version = CURRENT_SCHEMA_VERSION
+        pos = _as_dict(data.get("overlay_position"))
         overlay_position = OverlayPosition(
-            corner=pos.get("corner", "top_right"),
-            x=pos.get("x"),
-            y=pos.get("y"),
+            corner=_as_str(pos.get("corner"), "top_right") or "top_right",
+            x=_as_opt_int(pos.get("x")),
+            y=_as_opt_int(pos.get("y")),
         )
-        completed = int(data.get("onboarding_version_completed", 0) or 0)
+        completed = _as_int(data.get("onboarding_version_completed"), 0, minimum=0)
         # Existing configured installations have already passed the old setup gate.
         # Do not interrupt them solely because this field was introduced.
-        if version < 21 and not completed and (data.get("first_run_complete") or (data.get("pob_path") and data.get("build_path"))):
+        if version < 21 and not completed and (data.get("first_run_complete") is True or (data.get("pob_path") and data.get("build_path"))):
             completed = ONBOARDING_VERSION
         return cls(
             schema_version=version,
-            pob_path=_resolve_pob_path(data.get("pob_path")),
-            build_path=str(data.get("build_path") or ""),
-            context=str(data.get("context") or "MAP"),
-            overlay_enabled=bool(data.get("overlay_enabled", True)),
+            pob_path=_resolve_pob_path(_as_str(data.get("pob_path"), "")),
+            build_path=_as_str(data.get("build_path"), ""),
+            context=_as_str(data.get("context"), "MAP") or "MAP",
+            overlay_enabled=_as_bool(data.get("overlay_enabled"), True),
             overlay_position=overlay_position,
-            overlay_position_mode=str(
-                data.get("overlay_position_mode") or OverlayPositionMode.NEAR_ITEM.value
-            ),
-            overlay_near_offset_px=int(data.get("overlay_near_offset_px", 40)),
-            overlay_auto_hide_seconds=float(data.get("overlay_auto_hide_seconds", 0.0)),
-            debug=bool(data.get("debug", False)),
-            first_run_complete=bool(data.get("first_run_complete", False)),
+            overlay_position_mode=_normalize_overlay_position_mode(data.get("overlay_position_mode")),
+            overlay_near_offset_px=_as_int(data.get("overlay_near_offset_px"), 40, minimum=0),
+            overlay_auto_hide_seconds=_as_float(data.get("overlay_auto_hide_seconds"), 0.0, minimum=0.0),
+            debug=_as_bool(data.get("debug"), False),
+            first_run_complete=_as_bool(data.get("first_run_complete"), False),
             onboarding_version_completed=completed,
-            selected_loadout=str(data.get("selected_loadout") or ""),
-            item_set_follow_loadout=bool(data.get("item_set_follow_loadout", True)),
-            selected_item_set_id=str(data.get("selected_item_set_id") or ""),
+            selected_loadout=_as_str(data.get("selected_loadout"), ""),
+            item_set_follow_loadout=_as_bool(data.get("item_set_follow_loadout"), True),
+            selected_item_set_id=_as_str(data.get("selected_item_set_id"), ""),
             baseline_mode=_normalize_baseline_mode(data.get("baseline_mode")),
-            value_profile=str(data.get("value_profile") or "BALANCED"),
-            tree_heatmap_metric=str(data.get("tree_heatmap_metric") or "value_per_point"),
-            tree_ranking_mode=str(data.get("tree_ranking_mode") or "efficiency"),
-            tree_analysis_radius=int(data.get("tree_analysis_radius", 1)),
-            tree_show_allocated=bool(data.get("tree_show_allocated", True)),
-            tree_show_frontier=bool(data.get("tree_show_frontier", True)),
-            tree_show_evaluated=bool(data.get("tree_show_evaluated", True)),
-            tree_show_unevaluated=bool(data.get("tree_show_unevaluated", True)),
-            tree_show_notables=bool(data.get("tree_show_notables", True)),
-            tree_show_keystones=bool(data.get("tree_show_keystones", True)),
-            tree_show_small=bool(data.get("tree_show_small", True)),
-            tree_overlay_enabled=bool(data.get("tree_overlay_enabled", False)),
-            tree_overlay_calibration=dict(data.get("tree_overlay_calibration") or {}),
-            tree_overlay_mode=str(data.get("tree_overlay_mode") or "BUILD_PATH"),
-            tree_overlay_debug=bool(data.get("tree_overlay_debug", False)),
-            tree_overlay_opacity=float(data.get("tree_overlay_opacity", 0.95)),
-            tree_overlay_marker_size=float(data.get("tree_overlay_marker_size", 1.0)),
-            tree_overlay_line_width=float(data.get("tree_overlay_line_width", 3.0)),
-            tracked_build_path=str(data.get("tracked_build_path") or ""),
-            tracked_tree_set_id=str(data.get("tracked_tree_set_id") or ""),
-            dashboard_x=int(data["dashboard_x"]) if data.get("dashboard_x") is not None else None,
-            dashboard_y=int(data["dashboard_y"]) if data.get("dashboard_y") is not None else None,
-            dashboard_width=int(data.get("dashboard_width", 1280)),
-            dashboard_height=int(data.get("dashboard_height", 860)),
+            value_profile=_normalize_value_profile(data.get("value_profile")),
+            tree_heatmap_metric=_as_str(data.get("tree_heatmap_metric"), "value_per_point") or "value_per_point",
+            tree_ranking_mode=_as_str(data.get("tree_ranking_mode"), "efficiency") or "efficiency",
+            tree_analysis_radius=_as_int(data.get("tree_analysis_radius"), 1, minimum=0),
+            tree_show_allocated=_as_bool(data.get("tree_show_allocated"), True),
+            tree_show_frontier=_as_bool(data.get("tree_show_frontier"), True),
+            tree_show_evaluated=_as_bool(data.get("tree_show_evaluated"), True),
+            tree_show_unevaluated=_as_bool(data.get("tree_show_unevaluated"), True),
+            tree_show_notables=_as_bool(data.get("tree_show_notables"), True),
+            tree_show_keystones=_as_bool(data.get("tree_show_keystones"), True),
+            tree_show_small=_as_bool(data.get("tree_show_small"), True),
+            tree_overlay_enabled=_as_bool(data.get("tree_overlay_enabled"), False),
+            tree_overlay_calibration=_as_dict(data.get("tree_overlay_calibration")),
+            tree_overlay_mode=_normalize_tree_overlay_mode(data.get("tree_overlay_mode")),
+            tree_overlay_debug=_as_bool(data.get("tree_overlay_debug"), False),
+            tree_overlay_opacity=_as_float(data.get("tree_overlay_opacity"), 0.95, minimum=0.0),
+            tree_overlay_marker_size=_as_float(data.get("tree_overlay_marker_size"), 1.0, minimum=0.0),
+            tree_overlay_line_width=_as_float(data.get("tree_overlay_line_width"), 3.0, minimum=0.0),
+            tracked_build_path=_as_str(data.get("tracked_build_path"), ""),
+            tracked_tree_set_id=_as_str(data.get("tracked_tree_set_id"), ""),
+            dashboard_x=_as_opt_int(data.get("dashboard_x")),
+            dashboard_y=_as_opt_int(data.get("dashboard_y")),
+            dashboard_width=_as_int(data.get("dashboard_width"), 1280, minimum=1),
+            dashboard_height=_as_int(data.get("dashboard_height"), 860, minimum=1),
             dashboard_last_page=_normalize_dashboard_page(data.get("dashboard_last_page")),
-            settings_dialog_x=int(data["settings_dialog_x"]) if data.get("settings_dialog_x") is not None else None,
-            settings_dialog_y=int(data["settings_dialog_y"]) if data.get("settings_dialog_y") is not None else None,
-            settings_dialog_width=int(data.get("settings_dialog_width", 560)),
-            settings_dialog_height=int(data.get("settings_dialog_height", 420)),
-            item_check_pro=dict(data.get("item_check_pro") or {}),
-            market_assist=dict(data.get("market_assist") or {}),
-            market_assist_overlay_x=int(data["market_assist_overlay_x"]) if data.get("market_assist_overlay_x") is not None else None,
-            market_assist_overlay_y=int(data["market_assist_overlay_y"]) if data.get("market_assist_overlay_y") is not None else None,
-            market_assist_overlay_width=int(data.get("market_assist_overlay_width", 360)),
-            market_assist_overlay_height=int(data.get("market_assist_overlay_height", 420)),
-            pinned_overlays=dict(data.get("pinned_overlays") or {}),
-            market_league=str(data.get("market_league") or ""),
+            settings_dialog_x=_as_opt_int(data.get("settings_dialog_x")),
+            settings_dialog_y=_as_opt_int(data.get("settings_dialog_y")),
+            settings_dialog_width=_as_int(data.get("settings_dialog_width"), 560, minimum=1),
+            settings_dialog_height=_as_int(data.get("settings_dialog_height"), 420, minimum=1),
+            item_check_pro=_as_dict(data.get("item_check_pro")),
+            market_assist=_as_dict(data.get("market_assist")),
+            market_assist_overlay_x=_as_opt_int(data.get("market_assist_overlay_x")),
+            market_assist_overlay_y=_as_opt_int(data.get("market_assist_overlay_y")),
+            market_assist_overlay_width=_as_int(data.get("market_assist_overlay_width"), 360, minimum=1),
+            market_assist_overlay_height=_as_int(data.get("market_assist_overlay_height"), 420, minimum=1),
+            pinned_overlays=_as_dict(data.get("pinned_overlays")),
+            market_league=_as_str(data.get("market_league"), ""),
             market_league_mode=_normalize_league_mode(data.get("market_league_mode")),
-            market_league_cache=[str(row) for row in (data.get("market_league_cache") or []) if str(row).strip()],
-            market_league_cache_at=float(data.get("market_league_cache_at") or 0.0),
-            live_market_mode=str(data.get("live_market_mode") or "disabled"),
-            market_prices_enabled=bool(data.get("market_prices_enabled", False)),
-            market_consent_version=int(data.get("market_consent_version") or 0),
-            strict_live=bool(data.get("strict_live", True)),
-            price_check_enabled=bool(data.get("price_check_enabled", True)),
+            market_league_cache=_as_str_list(data.get("market_league_cache")),
+            market_league_cache_at=_as_float(data.get("market_league_cache_at"), 0.0, minimum=0.0),
+            live_market_mode=_as_str(data.get("live_market_mode"), "disabled") or "disabled",
+            market_prices_enabled=data.get("market_prices_enabled") is True,
+            market_consent_version=_as_int(data.get("market_consent_version"), 0, minimum=0),
+            strict_live=_as_bool(data.get("strict_live"), True),
+            price_check_enabled=_as_bool(data.get("price_check_enabled"), True),
             price_check_hotkey=_normalize_price_check_hotkey(data.get("price_check_hotkey"), version=version),
             price_check_refine_hotkey=_normalize_refine_price_hotkey(data.get("price_check_refine_hotkey")),
-            price_check_capture_timeout_ms=int(data.get("price_check_capture_timeout_ms", 600)),
-            price_check_release_wait_ms=int(data.get("price_check_release_wait_ms", 500)),
-            price_check_diagnostic_mode=str(data.get("price_check_diagnostic_mode") or ""),
+            price_check_capture_timeout_ms=_as_int(data.get("price_check_capture_timeout_ms"), 600, minimum=0),
+            price_check_release_wait_ms=_as_int(data.get("price_check_release_wait_ms"), 500, minimum=0),
+            price_check_diagnostic_mode=_as_str(data.get("price_check_diagnostic_mode"), ""),
             ui_scale=_normalize_ui_scale(data.get("ui_scale")),
-            show_hotkey_hints=bool(data.get("show_hotkey_hints", True)),
-            hotkey_hints_dismissed=bool(data.get("hotkey_hints_dismissed", False)),
-            hotkey_hints_success_count=int(data.get("hotkey_hints_success_count", 0) or 0),
-            update_last_check_at=float(data.get("update_last_check_at") or 0.0),
-            update_latest_version=str(data.get("update_latest_version") or ""),
-            update_notified_version=str(data.get("update_notified_version") or ""),
+            show_hotkey_hints=_as_bool(data.get("show_hotkey_hints"), True),
+            hotkey_hints_dismissed=_as_bool(data.get("hotkey_hints_dismissed"), False),
+            hotkey_hints_success_count=_as_int(data.get("hotkey_hints_success_count"), 0, minimum=0),
+            update_last_check_at=_as_float(data.get("update_last_check_at"), 0.0, minimum=0.0),
+            update_latest_version=_as_str(data.get("update_latest_version"), ""),
+            update_notified_version=_as_str(data.get("update_notified_version"), ""),
             update_channel=_normalize_update_channel(data.get("update_channel")),
-            update_last_error=str(data.get("update_last_error") or ""),
-            diagnostic_verbose_until=float(data.get("diagnostic_verbose_until") or 0.0),
+            update_last_error=_as_str(data.get("update_last_error"), ""),
+            diagnostic_verbose_until=_as_float(data.get("diagnostic_verbose_until"), 0.0, minimum=0.0),
             send_usage_stats=data.get("send_usage_stats") is True,
             send_error_reports=data.get("send_error_reports") is True,
-            privacy_consent_version=int(data.get("privacy_consent_version", 0) or 0),
-            privacy_card_resolved=bool(data.get("privacy_card_resolved", False)),
+            privacy_consent_version=_as_int(data.get("privacy_consent_version"), 0, minimum=0),
+            privacy_card_resolved=_as_bool(data.get("privacy_card_resolved"), False),
             updates_auto_download=data.get("updates_auto_download", True) is not False,
             updates_install_on_exit=data.get("updates_install_on_exit", True) is not False,
-            last_seen_release_notes_version=str(data.get("last_seen_release_notes_version") or "").strip(),
+            last_seen_release_notes_version=_as_str(data.get("last_seen_release_notes_version"), "").strip(),
         )
 
 
@@ -307,6 +315,92 @@ class MarketLeagueMode(str, Enum):
 
     AUTO = "AUTO"
     PINNED = "PINNED"
+
+
+# --- typed reads: a stored value that is not the expected type becomes the field's default ---------------------------------
+
+
+def _as_bool(raw: Any, default: bool) -> bool:
+    """Only a real JSON boolean counts: ``"false"``, ``0`` and ``"no"`` must not turn into True (or False)."""
+    return raw if isinstance(raw, bool) else default
+
+
+def _as_int(raw: Any, default: int, *, minimum: int | None = None) -> int:
+    value: int | None = None
+    if isinstance(raw, bool):
+        value = None
+    elif isinstance(raw, int):
+        value = raw
+    elif isinstance(raw, float) and math.isfinite(raw) and raw == int(raw):
+        value = int(raw)
+    elif isinstance(raw, str):
+        try:
+            value = int(raw.strip())
+        except ValueError:
+            value = None
+    if value is None or (minimum is not None and value < minimum):
+        return default
+    return value
+
+
+def _as_opt_int(raw: Any) -> int | None:
+    """A coordinate: absent or unusable means "not stored" (None)."""
+    return None if raw is None else _as_int(raw, None)  # type: ignore[arg-type]
+
+
+def _as_float(raw: Any, default: float, *, minimum: float | None = None) -> float:
+    value: float | None = None
+    if isinstance(raw, bool):
+        value = None
+    elif isinstance(raw, (int, float)):
+        value = float(raw)
+    elif isinstance(raw, str):
+        try:
+            value = float(raw.strip())
+        except ValueError:
+            value = None
+    if value is None or not math.isfinite(value) or (minimum is not None and value < minimum):
+        return default
+    return value
+
+
+def _as_str(raw: Any, default: str) -> str:
+    return raw if isinstance(raw, str) else default
+
+
+def _as_dict(raw: Any) -> dict[str, Any]:
+    return dict(raw) if isinstance(raw, dict) else {}
+
+
+def _as_str_list(raw: Any) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [row for row in raw if isinstance(row, str) and row.strip()]
+
+
+def _normalize_overlay_position_mode(raw: Any) -> str:
+    value = _as_str(raw, "").strip()
+    valid = {mode.value for mode in OverlayPositionMode}
+    return value if value in valid else OverlayPositionMode.NEAR_ITEM.value
+
+
+def _normalize_value_profile(raw: Any) -> str:
+    value = _as_str(raw, "").strip().upper()
+    if not value:
+        return "BALANCED"
+    try:
+        from exilelens.items.value_profiles import ValueProfile
+
+        return ValueProfile(value).value
+    except ValueError:
+        return "BALANCED"
+
+
+def _normalize_tree_overlay_mode(raw: Any) -> str:
+    value = _as_str(raw, "").strip()
+    from exilelens.tree.overlay_mode import OverlayMode
+
+    return value if value in {mode.value for mode in OverlayMode} else OverlayMode.BUILD_PATH.value
 
 
 def _normalize_baseline_mode(raw: Any) -> str:
@@ -327,10 +421,7 @@ def _normalize_dashboard_page(raw: Any) -> str:
 
 def _normalize_ui_scale(raw: Any) -> float:
     choices = (0.8, 1.0, 1.2, 1.4, 1.6)
-    try:
-        scale = float(raw)
-    except (TypeError, ValueError):
-        return 1.0
+    scale = _as_float(raw, 1.0)
     return float(min(choices, key=lambda choice: abs(choice - scale)))
 
 
@@ -385,6 +476,60 @@ class SettingsLoadResult:
     settings: AppSettings
     loaded_from_disk: bool = False
     load_error: bool = False
+    # Whole-file recovery only: where the unreadable original was preserved (None if it could not be copied).
+    recovery_backup: Path | None = None
+
+
+# Set when settings.json was unreadable and its bytes could not be preserved: nothing may overwrite it until a backup exists.
+_unbacked_unreadable_file = False
+
+
+def _write_recovery_backup(path: Path, raw: bytes | None) -> Path | None:
+    """Preserve the unreadable original byte-for-byte at ``settings.json.corrupt-<time>[-n]``. Never overwrites a backup."""
+    try:
+        if raw is None:
+            raw = path.read_bytes()
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        for attempt in range(100):
+            suffix = "" if attempt == 0 else f"-{attempt}"
+            target = path.with_name(f"{path.name}.corrupt-{stamp}{suffix}")
+            try:
+                handle = open(target, "xb")
+            except FileExistsError:
+                continue
+            with handle:
+                handle.write(raw)
+                handle.flush()
+                os.fsync(handle.fileno())
+            _prune_backups(path, "corrupt", keep=target)
+            _log.info("settings_backup_written path=%s", target)
+            return target
+    except OSError:
+        _log.exception("settings_recovery_backup_failed")
+    return None
+
+
+def _recover_unreadable(path: Path, raw: bytes | None) -> SettingsLoadResult:
+    """settings.json exists but is not a usable settings object: keep the original, run on defaults, write nothing over it."""
+    global _unbacked_unreadable_file
+    backup = _write_recovery_backup(path, raw)
+    _unbacked_unreadable_file = backup is None
+    return SettingsLoadResult(AppSettings(), loaded_from_disk=True, load_error=True, recovery_backup=backup)
+
+
+def recovery_notice_text(result: SettingsLoadResult) -> str | None:
+    """Quiet, actionable copy for a whole-file reset (never for field-level normalization or schema migration)."""
+    if not result.load_error:
+        return None
+    if result.recovery_backup is not None:
+        return (
+            "Your ExileLens settings file could not be read, so ExileLens started with default settings. "
+            "A copy of the old file was kept in the ExileLens data folder (settings.json.corrupt-...)."
+        )
+    return (
+        "Your ExileLens settings file could not be read, so ExileLens started with default settings. "
+        "The old file could not be backed up and was left untouched; settings changed in this session will not be saved."
+    )
 
 
 def load_settings_result() -> SettingsLoadResult:
@@ -392,14 +537,22 @@ def load_settings_result() -> SettingsLoadResult:
     if not path.exists():
         return SettingsLoadResult(AppSettings(), loaded_from_disk=False)
     try:
+        raw = path.read_bytes()
+    except OSError:
+        return _recover_unreadable(path, None)
+    try:
         # utf-8-sig: Notepad and Windows PowerShell write a BOM, which plain utf-8 json
         # rejects -- that silently turned a hand-edited file into "corrupt, use defaults".
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
-        if not isinstance(data, dict):
-            return SettingsLoadResult(AppSettings(), loaded_from_disk=True, load_error=True)
+        data = json.loads(raw.decode("utf-8-sig"))
+    except (ValueError, RecursionError):  # UnicodeDecodeError and JSONDecodeError are ValueErrors
+        return _recover_unreadable(path, raw)
+    if not isinstance(data, dict):
+        return _recover_unreadable(path, raw)
+    try:
         return SettingsLoadResult(AppSettings.from_dict(data), loaded_from_disk=True)
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
-        return SettingsLoadResult(AppSettings(), loaded_from_disk=True, load_error=True)
+    except Exception:  # noqa: BLE001 - from_dict is field-by-field safe; this is the last resort, not a normal path
+        _log.exception("settings_from_dict_failed")
+        return _recover_unreadable(path, raw)
 
 
 def load_settings() -> AppSettings:
@@ -407,12 +560,31 @@ def load_settings() -> AppSettings:
 
 
 def save_settings(settings: AppSettings) -> None:
+    """Atomic: the new content is fully written and flushed to a sibling temp file, then swapped in with one ``replace``."""
+    global _unbacked_unreadable_file
     path = settings_path()
+    if _unbacked_unreadable_file:
+        # The unreadable original was never preserved. Retry the backup; if it still fails, do not destroy the original.
+        if not path.exists() or _write_recovery_backup(path, None) is not None:
+            _unbacked_unreadable_file = False
+        else:
+            _log.error("settings_save_skipped unreadable_file_not_backed_up")
+            return
     settings.schema_version = CURRENT_SCHEMA_VERSION
     payload = json.dumps(settings.to_dict(), indent=2)
     tmp_path = path.with_suffix(".json.tmp")
-    tmp_path.write_text(payload, encoding="utf-8")
-    tmp_path.replace(path)
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        tmp_path.replace(path)
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def onboarding_required(settings: AppSettings) -> bool:
@@ -441,14 +613,24 @@ def backup_settings_file(tag: str) -> Path | None:
     except OSError:
         _log.exception("settings_backup_failed tag=%s", tag)
         return None
-    backups = sorted(path.parent.glob(f"{path.name}.{tag}-*"), key=lambda p: p.stat().st_mtime, reverse=True)
+    _prune_backups(path, tag, keep=target)
+    _log.info("settings_backup_written path=%s", target)
+    return target
+
+
+def _prune_backups(path: Path, tag: str, *, keep: Path) -> None:
+    """Keep the newest few ``settings.json.<tag>-*`` copies; the one just written is never removed."""
+    try:
+        backups = sorted(path.parent.glob(f"{path.name}.{tag}-*"), key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        return
     for stale in backups[_BACKUPS_KEPT:]:
+        if stale == keep:
+            continue
         try:
             stale.unlink()
         except OSError:
             pass
-    _log.info("settings_backup_written path=%s", target)
-    return target
 
 
 def reset_settings(settings: AppSettings) -> Path | None:

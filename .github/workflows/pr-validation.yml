@@ -101,6 +101,13 @@ jobs:
           python -m pytest -o addopts= -q tests/test_release_1_0a_distribution.py tests/test_release_1_0a_compliance.py tests/test_release_gate.py tests/test_r5_closeout.py tests/test_ui_redesign_update_channels.py
           if ($LASTEXITCODE -ne 0) { throw '1.0-A release regressions failed.' }
 
+      - name: Run 1.0-B upgrade and settings regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pytest -o addopts= -q tests/test_release_1_0b_upgrade_settings.py tests/test_release_1_0b_upgrade_flows.py tests/test_settings_directory_migration.py tests/test_onboarding_readiness.py tests/test_whats_new_content.py
+          if ($LASTEXITCODE -ne 0) { throw '1.0-B upgrade regressions failed.' }
+
       - name: Run native overlay production-wiring regression
         id: native-regression
         shell: pwsh

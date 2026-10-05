@@ -1,0 +1,27 @@
+{
+  "limit": 50,
+  "seen": {
+    "0123456789abcdef0123456789abcdef|fp|Example Witch.xml|Mapping|2|MAP|1": 1
+  },
+  "entries": [
+    {
+      "id": "0123456789ab-1791210411301",
+      "recorded_at": 1791210411.301929,
+      "status": "CURRENT",
+      "baseline_identity": "fp|Example Witch.xml|Mapping|2|MAP|1",
+      "evaluation_context": {
+        "context": "MAP",
+        "profile": "DEFENSIVE"
+      },
+      "evaluation_identity": {
+        "schema": 1
+      },
+      "content_hash": "0123456789abcdef0123456789abcdef",
+      "item_name": "Example Rare Helmet",
+      "verdict": "UPGRADE",
+      "best_slot": "Helmet",
+      "seen_count": 1,
+      "stale": false
+    }
+  ]
+}
