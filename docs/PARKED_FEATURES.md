@@ -51,3 +51,11 @@ pytest -m ""
 ## Why parked
 
 Item Check + Item Lab (ITEM-PRO) and Build Analysis are the current delivery focus. Tree, Market and Gear Optimizer remain for later re-integration without deleting code paths.
+
+## Legacy Price Check: DORMANT / LEGACY / NOT A 1.0 ENTRY POINT
+
+The interactive Price Check panel, its Refine dialog and the legacy `submit_price_check` / `refine_last_price` chain are not reachable from the shipped app: Shift+C is Item Check
+(`submit_clipboard_text`), and nothing starts a legacy price check. They are kept, unwired, until a later release decides their fate. The legacy Refine hotkey (Ctrl+Shift+R, a
+`RegisterHotKey` global grab) is **not registered** (R5 closeout): registering it for a flow that cannot run only stole the chord from other applications. The current market product
+surface is `result["market_evidence"]` (`docs/MARKET_EVIDENCE_CONTRACT.md`): Item Check compact line, More Info "Market", Settings and Diagnostics. The live trade2 provider is
+POLICY-BLOCKED, so none of it is visible in a shipped build. Do not add entry points to the legacy panel.
