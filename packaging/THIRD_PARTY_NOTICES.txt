@@ -1,7 +1,7 @@
 EXILELENS THIRD-PARTY NOTICES
 =============================
 
-ExileLens (Windows x64 beta) bundles the third-party components below. The
+ExileLens (Windows x64) bundles the third-party components below. The
 Path of Building application, runtime DLLs, data, and assets are NOT bundled;
 you must install Path of Building separately.
 
@@ -14,19 +14,42 @@ Python runtime (via PyInstaller)
   https://docs.python.org/3/license.html
 
 PyInstaller bootloader and bundling tools
-  Copyright (c) PyInstaller Development Team
-  License: GPL-2.0-only with bootloader exception
+  Copyright (c) 2010-2023, PyInstaller Development Team;
+  (c) 2005-2009, Giovanni Bajo; based on work (c) 2002 McMillan Enterprises, Inc.
+  License: GPL-2.0-or-later with a special exception that allows the bootloader
+  and bundled output to be used in non-GPL programs (full text:
+  third_party_licenses\pyinstaller\COPYING.txt)
   https://pyinstaller.org/en/stable/license.html
 
 PySide6 (Qt for Python) and Qt 6 runtime
   Copyright (C) The Qt Company Ltd. and contributors
-  License: LGPL-3.0-only (library) with Qt commercial/GPL options
+  License (package metadata): LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+  (a commercial license is also offered by The Qt Company)
   https://www.qt.io/licensing/
 
 Shiboken6 (Python/Qt bindings generator runtime)
   Copyright (C) The Qt Company Ltd. and contributors
-  License: LGPL-3.0-only
+  License (package metadata): LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
   https://doc.qt.io/qtforpython/
+
+cryptography (update-manifest signature verification)
+  Copyright (c) Individual contributors.
+  License: Apache-2.0 OR BSD-3-Clause, at your option
+  (full texts: third_party_licenses\cryptography\LICENSE.APACHE and
+  third_party_licenses\cryptography\LICENSE.BSD; chooser:
+  third_party_licenses\cryptography\LICENSE)
+  https://github.com/pyca/cryptography
+
+cffi (a dependency of cryptography)
+  License: MIT No Attribution (MIT-0)
+  (full text: third_party_licenses\cffi\LICENSE)
+  https://github.com/python-cffi/cffi
+
+pycparser (a dependency of cffi)
+  Copyright (c) 2008-2022, Eli Bendersky
+  License: BSD-3-Clause
+  (full text: third_party_licenses\pycparser\LICENSE)
+  https://github.com/eliben/pycparser
 
 Standard Python wheels and native extensions pulled in by the above
 (PySide6 plugins, MSVC runtime redistributables, Windows system APIs) are
@@ -100,6 +123,10 @@ Spectral SemiBold (the build name on the Overview page, and nothing else)
 Source availability
 -------------------
 
-ExileLens application source code is not included in this beta package.
+The ExileLens application is open source under the MIT license (the LICENSE
+file in this folder). Its source code is published at:
+
+  https://github.com/arewoz/ExileLens
+
 For license questions about bundled components, contact the ExileLens
 maintainers via the Discord listed in README.txt.

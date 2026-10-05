@@ -12,7 +12,7 @@ ExileLens evaluates the item you are hovering against your actual Path of Buildi
 
 Instead of using a generic item score, ExileLens compares the candidate item against the equipment, skills, passive tree and other active context in your selected PoB2 build.
 
-> **Beta:** ExileLens is under active development. Unsupported mechanics and occasional incorrect evaluations are still possible.
+> Some Path of Exile 2 mechanics are not modeled by Path of Building or ExileLens. When that matters, ExileLens says the result is partial or `UNCERTAIN` instead of guessing.
 
 ExileLens is an unofficial, fan-made project and is not affiliated with or endorsed by Grinding Gear Games or the Path of Building project. Path of Exile and Path of Exile 2 are trademarks of Grinding Gear Games.
 
@@ -24,7 +24,13 @@ Download the latest Windows build from:
 
 Official ExileLens Windows builds are distributed only through GitHub Releases in this repository. Each release provides a ZIP package and `SHA256SUMS.txt` for verifying that ZIP.
 
-ExileLens is currently unsigned. Windows SmartScreen or antivirus software may warn about the executable, especially on first run.
+ExileLens is not signed with a paid Windows code-signing certificate. Windows SmartScreen or antivirus software may warn about the executable, especially on first run. Check the download against `SHA256SUMS.txt` before running it; a matching hash shows the file is the one that was published, nothing more.
+
+To check the ZIP in PowerShell (replace the file name with the one you downloaded), compare the output with the matching line in `SHA256SUMS.txt`:
+
+```powershell
+Get-FileHash .\ExileLens-<version>-win64.zip -Algorithm SHA256
+```
 
 See [`SECURITY.md`](SECURITY.md) for details about the application's security model, Windows warnings and release integrity.
 
@@ -32,7 +38,7 @@ See [`SECURITY.md`](SECURITY.md) for details about the application's security mo
 
 1. Install [Path of Building Community for Path of Exile 2](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2) separately.
 2. Download the latest ExileLens Windows ZIP package and its `SHA256SUMS.txt` from [GitHub Releases](https://github.com/arewoz/ExileLens/releases).
-3. Optionally verify the ZIP against `SHA256SUMS.txt`, then extract the ZIP.
+3. Verify the ZIP against `SHA256SUMS.txt` (see above), then extract the ZIP.
 4. Start `ExileLens.exe`. The ZIP also contains `README.txt` with setup, controls, and troubleshooting.
 5. During setup, select your Path of Building 2 installation and saved build.
 6. Start Path of Exile 2.
@@ -64,13 +70,11 @@ It currently provides:
 - Offensive, defensive and utility impact analysis
 - Comparison against your currently selected PoB2 equipment and build context
 - Overlay results without manually moving every candidate item into PoB
-- Market-price groundwork (off by default; live prices are not enabled in this build)
+- Analyze Build: what your loaded build responds to, with the measured change
 - Detailed reasoning for supported evaluations
 - Local operation without an ExileLens account; optional, off-by-default usage statistics and error reports (see [PRIVACY.md](PRIVACY.md))
 
 ## Current limitations
-
-ExileLens is still in beta.
 
 Current limitations include:
 
@@ -81,7 +85,7 @@ Current limitations include:
 - Some minion, proxy, triggered or otherwise complex damage setups may not produce a definitive evaluation
 - Some items may return an `UNCERTAIN` result rather than an upgrade or downgrade
 - The selected PoB2 build is the comparison baseline; ExileLens does not automatically treat your live equipped character state as authoritative
-- Live market prices are not available in this build. ExileLens makes no request to the Path of Exile trade service by default, and the live provider stays disabled until that access is documented or authorized
+- ExileLens does not show prices. Live market pricing is not a feature of this build, and ExileLens makes no request to the Path of Exile trade service
 
 ExileLens is intentionally designed to surface uncertainty instead of presenting an unsupported calculation as definitive.
 
@@ -91,7 +95,19 @@ Known bugs and current investigation items are tracked through GitHub Issues:
 
 **[View open issues](https://github.com/arewoz/ExileLens/issues)**
 
-If you find an incorrect item evaluation, please report it. Real build and item examples are particularly useful while ExileLens is in beta.
+If you find an incorrect item evaluation, please report it. Real build and item examples are particularly useful.
+
+## Updates
+
+Packaged builds check GitHub Releases shortly after start and then about once a day; every update is verified against a signed manifest before it is installed, and a failed update is rolled back. There is no setting to turn the update check off. Nothing else is sent: the check carries no identifier.
+
+- **Everyone:** Settings -> Updates -> Check for updates, then Download & install and Restart & update.
+- **Manual fallback:** download the new ZIP from [GitHub Releases](https://github.com/arewoz/ExileLens/releases), verify it against `SHA256SUMS.txt`, and extract it over the old folder. Your settings stay in `%LOCALAPPDATA%\ExileLens`.
+- **Patreon supporters** who link their account get seamless updates as a convenience: more frequent checks (about every 6 hours), verified background download, and install on a clean exit or via Restart & update. Both supporter switches can be turned off. It is the same update, from the same signed release, as everyone else gets: no paid build, no DRM, no separate channel.
+
+## Privacy
+
+Item evaluation runs locally and ExileLens needs no account. By default the only network use is the update check above. Usage statistics and error reports are optional, off by default, and independent of each other and of Patreon. See [PRIVACY.md](PRIVACY.md).
 
 ## Reporting issues
 
@@ -118,7 +134,7 @@ For security vulnerabilities, follow [`SECURITY.md`](SECURITY.md).
 
 ## Support Development
 
-ExileLens is free, open source, and independently maintained. If you would like to support its ongoing development and maintenance, you can [support ExileLens on Patreon](https://www.patreon.com/ExileLens). Support is entirely voluntary and is not required to access any ExileLens features.
+ExileLens is free, open source, and independently maintained. If you would like to support its ongoing development and maintenance, you can [support ExileLens on Patreon](https://www.patreon.com/ExileLens). Support is entirely voluntary. Every ExileLens feature is available without it; supporters who link Patreon additionally get the seamless-update convenience described under Updates.
 
 ## Build from source
 

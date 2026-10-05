@@ -1,5 +1,5 @@
-EXILELENS 0.7.0b1 BETA
-=======================
+EXILELENS 0.7.0b1
+=================
 
 Build-aware item analysis for Path of Exile 2.
 
@@ -7,9 +7,9 @@ ExileLens answers one question:
 
     "Is this item actually better for my build?"
 
-It evaluates hovered items against your selected Path of Building for Path of Exile 2 build and shows an upgrade / downgrade verdict in an overlay.
+It evaluates hovered items against your selected Path of Building for Path of Exile 2 build and shows an upgrade / downgrade verdict in an overlay. It also has an Analyze Build page that shows what your build responds to.
 
-This is an early beta. Bugs, unsupported mechanics and occasional incorrect evaluations are expected.
+ExileLens is open source (MIT). Some Path of Exile 2 mechanics are not modeled by Path of Building or ExileLens, so some results are partial or uncertain. See KNOWN LIMITATIONS.
 
 
 REQUIREMENTS
@@ -83,10 +83,9 @@ UNCERTAIN means ExileLens does not have enough evidence for a reliable
 verdict. It is not a judgment on the item. Open More info for the detailed
 breakdown whenever a result needs explanation.
 
-Market listings: Copy Item is an action you perform inside Path of Exile 2.
-Copied item text enters the same Item Check pipeline described above.
-While a Market Assistant capture session is running, copied items feed that
-session instead of opening competing Item Check results.
+Copy Item is an action you perform inside Path of Exile 2 (for example on a
+trade listing). The copied item text goes through the same Item Check as
+Shift + C.
 
 
 CONTROLS
@@ -122,20 +121,17 @@ administrator, run ExileLens as administrator too. Settings shows an
 elevation note when a mismatch is detected.
 
 
-CURRENT BETA FEATURES
----------------------
+WHAT IT DOES
+------------
 
-- Value for My Build
-- Upgrade / downgrade verdicts
-- Comparison against equipped PoB gear
-- Ring 1 / Ring 2 comparison
-- Offensive, defensive and utility impact
-- Resistance cap / buffer awareness
-- More Info analysis
-- Partial / unsupported mechanic warnings
+- Upgrade / downgrade / sidegrade verdicts against your equipped PoB gear
+- Offensive, defensive and utility impact, with resistance cap awareness
+- More Info breakdown for every result
+- Partial / unsupported mechanic warnings instead of a guess
 - Up to 4 pinned comparisons
 - Balanced / Mapping / Bossing / Defensive profiles
 - Loadout / Gear Set selection
+- Analyze Build: what your loaded build responds to, with the measured change
 - Diagnostics
 
 Supported equipment:
@@ -146,17 +142,32 @@ Jewels placed in allocated passive-tree sockets.
 A small number of special jewels that alter passive-tree connectivity
 cannot be evaluated.
 
+ExileLens does not show prices. It does not contact the Path of Exile
+trade service, and it has no market price feature in this build.
 
-MARKET PRICING
---------------
 
-Live market prices are not available. ExileLens does not contact the Path of Exile trade
-service, and Item Check shows no market price. Market prices are off by default and the
-live provider stays disabled until that access is documented or authorized.
+UPDATES
+-------
 
-The main purpose of this release is:
+Packaged builds check GitHub for a newer release shortly after start and
+then about once a day. Every update is verified against a signed manifest
+before it is installed. Nothing is installed without the verified update
+flow, and a failed update is rolled back.
 
-    VALUE FOR MY BUILD
+Everyone can update manually: Settings -> Updates -> Check for updates, then
+Download & install and Restart & update. If that ever fails, download the new
+ZIP from the official GitHub Releases page, check it against SHA256SUMS.txt
+and extract it over the old folder (your settings are kept in
+%LOCALAPPDATA%\ExileLens).
+
+Supporters who link Patreon in Settings -> Updates get convenience only:
+ExileLens checks more often (about every 6 hours), downloads a verified
+update in the background and can install it when you close ExileLens or when
+you choose Restart & update. Both supporter switches can be turned off.
+The update itself and its source are the same for everyone: there is no
+paid build, no DRM and no separate download channel.
+
+No account is needed to use ExileLens.
 
 
 KNOWN LIMITATIONS
@@ -201,15 +212,19 @@ Partial / unsupported result:
 WINDOWS SMARTSCREEN
 -------------------
 
-Current beta builds are not digitally signed.
-
-Windows may show:
+ExileLens is not digitally signed with a paid Windows code-signing
+certificate. Windows may show:
 
     Windows protected your PC
 
-If you downloaded ExileLens from the official beta page:
+If you downloaded ExileLens from the official GitHub Releases page:
 
     More info -> Run anyway
+
+Before you run it, check the ZIP against SHA256SUMS.txt from the same
+release (PowerShell: Get-FileHash <zip> -Algorithm SHA256). A matching hash
+shows the file is the one that was published; it is not a safety guarantee
+beyond that.
 
 
 BUG REPORTS
@@ -244,27 +259,37 @@ PRIVACY
 
 Normal item evaluation runs locally.
 
-ExileLens currently has no analytics / telemetry system.
+Network use, for a default install:
 
-ExileLens makes no request to the Path of Exile trade service in this build: market
-prices are off by default and the live provider is disabled.
+- The update check described under UPDATES (GitHub only). It sends no
+  identifier. There is no switch to turn the check off.
+- Nothing else. ExileLens does not contact the Path of Exile trade service.
+
+Two optional settings send data only if you turn them on, both OFF by
+default and independent of each other:
+
+- Usage statistics
+- Error reports
+
+Linking Patreon is optional and separate from both. The app never receives
+your Patreon name or email.
 
 See PRIVACY.md in the project repository for full details, including
 what is read from the clipboard, when, and what is stored locally.
 
 
-OPEN SOURCE
------------
+OPEN SOURCE AND LICENSES
+------------------------
 
-ExileLens is free and open source. Source code, license information and
-security guidance are available in the official GitHub repository. Please
-obtain Windows builds only from the official GitHub Releases page.
+ExileLens is free and open source (MIT). Source code, license information and
+security guidance are available in the official GitHub repository:
 
+    https://github.com/arewoz/ExileLens
 
-DISCLAIMER
-----------
+Please obtain Windows builds only from the official GitHub Releases page.
 
-ExileLens is an unofficial community project and is not affiliated with or
-endorsed by Grinding Gear Games or the Path of Building project.
+This folder includes:
 
-Path of Exile and Path of Exile 2 are trademarks of Grinding Gear Games.
+    LICENSE                  the ExileLens license (MIT)
+    THIRD_PARTY_NOTICES.txt  third-party components and their licenses
+    third_party_licenses\    license texts for bundled components

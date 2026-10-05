@@ -172,6 +172,10 @@ class AppSettings:
     update_last_check_at: float = 0.0
     update_latest_version: str = ""
     update_notified_version: str = ""
+    # NOT inert (1.0-A audit): UpdateService.channel() reads this to filter which GitHub releases are offered. "beta" (the default,
+    # and what every existing profile holds) offers EVERY release, pre-releases included, newest version first; only "stable" restricts
+    # the offer to final, non-prerelease versions. Nothing in the UI sets it (set_channel has no caller outside tests), so in practice
+    # every install follows "beta". Reported to the owner before any change: see docs/1.0-HARDENING-PLAN.md.
     update_channel: str = "beta"
     update_last_error: str = ""
     diagnostic_verbose_until: float = 0.0

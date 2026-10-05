@@ -14,7 +14,26 @@ from exilelens.ops.paths import repo_root
 from exilelens.ops.packaging_version import render_version_info
 from exilelens.ops.regression import load_registry
 
+#: Verified third-party license texts that ship in the package (copied unmodified from the upstream distributions). The Qt/PySide6
+#: LGPL text and source offer are deliberately NOT here: they could not be established from local package metadata and are an open
+#: compliance item (docs/1.0-HARDENING-PLAN.md, 1.0-A).
+THIRD_PARTY_LICENSE_FILES = (
+    "packaging/third_party_licenses/README.txt",
+    "packaging/third_party_licenses/cryptography/LICENSE",
+    "packaging/third_party_licenses/cryptography/LICENSE.APACHE",
+    "packaging/third_party_licenses/cryptography/LICENSE.BSD",
+    "packaging/third_party_licenses/cffi/LICENSE",
+    "packaging/third_party_licenses/pycparser/LICENSE",
+    "packaging/third_party_licenses/pyinstaller/COPYING.txt",
+)
+
+#: What must sit next to ExileLens.exe in the release package (names relative to dist/ExileLens).
+DISTRIBUTION_FILES = ("README.txt", "LICENSE", "THIRD_PARTY_NOTICES.txt")
+
 REQUIRED_PACKAGING = (
+    "LICENSE",
+    "packaging/THIRD_PARTY_NOTICES.txt",
+    *THIRD_PARTY_LICENSE_FILES,
     "packaging/CHANGELOG.txt",
     "packaging/RELEASE_NOTES.md",
     "packaging/README.txt",
@@ -210,6 +229,78 @@ def _packaging(root: Path) -> CheckResult:
     if missing:
         return CheckResult("packaging_files", GateVerdict.BLOCKED, Severity.P0, "missing " + ", ".join(missing))
     return CheckResult("packaging_files", GateVerdict.PASS, detail="required packaging files present")
+
+
+def _distribution_files(root: Path, *, required: bool = False) -> CheckResult:
+    """The project LICENSE, the third-party notices and the verified license texts must ship in the package (not only live in the repo)."""
+    problems: list[str] = []
+    build = root / "scripts" / "build_exe.ps1"
+    build_text = build.read_text(encoding="utf-8") if build.is_file() else ""
+    for token in ('"LICENSE"', "THIRD_PARTY_NOTICES.txt", "third_party_licenses"):
+        if token not in build_text:
+            problems.append(f"scripts/build_exe.ps1 does not copy {token.strip(chr(34))} into dist")
+    notices = root / "packaging" / "THIRD_PARTY_NOTICES.txt"
+    notices_text = notices.read_text(encoding="utf-8") if notices.is_file() else ""
+    for rel in THIRD_PARTY_LICENSE_FILES[1:]:
+        folder_and_file = "third_party_licenses\\" + rel.split("third_party_licenses/", 1)[1].replace("/", "\\")
+        if folder_and_file not in notices_text:
+            problems.append(f"THIRD_PARTY_NOTICES.txt does not reference {folder_and_file}")
+    if required:
+        dist = root / "dist" / "ExileLens"
+        for name in DISTRIBUTION_FILES:
+            if not (dist / name).is_file():
+                problems.append(f"dist/ExileLens/{name} missing from the package")
+        for rel in THIRD_PARTY_LICENSE_FILES:
+            if not (dist / "third_party_licenses" / rel.split("third_party_licenses/", 1)[1]).is_file():
+                problems.append(f"dist/ExileLens/third_party_licenses/{rel.split('third_party_licenses/', 1)[1]} missing from the package")
+        shipped, source = dist / "LICENSE", root / "LICENSE"
+        if shipped.is_file() and source.is_file() and shipped.read_bytes() != source.read_bytes():
+            problems.append("dist/ExileLens/LICENSE differs from the repository LICENSE")
+    if problems:
+        return CheckResult("distribution_files", GateVerdict.BLOCKED, Severity.P0, "; ".join(problems))
+    return CheckResult("distribution_files", GateVerdict.PASS, detail="LICENSE, notices and verified license texts are packaged")
+
+
+#: Current shipped/public release surfaces. Historical docs (plans, changelog history, R-milestone records) are deliberately NOT scanned.
+SHIPPING_COPY_FILES = ("packaging/README.txt", "README.md", "PRIVACY.md", "packaging/RELEASE_NOTES.md", "src/exilelens/whats_new/whats_new.json")
+#: Product claims that are false for every build since R5-C / R2.
+_STALE_ALWAYS = (
+    (r"value for my build", "removed Build Value / price rating"),
+    (r"power\s*/\s*cost", "removed Build Value / price rating"),
+    (r"value\s*/\s*cost", "removed Build Value / price rating"),
+    (r"best value", "removed Build Value / price rating"),
+    (r"no analytics", "claims there is no analytics/telemetry (optional usage statistics and error reports exist)"),
+    (r"telemetry system", "claims there is no analytics/telemetry (optional usage statistics and error reports exist)"),
+)
+#: "Early beta" copy: stale as soon as the version is a final release; always stale on the two files below.
+_BETA_PATTERNS = (r"early beta", r"still in beta", r"current beta", r"beta page", r"in this beta")
+_BETA_ALWAYS_FILES = ("packaging/README.txt", "README.md")
+_LIVE_MARKET = r"live market pric"
+_NEGATION = r"\b(not|no|never|isn't|without)\b"
+
+
+def _shipping_copy(root: Path) -> CheckResult:
+    """Reject known stale production claims on the current shipped/public surfaces (never the repository's history)."""
+    import re
+
+    final = "b" not in __version__.rsplit(".", 1)[-1]
+    hits: list[str] = []
+    for rel in SHIPPING_COPY_FILES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            lowered = line.lower()
+            for pattern, why in _STALE_ALWAYS:
+                if re.search(pattern, lowered):
+                    hits.append(f"{rel}:{number} ({why})")
+            if (final or rel in _BETA_ALWAYS_FILES) and any(re.search(pattern, lowered) for pattern in _BETA_PATTERNS):
+                hits.append(f"{rel}:{number} (beta wording)")
+            if re.search(_LIVE_MARKET, lowered) and not re.search(_NEGATION, lowered):
+                hits.append(f"{rel}:{number} (implies live market pricing is available)")
+    if hits:
+        return CheckResult("shipping_copy", GateVerdict.BLOCKED, Severity.P0, "stale shipping copy: " + "; ".join(hits[:8]))
+    return CheckResult("shipping_copy", GateVerdict.PASS, detail="no known stale claims on the shipped/public copy")
 
 
 def _debug_deps(root: Path) -> CheckResult:
@@ -434,6 +525,8 @@ def evaluate_release_gate(
         _p0_registry(base),
         _dirty_tree(base, allow_dirty=allow_dirty),
         _packaging(base),
+        _distribution_files(base, required=require_artifact),
+        _shipping_copy(base),
         _debug_deps(base),
         _update_trust_set(base),
         _cloud_config(base),

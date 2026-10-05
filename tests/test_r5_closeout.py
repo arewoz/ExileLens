@@ -27,4 +27,4 @@ def test_ops_compatibility_market_note_says_live_trade_is_policy_blocked():
 def test_shipped_package_readme_does_not_promise_live_market_pricing():
     text = (ROOT / "packaging" / "README.txt").read_text(encoding="utf-8")
     assert "may contact the official\nPath of Exile trade site" not in text.replace("\r\n", "\n")
-    assert "Live market prices are not available" in text
+    assert "does not contact the Path of Exile" in text.replace("\r\n", "\n").replace("\n", " ")
