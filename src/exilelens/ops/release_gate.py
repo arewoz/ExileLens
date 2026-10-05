@@ -21,8 +21,10 @@ THIRD_PARTY_LICENSE_FILES = (
     "packaging/third_party_licenses/README.txt",
     "packaging/third_party_licenses/qt/LGPL-3.0.txt",
     "packaging/third_party_licenses/qt/GPL-3.0.txt",
+    "packaging/third_party_licenses/qt/QT_THIRD_PARTY_ATTRIBUTIONS.txt",
     "packaging/third_party_licenses/python/LICENSE.txt",
     "packaging/third_party_licenses/python/LICENSES-incorporated-software.rst",
+    "packaging/third_party_licenses/python/BZIP2-LICENSE.txt",
     "packaging/third_party_licenses/openssl/LICENSE.txt",
     "packaging/third_party_licenses/cryptography/LICENSE",
     "packaging/third_party_licenses/cryptography/LICENSE.APACHE",
@@ -30,7 +32,6 @@ THIRD_PARTY_LICENSE_FILES = (
     "packaging/third_party_licenses/cryptography/SBOM-openssl.json",
     "packaging/third_party_licenses/cryptography/SBOM-rust-crates.cyclonedx.json",
     "packaging/third_party_licenses/cffi/LICENSE",
-    "packaging/third_party_licenses/pycparser/LICENSE",
     "packaging/third_party_licenses/pyinstaller/COPYING.txt",
 )
 
@@ -53,6 +54,45 @@ GPL_ONLY_QT_BINARY_TOKENS = (
     "qt6graphs",
     "qt6httpserver",
     "qt6networkauth",
+)
+
+#: Qt binaries that are not licence-forbidden but that ExileLens does not use and that PyInstaller's PySide6 hooks collect anyway (Qt Quick/
+#: Qml, Qt PDF and its image plugin, Qt6OpenGL, the software OpenGL renderer, the qtimageformats plugins). They are removed so the shipped
+#: Qt surface stays inside the qtbase and qtsvg source modules that the LGPL source offer and the Qt attributions cover. Keep in sync with
+#: `_UNUSED_QT_BINARY_TOKENS` in packaging/exilelens-gui.spec (a test compares the two).
+UNUSED_QT_BINARY_TOKENS = (
+    "qt6pdf",
+    "imageformats/qpdf",
+    "qt6qml",
+    "qt6quick",
+    "qt6opengl",
+    "opengl32sw",
+    "imageformats/qicns",
+    "imageformats/qtga",
+    "imageformats/qtiff",
+    "imageformats/qwbmp",
+    "imageformats/qwebp",
+)
+
+#: The approved shipped Qt surface, measured from the real 1.0-C build (docs/release-1.0/ARTIFACT_INVENTORY.md). Any other Qt library or
+#: plugin in a built package blocks the release until it is reviewed against the Qt licensing metadata and the source offer.
+EXPECTED_QT_LIBRARIES = ("Qt6Core", "Qt6Gui", "Qt6Network", "Qt6Svg", "Qt6Widgets")
+EXPECTED_QT_PLUGINS = (
+    "generic/qtuiotouchplugin",
+    "iconengines/qsvgicon",
+    "imageformats/qgif",
+    "imageformats/qico",
+    "imageformats/qjpeg",
+    "imageformats/qsvg",
+    "networkinformation/qnetworklistmanager",
+    "platforms/qdirect2d",
+    "platforms/qminimal",
+    "platforms/qoffscreen",
+    "platforms/qwindows",
+    "styles/qmodernwindowsstyle",
+    "tls/qcertonlybackend",
+    "tls/qopensslbackend",
+    "tls/qschannelbackend",
 )
 
 REQUIRED_PACKAGING = (
@@ -293,7 +333,6 @@ def _license_documentation_problems(root: Path) -> list[str]:
         ("shiboken6", "shiboken6 {v}"),
         ("cryptography", "cryptography {v}"),
         ("cffi", "cffi {v}"),
-        ("pycparser", "pycparser {v}"),
     ):
         version = _locked_version(root, package)
         if version is None:
@@ -375,6 +414,9 @@ def _gpl_only_qt(root: Path, *, required: bool = False) -> CheckResult:
             problems.append("packaging/exilelens-gui.spec _GPL_ONLY_QT_BINARY_TOKENS differs from the release gate list")
         if "a.binaries = [" not in spec_text:
             problems.append("packaging/exilelens-gui.spec defines the GPL-only token list but never applies it to a.binaries")
+    unused = re.search(r"_UNUSED_QT_BINARY_TOKENS\s*=\s*\(([^)]*)\)", spec_text)
+    if unused is None or tuple(re.findall(r'"([^"]+)"', unused.group(1))) != UNUSED_QT_BINARY_TOKENS:
+        problems.append("packaging/exilelens-gui.spec _UNUSED_QT_BINARY_TOKENS differs from the release gate list")
     for forbidden in ("PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtGraphs", "PySide6.QtHttpServer", "PySide6.QtNetworkAuth"):
         quoted = f'"{forbidden}"'
         if spec_text.count(quoted) != 1:  # present exactly once: in `excludes`, never in `hiddenimports`
@@ -621,6 +663,90 @@ def _artifact_leak_scan(root: Path, *, required: bool = False) -> CheckResult:
     return CheckResult("artifact_leak_scan", GateVerdict.PASS, detail="no developer path, key material or secret-like string in the package")
 
 
+def _artifact_qt_and_dependencies(root: Path, *, required: bool = False) -> CheckResult:
+    """POST-BUILD: the shipped Qt surface is exactly the approved set (qtbase + qtsvg only), laid out as QT_LGPL_COMPLIANCE.txt says
+    (separate files in _internal\\PySide6, none inside ExileLens.exe), and the other bundled runtime components are the ones the
+    notices describe (OpenSSL versions, cffi/pycparser, Python runtime, MSVC runtime, font, Lua support files)."""
+    if not required:
+        return CheckResult("artifact_qt_and_dependencies", GateVerdict.PASS, detail="not required pre-build")
+    import re
+
+    from exilelens.ops.pe_version import read_version_strings
+
+    dist = root / "dist" / "ExileLens"
+    internal = dist / "_internal"
+    if not internal.is_dir():
+        return CheckResult("artifact_qt_and_dependencies", GateVerdict.BLOCKED, Severity.P0, "dist/ExileLens/_internal missing")
+    problems: list[str] = []
+    pyside = internal / "PySide6"
+    libs = {path.stem for path in pyside.glob("Qt6*.dll")}
+    if libs != set(EXPECTED_QT_LIBRARIES):
+        extra, missing = sorted(libs - set(EXPECTED_QT_LIBRARIES)), sorted(set(EXPECTED_QT_LIBRARIES) - libs)
+        problems.append(f"Qt libraries differ from the approved set (unexpected: {extra or 'none'}; missing: {missing or 'none'})")
+    plugins = {
+        path.relative_to(pyside / "plugins").with_suffix("").as_posix() for path in (pyside / "plugins").rglob("*.dll")
+    } if (pyside / "plugins").is_dir() else set()
+    if plugins != set(EXPECTED_QT_PLUGINS):
+        problems.append(
+            f"Qt plugins differ from the approved set (unexpected: {sorted(plugins - set(EXPECTED_QT_PLUGINS)) or 'none'}; "
+            f"missing: {sorted(set(EXPECTED_QT_PLUGINS) - plugins) or 'none'})"
+        )
+    for other in internal.rglob("*"):
+        if other.is_file() and other.suffix.lower() in (".dll", ".pyd") and other.name.lower().startswith("qt6") and pyside not in other.parents:
+            problems.append(f"Qt file outside _internal\\PySide6: {other.relative_to(dist)}")
+    forbidden = sorted(
+        {
+            path.relative_to(dist).as_posix()
+            for path in dist.rglob("*")
+            if path.is_file() and any(token in path.relative_to(dist).as_posix().lower() for token in (*GPL_ONLY_QT_BINARY_TOKENS, *UNUSED_QT_BINARY_TOKENS))
+        }
+    )
+    if forbidden:
+        problems.append("GPL-only or removed Qt binaries in the package: " + ", ".join(forbidden[:6]))
+    exe = dist / "ExileLens.exe"
+    if exe.is_file() and exe.stat().st_size > 8 * 1024 * 1024:
+        problems.append("ExileLens.exe is large enough to embed Qt: the Qt libraries must stay separate files")
+    # Python runtime and OpenSSL, compared with what the shipped notices say.
+    notices = (dist / "THIRD_PARTY_NOTICES.txt").read_text(encoding="utf-8") if (dist / "THIRD_PARTY_NOTICES.txt").is_file() else ""
+    pin = (root / ".python-version").read_text(encoding="utf-8").strip() if (root / ".python-version").is_file() else ""
+    runtime_dll = internal / f"python{pin.split('.')[0]}{pin.split('.')[1]}.dll" if pin.count(".") == 2 else None
+    if runtime_dll is None or not runtime_dll.is_file():
+        problems.append("the pinned Python runtime DLL is missing from _internal")
+    else:
+        strings = read_version_strings(runtime_dll) or {}
+        if not str(strings.get("ProductVersion", "")).startswith(pin):
+            problems.append(f"the bundled Python runtime reports {strings.get('ProductVersion')!r}, expected {pin}")
+    runtime_ssl = internal / "libcrypto-3.dll"
+    if not runtime_ssl.is_file():
+        problems.append("libcrypto-3.dll (Python runtime OpenSSL) is not in the package; the notices describe it")
+    else:
+        found = set(re.findall(rb"OpenSSL (\d+\.\d+\.\d+)", runtime_ssl.read_bytes()))
+        if not found or any(f"OpenSSL {v.decode()}" not in notices for v in found):
+            problems.append(f"the notices do not state the Python runtime's OpenSSL {sorted(v.decode() for v in found)}")
+    rust = internal / "cryptography" / "hazmat" / "bindings" / "_rust.pyd"
+    if not rust.is_file():
+        problems.append("cryptography's native module is missing")
+    else:
+        found = set(re.findall(rb"OpenSSL (\d+\.\d+\.\d+)", rust.read_bytes()))
+        if not found or any(f"OpenSSL {v.decode()}" not in notices for v in found):
+            problems.append(f"the notices do not state cryptography's statically linked OpenSSL {sorted(v.decode() for v in found)}")
+    if not list(internal.glob("_cffi_backend*.pyd")):
+        problems.append("cffi's backend is not bundled, but the notices say it is")
+    if (internal / "pycparser").exists() or list(internal.glob("pycparser*")):
+        problems.append("pycparser is bundled, but the notices say it is not")
+    for rel in ("assets/fonts/Spectral-SemiBold.ttf", "assets/fonts/OFL.txt", "runtime/lua/bridge.lua", "exilelens/whats_new/whats_new.json"):
+        if not (internal / rel).is_file():
+            problems.append(f"bundled resource missing: {rel}")
+    if not list(internal.glob("VCRUNTIME140*.dll")) or not list(pyside.glob("MSVCP140*.dll")):
+        problems.append("the Microsoft Visual C++ runtime DLLs described in the notices are missing")
+    if problems:
+        return CheckResult("artifact_qt_and_dependencies", GateVerdict.BLOCKED, Severity.P0, "; ".join(problems))
+    return CheckResult(
+        "artifact_qt_and_dependencies", GateVerdict.PASS,
+        detail=f"Qt = {len(libs)} libraries + {len(plugins)} plugins, all approved; no GPL-only or removed module; runtime/OpenSSL/cffi coherent with the notices",
+    )
+
+
 EXPECTED_SHIPPING_UPDATE_KEYS = ["exilelens-prod-1"]
 
 
@@ -762,6 +888,7 @@ def evaluate_release_gate(
         _artifact_provenance(base, required=require_artifact),
         _artifact_executables(base, required=require_artifact),
         _artifact_leak_scan(base, required=require_artifact),
+        _artifact_qt_and_dependencies(base, required=require_artifact),
         _packaged_update_trust(base, required=require_artifact),
         _packaged_whats_new(base, required=require_artifact),
     ]

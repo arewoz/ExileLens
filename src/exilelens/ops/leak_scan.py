@@ -59,6 +59,14 @@ _USER_PATH = re.compile(rb"(?<![A-Za-z0-9])[A-Za-z]:[\\/]+Users[\\/]+(?P<user>[^
 #: Windows profile folders that are not a person (no identity in them).
 _GENERIC_USERS = {b"public", b"default", b"all users", b"default user", b"user", b"<user>", b"%username%", b"username", b"you", b"yourname", b"example"}
 
+#: Third-party native libraries (.dll/.pyd, never ExileLens's own executables) carry the build-machine paths of THEIR upstream CI inside
+#: panic/diagnostic strings: Qt's CI account ("qt") in every Qt binary and the GitHub-hosted runner account ("runneradmin") in the
+#: cryptography wheel's Rust module. They are not ours, expose no one, and cannot be removed without rebuilding upstream binaries.
+#: Only these two account names, only in third-party native files; any other user name, and every path in an ExileLens-built file,
+#: still blocks the release.
+UPSTREAM_CI_ACCOUNTS = frozenset({b"qt", b"runneradmin"})
+_THIRD_PARTY_NATIVE_SUFFIXES = (".dll", ".pyd")
+
 _FILENAME_RULES: tuple[tuple[str, str], ...] = (
     ("key-file", "*.pem"),
     ("key-file", "*.key"),
@@ -98,7 +106,9 @@ def _named_secret_count(data: bytes) -> int:
     return count
 
 
-def scan_bytes(data: bytes, *, literals: tuple[bytes, ...] = (), paths: bool = True) -> Counter[str]:
+def scan_bytes(
+    data: bytes, *, literals: tuple[bytes, ...] = (), paths: bool = True, ignore_users: frozenset[bytes] = frozenset()
+) -> Counter[str]:
     """Counts of finding categories in ``data`` (values are never kept). ``paths`` is True for a built package: it also looks for
     developer paths and development hosts, which are legitimate in a source tree (docs, dev config)."""
     found: Counter[str] = Counter()
@@ -112,7 +122,9 @@ def scan_bytes(data: bytes, *, literals: tuple[bytes, ...] = (), paths: bool = T
     if named:
         found["named-secret-value"] += named
     if paths:
-        user_hits = sum(1 for m in _USER_PATH.finditer(data) if m.group("user").lower() not in _GENERIC_USERS)
+        user_hits = sum(
+            1 for m in _USER_PATH.finditer(data) if m.group("user").lower() not in _GENERIC_USERS and m.group("user").lower() not in ignore_users
+        )
         if user_hits:
             found["developer-user-path"] += user_hits
         for literal in literals:
@@ -126,7 +138,9 @@ def _scan_named(rel: str, data: bytes, literals: tuple[bytes, ...], paths: bool,
     for category, glob in _FILENAME_RULES:
         if fnmatch.fnmatch(name.lower(), glob) and not _allowed(category, rel):
             findings.append(Finding(category, rel, 1))
-    for category, count in sorted(scan_bytes(data, literals=literals, paths=paths).items()):
+    third_party_native = name.lower().endswith(_THIRD_PARTY_NATIVE_SUFFIXES) and not name.lower().startswith("exilelens")
+    ignore = UPSTREAM_CI_ACCOUNTS if third_party_native else frozenset()
+    for category, count in sorted(scan_bytes(data, literals=literals, paths=paths, ignore_users=ignore).items()):
         if not _allowed(category, rel):
             findings.append(Finding(category, rel, count))
     if name.lower() == "release_config.json":

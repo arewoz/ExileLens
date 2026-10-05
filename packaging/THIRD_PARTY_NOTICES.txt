@@ -14,12 +14,18 @@ Python runtime 3.12.10 (via PyInstaller)
   (full text, and the acknowledgements for software incorporated in Python:
   third_party_licenses\python\LICENSE.txt and
   third_party_licenses\python\LICENSES-incorporated-software.rst)
-  The Python runtime's own ssl and hashlib modules use an OpenSSL 3.x library
-  that ships with Python; its license is reproduced in the incorporated-software
-  file above.
+  The Python runtime ships its own OpenSSL: libcrypto-3.dll and libssl-3.dll
+  are OpenSSL 3.0.16 (used by Python's ssl and hashlib modules); its license
+  is reproduced in the incorporated-software file above. The runtime also
+  ships libffi (libffi-8.dll, MIT), expat, zlib and libmpdec, covered by the
+  same file, bzip2 1.0.8 (inside _bz2.pyd; license:
+  third_party_licenses\python\BZIP2-LICENSE.txt) and liblzma/XZ (inside
+  _lzma.pyd; public domain, no notice required).
   https://docs.python.org/3.12/license.html
 
 PyInstaller bootloader and bundling tools 6.22.2
+  (the bootloader is the executable stub of both ExileLens.exe and
+  ExileLensUpdater.exe)
   Copyright (c) 2010-2023, PyInstaller Development Team;
   (c) 2005-2009, Giovanni Bajo; based on work (c) 2002 McMillan Enterprises, Inc.
   License: GPL-2.0-or-later with a special exception that allows the bootloader
@@ -38,8 +44,13 @@ Qt 6.11.2, PySide6 6.11.2 and shiboken6 6.11.2 (the user interface)
       version, and you may reverse engineer ExileLens to the extent needed to
       debug such a modification.
     - ExileLens itself is free and open source under the MIT license (LICENSE).
+    - The Qt libraries that ship are Qt6Core, Qt6Gui, Qt6Widgets, Qt6Svg and
+      Qt6Network (Qt Base and Qt SVG) with their platform, style, TLS,
+      image-format and icon plugins.
     - The LGPL-3.0 and GPL-3.0 texts are in third_party_licenses\qt\LGPL-3.0.txt
       and third_party_licenses\qt\GPL-3.0.txt.
+    - Third-party components inside those Qt libraries, with their notices and
+      license texts: third_party_licenses\qt\QT_THIRD_PARTY_ATTRIBUTIONS.txt
     - How to replace the libraries, how to rebuild ExileLens from source, and
       the written offer of the Qt, PySide6 and shiboken6 source code are in
       QT_LGPL_COMPLIANCE.txt (next to this file).
@@ -55,27 +66,28 @@ cryptography 50.0.0 (update-manifest signature verification)
   licenses, in third_party_licenses\cryptography\SBOM-rust-crates.cyclonedx.json.
   https://github.com/pyca/cryptography
 
-OpenSSL 4.0.1 (statically linked into the cryptography 50.0.0 Windows wheel)
+OpenSSL 4.0.1 (statically linked into the cryptography 50.0.0 Windows wheel;
+a different copy from the OpenSSL 3.0.16 DLLs that ship with the Python runtime)
   Copyright (c) The OpenSSL Project Authors
   License: Apache License 2.0
   (full text: third_party_licenses\openssl\LICENSE.txt; the version is recorded
   in the wheel's own SBOM, third_party_licenses\cryptography\SBOM-openssl.json)
   https://www.openssl.org/
 
-cffi 2.1.1 (a dependency of cryptography)
+cffi 2.1.1 (a dependency of cryptography; only its compiled backend,
+_cffi_backend.cp312-win_amd64.pyd, is bundled)
   License: MIT No Attribution (MIT-0)
   (full text: third_party_licenses\cffi\LICENSE)
   https://github.com/python-cffi/cffi
+  (pycparser, which cffi needs only to build its extension, is not bundled.)
 
-pycparser 3.0 (a dependency of cffi)
-  Copyright (c) 2008-2022, Eli Bendersky
-  License: BSD-3-Clause
-  (full text: third_party_licenses\pycparser\LICENSE)
-  https://github.com/eliben/pycparser
+Microsoft Visual C++ runtime (msvcp140*.dll and vcruntime140*.dll, in
+_internal, _internal\PySide6 and _internal\shiboken6)
+  Redistributable files, distributed under Microsoft's Visual C++ Redistributable
+  terms. They arrive with the Python runtime and the PySide6 / shiboken6 wheels.
 
-Other files that Python, PyInstaller and PySide6 pull in (the Qt plugins, the
-Microsoft Visual C++ runtime DLLs, Windows system APIs) are distributed under
-their respective upstream licenses.
+Other files that Python, PyInstaller and PySide6 pull in (Windows system APIs)
+are distributed under their respective upstream licenses.
 
 Path of Building Community (PoE2) headless support definitions
   Files adapted/vendored from:

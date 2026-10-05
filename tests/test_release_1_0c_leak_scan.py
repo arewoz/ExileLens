@@ -152,3 +152,21 @@ def test_cli_exit_codes_and_output_never_contain_values(tmp_path, capsys):
     clean = tmp_path / "clean"
     _write(clean, "ok.txt", "ok")
     assert leak_scan.main(["package", str(clean)]) == 0
+
+
+def test_only_upstream_ci_account_names_are_tolerated_and_only_in_third_party_native_files(tmp_path):
+    qt_path = ("C:" + "\Users\\" + "qt" + "\work\install").encode()
+    runner_path = ("D:" + "\Users\\" + "runneradmin" + "\.cargo\registry\src").encode()
+    _write(tmp_path, "_internal/PySide6/Qt6Core.dll", b"MZ\x00" + qt_path + b"\x00")
+    _write(tmp_path, "_internal/cryptography/_rust.pyd", b"MZ\x00" + runner_path + b"\x00")
+    assert scan_package(tmp_path) == []  # upstream build-machine strings inside upstream binaries
+    for rel, data in (
+        ("notes.txt", qt_path),  # the same text in an ordinary file is a leak
+        ("_internal/other.dll", ("C:" + "\Users\\" + "alice" + "\x").encode()),  # any other account in a third-party binary
+        ("ExileLens.exe", qt_path),  # nothing is tolerated in an executable ExileLens builds
+        ("ExileLensUpdater.exe", runner_path),
+    ):
+        folder = tmp_path / ("case-" + rel.replace("/", "_"))
+        _write(folder, rel, b"MZ\x00" + data + b"\x00")
+        assert "developer-user-path" in _categories(scan_package(folder)), rel
+    assert leak_scan.UPSTREAM_CI_ACCOUNTS == {b"qt", b"runneradmin"}

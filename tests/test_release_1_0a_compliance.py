@@ -29,7 +29,7 @@ pytestmark = pytest.mark.itemcheck
 
 def test_licensing_documents_agree_with_the_release_lock():
     assert _license_documentation_problems(ROOT) == []
-    for package in ("PySide6", "shiboken6", "cryptography", "cffi", "pycparser", "pyinstaller"):
+    for package in ("PySide6", "shiboken6", "cryptography", "cffi", "pyinstaller"):
         assert _locked_version(ROOT, package), package
 
 

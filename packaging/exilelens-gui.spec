@@ -184,9 +184,29 @@ _GPL_ONLY_QT_BINARY_TOKENS = (
     "qt6httpserver",
     "qt6networkauth",
 )
+# 1.0-C: ExileLens imports exactly QtCore, QtGui, QtWidgets, QtSvg and QtNetwork (a test asserts it) and uses no QML, PDF, OpenGL or extra
+# image formats. PyInstaller's PySide6 hooks nevertheless collect Qt Quick/Qml (a leaf nothing in the package imports), Qt PDF with its image
+# plugin, Qt6OpenGL, the software OpenGL renderer and the qtimageformats plugins. Dropping them keeps the shipped Qt surface to the qtbase and
+# qtsvg modules (so the LGPL source offer and the third-party notices cover exactly what ships) and removes the PDFium, Mesa/LLVM, libwebp and
+# libtiff obligations. The PE import graph of the built package proves none of the remaining binaries imports any of them. Keep this tuple in
+# sync with release_gate.UNUSED_QT_BINARY_TOKENS (a test compares the two).
+_UNUSED_QT_BINARY_TOKENS = (
+    "qt6pdf",
+    "imageformats/qpdf",
+    "qt6qml",
+    "qt6quick",
+    "qt6opengl",
+    "opengl32sw",
+    "imageformats/qicns",
+    "imageformats/qtga",
+    "imageformats/qtiff",
+    "imageformats/qwbmp",
+    "imageformats/qwebp",
+)
+_EXCLUDED_QT_BINARY_TOKENS = _GPL_ONLY_QT_BINARY_TOKENS + _UNUSED_QT_BINARY_TOKENS
 a.binaries = [
     row for row in a.binaries
-    if not any(token in str(row[0]).replace("\\", "/").lower() for token in _GPL_ONLY_QT_BINARY_TOKENS)
+    if not any(token in str(row[0]).replace("\\", "/").lower() for token in _EXCLUDED_QT_BINARY_TOKENS)
 ]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
