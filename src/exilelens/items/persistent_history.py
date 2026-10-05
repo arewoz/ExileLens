@@ -111,9 +111,15 @@ class PersistentItemHistory(ResultHistory):
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
             return
-        self.limit = int(data.get("limit") or self.limit)
-        self._seen = dict(data.get("seen") or {})
-        self._entries = list(data.get("entries") or [])
+        if not isinstance(data, dict):
+            return  # not a history object: start empty (the file is only rewritten on the next real record)
+        limit = data.get("limit")
+        if isinstance(limit, int) and not isinstance(limit, bool) and limit > 0:
+            self.limit = limit
+        seen = data.get("seen")
+        self._seen = dict(seen) if isinstance(seen, dict) else {}
+        entries = data.get("entries")
+        self._entries = [row for row in entries if isinstance(row, dict)] if isinstance(entries, list) else []
 
 
 def make_baseline_identity_from_controller(
