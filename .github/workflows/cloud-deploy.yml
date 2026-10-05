@@ -19,8 +19,15 @@ on:
 permissions:
   contents: read
 
+# One deployment per target environment at a time; a running deployment is never cancelled (partial D1 migration / Worker state).
+concurrency:
+  group: cloud-deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
+    # Fail closed: nothing (and no environment secret) is reachable from a branch other than main.
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloud-${{ inputs.environment }}
@@ -28,14 +35,20 @@ jobs:
       run:
         working-directory: cloud
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TARGET_ENV: ${{ inputs.environment }}
     steps:
+      - name: Reject dispatches outside main
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main" || { echo "Cloud deployments may only run from main."; exit 1; }
+
       - name: Check out
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Require credentials and a real database id
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN missing on the environment"; exit 1; }
           node -e "const t=require('fs').readFileSync('wrangler.toml','utf8');const s=t.split('[[env.'+process.env.TARGET_ENV+'.d1_databases]]')[1]||'';const m=s.match(/database_id\s*=\s*\"([^\"]+)\"/);if(!m||/^[0-]+$/.test(m[1])){console.error('Replace the placeholder database_id for '+process.env.TARGET_ENV+' in wrangler.toml first');process.exit(1)}"
@@ -46,7 +59,13 @@ jobs:
         run: npm run typecheck && npm test
 
       - name: Apply D1 migrations (remote, additive only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler d1 migrations apply TELEMETRY_DB --env "$TARGET_ENV" --remote
 
       - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --env "$TARGET_ENV"

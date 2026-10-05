@@ -11,7 +11,7 @@ from exilelens import SUPPORTED_POB_HEAD, __version__
 from exilelens.ops.compatibility import load_manifest, validate_against_code
 from exilelens.ops.models import CheckResult, CompatibilityStatus, GateVerdict, Severity
 from exilelens.ops.paths import repo_root
-from exilelens.ops.packaging_version import render_version_info
+from exilelens.ops.packaging_version import EXECUTABLES, UPDATER, render_version_info
 from exilelens.ops.regression import load_registry
 
 #: Verified third-party license material that ships in the package, byte-for-byte as committed under packaging/third_party_licenses
@@ -66,6 +66,8 @@ REQUIRED_PACKAGING = (
     "packaging/RELEASE_NOTES.md",
     "packaging/README.txt",
     "packaging/version_info.txt",
+    "packaging/version_info_updater.txt",
+    "scripts/validate_release_binary_provenance.py",
     "src/exilelens/whats_new/whats_new.json",
     "packaging/exilelens-gui.spec",
     "packaging/exilelens-updater.spec",
@@ -126,9 +128,11 @@ def _version_files_coherent(root: Path) -> CheckResult:
     missing = []
     if "exilelens._version.__version__" not in pyproject:
         missing.append("pyproject.toml dynamic version source")
-    expected_info = render_version_info()
-    if version_info != expected_info:
+    if version_info != render_version_info():
         missing.append("packaging/version_info.txt (regenerate with scripts/generate_packaging_version_info.py)")
+    updater_info_path = root / "packaging" / "version_info_updater.txt"
+    if not updater_info_path.is_file() or updater_info_path.read_text(encoding="utf-8") != render_version_info(identity=UPDATER):
+        missing.append("packaging/version_info_updater.txt (regenerate with scripts/generate_packaging_version_info.py)")
     if __version__ not in changelog:
         missing.append("packaging/CHANGELOG.txt")
     if __version__ not in readme:
@@ -521,6 +525,102 @@ def _artifact_provenance(root: Path, *, required: bool = False) -> CheckResult:
     return CheckResult("artifact_provenance", GateVerdict.PASS, detail=f"stamp matches HEAD and v{__version__}")
 
 
+def _spec_audit(root: Path) -> CheckResult:
+    """PRE-BUILD: both PyInstaller specs are configured as claimed (spec-aware, not whole-file text). Does not prove a built artifact."""
+    from exilelens.ops.packaging_spec import audit_specs
+
+    problems = audit_specs(root)
+    if problems:
+        return CheckResult("spec_audit", GateVerdict.BLOCKED, Severity.P0, "; ".join(problems))
+    return CheckResult("spec_audit", GateVerdict.PASS, detail="GUI (onedir) and updater (onefile) specs match the release configuration")
+
+
+def _artifact_executables(root: Path, *, required: bool = False) -> CheckResult:
+    """POST-BUILD: both executables carry the one canonical version, and binary_manifest.json covers both byte-for-byte."""
+    if not required:
+        return CheckResult("artifact_executables", GateVerdict.PASS, detail="not required pre-build (pre-build checks the configuration only)")
+    import json
+    import re
+
+    from exilelens.ops.binary_provenance import GUI_EXE, UPDATER_REL, sha256_file
+    from exilelens.ops.pe_version import read_version_strings
+
+    dist = root / "dist" / "ExileLens"
+    problems: list[str] = []
+    paths = {"gui": dist / GUI_EXE, "updater": dist / UPDATER_REL}
+    for identity in EXECUTABLES:
+        path = paths[identity.role]
+        if not path.is_file():
+            problems.append(f"{identity.file_name} missing from the package")
+            continue
+        strings = read_version_strings(path)
+        if strings is None:
+            problems.append(f"{identity.file_name} has no readable Windows version resource")
+            continue
+        expected = {
+            "FileVersion": __version__, "ProductVersion": __version__, "ProductName": "ExileLens", "CompanyName": "ExileLens",
+            "FileDescription": identity.description, "OriginalFilename": identity.file_name, "InternalName": identity.internal_name,
+        }
+        for key, want in expected.items():
+            if strings.get(key) != want:
+                problems.append(f"{identity.file_name} {key}={strings.get(key)!r}, expected {want!r}")
+    manifest_path = dist / "binary_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        manifest = None
+    if not isinstance(manifest, dict):
+        problems.append("binary_manifest.json missing or unreadable")
+    else:
+        if manifest.get("schema_version") != 2:
+            problems.append("binary_manifest.json is not schema 2 (both executables recorded)")
+        head = _git(root, "rev-parse", "HEAD")
+        if manifest.get("git_commit") != head:
+            problems.append("binary_manifest.json git_commit != HEAD")
+        if manifest.get("application_version") != __version__:
+            problems.append("binary_manifest.json application_version != canonical version")
+        pin = root / ".python-version"
+        if pin.is_file() and manifest.get("python_version") != pin.read_text(encoding="utf-8").strip():
+            problems.append("binary_manifest.json python_version != .python-version")
+        for key in ("pyinstaller_version", "architecture", "build_timestamp_utc", "release_lock_sha256"):
+            if not manifest.get(key) or manifest.get(key) in ("unknown", "missing"):
+                problems.append(f"binary_manifest.json {key} not recorded")
+        recorded = {row.get("role"): row for row in manifest.get("executables", []) if isinstance(row, dict)}
+        for identity in EXECUTABLES:
+            row, path = recorded.get(identity.role), paths[identity.role]
+            if row is None:
+                problems.append(f"binary_manifest.json has no entry for {identity.file_name}")
+            elif path.is_file() and (row.get("sha256") != sha256_file(path) or row.get("size") != path.stat().st_size):
+                problems.append(f"binary_manifest.json hash/size for {identity.file_name} does not match the packaged file")
+        listed = {row.get("relative_path"): row.get("sha256") for row in manifest.get("binaries", []) if isinstance(row, dict)}
+        native = [p for p in dist.rglob("*") if p.is_file() and p.suffix.lower() in (".exe", ".dll", ".pyd")]
+        unlisted = [p.relative_to(dist).as_posix() for p in native if listed.get(p.relative_to(dist).as_posix()) != sha256_file(p)]
+        if unlisted:
+            problems.append(f"{len(unlisted)} native file(s) missing from / different in binary_manifest.json, e.g. {unlisted[0]}")
+        if re.search(r"[A-Za-z]:[\\/]", manifest_path.read_text(encoding="utf-8")):
+            problems.append("binary_manifest.json contains an absolute drive path")
+    if problems:
+        return CheckResult("artifact_executables", GateVerdict.BLOCKED, Severity.P0, "; ".join(problems))
+    return CheckResult("artifact_executables", GateVerdict.PASS, detail=f"both executables report version {__version__} and are covered by binary_manifest.json")
+
+
+def _artifact_leak_scan(root: Path, *, required: bool = False) -> CheckResult:
+    """POST-BUILD: no developer path, key material, token-like string or development host in the package. Categories and counts only."""
+    if not required:
+        return CheckResult("artifact_leak_scan", GateVerdict.PASS, detail="not required pre-build")
+    from exilelens.ops.leak_scan import scan_package
+
+    dist = root / "dist" / "ExileLens"
+    if not dist.is_dir():
+        return CheckResult("artifact_leak_scan", GateVerdict.BLOCKED, Severity.P0, "dist/ExileLens missing")
+    literals = tuple({str(root), str(Path.home())})
+    findings = scan_package(dist, literals=literals)
+    if findings:
+        shown = "; ".join(item.line() for item in findings[:8])
+        return CheckResult("artifact_leak_scan", GateVerdict.BLOCKED, Severity.P0, f"{len(findings)} finding(s): {shown}")
+    return CheckResult("artifact_leak_scan", GateVerdict.PASS, detail="no developer path, key material or secret-like string in the package")
+
+
 EXPECTED_SHIPPING_UPDATE_KEYS = ["exilelens-prod-1"]
 
 
@@ -651,6 +751,7 @@ def evaluate_release_gate(
         _p0_registry(base),
         _dirty_tree(base, allow_dirty=allow_dirty),
         _packaging(base),
+        _spec_audit(base),
         _distribution_files(base, required=require_artifact),
         _gpl_only_qt(base, required=require_artifact),
         _shipping_copy(base),
@@ -659,6 +760,8 @@ def evaluate_release_gate(
         _cloud_config(base),
         _expected_artifact(base, required=require_artifact),
         _artifact_provenance(base, required=require_artifact),
+        _artifact_executables(base, required=require_artifact),
+        _artifact_leak_scan(base, required=require_artifact),
         _packaged_update_trust(base, required=require_artifact),
         _packaged_whats_new(base, required=require_artifact),
     ]

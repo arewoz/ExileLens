@@ -5,6 +5,10 @@ from pathlib import Path
 
 repo_root = Path(SPECPATH).resolve().parent
 src_root = repo_root / "src"
+app_icon = repo_root / "assets" / "app" / "exilelens.ico"
+# Same ExileLens release version as ExileLens.exe (generated from src/exilelens/_version.py by
+# scripts/generate_packaging_version_info.py). There is no separate updater version.
+version_resource = repo_root / "packaging" / "version_info_updater.txt"
 
 a = Analysis(
     [str(src_root / "exilelens" / "updater" / "__main__.py")],
@@ -26,7 +30,18 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # Nothing outside the standard library and the exilelens modules above may enter the updater: no Qt, no crypto stack,
+    # no test tooling. (release_gate / ops.packaging_spec assert this list.)
+    excludes=[
+        "PySide6",
+        "shiboken6",
+        "cryptography",
+        "cffi",
+        "pycparser",
+        "pytest",
+        "unittest",
+        "tkinter",
+    ],
     noarchive=False,
     optimize=0,
 )
@@ -41,6 +56,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
+    icon=str(app_icon),
+    version=str(version_resource),
     upx=False,
     console=True,
 )

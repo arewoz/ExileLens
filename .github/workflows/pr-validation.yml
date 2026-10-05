@@ -108,6 +108,19 @@ jobs:
           python -m pytest -o addopts= -q tests/test_release_1_0b_upgrade_settings.py tests/test_release_1_0b_upgrade_flows.py tests/test_settings_directory_migration.py tests/test_onboarding_readiness.py tests/test_whats_new_content.py
           if ($LASTEXITCODE -ne 0) { throw '1.0-B upgrade regressions failed.' }
 
+      - name: Run 1.0-C packaging, provenance and release-pipeline regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python scripts/lock_release_deps.py --check
+          if ($LASTEXITCODE -ne 0) { throw 'Release dependency lock drifted from packaging/requirements-release.txt.' }
+          python scripts/generate_packaging_version_info.py --check
+          if ($LASTEXITCODE -ne 0) { throw 'Windows version resources are stale.' }
+          python -m exilelens.ops.leak_scan source .
+          if ($LASTEXITCODE -ne 0) { throw 'Source secret scan found credential-like material.' }
+          python -m pytest -o addopts= -q tests/test_release_1_0c_pipeline.py tests/test_release_1_0c_leak_scan.py tests/test_release_1_0c_provenance.py tests/test_release_1_0c_update_gaps.py tests/test_release_gate.py tests/test_release_dry_run.py
+          if ($LASTEXITCODE -ne 0) { throw '1.0-C release-pipeline regressions failed.' }
+
       - name: Run native overlay production-wiring regression
         id: native-regression
         shell: pwsh
