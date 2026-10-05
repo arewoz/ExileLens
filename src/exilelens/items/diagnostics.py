@@ -174,6 +174,9 @@ def _identity_row(identity: Mapping[str, Any]) -> dict[str, Any]:
     row = _identity_row_base(identity)
     if identity.get("ammo_load_effect"):
         row["ammo_load_effect"] = True
+    if identity.get("damage_target") is False:
+        row["damage_target"] = False
+        row["damage_target_reason"] = identity.get("damage_target_reason") or ""
     redirect = _effect_redirect_row(identity.get("effect_redirect"))
     if redirect:
         row["effect_redirect"] = redirect

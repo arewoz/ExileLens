@@ -120,6 +120,10 @@ class PrimarySkill:
     # AMMO-01: the selected effect is a crossbow ammo "Load" action. PoB's game data gives it no damage of its own and
     # its figures do not read the weapon; the fired sibling is the damage-bearing effect.
     ammo_load_effect: bool = False
+    # AMMO-01: PoB's own data says the selected effect is not a legitimate damage target (an ammo load action, or an
+    # effect declaring base_deal_no_damage with no damage flag). The reason is a stable code; empty when it is a target.
+    damage_target: bool = True
+    damage_target_reason: str = ""
     # AMMO-01: set when the bridge resolved a saved ammo "Load" selection to the gem's fired effect (PoB's own pairing
     # of the two effects). Names the effect the build file selected so the change is never silent.
     effect_redirect: dict[str, Any] | None = None
@@ -158,6 +162,8 @@ class PrimarySkill:
             "show_average": self.show_average,
             "no_hit_damage": self.no_hit_damage,
             "ammo_load_effect": self.ammo_load_effect,
+            "damage_target": self.damage_target,
+            "damage_target_reason": self.damage_target_reason,
             "effect_redirect": dict(self.effect_redirect) if self.effect_redirect else None,
         }
 
@@ -196,6 +202,8 @@ class PrimarySkill:
             show_average=bool(identity.get("show_average")),
             no_hit_damage=bool(identity.get("stat_set_no_hit_damage")),
             ammo_load_effect=bool(identity.get("ammo_load_effect")),
+            damage_target=identity.get("damage_target") is not False,
+            damage_target_reason=str(identity.get("damage_target_reason") or ""),
             effect_redirect=dict(identity["effect_redirect"]) if isinstance(identity.get("effect_redirect"), dict) else None,
         )
 
@@ -483,14 +491,18 @@ def resolve_primary_metric(
             OffenseKind.UNRESOLVED,
         )
 
-    if skill.ammo_load_effect and (combined > 0 or total_hit > 0):
-        # AMMO-01: the bridge resolves a saved "Load" selection to the fired effect, so this is only reached when that
-        # pairing was ambiguous or absent. PoB's figures for the load action itself are weapon-blind: reporting them
-        # as measured offense turned a much stronger crossbow into a confident zero.
+    if (skill.ammo_load_effect or not skill.damage_target) and (combined > 0 or total_hit > 0):
+        # AMMO-01: the selected effect is not a legitimate damage target, yet PoB reports a figure for it. For an ammo
+        # load action the bridge first resolves the selection to the fired sibling, so it is only reached here when
+        # that pairing was ambiguous or absent. Those figures are weapon-blind: reporting them as measured offense
+        # turned a much stronger crossbow into a confident zero. A genuine zero never reaches this branch.
+        what = (
+            "only loads ammunition and deals no damage" if skill.ammo_load_effect
+            else "is declared by Path of Building to deal no damage"
+        )
         return select(
             "CombinedDPS",
-            f"selected effect '{skill.name}' only loads ammunition and deals no damage; "
-            "PoB's figures for it do not measure the fired skill",
+            f"selected effect '{skill.name}' {what}; PoB's figures for it do not measure damage",
             PrimaryMetricConfidence.LOW,
             OffenseKind.UNRESOLVED,
             DamageQuantity.UNRESOLVED,
