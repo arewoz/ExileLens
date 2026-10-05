@@ -19,6 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 GH_TOKEN = "gh" + "p_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 PEM_HEADER = "-----BEGIN " + "PRIVATE KEY-----"
+PEM_BODY = "A1b2C3d4" * 10
+PEM_BLOCK = PEM_HEADER + "\n" + PEM_BODY + "\n-----END PRIVATE KEY-----"
 USER_PATH = "C:" + "\\Users\\" + "alice" + "\\AppData\\Local\\build\\x.py"
 WEBHOOK = "https://discord" + ".com/api/webhooks/" + "123456789012345678/" + "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
 PEPPER_VALUE = "k9Zx" + "Q2mV7pLr4TyB"
@@ -47,7 +49,8 @@ def test_a_clean_package_passes(tmp_path):
     "rel,content,category",
     [
         ("a.txt", GH_TOKEN, "github-token"),
-        ("a.txt", "x " + PEM_HEADER + "\nAAAA", "private-key-header"),
+        ("a.txt", "x " + PEM_BLOCK, "private-key-block"),
+        ("a.json", json.dumps({"k": PEM_BLOCK}), "private-key-block"),  # newlines JSON-escaped
         ("a.bin", b"\x00\x01" + USER_PATH.encode() + b"\x00", "developer-user-path"),
         ("a.txt", WEBHOOK, "discord-webhook-url"),
         ("a.txt", "PATREON_ID_PEPPER=" + PEPPER_VALUE, "named-secret-value"),
@@ -118,17 +121,17 @@ def test_zip_members_and_nested_zips_are_scanned(tmp_path):
 def test_allowlist_is_small_explicit_and_path_specific():
     assert len(leak_scan.ALLOWLIST) <= 8
     assert all(path and "*" not in path.split("/")[0] for _, path in leak_scan.ALLOWLIST)
-    assert ("private-key-header", "fixtures/update_signing/test_signing_key.pem") in leak_scan.ALLOWLIST
+    assert ("private-key-block", "fixtures/update_signing/test_signing_key.pem") in leak_scan.ALLOWLIST
 
 
 def test_source_scan_allows_the_public_test_key_and_nothing_else(tmp_path):
-    key = _write(tmp_path, "fixtures/update_signing/test_signing_key.pem", PEM_HEADER + "\nAAAA\n-----END PRIVATE KEY-----")
+    key = _write(tmp_path, "fixtures/update_signing/test_signing_key.pem", PEM_BLOCK)
     assert key.is_file()
     assert scan_source(tmp_path) == []
-    _write(tmp_path, "other/real.pem", PEM_HEADER + "\nAAAA")
+    _write(tmp_path, "other/real.pem", PEM_BLOCK)
     _write(tmp_path, "notes.md", "token " + GH_TOKEN)
     found = {(f.category, f.path) for f in scan_source(tmp_path)}
-    assert ("private-key-header", "other/real.pem") in found and ("key-file", "other/real.pem") in found
+    assert ("private-key-block", "other/real.pem") in found and ("key-file", "other/real.pem") in found
     assert ("github-token", "notes.md") in found
 
 
@@ -170,3 +173,12 @@ def test_only_upstream_ci_account_names_are_tolerated_and_only_in_third_party_na
         _write(folder, rel, b"MZ\x00" + data + b"\x00")
         assert "developer-user-path" in _categories(scan_package(folder)), rel
     assert leak_scan.UPSTREAM_CI_ACCOUNTS == {b"qt", b"runneradmin"}
+
+
+def test_a_bare_pem_delimiter_constant_is_not_key_material(tmp_path):
+    """Parsers (Qt Network's QSslKey, TLS backends) carry the BEGIN/END delimiters as NUL-separated constants."""
+    constants = b"\x00".join([PEM_HEADER.encode(), b"-----BEGIN RSA " + b"PRIVATE KEY-----", b"-----END " + b"PRIVATE KEY-----"])
+    _write(tmp_path, "_internal/PySide6/Qt6Network.dll", b"MZ\x00" + constants + b"\x00")
+    assert scan_package(tmp_path) == []
+    _write(tmp_path, "_internal/leaked.bin", b"MZ\x00" + PEM_BLOCK.encode())
+    assert "private-key-block" in _categories(scan_package(tmp_path))

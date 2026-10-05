@@ -118,7 +118,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Windows version resources are stale.' }
           python -m exilelens.ops.leak_scan source .
           if ($LASTEXITCODE -ne 0) { throw 'Source secret scan found credential-like material.' }
-          python -m pytest -o addopts= -q tests/test_release_1_0c_pipeline.py tests/test_release_1_0c_leak_scan.py tests/test_release_1_0c_provenance.py tests/test_release_1_0c_update_gaps.py tests/test_release_gate.py tests/test_release_dry_run.py
+          python -m pytest -o addopts= -q tests/test_release_1_0c_pipeline.py tests/test_release_1_0c_leak_scan.py tests/test_release_1_0c_provenance.py tests/test_release_1_0c_compliance.py tests/test_release_1_0c_update_gaps.py tests/test_release_gate.py tests/test_release_dry_run.py
           if ($LASTEXITCODE -ne 0) { throw '1.0-C release-pipeline regressions failed.' }
 
       - name: Run native overlay production-wiring regression

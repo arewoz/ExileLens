@@ -25,10 +25,10 @@ from pathlib import Path
 #: (category, path glob) pairs that are known safe. Keep this tiny and documented.
 ALLOWLIST: tuple[tuple[str, str], ...] = (
     # The PUBLIC test signing key: its private half is published on purpose so tests can sign fixtures; shipping builds never trust it.
-    ("private-key-header", "fixtures/update_signing/test_signing_key.pem"),
+    ("private-key-block", "fixtures/update_signing/test_signing_key.pem"),
     ("key-file", "fixtures/update_signing/test_signing_key.pem"),
     # A test that generates a throwaway key at run time and wraps it in PEM armour (no key material is committed).
-    ("private-key-header", "cloud/test/patreon-lease.test.ts"),
+    ("private-key-block", "cloud/test/patreon-lease.test.ts"),
     # An obviously fake token used to prove that diagnostics redact token-shaped strings.
     ("github-token", "public_tests/test_m4_4_diagnostics.py"),
 )
@@ -49,7 +49,12 @@ _NAMED = re.compile(
 
 # category -> compiled bytes regex (matched values are counted, never reported)
 _PATTERNS: tuple[tuple[str, re.Pattern[bytes]], ...] = (
-    ("private-key-header", re.compile(rb"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----")),
+    # A PEM private-key BLOCK: the header followed by its base64 body (or RFC 1421 headers). The bare header string alone is not key
+    # material: parsers such as Qt Network's QSslKey carry the delimiters as constants (NUL-separated), so those must not block a release.
+    (
+        "private-key-block",
+        re.compile(rb"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----[ \t]*(?:\r?\n|\\n)(?:(?:Proc-Type|DEK-Info)[^\n]*\r?\n)*[A-Za-z0-9+/=]{40,}"),
+    ),
     ("github-token", re.compile(rb"\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{22,})")),
     ("discord-webhook-url", re.compile(rb"https://(?:discord|discordapp)\.com/api/webhooks/\d+/[A-Za-z0-9_\-]{20,}")),
     ("cloudflare-token-like", re.compile(rb"\b(?:cf|cloudflare)[_-]?(?:api[_-]?)?token[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9_\-]{36,}", re.IGNORECASE)),
