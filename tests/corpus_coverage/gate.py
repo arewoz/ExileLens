@@ -31,8 +31,8 @@ BLOCK = "BLOCK"
 INFO = "INFO"
 
 # Ratchets (R4 evidence, installed PoB 0.23.1): executed registered cases and passing FULLY_MEASURED verdict cases.
-MIN_EXECUTED_CASES = 188
-MIN_FULLY_MEASURED_CASES = 91
+MIN_EXECUTED_CASES = 190
+MIN_FULLY_MEASURED_CASES = 92
 
 # Archetypes the corpus represents but does not (yet) functionally measure, each with the documented reason. An archetype
 # not listed here must be FUNCTIONALLY_MEASURED to pass the gate.

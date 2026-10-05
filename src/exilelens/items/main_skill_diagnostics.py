@@ -183,6 +183,10 @@ def sibling_alternatives(effect_catalog: dict[str, Any] | None, main_index: Any)
         reference = effect.get("reference") or {}
         if reference.get("group_selector") != main_index:
             continue
+        # AMMO-01: an ammo load action (or any effect PoB declares as dealing no damage) is never offered as the
+        # skill to select instead, whatever number PoB reports for it.
+        if reference.get("damage_target") is False:
+            continue
         offense = _effect_offense(effect.get("output") or {})
         if offense is None:
             continue

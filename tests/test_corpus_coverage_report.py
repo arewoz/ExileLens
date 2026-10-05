@@ -473,7 +473,14 @@ def test_every_real_pob_integration_file_is_wired_into_the_report_generator() ->
     assert spec.loader is not None
     spec.loader.exec_module(module)
     wired = {path for path, _marker in module.SUITES}
-    excluded: dict[str, str] = {}
+    excluded: dict[str, str] = {
+        # AMMO-01 validation: data-derived contract / audit layers over PoB's own gem data. They guard a failure class
+        # (and re-derive their cases from the runtime) rather than adding registry cases, so they deliberately do not
+        # move the coverage ratchets; the authoritative corpus case is test_ammo01_permafrost_bolts_weapon.py.
+        "tests/integration/test_ammo01_family_contract.py": "AMMO-01 data-derived family contract, not a ratchet case",
+        "tests/integration/test_ammo01_state_matrix.py": "AMMO-01 state/normalization matrix and negative controls, not a ratchet case",
+        "tests/integration/test_gem_effect_audit.py": "AMMO-01 multi-effect gem audit tripwire, not a ratchet case",
+    }
     for path in sorted((ROOT / "tests" / "integration").glob("test_*.py")):
         text = path.read_text(encoding="utf-8")
         relative = path.relative_to(ROOT).as_posix()

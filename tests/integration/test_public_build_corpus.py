@@ -57,8 +57,9 @@ def test_manifest_is_small_complete_and_repository_relative() -> None:
         "CORPUS02H-ELDRITCH-BATTERY",
         "LIFE01-BLOOD-MAGE-GORE-SPIKE",
         "RECOVERY02A-ES-REGEN-INVOKER",
+        "AMMO01-PERMAFROST-BOLTS-WITCHHUNTER",
     ]
-    assert len(CASES) == 21
+    assert len(CASES) == 22
     for case in CASES:
         assert set(case) == {"id", "file", "class", "ascendancy", "primary_skill", "actor", "purpose"}
         assert not Path(case["file"]).is_absolute()

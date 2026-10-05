@@ -42,6 +42,11 @@ class ComponentReference:
     output_table: str = "mainOutput"
     group_selector: int | None = None
     effect_selector: int | None = None
+    # AMMO-01: "calculable" only means PoB produced numbers for the effect. ``damage_target`` says whether ExileLens may
+    # treat those numbers as offense (False for an ammo load action or an effect PoB declares as dealing no damage).
+    # Operational metadata like the selectors: never part of ``cache_identity``.
+    damage_target: bool = True
+    damage_target_reason: str = ""
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "ComponentReference":
@@ -72,6 +77,8 @@ class ComponentReference:
             output_table=str(value.get("output_table") or "mainOutput"),
             group_selector=int(value["group_selector"]) if value.get("group_selector") is not None else None,
             effect_selector=int(value["effect_selector"]) if value.get("effect_selector") is not None else None,
+            damage_target=value.get("damage_target") is not False,
+            damage_target_reason=str(value.get("damage_target_reason") or ""),
         )
 
     @property
@@ -95,6 +102,24 @@ class ComponentReference:
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "cache_identity": self.cache_identity}
+
+
+class NotADamageTarget(ValueError):
+    """An effect reference names an effect PoB does not treat as dealing damage (e.g. an ammo load action)."""
+
+
+def require_damage_target(reference: "ComponentReference | Mapping[str, Any]") -> None:
+    """Refuse to use an effect as damage evidence when its reference says it is not a damage target.
+
+    A missing flag means "a target" (older catalogs and hand-built references).
+    """
+    flag = reference.damage_target if isinstance(reference, ComponentReference) else dict(reference).get("damage_target")
+    if flag is False:
+        reason = (
+            reference.damage_target_reason if isinstance(reference, ComponentReference)
+            else dict(reference).get("damage_target_reason")
+        )
+        raise NotADamageTarget(f"effect is not a damage target ({reason or 'NOT_A_DAMAGE_TARGET'})")
 
 
 @dataclass(frozen=True)

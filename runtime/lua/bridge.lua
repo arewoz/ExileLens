@@ -1113,6 +1113,10 @@ local function list_item_sets()
 	}
 end
 
+-- AMMO-01: defined next to main_skill_identity(); declared here so the loadout/item-set switches can settle
+-- the main effect before they read metrics.
+local settle_main_effect
+
 local function set_active_loadout(name)
 	if not name or name == "" then
 		return list_loadouts()
@@ -1130,6 +1134,7 @@ local function set_active_loadout(name)
 	end
 	M.activate_loadout_compat(build, loadout, api)
 	recalc()
+	settle_main_effect()
 	STATE.active_loadout = active_loadout_name()
 	STATE.active_item_set_id = build.itemsTab.activeItemSetId
 	return {
@@ -1150,6 +1155,7 @@ local function set_active_item_set(item_set_id)
 	end
 	build.itemsTab:SetActiveItemSet(resolved)
 	recalc()
+	settle_main_effect()
 	STATE.active_item_set_id = resolved
 	return {
 		active_id = resolved,
@@ -1300,6 +1306,45 @@ end
 -- to reconstruct identity from a GlobalCache-cached per-skill Env without requiring
 -- `index` to actually be `build.mainSocketGroup`. Every existing caller omits it, which
 -- reduces to exactly today's behaviour (`index == build.mainSocketGroup and ...`).
+-- AMMO-01: groups whose saved main effect was a crossbow ammo "Load" action and was resolved to the gem's fired
+-- effect (see settle_main_effect). Weak-keyed by the PoB group table, so a reloaded build starts empty.
+local EFFECT_REDIRECTS = setmetatable({}, { __mode = "k" })
+
+-- A crossbow ammo effect ("Load Permafrost Bolts") is the parameter carrier for the gem's fired effect: PoB itself
+-- copies its bolt count, reload speed and mana cost onto that sibling (calcCrossbowAmmoStats), and the game data marks
+-- its stat set base_deal_no_damage. PoB still computes a number for the load effect (what its supports add to the
+-- action) that does not read the weapon, so it is never a damage measure.
+local function is_ammo_load_effect(granted, stat_data)
+	return granted ~= nil and type(granted.skillTypes) == "table"
+		and granted.skillTypes[SkillType.CrossbowAmmoSkill] == true
+		and stat_set_has_stat(stat_data, "base_deal_no_damage")
+end
+
+-- AMMO-01: whether the selected effect is a legitimate damage-evaluation target. Not "PoB produced numbers"
+-- (that is `calculable`): PoB's own data must not declare that the effect deals no damage while giving it no damage
+-- flag, and it must not be an ammo load action. Evidence only (stat flags and skill types), never names; a selected
+-- minion actor keeps its effect a target because the minion's output is what is read.
+local DAMAGE_BEARING_FLAGS = { hit = true, dot = true, attack = true, spell = true, minion = true }
+
+local function damage_target_state(granted, stat_data, src)
+	if is_ammo_load_effect(granted, stat_data) then
+		return false, "AMMO_LOAD_DEALS_NO_DAMAGE"
+	end
+	if stat_set_has_stat(stat_data, "base_deal_no_damage") then
+		for flag, on in pairs(stat_data.baseFlags or {}) do
+			if on and DAMAGE_BEARING_FLAGS[flag] then
+				return true, ""
+			end
+		end
+		if src and (src.skillMinionCalcs or src.skillMinion) then
+			return true, ""
+		end
+		return false, "DECLARES_NO_DAMAGE"
+	end
+	return true, ""
+end
+M.damage_target_state = damage_target_state
+
 local function group_identity(index, group, override_env, override_skill, override_selector)
 	local selector = override_selector or group.mainActiveSkill or 1
 	local skill = override_skill or (group.displaySkillList and group.displaySkillList[selector])
@@ -1353,6 +1398,14 @@ local function group_identity(index, group, override_env, override_skill, overri
 		-- ailment (e.g. Poisonburst Arrow's Poison Burst). PoB still computes a
 		-- TotalDPS for that fake hit, and CombinedDPS includes it.
 		stat_set_no_hit_damage = stat_set_has_stat(stat_data, "display_statset_no_hit_damage"),
+		-- AMMO-01: the selected effect is a crossbow ammo "Load" action (no damage of its own).
+		ammo_load_effect = is_ammo_load_effect(granted, stat_data),
+		damage_target = (damage_target_state(granted, stat_data, src)),
+		damage_target_reason = select(2, damage_target_state(granted, stat_data, src)),
+		effect_redirect = (function()
+			local redirect = EFFECT_REDIRECTS[group]
+			return redirect and redirect.to_selector == selector and redirect or nil
+		end)(),
 		-- PoB flags are only a cheap discovery hint; a displayed component
 		-- still requires a directly calculated output from skill_report.
 		-- A selected minion actor is also a hint: PoB's Fire/Sand Djinn summon
@@ -1405,6 +1458,10 @@ local function component_reference(identity)
 		output_table = identity.output_table or "mainOutput",
 		group_selector = identity.index,
 		effect_selector = identity.effect_selector,
+		-- AMMO-01: "calculable" only means PoB produced numbers. An ammo load action is not a legitimate damage
+		-- target for ExileLens whatever number PoB reports for it.
+		damage_target = identity.damage_target ~= false,
+		damage_target_reason = identity.damage_target_reason or "",
 	}
 end
 
@@ -1875,6 +1932,168 @@ local function main_skill_identity()
 		return nil
 	end
 	return attach_damage_owner(group_identity(index, group))
+end
+
+-- AMMO-01: PoB state-free pairing of a crossbow ammo "Load" effect with the fired effect of the SAME gem.
+--
+-- entries[i] = { granted = <granted effect>, instance = <the gem instance that grants it>, stat_data = <selected
+-- stat set> } in PoB's display order. Returns (fired_selector, "OK") or (nil, reason):
+--   NOT_AMMO_LOAD            the entry at `selector` is not an ammo load action (nothing to resolve)
+--   NO_FIRED_SIBLING         the load action has no fired sibling in its own gem instance
+--   AMBIGUOUS_FIRED_SIBLINGS more than one candidate: never guessed
+-- The fired sibling is PoB's own pairing rule (calcCrossbowAmmoStats): same gem, CrossbowSkill, not CrossbowAmmoSkill.
+-- Effects of any other gem instance are never considered, whatever their name or skill id.
+function M.pair_ammo_effects(entries, selector)
+	local current = entries[selector]
+	if not current or not is_ammo_load_effect(current.granted, current.stat_data) then
+		return nil, "NOT_AMMO_LOAD"
+	end
+	local target, count = nil, 0
+	for other_selector, other in ipairs(entries) do
+		local types = other.granted and other.granted.skillTypes
+		if other_selector ~= selector and other.instance == current.instance and type(types) == "table"
+			and types[SkillType.CrossbowSkill] and not types[SkillType.CrossbowAmmoSkill] then
+			count = count + 1
+			target = other_selector
+		end
+	end
+	if count == 0 then
+		return nil, "NO_FIRED_SIBLING"
+	end
+	if count > 1 then
+		return nil, "AMBIGUOUS_FIRED_SIBLINGS"
+	end
+	return target, "OK"
+end
+
+-- AMMO-01: resolve a saved ammo "Load" main effect to the fired effect of the same gem instance.
+--
+-- PoB lists a crossbow ammo gem's effects as [fired, load] (grantedEffectDisplayOrder {1, 0}), so a saved
+-- mainActiveSkill=2 selects the load action. Anything ambiguous is left alone and reported as the load effect,
+-- which the Python resolver treats as not measurable. Only the in-memory build changes (never the file), the
+-- redirect is recorded for disclosure, and every later snapshot/restore starts from the settled state.
+-- Only the MAIN group is settled: PoB's own FullDPS already ignores the load action of any other group, and
+-- native discovery refuses a load effect through the same resolver guard.
+settle_main_effect = function()
+	local index = build.mainSocketGroup
+	local group = build.skillsTab.socketGroupList[index]
+	local list = group and group.displaySkillList
+	if not list then
+		return false
+	end
+	local selector = group.mainActiveSkill or 1
+	local entries = {}
+	for entry_selector, skill in ipairs(list) do
+		local effect = skill.activeEffect
+		local granted = effect and effect.grantedEffect
+		local _, stat_data = selected_stat_set(granted, effect and effect.srcInstance)
+		entries[entry_selector] = { granted = granted, instance = effect and effect.srcInstance, stat_data = stat_data }
+	end
+	local target = M.pair_ammo_effects(entries, selector)
+	if not target then
+		return false
+	end
+	local from = group_identity(index, group)
+	group.mainActiveSkill = target
+	group.mainActiveSkillCalcs = target
+	recalc()
+	local to = group_identity(index, group)
+	EFFECT_REDIRECTS[group] = {
+		reason = "AMMO_LOAD_DEALS_NO_DAMAGE",
+		group_index = index,
+		from_selector = selector,
+		from_skill_id = from.skill_id,
+		from_skill_name = from.skill_name,
+		from_stat_set = from.stat_set,
+		to_selector = target,
+		to_skill_id = to.skill_id,
+		to_skill_name = to.skill_name,
+		to_stat_set = to.stat_set,
+	}
+	return true
+end
+
+-- AMMO-01 audit: a read-only, data-only description of every gem that grants more than one effect (plus every ammo
+-- gem), straight from PoB's loaded gem/skill data, with the result of the pairing rule above for each ammo load
+-- effect. Needs no build and changes nothing.
+local function describe_effect(granted)
+	local types = {}
+	for id, on in pairs(granted.skillTypes or {}) do
+		if on then types[#types + 1] = SkillTypeName[id] or tostring(id) end
+	end
+	table.sort(types)
+	local function string_keys(tbl)
+		local keys = {}
+		for key in pairs(type(tbl) == "table" and tbl or {}) do
+			if type(key) == "string" then keys[#keys + 1] = key end
+		end
+		table.sort(keys)
+		return keys
+	end
+	local sets = {}
+	for set_index, set in ipairs(granted.statSets or {}) do
+		local flags = {}
+		for key, on in pairs(set.baseFlags or {}) do
+			if on then flags[#flags + 1] = tostring(key) end
+		end
+		table.sort(flags)
+		sets[set_index] = {
+			label = set.label or "",
+			base_flags = flags,
+			base_deal_no_damage = stat_set_has_stat(set, "base_deal_no_damage"),
+			no_hit_damage = stat_set_has_stat(set, "display_statset_no_hit_damage"),
+			level_keys = string_keys(set.levels and set.levels[1]),
+		}
+	end
+	return {
+		id = granted.id,
+		name = granted.name or "",
+		hidden = granted.hidden and true or false,
+		support = granted.support and true or false,
+		cast_time = granted.castTime,
+		skill_types = types,
+		stat_sets = sets,
+		part_count = #(granted.parts or {}),
+		level_keys = string_keys(granted.levels and granted.levels[1]),
+	}
+end
+
+local function describe_gem_effects()
+	local ids = {}
+	for gem_id in pairs(data.gems) do ids[#ids + 1] = gem_id end
+	table.sort(ids)
+	local gems = {}
+	for _, gem_id in ipairs(ids) do
+		local gem = data.gems[gem_id]
+		local list = gem.grantedEffectList or { gem.grantedEffect }
+		local has_ammo = false
+		for _, granted in ipairs(list) do
+			if granted.skillTypes and granted.skillTypes[SkillType.CrossbowAmmoSkill] then has_ammo = true end
+		end
+		if gem.grantedEffect and not gem.grantedEffect.support and (#list >= 2 or has_ammo) then
+			local entries, effects = {}, {}
+			for effect_index, granted in ipairs(list) do
+				entries[effect_index] = { granted = granted, instance = gem, stat_data = (granted.statSets or {})[1] }
+			end
+			for effect_index, granted in ipairs(list) do
+				local row = describe_effect(granted)
+				row.index = effect_index
+				local target, status = M.pair_ammo_effects(entries, effect_index)
+				row.ammo_pairing = { status = status, fired_index = target }
+				effects[effect_index] = row
+			end
+			gems[#gems + 1] = {
+				gem_id = gem_id,
+				name = gem.name or "",
+				base_type_name = gem.baseTypeName or "",
+				variant_id = gem.variantId or "",
+				granted_effect_id = gem.grantedEffectId or "",
+				display_order = gem.grantedEffectDisplayOrder,
+				effects = effects,
+			}
+		end
+	end
+	return gems
 end
 
 local function listed_full_dps_skills()
@@ -4085,6 +4304,10 @@ function M.dispatch(req)
 		return { pong = true, healthy = STATE.healthy, loaded = STATE.loaded }
 	end
 
+	if method == "describe_gem_effects" then
+		return { gems = describe_gem_effects() }
+	end
+
 	if method == "engine_info" then
 		return {
 			loaded = STATE.loaded,
@@ -4170,6 +4393,7 @@ function M.dispatch(req)
 		STATE.context = requested_context
 		apply_context(STATE.context)
 		recalc()
+		settle_main_effect()
 		STATE.active_loadout = active_loadout_name()
 		STATE.active_item_set_id = build.itemsTab.activeItemSetId
 		return {

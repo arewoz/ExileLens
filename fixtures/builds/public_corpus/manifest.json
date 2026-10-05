@@ -189,6 +189,15 @@
       "primary_skill": "Spark",
       "actor": "PLAYER",
       "purpose": "Energy Shield recovery: authentic pobb.in/K6bp-LNAo507 Invoker Spark build (R4 removed only the per-item GGG `Unique ID:` lines and the importing character hash). Boots gaining Energy Shield regeneration move EnergyShieldRegenRecovery from zero, a separate recovery channel from Life regeneration"
+    },
+    {
+      "id": "AMMO01-PERMAFROST-BOLTS-WITCHHUNTER",
+      "file": "fixtures/builds/public_corpus/ammo01_permafrost_bolts_witchhunter.xml",
+      "class": "Mercenary",
+      "ascendancy": "Witchhunter",
+      "primary_skill": "Permafrost Bolts",
+      "actor": "PLAYER",
+      "purpose": "Crossbow ammo effect pairing: a tester's public Maxroll export (maxroll.gg/poe2/pob/t77rg80g) whose saved main effect is the gem's \"Load Permafrost Bolts\" action; the bridge resolves it to the fired Permafrost Bolts effect so weapon replacements are measured (AMMO-01; sanitized: Unique ID lines, display cache and import character hash removed)."
     }
   ]
 }
