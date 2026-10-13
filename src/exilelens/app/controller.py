@@ -145,6 +145,9 @@ class EvaluationRequest:
     kind: str = "gameplay"
     context_identity: str = ""
     candidate_fingerprint: str = ""
+    #: PERF-01: inputs for the minion / ailment offense-coverage audit, which runs on the PoB lane (in the worker)
+    #: instead of on the UI thread. ``None`` when no audit is needed or its result is already known.
+    coverage_inputs: dict[str, Any] | None = None
 
 
 @dataclass
@@ -419,6 +422,26 @@ class _EvaluationWorker(QObject):
         if self._tree_cache is not None:
             self._tree_cache.invalidate()
 
+    def _audit_offense_coverage(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        """The minion / ailment offense-coverage audit (PoB probes), on the PoB lane. Same calls, same cache, same
+        result as the controller used to make on the UI thread before the first paint."""
+        from exilelens.items.offense_coverage import OffenseCoverageAuditor
+
+        auditor = OffenseCoverageAuditor(self._engine, cache=self._offense_coverage_cache)
+        cached = auditor.get_cached(
+            fingerprint=inputs["fingerprint"], context=inputs["context"], primary_field=inputs["primary_field"]
+        )
+        if cached is not None:
+            return cached.to_dict()
+        coverage = auditor.ensure(
+            build_info=inputs["build_info"],
+            baseline_metrics=inputs["baseline_metrics"],
+            fingerprint=inputs["fingerprint"],
+            context=inputs["context"],
+            generation=inputs["generation"],
+        )
+        return coverage.to_dict()
+
     def run_prewarm(self, request: PrewarmRequest) -> None:
         from exilelens.items.prewarm import prewarm_native_report
 
@@ -455,6 +478,11 @@ class _EvaluationWorker(QObject):
         terminal_error: Exception | None = None
         try:
             assert self._engine is not None
+            coverage = self._offense_coverage
+            audited: dict[str, Any] | None = None
+            if coverage is None and request.coverage_inputs is not None:
+                audited = self._audit_offense_coverage(request.coverage_inputs)
+                coverage = audited
             result = evaluate_item(
                 request.raw_text,
                 self._engine,
@@ -467,7 +495,7 @@ class _EvaluationWorker(QObject):
                 loadout=self._loadout,
                 item_set=self._item_set,
                 item_check_pro=self._item_check_pro,
-                offense_coverage=self._offense_coverage,
+                offense_coverage=coverage,
                 # PERF-02: this is the delivery path the restore is moved off. Safe here
                 # and only here, because _finalize_deferred_restore below runs before
                 # this slot returns, and this thread processes one request at a time --
@@ -511,6 +539,8 @@ class _EvaluationWorker(QObject):
                 # Which exact build bytes produced this result (More Info / diagnostics).
                 "build_sha": source.short_sha if isinstance(source := getattr(self._engine, "loaded_source", None), BuildSource) else "",
             }
+            if audited is not None:
+                result["request_meta"]["offense_coverage_audit"] = audited
             payload = (result, timing)
         except NotPoe2Item as exc:
             terminal_error = exc
@@ -1074,6 +1104,8 @@ class EvaluationController(QObject):
         self._upgrade_path_cache: dict[str, dict[str, Any]] = {}
         self._offense_coverage_cache: dict[str, dict[str, Any]] = {}
         self._offense_coverage: dict[str, Any] | None = None
+        #: The get_build_info payload captured with the current baseline (read by _ensure_offense_coverage).
+        self._baseline_build_info: dict[str, Any] | None = None
         self._upgrade_path_jobs: dict[int, UpgradePathRequest] = {}
         self._active_upgrade_parent_id: int | None = None
         # R5-B: post-paint market enrichment. Created lazily; never part of the PoB worker queue.
@@ -1564,6 +1596,7 @@ class EvaluationController(QObject):
         self._result_cache.invalidate()
         self._worker.invalidate_baseline_caches()
         self._offense_coverage = None
+        self._baseline_build_info = None
         self._offense_coverage_cache.clear()
         self._upgrade_path_cache.clear()
         trace("baseline_reload_begin", generation=self._baseline_generation, dropped=dropped, path=path)
@@ -2002,6 +2035,7 @@ class EvaluationController(QObject):
         self._equipment_fingerprint = fingerprint or equipment_fp
         name = self.build_info.name or Path(path).stem
         info = capture.build_info
+        self._baseline_build_info = dict(info) if isinstance(info, dict) and info else None
         if isinstance(info, dict) and info.get("name"):
             name = str(info.get("name"))
         elapsed = (time.perf_counter() - started) * 1000
@@ -2608,9 +2642,15 @@ class EvaluationController(QObject):
     def record_overlay_placement(self, placement: dict[str, Any]) -> None:
         self._overlay_placement_diag = dict(placement)
 
-    def _ensure_offense_coverage(self) -> None:
+    def _ensure_offense_coverage(self) -> dict[str, Any] | None:
+        """Make ``self._offense_coverage`` known for the current baseline without a PoB round trip.
+
+        Returns the audit inputs when a minion / ailment audit is still needed: those are PoB probes, so they run on
+        the PoB lane with the evaluation (never on the UI thread, never before the first paint) and the result is
+        adopted from the delivered result.
+        """
         if not self._engine or not self.build_info.is_ready:
-            return
+            return None
         # PERF-01: this early return used to sit below the engine calls, so every
         # accepted Item Check -- including every result-cache hit -- paid a
         # get_build_info round trip on the UI thread and threw the answer away.
@@ -2618,18 +2658,20 @@ class EvaluationController(QObject):
         # lock, so a UI-thread call here blocks behind an in-flight evaluation.
         # Nothing between here and the original early return had a side effect.
         if self._offense_coverage is not None:
-            return
+            return None
         fingerprint = self.baseline_state.fingerprint or self._equipment_fingerprint
         if not fingerprint:
-            return
+            return None
         context = self.build_info.context or self.settings.context
-        build_info: dict[str, Any] = {}
-        try:
-            raw_info = self._engine.get_build_info() if hasattr(self._engine, "get_build_info") else {}
-            if isinstance(raw_info, dict):
-                build_info = raw_info
-        except Exception:
-            build_info = {}
+        # The build info captured with this baseline (the same get_build_info payload) instead of asking PoB again.
+        build_info: dict[str, Any] = dict(self._baseline_build_info) if self._baseline_build_info else {}
+        if not build_info:
+            try:
+                raw_info = self._engine.get_build_info() if hasattr(self._engine, "get_build_info") else {}
+                if isinstance(raw_info, dict):
+                    build_info = raw_info
+            except Exception:
+                build_info = {}
         baseline_metrics = dict(self.baseline_state.metrics or {})
         if not baseline_metrics:
             try:
@@ -2655,24 +2697,27 @@ class EvaluationController(QObject):
             if cached is not None:
                 self._offense_coverage = cached.to_dict()
             else:
-                coverage = auditor.ensure(
-                    build_info=build_info,
-                    baseline_metrics=baseline_metrics,
-                    fingerprint=fingerprint,
-                    context=context,
-                    generation=self._baseline_generation,
-                )
-                self._offense_coverage = coverage.to_dict()
+                return {
+                    "build_info": build_info,
+                    "baseline_metrics": baseline_metrics,
+                    "fingerprint": fingerprint,
+                    "context": context,
+                    "generation": self._baseline_generation,
+                    "primary_field": primary.pob_field,
+                }
         else:
             coverage_payload = infer_offense_coverage(primary, baseline_metrics).to_dict()
             coverage_payload["audit_skipped"] = True
             self._offense_coverage = coverage_payload
         self._configure_worker()
+        return None
 
     def _submit_evaluation_request(self, request: EvaluationRequest) -> int | None:
         request_id = request.request_id
         try:
-            self._ensure_offense_coverage()
+            coverage_inputs = self._ensure_offense_coverage()
+            if coverage_inputs is not None:
+                request = replace(request, coverage_inputs=coverage_inputs)
         except Exception as exc:  # noqa: BLE001 - every accepted request needs a terminal state
             logger.exception("item_check_offense_coverage_failed request_id=%s", request_id)
             self._emit_item_check_error(request_id, f"Could not prepare item analysis: {exc}")
@@ -4669,6 +4714,11 @@ class EvaluationController(QObject):
             self._item_check_lifecycle.advance(request_id, ItemCheckPhase.SUPERSEDED)
             return
 
+        audited = meta.pop("offense_coverage_audit", None)
+        if isinstance(audited, dict) and self._offense_coverage is None:
+            # The lane computed the audit for this baseline generation (guarded above); later checks reuse it.
+            self._offense_coverage = dict(audited)
+            self._configure_worker()
         timing.ui_updated_ms = time.perf_counter() * 1000
         self._stop_item_check_watchdog(request_id)
         identity = baseline_identity(
