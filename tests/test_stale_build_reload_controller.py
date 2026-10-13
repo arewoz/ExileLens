@@ -47,6 +47,18 @@ def _write_build(path: Path, name: str) -> BuildSource:
     return read_build_source(path)
 
 
+def _settle(controller: EvaluationController, timeout: float = 15.0) -> None:
+    """PERF-01: a changed build is reloaded on the PoB lane, so wait for that load (and its completion) to settle."""
+    app = QApplication.instance()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        app.processEvents()
+        if not controller._baseline_jobs and controller._scheduler.active is None:
+            return
+        time.sleep(0.005)
+    raise AssertionError("the build load never settled")
+
+
 class _EngineStub:
     def __init__(self, source: BuildSource) -> None:
         self.loaded_source = source
@@ -131,6 +143,7 @@ def _ready_controller(
 
     def capture_ready(
         self: EvaluationController,
+        capture: object,
         path: str,
         context: str,
         *,
@@ -158,32 +171,31 @@ def _ready_controller(
             self._resume_deferred_evaluation()
 
     if stub_capture_ready:
-        controller._capture_ready_baseline = MethodType(capture_ready, controller)  # type: ignore[method-assign]
-    else:
-        import exilelens.tree.mutations as tree_mutations
-        from exilelens.tree.models import PassiveTreeSnapshot, TreeBaseline
+        controller._apply_baseline_capture = MethodType(capture_ready, controller)  # type: ignore[method-assign]
+    import exilelens.tree.mutations as tree_mutations
+    from exilelens.tree.models import PassiveTreeSnapshot, TreeBaseline
 
-        def _minimal_tree_snapshot(*_args, **_kwargs):
-            baseline = TreeBaseline(
-                build_path="",
-                build_name="stub",
-                loadout="Default",
-                tree_set="Default",
-                item_set="1",
-                context="MAP",
-                profile="default",
-                generation=0,
-                fingerprint="stub-fp",
-                tree_fingerprint="tree-stub",
-            )
-            return PassiveTreeSnapshot(
-                baseline=baseline,
-                nodes={},
-                edges=[],
-                tree_set={"index": 0, "title": "Default"},
-            )
+    def _minimal_tree_snapshot(*_args, **_kwargs):
+        baseline = TreeBaseline(
+            build_path="",
+            build_name="stub",
+            loadout="Default",
+            tree_set="Default",
+            item_set="1",
+            context="MAP",
+            profile="default",
+            generation=0,
+            fingerprint="stub-fp",
+            tree_fingerprint="tree-stub",
+        )
+        return PassiveTreeSnapshot(
+            baseline=baseline,
+            nodes={},
+            edges=[],
+            tree_set={"index": 0, "title": "Default"},
+        )
 
-        monkeypatch.setattr(tree_mutations, "load_tree_snapshot", _minimal_tree_snapshot)
+    monkeypatch.setattr(tree_mutations, "load_tree_snapshot", _minimal_tree_snapshot)
     return controller, engine, build, submitted
 
 
@@ -196,6 +208,8 @@ def test_changed_build_defers_reload_and_resumes_with_current_generation_and_ide
         changed = _write_build(build, "new-build-with-different-size")
 
         request_id = controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(100, 200))
+
+        _settle(controller)
 
         assert request_id == 1
         assert [source.sha256 for source in engine.load_calls] == [changed.sha256]
@@ -230,6 +244,8 @@ def test_failed_reload_restores_last_good_but_rejects_triggering_item_check(
 
         request_id = controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(100, 200))
 
+        _settle(controller)
+
         assert request_id == 1
         assert [source.sha256 for source in engine.load_calls] == [changed.sha256, previous.sha256]
         assert submitted == []
@@ -261,6 +277,7 @@ def test_stable_read_failure_keeps_active_baseline_and_cannot_submit_stale_evalu
     monkeypatch.setattr(controller_module, "read_build_source", unstable_read)
     try:
         request_id = controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
 
         assert request_id == 1
         assert engine.load_calls == []
@@ -286,6 +303,7 @@ def test_partial_xml_is_rejected_then_next_valid_save_recovers_consistently(
     try:
         build.write_text("<PathOfBuilding><Build", encoding="utf-8")
         failed_id = controller.submit_clipboard_text(_item("Partial Save Ring"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
 
         assert failed_id == 1
         assert submitted == []
@@ -296,6 +314,7 @@ def test_partial_xml_is_rejected_then_next_valid_save_recovers_consistently(
 
         recovered = _write_build(build, "recovered-valid-build")
         recovered_id = controller.submit_clipboard_text(_item("Recovered Ring"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
 
         assert recovered_id == 2
         assert [source.sha256 for source in engine.load_calls] == [recovered.sha256]
@@ -330,6 +349,7 @@ def test_missing_build_file_rejects_item_check_without_evaluating_stale_baseline
     try:
         build.unlink()
         request_id = controller.submit_clipboard_text(_item("Missing Build Ring"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
 
         assert request_id == 1
         assert submitted == []
@@ -354,7 +374,9 @@ def test_repeated_item_checks_while_build_missing_never_submit_evaluation(
     try:
         build.unlink()
         first = controller.submit_clipboard_text(_item("First Missing"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
         second = controller.submit_clipboard_text(_item("Second Missing"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
 
         assert first == 1 and second == 2
         assert submitted == []
@@ -374,12 +396,14 @@ def test_missing_build_file_restored_source_recovers_item_check(
     try:
         build.unlink()
         failed_id = controller.submit_clipboard_text(_item("While Missing"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
         assert failed_id == 1
         assert submitted == []
         assert errors
 
         restored = _write_build(build, "restored-after-missing")
         recovered_id = controller.submit_clipboard_text(_item("After Restore"), copy_anchor_screen_px=(100, 200))
+        _settle(controller)
 
         assert recovered_id == 2
         assert [source.sha256 for source in engine.load_calls] == [restored.sha256]
@@ -404,6 +428,8 @@ def test_failed_reload_real_capture_ready_baseline_rejects_triggering_request(
         engine.reject_sha = changed.sha256
 
         request_id = controller.submit_clipboard_text(_item("Real Capture Ring"), copy_anchor_screen_px=(100, 200))
+
+        _settle(controller)
 
         assert request_id == 1
         assert [source.sha256 for source in engine.load_calls] == [changed.sha256, previous.sha256]

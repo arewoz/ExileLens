@@ -205,6 +205,10 @@ class ExileLensApp:
         self._tray_retries_left = 0
         self._setup_dialog: OnboardingDialog | None = None
         self._refine_dialog = None
+        #: PERF-01: the build whose startup load is in flight; its outcome decides whether recovery UI opens.
+        self._startup_build_path: str | None = None
+        #: PERF-01: the PoB worker boots while the UI is built; adopted by the controller on the first loop turn.
+        self._engine_preboot = None
     def _record_fresh_install_release_notes(self, load_result) -> None:
         """A brand-new profile starts "caught up": What's New is for people who already had ExileLens."""
         try:
@@ -256,6 +260,17 @@ class ExileLensApp:
 
         if overlay_disabled():
             self.settings.overlay_enabled = False
+        # PERF-01: the PoB worker is a separate process; boot it while the UI is being built instead of after.
+        # Only a configured folder boots here (first run goes through setup); a failure is reported through the
+        # normal engine_failed path when the controller adopts it.
+        if self.settings.pob_path:
+            try:
+                from exilelens.app.engine_preboot import preboot_for
+
+                self._engine_preboot = preboot_for(self.settings.pob_path)
+            except Exception:  # noqa: BLE001 - never worse than the sequential boot
+                logger.exception("engine_preboot_unavailable")
+                self._engine_preboot = None
         self._compose_primary_ui()
         from exilelens.diagnostics.wiring import (
             attach_controller_diagnostics,
@@ -285,6 +300,7 @@ class ExileLensApp:
         self._wire_signals()
         self.controller.engine_ready.connect(self._on_engine_ready)
         self.controller.engine_failed.connect(self._on_engine_failed)
+        self.controller.build_load_finished.connect(self._on_build_load_finished)
 
         assert self.clipboard is not None
         self.clipboard.clipboard_event.connect(self._on_clipboard_event)
@@ -475,7 +491,8 @@ class ExileLensApp:
         if self.controller is None:
             return
         self._refresh_league_catalog_at_startup()
-        self.controller.start_engine_async()
+        preboot, self._engine_preboot = self._engine_preboot, None
+        self.controller.start_engine_async(preboot)
 
     def _on_engine_ready(self) -> None:
         if self.controller is None:
@@ -485,7 +502,32 @@ class ExileLensApp:
             if self.settings.build_path != build_path:
                 self.settings.build_path = build_path
                 save_settings(self.settings)
-            self.controller.load_build(build_path, context=self.settings.context)
+            # PERF-01: the PoB load runs on the PoB lane; the tray, hotkey and dashboard stay responsive while it
+            # does, and the outcome (including the recovery decision below) arrives as build_load_finished.
+            self._startup_build_path = str(Path(build_path).resolve())
+            info = self.controller.build_info
+            if (
+                info.state in {BuildState.LOADING, BuildState.RELOADING}
+                and info.path == self._startup_build_path
+                and self.controller.build_load_pending
+            ):
+                return   # crash recovery already queued this load; its completion is reported the same way
+            self.controller.load_build_async(build_path, context=self.settings.context)
+            return
+        self._after_startup_build_load()
+
+    def _on_build_load_finished(self, ok: bool, path: str, _reason: str) -> None:
+        pending = self._startup_build_path
+        if pending is None or path != pending:
+            return
+        if self.controller is not None and self.controller.build_info.state in {BuildState.LOADING, BuildState.RELOADING}:
+            return   # a refused/failed request for this build while its real load is still in flight
+        self._startup_build_path = None
+        self._after_startup_build_load()
+
+    def _after_startup_build_load(self) -> None:
+        if self.controller is None:
+            return
         # The first-run dialog observes the same controller. Returning users get the
         # compact recovery page instead of a welcome-flow replay.
         info = self.controller.build_info
@@ -1422,6 +1464,9 @@ class ExileLensApp:
         if self.cloud is not None:
             self._shutdown_step("cloud_services", self.cloud.stop)  # bounded local writes; never the network
         # 5-6: workers, PoB subprocesses, pinned/overlay windows.
+        if getattr(self, "_engine_preboot", None) is not None:
+            self._shutdown_step("engine_preboot", self._engine_preboot.discard)
+            self._engine_preboot = None
         if self.controller:
             self._shutdown_step("controller", self.controller.shutdown)
         for window in (self.overlay, getattr(self, "market_assist_overlay", None), getattr(self, "tree_overlay", None)):

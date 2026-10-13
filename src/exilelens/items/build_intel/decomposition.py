@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from exilelens.items.build_intel.cache import decomposition_cache_key
 from exilelens.items.build_intel.item_semantics import ItemSemanticModel, group_label, strip_group_lines
@@ -10,10 +10,27 @@ from exilelens.items.build_intel.models import GroupContribution, SynergyFinding
 from exilelens.items.ranking import enrich_slot_comparison
 from exilelens.items.value_profiles import ValueProfile
 
+#: PERF-01: whether a normal Item Check starts the leave-one-group decomposition after the tooltip is painted.
+#: It is off. The probes (up to eight sequential PoB transactions, 2 s on a small build and 10 s on a heavy one) hold
+#: the single PoB lane, and what they produce has no consumer in the product: ``marginal`` / ``measured`` on the
+#: "most important" rows are never rendered (the rows show their stars and label only), the synergy findings and the
+#: intel confidence are read by nothing, and neither changes a verdict. The only visible trace was the words
+#: "details pending" / "Decomposition: PENDING", which now say SKIPPED. ``run_bounded_decomposition`` and
+#: ``attach_decomposition`` are unchanged for an explicit caller that wants the measured contributions.
+AUTO_RUN_AFTER_ITEM_CHECK = False
+
 MAX_GROUP_PROBES = 5
 MAX_SYNERGY_PAIRS = 2
 MAX_TOTAL_RECALCS = 8
 SYNERGY_GAP = 0.8
+
+
+class DecompositionYielded(Exception):
+    """A higher-priority request needs the single PoB lane; the partial decomposition is discarded.
+
+    Raised only between probes. Every probe (``engine.evaluate_candidate``) is a complete, restored PoB
+    transaction, so stopping there leaves the engine exactly as a finished run would have.
+    """
 
 
 def _score(result: dict[str, Any]) -> float:
@@ -69,11 +86,16 @@ def run_bounded_decomposition(
     offense_coverage: dict[str, Any] | None = None,
     cache: dict[str, dict[str, Any]] | None = None,
     cache_key: str = "",
+    should_yield: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     """Evaluate whole item first (already done), then drop top semantic groups.
 
     Budget: at most MAX_GROUP_PROBES leave-one-group probes plus MAX_SYNERGY_PAIRS
     pair probes, hard-capped at MAX_TOTAL_RECALCS. Never 2^n combinations.
+
+    ``should_yield`` is asked before every probe; when it answers True the run raises
+    :class:`DecompositionYielded` and neither a payload nor a cache entry is produced (a partial
+    decomposition would be wrong to cache or show).
     """
     if cache is not None and cache_key and cache_key in cache:
         return dict(cache[cache_key])
@@ -104,6 +126,8 @@ def run_bounded_decomposition(
                 )
             )
             continue
+        if should_yield is not None and should_yield():
+            raise DecompositionYielded
         comparison, used = _evaluate_variant(
             engine,
             slot=slot,
@@ -160,6 +184,8 @@ def run_bounded_decomposition(
             break
         texts = list(semantic.groups.get(left) or []) + list(semantic.groups.get(right) or [])
         variant = strip_group_lines(item_raw, texts)
+        if should_yield is not None and should_yield():
+            raise DecompositionYielded
         comparison, used = _evaluate_variant(
             engine,
             slot=slot,

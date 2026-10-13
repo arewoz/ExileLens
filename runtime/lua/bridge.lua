@@ -1117,7 +1117,27 @@ end
 -- the main effect before they read metrics.
 local settle_main_effect
 
-local function set_active_loadout(name)
+-- PERF-01: re-activating what is already active, on a state PoB has already calculated, changes nothing.
+-- Item Check, the tree snapshot and the baseline capture each re-assert the loadout / item set before they
+-- read; on a heavy build every one of those was a full PoB recalculation (130-420 ms measured, per call,
+-- per Item Check). The live PoB state decides, not a cache: the ids must be the ones PoB currently reports
+-- AND no recalculation may be pending. Anything else (a different id, buildFlag set, an id this PoB version
+-- does not expose) takes the original path unchanged. The settle and the response are never skipped.
+local function loadout_is_active(loadout)
+	if build.buildFlag then
+		return false
+	end
+	local tree, items, skills, config = build.treeTab, build.itemsTab, build.skillsTab, build.configTab
+	if not (tree and items and skills and config) then
+		return false
+	end
+	return loadout.specId ~= nil and loadout.specId == tree.activeSpec
+		and loadout.itemSetId ~= nil and loadout.itemSetId == items.activeItemSetId
+		and loadout.skillSetId ~= nil and loadout.skillSetId == skills.activeSkillSetId
+		and loadout.configSetId ~= nil and loadout.configSetId == config.activeConfigSetId
+end
+
+local function set_active_loadout(name, force)
 	if not name or name == "" then
 		return list_loadouts()
 	end
@@ -1132,8 +1152,10 @@ local function set_active_loadout(name)
 		end
 		error({ code = "LOADOUT_NOT_FOUND", message = "unknown loadout: " .. tostring(name), details = { name = name } })
 	end
-	M.activate_loadout_compat(build, loadout, api)
-	recalc()
+	if force or not loadout_is_active(loadout) then
+		M.activate_loadout_compat(build, loadout, api)
+		recalc()
+	end
 	settle_main_effect()
 	STATE.active_loadout = active_loadout_name()
 	STATE.active_item_set_id = build.itemsTab.activeItemSetId
@@ -1145,7 +1167,7 @@ local function set_active_loadout(name)
 	}
 end
 
-local function set_active_item_set(item_set_id)
+local function set_active_item_set(item_set_id, force)
 	if not item_set_id or item_set_id == "" then
 		return list_item_sets()
 	end
@@ -1153,8 +1175,12 @@ local function set_active_item_set(item_set_id)
 	if not resolved then
 		error({ code = "ITEM_SET_NOT_FOUND", message = "unknown item set: " .. tostring(item_set_id), details = { item_set_id = item_set_id } })
 	end
-	build.itemsTab:SetActiveItemSet(resolved)
-	recalc()
+	-- PERF-01: see loadout_is_active. Same item set, nothing pending: PoB's own SetActiveItemSet would
+	-- reassign the same slots and recalculate to the same outputs.
+	if force or build.buildFlag or resolved ~= build.itemsTab.activeItemSetId then
+		build.itemsTab:SetActiveItemSet(resolved)
+		recalc()
+	end
 	settle_main_effect()
 	STATE.active_item_set_id = resolved
 	return {
@@ -4437,11 +4463,11 @@ function M.dispatch(req)
 	end
 
 	if method == "set_active_loadout" then
-		return set_active_loadout(params.name)
+		return set_active_loadout(params.name, params.force)
 	end
 
 	if method == "set_active_item_set" then
-		return set_active_item_set(params.item_set_id)
+		return set_active_item_set(params.item_set_id, params.force)
 	end
 
 	if method == "list_tree_sets" then

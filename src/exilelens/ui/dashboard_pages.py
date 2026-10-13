@@ -149,6 +149,9 @@ class SettingsPage(ColumnPage):
         controller.baseline_state_changed.connect(lambda _state: self.refresh_setup_status())
         controller.engine_ready.connect(self.refresh_setup_status)
         controller.engine_failed.connect(lambda _msg: self.refresh_setup_status())
+        finished = getattr(controller, "build_load_finished", None)
+        if finished is not None:
+            finished.connect(self._on_build_load_finished)
         self.refresh_setup_status()
 
     # --- page API ---------------------------------------------------------------------
@@ -693,10 +696,21 @@ class SettingsPage(ColumnPage):
             self._loaded_status.setText("Saved. It loads as soon as Path of Building is running.")
             self._loaded_status.setVisible(True)
             return
+        # PERF-01: the load runs off the UI thread; a failure is reported from the completion signal.
+        self._awaiting_build_path = str(Path(path).resolve())
         self.controller.change_build(path)
-        if self.controller.build_info.path != str(Path(path).resolve()) or not self.controller.build_info.is_ready:
-            reason = self.controller.last_build_error or "unknown error"
-            QMessageBox.warning(self, "Build file", f"Couldn't load this build:\n{reason}")
+        self.refresh_setup_status()
+
+    def _on_build_load_finished(self, ok: bool, path: str, reason: str) -> None:
+        awaiting = getattr(self, "_awaiting_build_path", None)
+        if awaiting is None:
+            return
+        self._awaiting_build_path = None      # this outcome is for the awaited build, or it was superseded
+        if awaiting != path:
+            return
+        if not ok:
+            detail = reason or self.controller.last_build_error or "unknown error"
+            QMessageBox.warning(self, "Build file", f"Couldn't load this build:\n{detail}")
         self.refresh_setup_status()
 
     def _reload_build(self) -> None:

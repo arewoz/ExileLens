@@ -18,6 +18,7 @@ KIND_PRIORITY = {
     "market": 38,
     "market_capture_ideal": 37,
     "gear": 36,
+    "prewarm": 25,
     "upgrade_path": 22,
     "build_decomp": 20,
 }

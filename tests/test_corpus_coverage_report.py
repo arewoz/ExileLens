@@ -480,6 +480,9 @@ def test_every_real_pob_integration_file_is_wired_into_the_report_generator() ->
         "tests/integration/test_ammo01_family_contract.py": "AMMO-01 data-derived family contract, not a ratchet case",
         "tests/integration/test_ammo01_state_matrix.py": "AMMO-01 state/normalization matrix and negative controls, not a ratchet case",
         "tests/integration/test_gem_effect_audit.py": "AMMO-01 multi-effect gem audit tripwire, not a ratchet case",
+        # PERF-01: differential check that the bridge's skipped re-activation is indistinguishable from the forced one.
+        # It guards a performance shortcut, it is not a verdict/coverage case.
+        "tests/integration/test_perf01_identity_reactivation.py": "PERF-01 differential for a skipped recalculation, not a ratchet case",
     }
     for path in sorted((ROOT / "tests" / "integration").glob("test_*.py")):
         text = path.read_text(encoding="utf-8")

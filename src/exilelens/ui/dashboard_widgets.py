@@ -390,7 +390,11 @@ class SettingsRow(QWidget):
         self.label = QLabel(label)
         self.label.setObjectName("fieldLabel")
         self.label.setWordWrap(True)
-        self.label.setVisible(bool(label))
+        # PERF-01: never call setVisible(True) on a widget that has no parent yet -- Qt creates and shows a native
+        # top-level window for it (about 65 ms each on Windows), which the layout then has to tear down again.
+        # A child of a shown parent is visible by default; only hiding needs to be explicit.
+        if not label:
+            self.label.hide()
         self._left = QVBoxLayout()
         self._left.setContentsMargins(0, 0, 0, 0)
         self._left.setSpacing(1)
@@ -398,7 +402,8 @@ class SettingsRow(QWidget):
         self.helper = QLabel(helper)
         self.helper.setObjectName("helperText")
         self.helper.setWordWrap(True)
-        self.helper.setVisible(bool(helper))
+        if not helper:
+            self.helper.hide()
         self._left.addWidget(self.helper)
         left_host = QWidget()
         left_host.setLayout(self._left)

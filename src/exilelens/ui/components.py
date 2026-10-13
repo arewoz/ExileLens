@@ -380,7 +380,8 @@ class Disclosure(QWidget):
         self.preview = QLabel(preview)
         self.preview.setObjectName("helperText")
         self.preview.setWordWrap(True)   # wraps instead of forcing the page wider at large text sizes
-        self.preview.setVisible(bool(preview))
+        if not preview:   # PERF-01: see SettingsRow -- no setVisible(True) on a parentless widget
+            self.preview.hide()
         self._preview_text = preview
         head.addWidget(self.preview, 0)
         head.addStretch(1)

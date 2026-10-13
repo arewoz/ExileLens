@@ -112,7 +112,7 @@ QLabel#onboardingCardTitle { font-size:14px; font-weight:700; color:#f5f3ee; }
         from exilelens.ui.setup_dialog import pick_build_file
         if path := pick_build_file(self.settings.build_path):
             self.settings.build_path = str(Path(path)); save_settings(self.settings)
-            if self.controller.engine_status() == "ready": self.controller.load_build(self.settings.build_path, context=self.settings.context)
+            if self.controller.engine_status() == "ready": self.controller.load_build_async(self.settings.build_path, context=self.settings.context)
             self.refresh()
     def _open_diagnostics(self) -> None:
         if self._on_diagnostics: self._on_diagnostics()

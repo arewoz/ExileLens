@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from PySide6.QtCore import QObject, QPoint, QThread, QTimer, Signal
 
+from exilelens.app.baseline_capture import BaselineCapture, CaptureInputs, capture_baseline
 from exilelens.app.build_freshness import OLD_FILE, assess_build_freshness
 from exilelens.app.build_revision import BuildFileRevision, read_build_revision
 from exilelens.app.build_cache import (
@@ -47,7 +48,7 @@ from exilelens.items.loot_review import LootReviewSession
 from exilelens.items.persistent_history import PersistentItemHistory
 from exilelens.items.potential import UpgradePotentialAnalyzer
 from exilelens.items.primary_metric import resolve_primary_metric
-from exilelens.items.build_intel.decomposition import run_bounded_decomposition
+from exilelens.items.build_intel.decomposition import DecompositionYielded, run_bounded_decomposition
 from exilelens.items.build_intel.engine import attach_decomposition
 from exilelens.items.build_intel.item_semantics import parse_item_semantics
 from exilelens.items.build_intel.relevance import rank_groups_for_decomposition
@@ -144,18 +145,67 @@ class EvaluationRequest:
     kind: str = "gameplay"
     context_identity: str = ""
     candidate_fingerprint: str = ""
+    #: PERF-01: inputs for the minion / ailment offense-coverage audit, which runs on the PoB lane (in the worker)
+    #: instead of on the UI thread. ``None`` when no audit is needed or its result is already known.
+    coverage_inputs: dict[str, Any] | None = None
 
 
 @dataclass
-class BaselineReloadRequest:
+class BaselineLoadRequest:
+    """PERF-01: one PoB-lane job that (re)loads or re-asserts a build and captures its baseline off the UI thread.
+
+    The UI thread only begins the transaction (state -> LOADING/RELOADING, caches invalidated, generation bumped)
+    and, when the job finishes, applies the capture behind a generation check.
+    """
+
     request_id: int
+    baseline_generation: int
     path: str
-    context: str = "MAP"
-    loadout: str = ""
-    item_set: str = ""
-    baseline_generation: int = 0
+    context: str
+    engine: Any
+    inputs: CaptureInputs
+    #: Engine-bound steps that run before the capture, on the PoB lane. Must not touch controller state. It
+    #: receives the engine and a dict it fills as it goes, so partial results survive an exception.
+    prepare: Callable[[Any, dict[str, Any]], None] | None = None
     kind: str = "baseline"
-    apply: str = "load_xml"
+    priority: int = 0
+
+
+@dataclass
+class PrewarmRequest:
+    """PERF-01: low-priority lane job that pays a loaded build's one-time native report pass while idle."""
+
+    request_id: int
+    engine: Any
+    context: str
+    baseline_generation: int = 0
+    kind: str = "prewarm"
+    priority: int = 0
+
+
+@dataclass
+class _BaselineLoadJob:
+    """UI-thread bookkeeping for one in-flight :class:`BaselineLoadRequest`."""
+
+    path: str
+    context: str
+    generation: int
+    started: float
+    reloading: bool
+    #: ``str(error)`` (the loadout / item-set switches) instead of the engine error's own message (build loads).
+    plain_error_text: bool = False
+    #: (path, context) to load instead when this load fails and leaves no ready build (``change_build``).
+    fallback: tuple[str, str] | None = None
+    #: UI-thread hook run with the prepare step's extras just before the capture is applied.
+    after_prepare: Callable[[dict[str, Any]], None] | None = None
+
+
+@dataclass
+class _BuildLoadPlan:
+    source: BuildSource
+    same_build: bool
+    reloading: bool
+    started: float
 
 
 @dataclass
@@ -275,6 +325,8 @@ class _EvaluationWorker(QObject):
     gear_optimization = Signal(object)
     market_capture_eval = Signal(object)
     reload_baseline = Signal(object)
+    prewarm = Signal(object)
+    finished_prewarm = Signal(int, object, object)
     upgrade_path = Signal(object)
     build_decomp = Signal(object)
     finished_eval = Signal(int, object, object)  # request_id, (result, timing)|None, error|None
@@ -312,12 +364,17 @@ class _EvaluationWorker(QObject):
         self._offense_coverage_cache: dict[str, dict[str, Any]] = {}
         self._offense_coverage: dict[str, Any] | None = None
         self._potential_analyzer: UpgradePotentialAnalyzer | None = None
+        #: PERF-01: asked by background Build Intelligence work between PoB probes. True when a
+        #: higher-priority request (a new Item Check, a build load) is waiting for the single PoB lane.
+        #: Set by the controller to read the scheduler's own flag, so there is no second flag to race.
+        self.yield_probe: Callable[[], bool] | None = None
         self.evaluate.connect(self.run_evaluation)
         self.analyze.connect(self.run_analysis)
         self.market_search.connect(self.run_market_search)
         self.gear_optimization.connect(self.run_gear_optimization)
         self.market_capture_eval.connect(self.run_market_capture_eval)
-        self.reload_baseline.connect(self.run_baseline_reload)
+        self.reload_baseline.connect(self.run_baseline_load)
+        self.prewarm.connect(self.run_prewarm)
         self.upgrade_path.connect(self.run_upgrade_path)
         self.build_decomp.connect(self.run_build_decomp)
 
@@ -365,102 +422,55 @@ class _EvaluationWorker(QObject):
         if self._tree_cache is not None:
             self._tree_cache.invalidate()
 
-    def run_baseline_reload(self, request: BaselineReloadRequest) -> None:
-        import time as _time
+    def _audit_offense_coverage(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        """The minion / ailment offense-coverage audit (PoB probes), on the PoB lane. Same calls, same cache, same
+        result as the controller used to make on the UI thread before the first paint."""
+        from exilelens.items.offense_coverage import OffenseCoverageAuditor
 
-        started = _time.perf_counter()
+        auditor = OffenseCoverageAuditor(self._engine, cache=self._offense_coverage_cache)
+        cached = auditor.get_cached(
+            fingerprint=inputs["fingerprint"], context=inputs["context"], primary_field=inputs["primary_field"]
+        )
+        if cached is not None:
+            return cached.to_dict()
+        coverage = auditor.ensure(
+            build_info=inputs["build_info"],
+            baseline_metrics=inputs["baseline_metrics"],
+            fingerprint=inputs["fingerprint"],
+            context=inputs["context"],
+            generation=inputs["generation"],
+        )
+        return coverage.to_dict()
+
+    def run_prewarm(self, request: PrewarmRequest) -> None:
+        from exilelens.items.prewarm import prewarm_native_report
+
         try:
-            assert self._engine is not None
+            warmed = prewarm_native_report(request.engine, context=request.context)
+        except Exception as exc:  # noqa: BLE001 - a prewarm is only an optimisation; Item Check repeats it if needed
+            self.finished_prewarm.emit(request.request_id, None, exc)
+            return
+        self.finished_prewarm.emit(request.request_id, warmed, None)
+
+    def run_baseline_load(self, request: BaselineLoadRequest) -> None:
+        """Run the engine half of a build load on the PoB lane and hand a plain capture to the UI thread."""
+        extras: dict[str, Any] = {}
+        meta = {
+            "request_id": request.request_id,
+            "baseline_generation": request.baseline_generation,
+            "kind": "baseline",
+        }
+        try:
             self.invalidate_baseline_caches()
-            from exilelens.tree.cache import TreeEvalCache
-            from exilelens.tree.mutations import load_tree_snapshot
-
-            if self._tree_cache is None:
-                self._tree_cache = TreeEvalCache()
-            path = request.path
-            context = request.context
-            if request.apply == "load_xml":
-                result = self._engine.load_build(path, context=context)
-            else:
-                result = self._engine.ensure_build_ready(path, context=context)
-            build = result.get("build") if isinstance(result.get("build"), dict) else {}
-            name = (build or {}).get("name") or Path(path).stem
-            loadout_info = self._engine.list_loadouts()
-            item_set_info = self._engine.list_item_sets()
-            loadouts = list(loadout_info.get("loadouts") or [])
-            item_sets = list(item_set_info.get("item_sets") or [])
-            active_loadout = str(loadout_info.get("active") or "")
-            wanted_loadout = (request.loadout or "").strip()
-            if wanted_loadout and wanted_loadout in {entry.get("name") for entry in loadouts}:
-                self._engine.set_active_loadout(wanted_loadout)
-                active_loadout = wanted_loadout
-                item_set_info = self._engine.list_item_sets()
-                item_sets = list(item_set_info.get("item_sets") or [])
-            wanted_item = (request.item_set or "").strip()
-            if wanted_item:
-                resolved_wanted = resolve_item_set(item_sets, wanted_item)
-                if resolved_wanted.valid:
-                    self._engine.set_active_item_set(resolved_wanted.id)
-                    item_set_info = self._engine.list_item_sets()
-                    item_sets = list(item_set_info.get("item_sets") or [])
-            resolved = resolve_item_set(item_sets, item_set_info.get("active_id"))
-            metrics = self._engine.get_metrics(context=context)
-            fingerprint = str(metrics.get("fingerprint_hash") or "")
-            equipment = {}
-            try:
-                equipment = self._engine.get_equipment() or {}
-            except Exception:
-                equipment = {}
-            from exilelens.config import fingerprint_hash
-            from exilelens.tree.fingerprint import tree_fingerprint_from_components
-
-            equipment_fp = fingerprint_hash(equipment if isinstance(equipment, dict) else {"equipment": equipment})
-            tree_fp = tree_fingerprint_from_components(metrics.get("fingerprint") or {})
-            snapshot = load_tree_snapshot(
-                self._engine,
-                build_path=path,
-                context=context,
-                profile=self._value_profile,
-                generation=request.baseline_generation,
-                loadout=active_loadout,
-                item_set=resolved.id,
-            )
-            tree_set = snapshot.tree_set if isinstance(snapshot.tree_set, dict) else {}
-            self._build_path = path
-            self._context = context
-            self._loadout = active_loadout
-            self._item_set = resolved.id
-            elapsed = (_time.perf_counter() - started) * 1000
-            payload = {
-                "ok": True,
-                "build_path": path,
-                "build_name": name,
-                "context": context,
-                "loadouts": loadouts,
-                "item_sets": item_sets,
-                "active_loadout": active_loadout,
-                "item_set_id": resolved.id,
-                "item_set_name": resolved.name,
-                "item_set_valid": resolved.valid,
-                "tree_set": tree_set,
-                "fingerprint": fingerprint,
-                "fingerprint_components": dict(metrics.get("fingerprint") or {}),
-                "source_revision": getattr(getattr(self._engine, "loaded_revision", None), "token", ""),
-                "tree_fingerprint": snapshot.baseline.tree_fingerprint or tree_fp,
-                "equipment_fingerprint": equipment_fp,
-                "metrics": metrics.get("raw") or metrics.get("normalized") or metrics,
-                "graph": snapshot.to_graph_export(),
-                "baseline": snapshot.baseline.to_dict(),
-                "reload_ms": round(elapsed, 2),
-                "request_meta": {
-                    "request_id": request.request_id,
-                    "baseline_generation": request.baseline_generation,
-                    "kind": "baseline",
-                },
-            }
-            self.finished_baseline.emit(request.request_id, payload, None)
-        except Exception as exc:
-            self.finished_baseline.emit(request.request_id, None, exc)
+            if request.prepare is not None:
+                request.prepare(request.engine, extras)
+            capture = capture_baseline(request.engine, request.inputs)
+        except Exception as exc:  # noqa: BLE001 - every job reports exactly once
+            self.finished_baseline.emit(request.request_id, {"extras": extras, "request_meta": meta}, exc)
+            return
+        self.finished_baseline.emit(
+            request.request_id, {"capture": capture, "extras": extras, "request_meta": meta}, None
+        )
 
     def run_evaluation(self, request: EvaluationRequest) -> None:
         started = time.perf_counter() * 1000
@@ -468,6 +478,11 @@ class _EvaluationWorker(QObject):
         terminal_error: Exception | None = None
         try:
             assert self._engine is not None
+            coverage = self._offense_coverage
+            audited: dict[str, Any] | None = None
+            if coverage is None and request.coverage_inputs is not None:
+                audited = self._audit_offense_coverage(request.coverage_inputs)
+                coverage = audited
             result = evaluate_item(
                 request.raw_text,
                 self._engine,
@@ -480,7 +495,7 @@ class _EvaluationWorker(QObject):
                 loadout=self._loadout,
                 item_set=self._item_set,
                 item_check_pro=self._item_check_pro,
-                offense_coverage=self._offense_coverage,
+                offense_coverage=coverage,
                 # PERF-02: this is the delivery path the restore is moved off. Safe here
                 # and only here, because _finalize_deferred_restore below runs before
                 # this slot returns, and this thread processes one request at a time --
@@ -524,6 +539,8 @@ class _EvaluationWorker(QObject):
                 # Which exact build bytes produced this result (More Info / diagnostics).
                 "build_sha": source.short_sha if isinstance(source := getattr(self._engine, "loaded_source", None), BuildSource) else "",
             }
+            if audited is not None:
+                result["request_meta"]["offense_coverage_audit"] = audited
             payload = (result, timing)
         except NotPoe2Item as exc:
             terminal_error = exc
@@ -856,6 +873,11 @@ class _EvaluationWorker(QObject):
             groups = rank_groups_for_decomposition(mods)
             if not groups:
                 groups = list((semantic_payload.get("groups") or semantic.groups or {}).keys())[:5]
+
+            def should_yield() -> bool:
+                probe = self.yield_probe
+                return bool(probe is not None and probe())
+
             primary = snapshot.get("primary_metric") or {}
             recommendation = snapshot.get("recommendation") or {}
             payload = run_bounded_decomposition(
@@ -871,6 +893,7 @@ class _EvaluationWorker(QObject):
                 primary_confidence=primary.get("confidence") or "high",
                 offense_coverage=snapshot.get("offense_coverage"),
                 cache=self._upgrade_path_cache,
+                should_yield=should_yield,
             )
             self.finished_build_decomp.emit(
                 request.request_id,
@@ -888,6 +911,11 @@ class _EvaluationWorker(QObject):
                 },
                 None,
             )
+        except DecompositionYielded:
+            # PERF-01: a newer Item Check or a build load is waiting for the PoB lane. The result of this
+            # decomposition would be discarded (the presentation/baseline generation moved on), so it is
+            # abandoned between probes instead of holding the lane. No payload, no cache entry, no error.
+            self.finished_build_decomp.emit(request.request_id, None, None)
         except Exception as exc:
             self.finished_build_decomp.emit(request.request_id, None, exc)
 
@@ -895,6 +923,9 @@ class _EvaluationWorker(QObject):
 
 class EvaluationController(QObject):
     build_changed = Signal(object)
+    #: PERF-01: outcome of a non-blocking build load: (ok, build path, failure reason). Emitted once per
+    #: requested load, after the controller state it describes has been applied.
+    build_load_finished = Signal(bool, str, str)
     loadouts_changed = Signal(object)
     evaluation_started = Signal(int)
     evaluation_finished = Signal(int, object)
@@ -1017,6 +1048,7 @@ class EvaluationController(QObject):
         self._worker.finished_gear.connect(self._on_gear_finished)
         self._worker.finished_market_capture.connect(self._on_market_capture_finished)
         self._worker.finished_baseline.connect(self._on_baseline_finished)
+        self._worker.finished_prewarm.connect(self._on_prewarm_finished)
         self._worker.finished_upgrade_path.connect(self._on_upgrade_path_finished)
         self._worker.finished_build_decomp.connect(self._on_build_decomp_finished)
         self._worker.analysis_progress.connect(self._on_analysis_progress)
@@ -1059,6 +1091,7 @@ class EvaluationController(QObject):
         self._tracked_tree_error = ""
         self._heartbeat_state = HeartbeatState()
         self._scheduler = BoundedEvaluationScheduler(self._dispatch_to_worker)
+        self._worker.yield_probe = lambda: self._scheduler.yield_requested
         self._heartbeat_timer = QTimer(self)
         self._heartbeat_timer.timeout.connect(self._on_heartbeat)
         self._heartbeat_timer.start(1000)
@@ -1071,6 +1104,8 @@ class EvaluationController(QObject):
         self._upgrade_path_cache: dict[str, dict[str, Any]] = {}
         self._offense_coverage_cache: dict[str, dict[str, Any]] = {}
         self._offense_coverage: dict[str, Any] | None = None
+        #: The get_build_info payload captured with the current baseline (read by _ensure_offense_coverage).
+        self._baseline_build_info: dict[str, Any] | None = None
         self._upgrade_path_jobs: dict[int, UpgradePathRequest] = {}
         self._active_upgrade_parent_id: int | None = None
         # R5-B: post-paint market enrichment. Created lazily; never part of the PoB worker queue.
@@ -1101,6 +1136,11 @@ class EvaluationController(QObject):
         self._analysis_generation = -1
         self._analysis_cancelled = False
         self._baseline_wait_loop = None
+        self._baseline_jobs: dict[int, _BaselineLoadJob] = {}
+        #: (path, context) to reload once the replacement worker of a crash recovery is up.
+        self._recovery_reload: tuple[str, str] | None = None
+        #: A loadout / item-set switch asked for while a load was still in flight; applied when that load settles.
+        self._pending_identity_switch: tuple[str, str] | None = None
         self._build_file_revision: BuildFileRevision | None = None
         self._deferred_evaluation: EvaluationRequest | None = None
         self._auto_reload_status = "UNCHANGED"
@@ -1500,14 +1540,15 @@ class EvaluationController(QObject):
     def _cache_key_for_path(self, path: str) -> BuildCacheKey:
         return BuildCacheKey.for_source(LocalPobBuildSource(path).ref)
 
-    def _persist_ready_build_cache(self, path: str) -> None:
+    def _persist_ready_build_cache(self, path: str, *, loaded_revision: Any = None) -> None:
         key = self._cache_key_for_path(path)
         previous = self._build_cache.get(key)
         entry = previous or BuildCacheEntry(key=str(key), build_path=path)
         entry.build_path = str(Path(path).resolve())
         entry.source_kind = LocalPobBuildSource(path).ref.kind.value
         entry.source_identity = LocalPobBuildSource(path).ref.identity
-        loaded_revision = getattr(self._engine, "loaded_revision", None)
+        if loaded_revision is None:
+            loaded_revision = getattr(self._engine, "loaded_revision", None)
         entry.source_revision = loaded_revision.token if loaded_revision is not None else ""
         entry.display_name = self.baseline_state.build_name
         entry.context = self.baseline_state.context
@@ -1535,6 +1576,11 @@ class EvaluationController(QObject):
         self._analysis_resume = None
         self._analysis_cancelled = True
         self._worker.request_yield()
+        # PERF-01: drop queued upgrade-path work for the build that is being replaced and flag the controller-side
+        # analyzer (its result is dropped by generation anyway). A job already running on the worker uses the
+        # worker's own analyzer and finishes within its probe budget: a known remaining wait, see docs/PERF-01.md.
+        self._cancel_upgrade_path_work()
+        self._pending_identity_switch = None
         self._baseline_generation += 1
         self._tree_analysis_generation += 1
         self._history.mark_historical()
@@ -1554,6 +1600,7 @@ class EvaluationController(QObject):
         self._result_cache.invalidate()
         self._worker.invalidate_baseline_caches()
         self._offense_coverage = None
+        self._baseline_build_info = None
         self._offense_coverage_cache.clear()
         self._upgrade_path_cache.clear()
         trace("baseline_reload_begin", generation=self._baseline_generation, dropped=dropped, path=path)
@@ -1771,6 +1818,11 @@ class EvaluationController(QObject):
     def engine_booting(self) -> bool:
         return self._engine_booting
 
+    @property
+    def build_load_pending(self) -> bool:
+        """A non-blocking build load is queued, running, or waiting for a replacement worker to boot."""
+        return bool(self._baseline_jobs) or self._recovery_reload is not None
+
     def engine_status(self) -> str:
         if self._engine is not None:
             return "ready"
@@ -1780,24 +1832,40 @@ class EvaluationController(QObject):
             return f"failed: {self._engine_error}"
         return "stopped"
 
-    def start_engine_async(self) -> bool:
+    def start_engine_async(self, preboot: Any = None) -> bool:
         """Boot the PoB worker off the GUI thread.
 
         Startup used to block here before the tray existed, so a slow or hung worker
         left a process with no window, no tray and the single-instance lock held.
         Emits ``engine_ready`` or ``engine_failed`` on the GUI thread.
+
+        ``preboot`` is an :class:`~exilelens.app.engine_preboot.EnginePreboot` started while the UI was being
+        built; its result is delivered through the same signals instead of booting a second worker.
         """
         if self._engine is not None:
+            if preboot is not None:
+                preboot.discard()
             self.engine_ready.emit()
             return True
         if self._engine_booting:
+            if preboot is not None:
+                preboot.discard()
             return True
         self._engine_booting = True
         self._engine_error = ""
         config = PobConfig(pob_path=Path(self.settings.pob_path))
         logger.info("engine_boot_started pob_path=%s", config.pob_path)
 
+        if preboot is not None and not preboot.matches(str(config.pob_path)):
+            # The PoB folder changed after the preboot began: that engine is for a folder nobody wants now.
+            preboot.discard()
+            preboot = None
+
         def _boot() -> None:
+            if preboot is not None:
+                engine, error = preboot.wait()
+                self._engine_boot_result.emit(engine, error)  # a failed preboot already cleaned up after itself
+                return
             engine: Engine | None = None
             try:
                 validate_pob_path(config)
@@ -1823,6 +1891,10 @@ class EvaluationController(QObject):
             detail = getattr(error, "message", None) or str(error or "unknown error")
             self._engine_error = f"Path of Building could not start: {detail}"
             logger.error("engine_failed reason=%s", detail)
+            if self._recovery_reload is not None:
+                self._recovery_reload = None
+                # Terminal for the baseline, the held Item Check and every status surface, like a failed load.
+                self._fail_baseline(self._engine_error)
             self.engine_failed.emit(self._engine_error)
             return
         if self._shutting_down:
@@ -1831,6 +1903,9 @@ class EvaluationController(QObject):
         self._engine = engine  # type: ignore[assignment]
         self._worker_generation += 1
         logger.info("engine_ready")
+        pending, self._recovery_reload = self._recovery_reload, None
+        if pending is not None:
+            self.load_build_async(pending[0], context=pending[1])
         self.engine_ready.emit()
 
     def _refresh_loadout_catalog(self) -> None:
@@ -1890,6 +1965,23 @@ class EvaluationController(QObject):
                 return str(row.get("name") or row.get("typeLine") or row.get("base_name") or "")
         return ""
 
+    def _capture_inputs(self, path: str, context: str) -> CaptureInputs:
+        """Everything the engine-bound capture needs, read on the UI thread."""
+        return CaptureInputs(
+            path=path,
+            context=context,
+            generation=self._baseline_generation,
+            value_profile=self.settings.value_profile,
+            selected_loadout=str(self.settings.selected_loadout or ""),
+            item_set_follow_loadout=bool(self.settings.item_set_follow_loadout),
+            selected_item_set_id=str(self.settings.selected_item_set_id or ""),
+            previous_loadouts=tuple(self._loadouts),
+            previous_item_sets=tuple(self._item_sets),
+            previous_active_loadout=self._active_loadout,
+            previous_active_item_set_id=str(self._active_item_set_id or ""),
+            previous_active_item_set_name=self._active_item_set_name,
+        )
+
     def _capture_ready_baseline(
         self,
         path: str,
@@ -1898,39 +1990,57 @@ class EvaluationController(QObject):
         started: float,
         resume_deferred: bool = True,
     ) -> None:
+        """Synchronous capture: the engine round trips inline, then the same apply step the async path uses."""
         assert self._engine is not None
-        self._refresh_loadout_catalog()
-        self._apply_loadout_selection()
-        metrics = self._engine.get_metrics(context=context)
+        capture = capture_baseline(self._engine, self._capture_inputs(path, context))
+        self._apply_baseline_capture(capture, path, context, started=started, resume_deferred=resume_deferred)
+
+    def _apply_baseline_capture(
+        self,
+        capture: BaselineCapture,
+        path: str,
+        context: str,
+        *,
+        started: float,
+        resume_deferred: bool = True,
+    ) -> None:
+        """Apply a capture to controller state (UI thread). Reads no engine state: the engine may already be
+        busy with the next job on the PoB lane, so everything it knows comes from ``capture``."""
+        # Loadout / item-set catalog (was _refresh_loadout_catalog).
+        self._loadouts = list(capture.loadouts)
+        self._item_sets = list(capture.item_sets)
+        if not capture.catalog_failed:
+            self._active_loadout = capture.catalog_active_loadout
+            self._active_item_set_id = capture.catalog_active_item_set_id
+            self._active_item_set_name = capture.catalog_active_item_set_name
+            self.loadouts_changed.emit(
+                {
+                    "loadouts": self._loadouts,
+                    "item_sets": self._item_sets,
+                    "active_loadout": self._active_loadout,
+                    "active_item_set_id": self._active_item_set_id,
+                }
+            )
+        # Stored selection (was _apply_loadout_selection).
+        self._active_loadout = capture.active_loadout
+        self._active_item_set_id = capture.active_item_set_id
+        self._active_item_set_name = capture.active_item_set_name
+
+        metrics = capture.metrics
         self._evaluation_fingerprint_components = dict(metrics.get("fingerprint") or {})
         fingerprint = str(metrics.get("fingerprint_hash") or "")
-        equipment: dict[str, Any] = {}
-        try:
-            equipment = self._engine.get_equipment() or {}
-        except Exception:
-            equipment = {}
-        from exilelens.config import fingerprint_hash
-        from exilelens.tree.fingerprint import tree_fingerprint_from_components
-        from exilelens.tree.mutations import load_tree_snapshot
-
-        equipment_fp = fingerprint_hash(equipment if isinstance(equipment, dict) else {"equipment": equipment})
-        tree_fp = tree_fingerprint_from_components(metrics.get("fingerprint") or {})
-        snapshot = load_tree_snapshot(
-            self._engine,
-            build_path=path,
-            context=context,
-            profile=self.settings.value_profile,
-            generation=self._baseline_generation,
-            loadout=self._active_loadout,
-            item_set=self._active_item_set_id,
-        )
+        equipment = capture.equipment
+        equipment_fp = capture.equipment_fingerprint
+        tree_fp = capture.tree_fingerprint_fallback
+        snapshot = capture.snapshot
         tree_set = snapshot.tree_set if isinstance(snapshot.tree_set, dict) else {}
         index = tree_set.get("index")
         self._active_tree_set_id = "" if index is None else str(index)
         self._active_tree_set_name = str(tree_set.get("title") or tree_set.get("name") or "")
         self._equipment_fingerprint = fingerprint or equipment_fp
         name = self.build_info.name or Path(path).stem
-        info = self._engine.get_build_info() if hasattr(self._engine, "get_build_info") else {}
+        info = capture.build_info
+        self._baseline_build_info = dict(info) if isinstance(info, dict) and info else None
         if isinstance(info, dict) and info.get("name"):
             name = str(info.get("name"))
         elapsed = (time.perf_counter() - started) * 1000
@@ -1939,8 +2049,8 @@ class EvaluationController(QObject):
             "Ring 1": self._slot_item_name(equipment, "Ring 1"),
             "raw": equipment,
         }
-        source_ref = getattr(self._engine, "loaded_source_ref", None) or LocalPobBuildSource(path).ref
-        loaded_revision = getattr(self._engine, "loaded_revision", None)
+        source_ref = capture.source_ref or LocalPobBuildSource(path).ref
+        loaded_revision = capture.loaded_revision
         self.build_info = BuildInfo(path=path, source_ref=source_ref, name=name, context=context, state=BuildState.READY)
         self.baseline_state = BaselineState(
             state=BuildState.READY,
@@ -1963,7 +2073,10 @@ class EvaluationController(QObject):
             equipped_items=equipped_summary,
             reload_ms=round(elapsed, 2),
         )
-        self.tree_view_model.ingest_graph_payload(snapshot.to_graph_export())
+        if capture.tree_ingest is not None:
+            self.tree_view_model.apply_prepared_graph(capture.tree_ingest)
+            if self.tree_view_model.profile != self.settings.value_profile:
+                self.tree_view_model.rescore_profile(self.settings.value_profile)
         self._accept_tree = True
         self._configure_worker()
         self._recovery_attempted = False
@@ -1976,16 +2089,18 @@ class EvaluationController(QObject):
             str(equipment_fp or "")[:12],
             elapsed,
         )
-        self._record_build_revision(path)
-        self._persist_ready_build_cache(path)
+        self._record_build_revision(path, source=capture.loaded_source)
+        self._persist_ready_build_cache(path, loaded_revision=loaded_revision)
         self._persist_build_settings(path, context)
         if self._baseline_wait_loop is not None:
             self._baseline_wait_loop.quit()
         if resume_deferred:
             self._resume_deferred_evaluation()
+        self._schedule_prewarm()
 
-    def _record_build_revision(self, path: str) -> None:
-        source = getattr(self._engine, "loaded_source", None) if self._engine is not None else None
+    def _record_build_revision(self, path: str, *, source: Any = None) -> None:
+        if source is None:
+            source = getattr(self._engine, "loaded_source", None) if self._engine is not None else None
         if isinstance(source, BuildSource) and source.path == str(Path(path).resolve()):
             # Record the revision that was parsed, not a later stat: a PoB save landing
             # during the load must still be seen as a change on the next Item Check.
@@ -2040,24 +2155,42 @@ class EvaluationController(QObject):
         self.evaluation_error.emit(deferred.request_id, message)
 
     def reload_evaluation_build(self) -> None:
-        """Manual reload of the selected evaluation build from disk."""
+        """Manual reload of the selected evaluation build from disk. Does not block the UI thread."""
         self._auto_reload_status = "MANUAL"
-        self.reload_build()
+        if self.build_info.path:
+            self.load_build_async(self.build_info.path, context=self.build_info.context)
 
     def change_build(self, path: str) -> None:
-        previous = self.build_info.path
-        self.load_build(path, context=self.settings.context)
-        if not self.build_info.is_ready and previous and previous != str(Path(path).resolve()):
-            self.load_build(previous, context=self.build_info.context)
+        """Switch the evaluation build without blocking the UI thread.
 
-    def load_build(self, path: str, *, context: str | None = None) -> None:
-        context = context or self.settings.context
+        The state turns LOADING/RELOADING immediately; the outcome arrives as ``build_load_finished`` (and the
+        usual build/baseline signals). When the new build cannot be loaded and nothing is ready, the previous
+        build is loaded again, as before.
+        """
+        previous = self.build_info.path
         resolved = str(Path(path).resolve())
+        fallback = (previous, self.settings.context) if previous and previous != resolved else None
+        self.load_build_async(path, context=self.settings.context, fallback=fallback)
+
+    def _begin_build_load(self, resolved: str, context: str) -> tuple[_BuildLoadPlan | None, str]:
+        """Everything a build load does on the UI thread before PoB is involved.
+
+        Returns the plan, or ``(None, reason)`` when the load was refused or failed here (state already updated).
+        Shared by the synchronous and the non-blocking load so both begin identically.
+        """
         if self._engine is None:
             self._fail_baseline("PoB engine is not started")
-            return
-        reloading = self.build_info.state == BuildState.READY
-        same_build = reloading and self.build_info.path == resolved and self._last_good_source is not None
+            return None, "PoB engine is not started"
+        # A reload that is still in flight (RELOADING) also has a good baseline behind it: a second request that
+        # cannot read the file must keep that baseline, exactly as a request made while READY does.
+        reloading = self.build_info.state in {BuildState.READY, BuildState.RELOADING}
+        same_build = (
+            reloading
+            and self.build_info.path == resolved
+            and self._last_good_source is not None
+            # A replacement worker after a crash holds no build: there is no baseline to keep, only a load to retry.
+            and getattr(self._engine, "loaded_source", None) is not None
+        )
         started = time.perf_counter()
         # Read and validate before touching anything: a broken or half-saved file must
         # not tear down a build that works.
@@ -2069,10 +2202,10 @@ class EvaluationController(QObject):
             record_engine_error(self.error_context, exc, subsystem="build", stage="read_build_source")
             if same_build:
                 self._keep_last_good_build(exc.message)
-                return
+                return None, exc.message
             self._begin_reload_transaction(resolved, context, reloading=reloading)
             self._fail_baseline(exc.message)
-            return
+            return None, exc.message
         logger.info(
             "build_reload_begin path=%s sha=%s size=%s mtime_ns=%s reloading=%s",
             resolved,
@@ -2082,19 +2215,136 @@ class EvaluationController(QObject):
             reloading,
         )
         self._begin_reload_transaction(resolved, context, reloading=reloading)
+        return _BuildLoadPlan(source=source, same_build=same_build, reloading=reloading, started=started), ""
+
+    def load_build(self, path: str, *, context: str | None = None) -> None:
+        """Load a build and wait for it (the whole load runs on the calling thread)."""
+        context = context or self.settings.context
+        resolved = str(Path(path).resolve())
+        plan, _reason = self._begin_build_load(resolved, context)
+        if plan is None:
+            return
         self._wait_for_pob_idle()
         try:
-            result = self._engine.load_build(resolved, context=context, source=source)
+            result = self._engine.load_build(resolved, context=context, source=plan.source)
             build = result.get("build") if isinstance(result.get("build"), dict) else {}
             name = (build or {}).get("name") or Path(resolved).stem
-            self.build_info = BuildInfo(path=resolved, name=name, context=context, state=BuildState.LOADING if not reloading else BuildState.RELOADING)
+            self.build_info = BuildInfo(path=resolved, name=name, context=context, state=BuildState.LOADING if not plan.reloading else BuildState.RELOADING)
             self._reload_warning = ""
-            self._capture_ready_baseline(resolved, context, started=started)
+            self._capture_ready_baseline(resolved, context, started=plan.started)
         except Exception as exc:
             message = exc.message if isinstance(exc, EngineError) else str(exc)
-            if same_build and self._restore_last_good_build(resolved, context, message, started=started):
+            if plan.same_build and self._restore_last_good_build(resolved, context, message, started=plan.started):
                 return
             self._fail_baseline(message)
+
+    def load_build_async(
+        self,
+        path: str,
+        *,
+        context: str | None = None,
+        fallback: tuple[str, str] | None = None,
+    ) -> None:
+        """PERF-01: ``load_build`` without blocking the UI thread.
+
+        The UI thread begins the transaction (state, generation, cache invalidation -- visible at once) and hands
+        the PoB round trips to the PoB lane as a ``baseline`` job. When the job finishes, its capture is applied
+        only if no newer load/loadout/item-set transaction has started since (the baseline generation is the
+        guard); otherwise it is dropped and never shown. ``build_load_finished`` reports the outcome.
+        """
+        context = context or self.settings.context
+        resolved = str(Path(path).resolve())
+        if self._engine is None and self._recovery_reload is not None:
+            # The replacement worker of a crash recovery is still booting: the newest request is what gets loaded
+            # when it is up (its outcome is reported by that load), instead of failing "PoB engine is not started".
+            self._recovery_reload = (resolved, context)
+            return
+        plan, reason = self._begin_build_load(resolved, context)
+        if plan is None:
+            self.build_load_finished.emit(False, resolved, reason)
+            if fallback and not self.build_info.is_ready:
+                self.load_build_async(fallback[0], context=fallback[1])
+            return
+        engine = self._engine
+        assert engine is not None
+        source = plan.source
+        restore_source = self._last_good_source if plan.same_build else None
+        fallback_for_job = fallback
+
+        def prepare(worker_engine: Any, extras: dict[str, Any]) -> None:
+            try:
+                result = worker_engine.load_build(resolved, context=context, source=source)
+            except Exception as exc:  # noqa: BLE001
+                if restore_source is None:
+                    raise
+                # PoB rejected the new bytes after validation: put the previous bytes back so the
+                # previous baseline stays usable (the build_info name falls back to the file stem).
+                try:
+                    worker_engine.load_build(resolved, context=context, source=restore_source)
+                except Exception:  # noqa: BLE001
+                    logger.exception("build_restore_failed path=%s sha=%s", resolved, restore_source.short_sha)
+                    raise exc from None
+                extras["restored"] = True
+                extras["reason"] = exc.message if isinstance(exc, EngineError) else str(exc)
+                extras["build_name"] = Path(resolved).stem
+                return
+            build = result.get("build") if isinstance(result.get("build"), dict) else {}
+            extras["build_name"] = (build or {}).get("name") or Path(resolved).stem
+
+        self._submit_baseline_job(
+            path=resolved,
+            context=context,
+            plan_started=plan.started,
+            reloading=plan.reloading,
+            prepare=prepare,
+            fallback=fallback_for_job,
+        )
+
+    def _submit_baseline_job(
+        self,
+        *,
+        path: str,
+        context: str,
+        plan_started: float,
+        reloading: bool,
+        prepare: Callable[[Any, dict[str, Any]], None] | None,
+        plain_error_text: bool = False,
+        fallback: tuple[str, str] | None = None,
+        after_prepare: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
+        """Queue one ``baseline`` job on the PoB lane (the transaction was already begun by the caller)."""
+        engine = self._engine
+        assert engine is not None
+        self._request_id += 1
+        request_id = self._request_id
+        inputs = self._capture_inputs(path, context)
+        self._baseline_jobs[request_id] = _BaselineLoadJob(
+            path=path,
+            context=context,
+            generation=self._baseline_generation,
+            started=plan_started,
+            reloading=reloading,
+            plain_error_text=plain_error_text,
+            fallback=fallback,
+            after_prepare=after_prepare,
+        )
+        request = BaselineLoadRequest(
+            request_id=request_id,
+            baseline_generation=self._baseline_generation,
+            path=path,
+            context=context,
+            engine=engine,
+            inputs=inputs,
+            prepare=prepare,
+        )
+        self._scheduler.submit(request)
+        live = {request_id}
+        active = self._scheduler.active
+        if active is not None:
+            live.add(getattr(active, "request_id", None))
+        live.update(getattr(queued, "request_id", None) for queued in self._scheduler.queued)
+        for stale_id in [job_id for job_id in self._baseline_jobs if job_id not in live]:
+            self._baseline_jobs.pop(stale_id, None)     # a queued load replaced by this one never runs
 
     def _keep_last_good_build(self, reason: str) -> None:
         """Keep the last loaded build active, but reject the check that saw newer bytes."""
@@ -2139,29 +2389,49 @@ class EvaluationController(QObject):
     def set_context(self, context: str) -> None:
         self.settings.context = context
         if self.build_info.path:
-            self.load_build(self.build_info.path, context=context)
+            self.load_build_async(self.build_info.path, context=context)
 
     def set_active_loadout(self, name: str) -> None:
+        if self._engine and self.build_info.state in {BuildState.LOADING, BuildState.RELOADING}:
+            self._pending_identity_switch = ("loadout", name)   # applied when the load in flight settles
+            return
         if not self._engine or not self.build_info.is_ready:
             return
         started = time.perf_counter()
         self.settings.selected_loadout = name
-        self._begin_reload_transaction(self.build_info.path, self.build_info.context, reloading=True)
-        self._wait_for_pob_idle()
-        try:
-            self._engine.set_active_loadout(name)
+        path, context = self.build_info.path, self.build_info.context
+        follow_loadout = bool(self.settings.item_set_follow_loadout)
+        self._begin_reload_transaction(path, context, reloading=True)
+
+        def prepare(engine: Any, extras: dict[str, Any]) -> None:
+            engine.set_active_loadout(name)
+            if follow_loadout:
+                extras["item_sets"] = engine.list_item_sets()
+
+        def after_prepare(extras: dict[str, Any]) -> None:
             self._active_loadout = name
-            if self.settings.item_set_follow_loadout:
-                item_sets = self._engine.list_item_sets()
+            if follow_loadout:
+                item_sets = extras.get("item_sets") or {}
                 resolved = resolve_item_set(item_sets, item_sets.get("active_id"))
                 self._active_item_set_id = resolved.id
                 self._active_item_set_name = resolved.name
                 self.settings.selected_item_set_id = self._active_item_set_id
-            self._capture_ready_baseline(self.build_info.path, self.build_info.context, started=started)
-        except Exception as exc:
-            self._fail_baseline(str(exc))
+
+        self._submit_baseline_job(
+            path=path,
+            context=context,
+            plan_started=started,
+            reloading=True,
+            prepare=prepare,
+            plain_error_text=True,
+            after_prepare=after_prepare,
+        )
 
     def set_active_item_set(self, item_set_id: str, *, follow_loadout: bool | None = None) -> None:
+        if self._engine and self.build_info.state in {BuildState.LOADING, BuildState.RELOADING}:
+            if not (follow_loadout if follow_loadout is not None else self.settings.item_set_follow_loadout):
+                self._pending_identity_switch = ("item_set", item_set_id)
+            return
         if not self._engine or not self.build_info.is_ready:
             return
         if follow_loadout is not None:
@@ -2171,16 +2441,27 @@ class EvaluationController(QObject):
             return
         started = time.perf_counter()
         self.settings.selected_item_set_id = canonical_item_set_id(item_set_id)
-        self._begin_reload_transaction(self.build_info.path, self.build_info.context, reloading=True)
-        self._wait_for_pob_idle()
-        try:
-            self._engine.set_active_item_set(self.settings.selected_item_set_id)
-            resolved = resolve_item_set(self._item_sets, self.settings.selected_item_set_id)
+        selected = self.settings.selected_item_set_id
+        path, context = self.build_info.path, self.build_info.context
+        self._begin_reload_transaction(path, context, reloading=True)
+
+        def prepare(engine: Any, extras: dict[str, Any]) -> None:
+            engine.set_active_item_set(selected)
+
+        def after_prepare(extras: dict[str, Any]) -> None:
+            resolved = resolve_item_set(self._item_sets, selected)
             self._active_item_set_id = resolved.id
             self._active_item_set_name = resolved.name
-            self._capture_ready_baseline(self.build_info.path, self.build_info.context, started=started)
-        except Exception as exc:
-            self._fail_baseline(str(exc))
+
+        self._submit_baseline_job(
+            path=path,
+            context=context,
+            plan_started=started,
+            reloading=True,
+            prepare=prepare,
+            plain_error_text=True,
+            after_prepare=after_prepare,
+        )
 
     def _evaluation_cache_key(self, content_hash: str) -> str:
         identity = self.resolved_baseline()
@@ -2345,7 +2626,7 @@ class EvaluationController(QObject):
             self._auto_reload_status = "RELOADED"
             self._reload_status_message = "PoB build changed on disk — reloading..."
             self.state_message.emit(self._reload_status_message)
-            self._deferred_evaluation = request
+            self._defer_evaluation(request)
             self._begin_eval_feedback(request_id)
             logger.info(
                 "item_check_submit deferred request_id=%s reason=disk_revision build_state=%s",
@@ -2353,11 +2634,14 @@ class EvaluationController(QObject):
                 self.build_info.state.value,
             )
             if self.build_info.state not in {BuildState.RELOADING, BuildState.LOADING}:
-                self.load_build(build_path, context=self.build_info.context)
+                # PERF-01: the analyzing placeholder is requested above; reloading on the PoB lane keeps the UI
+                # thread free to paint it. The held request resumes against the new baseline (or is rejected,
+                # keeping the last good build) when the load settles.
+                self.load_build_async(build_path, context=self.build_info.context)
             return request_id
 
         if self.build_info.state in {BuildState.RELOADING, BuildState.LOADING}:
-            self._deferred_evaluation = request
+            self._defer_evaluation(request)
             self._begin_eval_feedback(request_id)
             logger.info(
                 "item_check_submit deferred request_id=%s reason=build_loading build_state=%s",
@@ -2375,15 +2659,30 @@ class EvaluationController(QObject):
         )
         return self._submit_evaluation_request(request)
 
+    def _defer_evaluation(self, request: EvaluationRequest) -> None:
+        """Hold ``request`` until the build load settles. Only the newest held request is ever resumed, so an
+        older one is retired here instead of being left to a watchdog."""
+        previous = self._deferred_evaluation
+        if previous is not None and previous.request_id != request.request_id:
+            self._stop_item_check_watchdog(previous.request_id)
+            self._item_check_lifecycle.advance(previous.request_id, ItemCheckPhase.SUPERSEDED)
+        self._deferred_evaluation = request
+
     def copy_anchor_for_request(self, request_id: int) -> tuple[int, int] | None:
         return self._request_anchors.get(request_id)
 
     def record_overlay_placement(self, placement: dict[str, Any]) -> None:
         self._overlay_placement_diag = dict(placement)
 
-    def _ensure_offense_coverage(self) -> None:
+    def _ensure_offense_coverage(self) -> dict[str, Any] | None:
+        """Make ``self._offense_coverage`` known for the current baseline without a PoB round trip.
+
+        Returns the audit inputs when a minion / ailment audit is still needed: those are PoB probes, so they run on
+        the PoB lane with the evaluation (never on the UI thread, never before the first paint) and the result is
+        adopted from the delivered result.
+        """
         if not self._engine or not self.build_info.is_ready:
-            return
+            return None
         # PERF-01: this early return used to sit below the engine calls, so every
         # accepted Item Check -- including every result-cache hit -- paid a
         # get_build_info round trip on the UI thread and threw the answer away.
@@ -2391,18 +2690,20 @@ class EvaluationController(QObject):
         # lock, so a UI-thread call here blocks behind an in-flight evaluation.
         # Nothing between here and the original early return had a side effect.
         if self._offense_coverage is not None:
-            return
+            return None
         fingerprint = self.baseline_state.fingerprint or self._equipment_fingerprint
         if not fingerprint:
-            return
+            return None
         context = self.build_info.context or self.settings.context
-        build_info: dict[str, Any] = {}
-        try:
-            raw_info = self._engine.get_build_info() if hasattr(self._engine, "get_build_info") else {}
-            if isinstance(raw_info, dict):
-                build_info = raw_info
-        except Exception:
-            build_info = {}
+        # The build info captured with this baseline (the same get_build_info payload) instead of asking PoB again.
+        build_info: dict[str, Any] = dict(self._baseline_build_info) if self._baseline_build_info else {}
+        if not build_info:
+            try:
+                raw_info = self._engine.get_build_info() if hasattr(self._engine, "get_build_info") else {}
+                if isinstance(raw_info, dict):
+                    build_info = raw_info
+            except Exception:
+                build_info = {}
         baseline_metrics = dict(self.baseline_state.metrics or {})
         if not baseline_metrics:
             try:
@@ -2428,24 +2729,27 @@ class EvaluationController(QObject):
             if cached is not None:
                 self._offense_coverage = cached.to_dict()
             else:
-                coverage = auditor.ensure(
-                    build_info=build_info,
-                    baseline_metrics=baseline_metrics,
-                    fingerprint=fingerprint,
-                    context=context,
-                    generation=self._baseline_generation,
-                )
-                self._offense_coverage = coverage.to_dict()
+                return {
+                    "build_info": build_info,
+                    "baseline_metrics": baseline_metrics,
+                    "fingerprint": fingerprint,
+                    "context": context,
+                    "generation": self._baseline_generation,
+                    "primary_field": primary.pob_field,
+                }
         else:
             coverage_payload = infer_offense_coverage(primary, baseline_metrics).to_dict()
             coverage_payload["audit_skipped"] = True
             self._offense_coverage = coverage_payload
         self._configure_worker()
+        return None
 
     def _submit_evaluation_request(self, request: EvaluationRequest) -> int | None:
         request_id = request.request_id
         try:
-            self._ensure_offense_coverage()
+            coverage_inputs = self._ensure_offense_coverage()
+            if coverage_inputs is not None:
+                request = replace(request, coverage_inputs=coverage_inputs)
         except Exception as exc:  # noqa: BLE001 - every accepted request needs a terminal state
             logger.exception("item_check_offense_coverage_failed request_id=%s", request_id)
             self._emit_item_check_error(request_id, f"Could not prepare item analysis: {exc}")
@@ -2513,11 +2817,14 @@ class EvaluationController(QObject):
             self._worker.request_yield()
         return request_id
 
-    def _dispatch_to_worker(self, request: EvaluationRequest | AnalysisRequest | BaselineReloadRequest | MarketSearchRequest | GearOptimizationRequest | MarketCaptureEvalRequest | UpgradePathRequest) -> None:
+    def _dispatch_to_worker(self, request: EvaluationRequest | AnalysisRequest | BaselineLoadRequest | MarketSearchRequest | GearOptimizationRequest | MarketCaptureEvalRequest | UpgradePathRequest) -> None:
         self._pending_request_id = request.request_id
         kind = str(getattr(request, "kind", "gameplay"))
         if kind == "baseline":
             self._worker.reload_baseline.emit(request)
+            return
+        if kind == "prewarm":
+            self._worker.prewarm.emit(request)
             return
         if kind == "market_capture":
             self._worker.market_capture_eval.emit(request)
@@ -2681,79 +2988,115 @@ class EvaluationController(QObject):
             self._finish_progress("analysis", status=OperationStatus.COMPLETE)
         self.analysis_finished.emit(payload)
 
-    def _on_baseline_finished(self, request_id: int, payload: object, error: Exception | None) -> None:
-        active = self._scheduler.active
-        if active is not None and getattr(active, "request_id", None) == request_id:
-            self._scheduler.complete(active)
-        else:
-            self._scheduler.complete_by_id(request_id)
+    def _schedule_prewarm(self) -> None:
+        """Queue the idle-time native report pass for the build that was just loaded (see items/prewarm.py)."""
+        engine = self._engine
+        if engine is None or not hasattr(engine, "_call") or self._shutting_down:
+            return
+        if not is_enabled(FeatureModule.ITEM_CHECK):
+            return
+        self._request_id += 1
+        self._scheduler.submit(
+            PrewarmRequest(
+                request_id=self._request_id,
+                engine=engine,
+                context=self.build_info.context or self.settings.context,
+                baseline_generation=self._baseline_generation,
+            )
+        )
+
+    def _on_prewarm_finished(self, request_id: int, payload: object, error: Exception | None) -> None:
+        self._scheduler.complete_by_id(request_id)
+        self._sync_pending_request_id()
         if error is not None:
-            self._fail_baseline(str(error))
+            logger.info("item_check_prewarm_failed request_id=%s error=%s", request_id, error)
+
+    def _on_baseline_finished(self, request_id: int, payload: object, error: Exception | None) -> None:
+        job = self._baseline_jobs.pop(request_id, None)
+        try:
+            if job is not None:
+                self._settle_baseline_job(job, request_id, payload, error)
+        finally:
+            # Completed last: applying the result may submit the deferred Item Check, and the next queued job
+            # must only start once the controller state it will read is the applied one.
+            active = self._scheduler.active
+            if active is not None and getattr(active, "request_id", None) == request_id:
+                self._scheduler.complete(active)
+            else:
+                self._scheduler.complete_by_id(request_id)
+            self._sync_pending_request_id()
+
+    def _settle_baseline_job(
+        self, job: _BaselineLoadJob, request_id: int, payload: object, error: Exception | None
+    ) -> None:
+        if self._shutting_down:
             return
-        if not isinstance(payload, dict):
-            self._fail_baseline("baseline reload returned no payload")
+        if job.generation != self._baseline_generation:
+            # A newer load / loadout / item-set transaction owns the controller state. This result describes a
+            # baseline that has been replaced: it is neither shown nor allowed to fail the newer one.
+            logger.info(
+                "build_load_stale request_id=%s generation=%s current=%s path=%s",
+                request_id,
+                job.generation,
+                self._baseline_generation,
+                job.path,
+            )
             return
-        meta = payload.get("request_meta") or {}
-        if meta.get("baseline_generation", self._baseline_generation) != self._baseline_generation:
+        data = payload if isinstance(payload, dict) else {}
+        extras = data.get("extras") or {}
+        capture = data.get("capture")
+        if error is not None or capture is None:
+            if error is None:
+                message = "baseline reload returned no payload"
+            elif job.plain_error_text:
+                message = str(error)
+            else:
+                message = error.message if isinstance(error, EngineError) else str(error)
+            if extras.get("restored"):
+                # PoB took the previous bytes back but the baseline capture failed: nothing is usable.
+                logger.error("build_restore_failed path=%s", job.path)
+                message = str(extras.get("reason") or message)
+            self._fail_baseline(message)
+            self.build_load_finished.emit(False, job.path, message)
+            if job.fallback and not self.build_info.is_ready:
+                self.load_build_async(job.fallback[0], context=job.fallback[1])
             return
-        self._loadouts = list(payload.get("loadouts") or [])
-        self._item_sets = list(payload.get("item_sets") or [])
-        self._active_loadout = str(payload.get("active_loadout") or "")
-        self._active_item_set_id = payload.get("item_set_id")
-        self._active_item_set_name = str(payload.get("item_set_name") or "")
-        tree_set = payload.get("tree_set") or {}
-        if isinstance(tree_set, dict):
-            index = tree_set.get("index")
-            self._active_tree_set_id = "" if index is None else str(index)
-            self._active_tree_set_name = str(tree_set.get("title") or tree_set.get("name") or "")
-        path = str(payload.get("build_path") or self.build_info.path)
-        context = str(payload.get("context") or self.build_info.context)
-        name = str(payload.get("build_name") or Path(path).stem)
-        fingerprint = str(payload.get("fingerprint") or "")
-        self._equipment_fingerprint = fingerprint
-        self._evaluation_fingerprint_components = dict(payload.get("fingerprint_components") or {})
-        self.build_info = BuildInfo(path=path, source_ref=LocalPobBuildSource(path).ref, name=name, context=context, state=BuildState.READY)
-        self.baseline_state = BaselineState(
-            state=BuildState.READY,
-            build_path=path,
-            source_ref=LocalPobBuildSource(path).ref,
-            source_revision=str(payload.get("source_revision") or ""),
-            build_name=name,
-            loadout_id=self._active_loadout,
-            loadout_name=self._active_loadout,
-            item_set_id=self._active_item_set_id,
-            item_set_name=self._active_item_set_name,
-            tree_set_id=self._active_tree_set_id,
-            tree_set_name=self._active_tree_set_name,
-            context=context,
-            generation=self._baseline_generation,
-            fingerprint=fingerprint,
-            tree_fingerprint=str(payload.get("tree_fingerprint") or ""),
-            equipment_fingerprint=str(payload.get("equipment_fingerprint") or ""),
-            metrics=payload.get("metrics") or {},
-            reload_ms=float(payload.get("reload_ms") or 0.0),
+        if job.after_prepare is not None:
+            job.after_prepare(extras)
+        restored = bool(extras.get("restored"))
+        name = str(extras.get("build_name") or Path(job.path).stem)
+        reloading = restored or job.reloading
+        self.build_info = BuildInfo(
+            path=job.path,
+            name=name,
+            context=job.context,
+            state=BuildState.RELOADING if reloading else BuildState.LOADING,
         )
-        if payload.get("graph"):
-            self.tree_view_model.ingest_graph_payload(payload["graph"])
-        self._accept_tree = True
-        self._configure_worker()
-        self._recovery_attempted = False
-        self._publish_baseline_state()
-        logger.info(
-            "build_loaded path=%s name=%s generation=%s equipment_fp=%s reload_ms=%.0f source=baseline_reload",
-            path,
-            self.build_info.name,
-            self._baseline_generation,
-            str(payload.get("equipment_fingerprint") or "")[:12],
-            float(payload.get("reload_ms") or 0.0),
-        )
-        self._record_build_revision(path)
-        self._persist_ready_build_cache(path)
-        self._persist_build_settings(path, context)
-        if self._baseline_wait_loop is not None:
-            self._baseline_wait_loop.quit()
-        self._auto_reload_status = "RELOADED"
-        self._resume_deferred_evaluation()
+        if not restored:
+            self._reload_warning = ""
+        # A restored build makes the previous baseline usable again, but the Item Check that observed newer
+        # bytes must not resume against it (it is rejected by _keep_last_good_build below).
+        try:
+            self._apply_baseline_capture(
+                capture, job.path, job.context, started=job.started, resume_deferred=not restored
+            )
+        except Exception as exc:  # noqa: BLE001 - the synchronous load turned this into FAILED + a rejected check
+            logger.exception("build_load_apply_failed path=%s", job.path)
+            self._fail_baseline(str(exc))
+            self.build_load_finished.emit(False, job.path, str(exc))
+            return
+        if restored:
+            self._keep_last_good_build(str(extras.get("reason") or ""))
+            self.build_load_finished.emit(False, job.path, str(extras.get("reason") or ""))
+            return
+        self.build_load_finished.emit(True, job.path, "")
+        pending, self._pending_identity_switch = self._pending_identity_switch, None
+        if pending is not None:
+            kind, value = pending
+            if kind == "loadout" and value != self._active_loadout:
+                self.set_active_loadout(value)
+            elif kind == "item_set":
+                self.set_active_item_set(value)
 
     def last_analysis(self) -> dict[str, Any] | None:
         return self._last_analysis
@@ -4416,6 +4759,11 @@ class EvaluationController(QObject):
             self._item_check_lifecycle.advance(request_id, ItemCheckPhase.SUPERSEDED)
             return
 
+        audited = meta.pop("offense_coverage_audit", None)
+        if isinstance(audited, dict) and self._offense_coverage is None:
+            # The lane computed the audit for this baseline generation (guarded above); later checks reuse it.
+            self._offense_coverage = dict(audited)
+            self._configure_worker()
         timing.ui_updated_ms = time.perf_counter() * 1000
         self._stop_item_check_watchdog(request_id)
         identity = baseline_identity(
@@ -5193,6 +5541,11 @@ class EvaluationController(QObject):
             logger.exception("market evidence application failed")
 
     def _maybe_schedule_build_decomp(self, request_id: int, result: dict[str, Any]) -> None:
+        # PERF-01: not started by a normal Item Check (see decomposition.AUTO_RUN_AFTER_ITEM_CHECK).
+        from exilelens.items.build_intel import decomposition as decomposition_module
+
+        if not decomposition_module.AUTO_RUN_AFTER_ITEM_CHECK:
+            return
         if not self._engine:
             return
         intel = result.get("build_comparison") or {}
@@ -5299,12 +5652,18 @@ class EvaluationController(QObject):
             self.evaluation_error.emit(self._latest_request_id, "Worker unhealthy — reload build from tray.")
             return
         self._recovery_attempted = True
+        path, context = self.build_info.path, self.build_info.context
         try:
             self.shutdown_engine()
-            self.start_engine()
-            if self.build_info.path:
-                self.load_build(self.build_info.path, context=self.build_info.context)
+            if path:
+                # PERF-01: the replacement worker boots off the UI thread (about 4 s) and the build is reloaded as
+                # soon as it is up. Until then the build is RELOADING with caches invalidated, so an Item Check
+                # arriving in the window is held instead of reaching the dead worker.
+                self._begin_reload_transaction(path, context, reloading=True)
+                self._recovery_reload = (path, context)
+            self.start_engine_async()
         except Exception as exc:
+            self._recovery_reload = None
             self.build_info = BuildInfo(
                 path=self.build_info.path,
                 state=BuildState.ERROR,
@@ -5321,11 +5680,15 @@ class EvaluationController(QObject):
             self._close_pinned_window(entry_id)
         self._heartbeat_timer.stop()
         self._thread.quit()
-        self._thread.wait(5000)
+        thread_done = self._thread.wait(5000)
         if self._tracked_loader is not None:
             self._tracked_loader.shutdown()
             self._tracked_loader = None
         self.shutdown_engine()
+        if not thread_done:
+            # A PoB call was still in flight (a load can take several seconds): stopping the worker process ends it,
+            # so give the thread a moment to unwind instead of leaving a running QThread to be destroyed.
+            self._thread.wait(3000)
 
     def diagnostic_report(self) -> str:
         from exilelens.app.diagnostics import render_global_diagnostics
