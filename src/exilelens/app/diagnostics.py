@@ -10,6 +10,7 @@ from __future__ import annotations
 import platform
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ def _commit(value: str) -> str:
     return value[:12] if _COMMIT.fullmatch(value) else "unknown"
 
 
+@lru_cache(maxsize=1)
 def _windows() -> str:
     release, version, _csd, _ptype = platform.win32_ver()
     value = " ".join(part for part in (release, version) if part).strip()

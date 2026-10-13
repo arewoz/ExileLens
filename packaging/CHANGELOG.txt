@@ -4,6 +4,8 @@ EXILELENS CHANGELOG
 1.0.0
 -------
 
+- **Faster Filters and Diagnostics navigation:** unchanged filters reuse their preview; changed profiles, themes and build measurements generate in the background. Obsolete results cannot be installed. Diagnostics avoids repeated Git and Windows version queries.
+
 - **Item Check says what your build needs:** when an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result. The measured comparison against your equipped gear still decides the verdict.
 - **Loot Filters (Experimental):** five strictness profiles, eight themes, preview and Generate & Install. Full general filters work offline; current build analysis adds personalization. Profiles install as separate files.
 - **Analyze Build (Experimental) shows what to do next:** what to fix first, the stats your build responds to most, and up to three next actions, each with the change that was tested. It tells you when it could not establish something.

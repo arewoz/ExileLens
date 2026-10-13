@@ -73,7 +73,7 @@
         },
         {
           "id": "responsive-build-loading",
-          "text": "Build loading and reloads run in the background, keeping the app responsive. Repeated item checks avoid unnecessary work.",
+          "text": "Build loading and reloads run in the background. Filters reuse unchanged previews and generate changed selections in the background. Diagnostics avoids repeated system queries.",
           "introduced": "1.0.0"
         }
       ],

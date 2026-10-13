@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from bisect import bisect_right
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -39,7 +40,7 @@ class FamilyPool:
         return self.levels[-1]
 
     def tiers_at(self, item_level: int) -> int:
-        return sum(1 for level in self.levels if level <= item_level)
+        return bisect_right(self.levels, item_level)
 
 
 @lru_cache(maxsize=1)

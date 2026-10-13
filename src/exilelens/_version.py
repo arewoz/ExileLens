@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -120,7 +121,10 @@ def _source_commit() -> str:
     return _valid_commit(_git_rev_parse())
 
 
+@lru_cache(maxsize=1)
 def _git_rev_parse() -> str:
+    # A source process keeps the identity of the checkout it loaded. Resolving
+    # it again on every diagnostics refresh starts a subprocess on the UI thread.
     root = Path(__file__).resolve().parents[2]
     try:
         result = subprocess.run(

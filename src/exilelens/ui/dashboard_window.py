@@ -250,7 +250,7 @@ class DashboardWindow(ManagedToolWindow):
             page_id = PAGE_IDS[0]
         if page_id == "filters" and self._filters_page is None:
             from exilelens.ui.filters_page import FiltersPage
-            self._filters_page = FiltersPage(self.controller, self.settings)
+            self._filters_page = FiltersPage(self.controller, self.settings, background_generation=True)
             index = self._stack.indexOf(self._filters_placeholder)
             self._stack.removeWidget(self._filters_placeholder)
             self._filters_placeholder.deleteLater()

@@ -154,3 +154,6 @@ release; it is kept because it is what an explicit caller gets.)
   0.2 s in a source run); skipping the tree-set recapture on a context-only change; making `Engine.start` itself cheaper (the ~4 s is PoB's Lua
   data load); a second preboot-style overlap for the build file read.
 
+The Filters/Diagnostics navigation follow-up is documented in [PERF-02](PERF-02.md),
+including the remaining first-open rendering cost.
+

@@ -10,7 +10,7 @@ import hashlib
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from exilelens.filters import degradation
 from exilelens.filters.build_needs import BuildNeedsSnapshot
@@ -107,7 +107,7 @@ def _default_data_status() -> DataStatus:
 def generate(needs: BuildNeedsSnapshot, profile_name: str | FilterProfileName = "Recommended",
              theme: str | FilterThemeName = FilterThemeName.VOID_GOLD, *, intel: bool = True,
              fingerprint: BuildFingerprint | None = None, data_status: DataStatus | None = None,
-             optimize: bool = False) -> GenerationResult:
+             optimize: bool = False, cooperate: Callable[[], None] | None = None) -> GenerationResult:
     status = data_status or _default_data_status()
     if status.blocks and intel:
         raise DataIncompatible("Generation blocked: " + status.headline)
@@ -115,8 +115,15 @@ def generate(needs: BuildNeedsSnapshot, profile_name: str | FilterProfileName = 
     profile = get_profile_with_theme(profile_name, theme)
     if intel:
         resolver = BuildIntelSlotPriorityResolver(fp, needs, widen=status.widen)
-        priorities = resolver.resolve_all()
-        generator = RuleGenerator(priorities, profile, fp.main_skill, fp.defense_layer, intel=resolver.intel)
+        if cooperate is None:
+            priorities = resolver.resolve_all()
+        else:
+            priorities = {}
+            for slot in ProductSlot:
+                priorities[slot] = resolver.resolve_slot(slot)
+                cooperate()
+        generator = RuleGenerator(priorities, profile, fp.main_skill, fp.defense_layer,
+                                  intel=resolver.intel, cooperate=cooperate)
         context = resolver.intel
     else:
         priorities = SlotPriorityResolver(fp).resolve_all()

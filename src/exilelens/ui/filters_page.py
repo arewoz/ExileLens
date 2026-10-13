@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import random
 import hashlib
+from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Thread
+from time import sleep
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QObject, QTimer, Qt, Signal, Slot
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QLabel,
                                QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
@@ -119,19 +122,18 @@ def _ground_layout(seed: int, sizes: list[tuple[int, int]], width: int,
                 xs.append(max_x)
             if not ys or ys[-1] != max_y:
                 ys.append(max_y)
-            candidates = sorted(
-                ((x, y) for y in ys for x in xs),
-                key=lambda point: (
-                    ((point[0] + w / 2 - anchor_x) / max(1, width * .48)) ** 2
-                    + ((point[1] + h / 2 - anchor_y) / 245) ** 2,
-                    (point[0] + seed * 7 + rank * 19) % 17,
-                    point[1],
-                ),
-            )
-            spot = next(((x, y) for x, y in candidates
-                         if all(x + w + 8 <= ox or ox + ow + 8 <= x or
-                                y + h + 8 <= oy or oy + oh + 8 <= y
-                                for ox, oy, ow, oh in occupied)), None)
+            # Score each axis once; the original ordering is separable. Avoid
+            # repeating divisions and powers for every point in the full grid.
+            scored_x = [(((x + w / 2 - anchor_x) / max(1, width * .48)) ** 2,
+                         (x + seed * 7 + rank * 19) % 17, x) for x in xs]
+            scored_y = [(((y + h / 2 - anchor_y) / 245) ** 2, y) for y in ys]
+            candidates = sorted((dx + dy, tie, y, x)
+                                for dy, y in scored_y for dx, tie, x in scored_x)
+            blockers = {y: [(ox, ow) for ox, oy, ow, oh in occupied
+                            if not (y + h + 8 <= oy or oy + oh + 8 <= y)] for y in ys}
+            spot = next(((x, y) for _, _, y, x in candidates
+                         if all(x + w + 8 <= ox or ox + ow + 8 <= x
+                                for ox, ow in blockers[y])), None)
             if spot is not None:
                 positions[index] = spot
                 occupied.append((*spot, w, h))
@@ -178,8 +180,34 @@ def _ground_label(scene: LootGroundScene, item, decision) -> QLabel:
     return label
 
 
+class _GenerationSignals(QObject):
+    completed = Signal(object, object)
+
+
+class _GenerationTask:
+    """Pure filter generation; widgets and installation stay on the UI thread."""
+
+    def __init__(self, inputs) -> None:
+        self.inputs = inputs
+        self.signals = _GenerationSignals()
+        self.thread = None
+
+    def run(self) -> None:
+        profile, selected_theme, needs, fingerprint, _generation = self.inputs
+        try:
+            # CPython's GIL is shared with Qt callbacks. Yield between bounded
+            # generation batches so timer/input events can acquire it promptly.
+            outcome = generate_filter(needs, profile, selected_theme, intel=True, fingerprint=fingerprint,
+                                      cooperate=lambda: sleep(.001))
+        except Exception as exc:
+            outcome = exc
+        self.signals.completed.emit(self.inputs, outcome)
+
+
 class FiltersPage(QWidget):
-    def __init__(self, controller: EvaluationController, settings: AppSettings, parent: QWidget | None = None) -> None:
+    def __init__(self, controller: EvaluationController, settings: AppSettings, parent: QWidget | None = None,
+                 *, background_generation: bool = False) -> None:
+        """Dashboard generation is asynchronous; standalone tooling can request immediate output."""
         super().__init__(parent)
         self.controller = controller
         self.settings = settings
@@ -194,6 +222,12 @@ class FiltersPage(QWidget):
         self._filter_text = ""
         self._validation = None
         self._last_generated: tuple[str, str, str] | None = None
+        self._generated_inputs = None
+        self._background_generation = background_generation
+        self._generation_task = None
+        self._generation_timer = QTimer(self)
+        self._generation_timer.setSingleShot(True)
+        self._generation_timer.timeout.connect(self._launch_generation)
         self._seed = random.randrange(1_000_000)
 
         def section(title):
@@ -294,6 +328,8 @@ class FiltersPage(QWidget):
         self._preview_labels = []
         self._preview_decisions = []
         self._preview_levels = []
+        self._preview_layout_key = None
+        self._preview_layout = None
         preview.add_widget(self._scene)
         sample_note = QLabel("Same sample across profiles. Hover a label for its decision; reroll to change the sample.")
         sample_note.setWordWrap(True)
@@ -537,17 +573,28 @@ class FiltersPage(QWidget):
         return BuildNeedsSnapshot.unavailable(self._build_label_name(), reason, skill_name=self._fingerprint.main_skill,
                                               equipped=equipped)
 
-    def _generate(self) -> None:
+    def _generation_inputs(self):
         self._ensure_build_model()
-        needs = self._current_needs()
-        profile_value = self._profile.currentData()
-        theme_value = self._theme.currentData()
-        result = generate_filter(needs, profile_value, theme_value, intel=True, fingerprint=self._fingerprint)
+        return (self._profile.currentData(), self._theme.currentData(), self._current_needs(),
+                self._fingerprint, getattr(self.controller, "baseline_generation", None))
+
+    def _generate(self) -> bool:
+        inputs = self._generation_inputs()
+        if self._filter_text and inputs == self._generated_inputs:
+            return False
+        profile_value, theme_value, needs, fingerprint, _generation = inputs
+        result = generate_filter(needs, profile_value, theme_value, intel=True, fingerprint=fingerprint)
+        self._apply_generation(inputs, result)
+        return True
+
+    def _apply_generation(self, inputs, result) -> None:
+        profile_value, theme_value, needs, _fingerprint, _generation = inputs
         if not result.valid:
             raise ValueError("Generated filter failed validation: " + "; ".join(result.errors[:5]))
         self._rules = result.rules
         self._filter_text = result.text
         self._validation = result
+        self._generated_inputs = deepcopy(inputs)
         self._generated_with = "measured" if self._needs is not None else "fallback"
         self._last_generated = (
             getattr(profile_value, "value", profile_value),
@@ -559,6 +606,57 @@ class FiltersPage(QWidget):
             f"Personalization: {needs.coverage.value}"
             + (f" ({'; '.join(needs.coverage_reasons)})" if needs.coverage != Coverage.MEASURED else "") + ".")
         self._update_intel_label()
+
+    def _queue_generation(self) -> None:
+        inputs = self._generation_inputs()
+        if self._filter_text and inputs == self._generated_inputs:
+            return
+        if self._generation_task is not None and inputs == self._generation_task.inputs:
+            return
+        # Invalidate immediately: a newly selected profile/build must never
+        # install the previous result while its replacement is still running.
+        self._filter_text = ""
+        self._rules = []
+        self._validation = None
+        self._clear_scene()
+        self._scene.beams = []
+        self._scene.update()
+        self._preview_status.setText("Generating filter…")
+        self._install.setEnabled(False)
+        if self._generation_task is not None:
+            return  # coalesce rapid selection changes until the active job completes
+        task = _GenerationTask(deepcopy(inputs))
+        task.signals.completed.connect(self._generation_finished, Qt.ConnectionType.QueuedConnection)
+        self._generation_task = task
+        # Let the selection/navigation handler return before CPU work starts.
+        # Otherwise each subsequent Qt call can contend for the Python GIL.
+        self._generation_timer.start(0)
+
+    def _launch_generation(self) -> None:
+        if self._generation_task is not None:
+            task = self._generation_task
+            task.thread = Thread(target=task.run, name="ExileLens-filter", daemon=True)
+            task.thread.start()
+
+    @Slot(object, object)
+    def _generation_finished(self, inputs, outcome) -> None:
+        self._generation_task = None
+        if inputs != self._generation_inputs():
+            self._queue_generation()
+            return
+        try:
+            if isinstance(outcome, Exception):
+                raise outcome
+            self._apply_generation(inputs, outcome)
+            self._render_preview()
+        except Exception as exc:
+            self._filter_text = ""
+            self._rules = []
+            self._clear_scene()
+            self._preview_status.setText(f"Validation blocked preview/install: {exc}")
+        self._update_intel_label()
+        self._update_installed()
+        self._update_actions()
 
     def _remember_profile(self) -> None:
         """Persist the chosen strictness; the one-time migration notice goes away after the first deliberate choice."""
@@ -596,8 +694,10 @@ class FiltersPage(QWidget):
                     f"border: 1px solid {rgb(style['border_color'])}; "
                     "padding: 2px 7px; font-weight: 600;")
         try:
-            self._generate()
-            self._render_preview()
+            if self._background_generation:
+                self._queue_generation()
+            elif self._generate():
+                self._render_preview()
         except Exception as exc:
             self._filter_text = ""
             self._rules = []
@@ -666,8 +766,11 @@ class FiltersPage(QWidget):
             return
         sizes = [(label.width(), label.height()) for label in self._preview_labels]
         scene_width = max(self._scene.width(), max(w for w, _ in sizes) + 24)
-        positions, packed_height = _ground_layout(
-            self._seed, sizes, scene_width, self._preview_levels)
+        key = (self._seed, tuple(sizes), scene_width, tuple(self._preview_levels))
+        if key != self._preview_layout_key:
+            self._preview_layout = _ground_layout(self._seed, sizes, scene_width, self._preview_levels)
+            self._preview_layout_key = key
+        positions, packed_height = self._preview_layout
         self._scene.setMinimumHeight(max(420, packed_height))
         self._scene.beams = []
         for label, decision, (x, y) in zip(
@@ -774,6 +877,11 @@ class FiltersPage(QWidget):
         if not self._filter_dir:
             self._status.setText("Choose a PoE2 filter folder first.")
             return
+        if self._background_generation:
+            self._queue_generation()
+            if self._generation_task is not None or not self._filter_text:
+                self._status.setText("Wait for the selected filter to finish generating.")
+                return
         self._install.setEnabled(False)
         self._status.setText("Generating and installing...")
         try:

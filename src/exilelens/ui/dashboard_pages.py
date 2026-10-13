@@ -1358,12 +1358,11 @@ class DiagnosticsPage(ColumnPage):
         self._structured_error_hint.setVisible(bool(error_summary))
         self._health_footer.setVisible(not self._support_hint.isHidden() or not self._structured_error_hint.isHidden())
 
-        from exilelens.diagnostics import build_extended_summary, event_buffer, verbose_mode_active
+        from exilelens.diagnostics import event_buffer, support_session_id, verbose_mode_active
 
         report = build_global_diagnostics(self.controller)
         build_info = f"ExileLens {report.version}  |  build {report.build}  |  {report.mode}"
-        extended = build_extended_summary(self.controller, self.settings, update_service=self.update_service)
-        self._support_id.setText(str(extended.get("support_session_id", "")))
+        self._support_id.setText(support_session_id())
         verbose = "on" if verbose_mode_active(self.settings) else "off"
         events = event_buffer().export_records(include_verbose=verbose_mode_active(self.settings), limit=80)
         self._event_text = self.format_events(events)
