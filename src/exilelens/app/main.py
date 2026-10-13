@@ -506,7 +506,11 @@ class ExileLensApp:
             # does, and the outcome (including the recovery decision below) arrives as build_load_finished.
             self._startup_build_path = str(Path(build_path).resolve())
             info = self.controller.build_info
-            if info.state in {BuildState.LOADING, BuildState.RELOADING} and info.path == self._startup_build_path:
+            if (
+                info.state in {BuildState.LOADING, BuildState.RELOADING}
+                and info.path == self._startup_build_path
+                and self.controller.build_load_pending
+            ):
                 return   # crash recovery already queued this load; its completion is reported the same way
             self.controller.load_build_async(build_path, context=self.settings.context)
             return
@@ -516,6 +520,8 @@ class ExileLensApp:
         pending = self._startup_build_path
         if pending is None or path != pending:
             return
+        if self.controller is not None and self.controller.build_info.state in {BuildState.LOADING, BuildState.RELOADING}:
+            return   # a refused/failed request for this build while its real load is still in flight
         self._startup_build_path = None
         self._after_startup_build_load()
 

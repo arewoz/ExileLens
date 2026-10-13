@@ -1139,6 +1139,8 @@ class EvaluationController(QObject):
         self._baseline_jobs: dict[int, _BaselineLoadJob] = {}
         #: (path, context) to reload once the replacement worker of a crash recovery is up.
         self._recovery_reload: tuple[str, str] | None = None
+        #: A loadout / item-set switch asked for while a load was still in flight; applied when that load settles.
+        self._pending_identity_switch: tuple[str, str] | None = None
         self._build_file_revision: BuildFileRevision | None = None
         self._deferred_evaluation: EvaluationRequest | None = None
         self._auto_reload_status = "UNCHANGED"
@@ -1574,9 +1576,11 @@ class EvaluationController(QObject):
         self._analysis_resume = None
         self._analysis_cancelled = True
         self._worker.request_yield()
-        # PERF-01: a running upgrade-path analysis belongs to the build that is being replaced; stop it
-        # between probes so the load does not wait for it (its result is dropped by generation anyway).
+        # PERF-01: drop queued upgrade-path work for the build that is being replaced and flag the controller-side
+        # analyzer (its result is dropped by generation anyway). A job already running on the worker uses the
+        # worker's own analyzer and finishes within its probe budget: a known remaining wait, see docs/PERF-01.md.
         self._cancel_upgrade_path_work()
+        self._pending_identity_switch = None
         self._baseline_generation += 1
         self._tree_analysis_generation += 1
         self._history.mark_historical()
@@ -1814,6 +1818,11 @@ class EvaluationController(QObject):
     def engine_booting(self) -> bool:
         return self._engine_booting
 
+    @property
+    def build_load_pending(self) -> bool:
+        """A non-blocking build load is queued, running, or waiting for a replacement worker to boot."""
+        return bool(self._baseline_jobs) or self._recovery_reload is not None
+
     def engine_status(self) -> str:
         if self._engine is not None:
             return "ready"
@@ -1883,13 +1892,9 @@ class EvaluationController(QObject):
             self._engine_error = f"Path of Building could not start: {detail}"
             logger.error("engine_failed reason=%s", detail)
             if self._recovery_reload is not None:
-                path, context = self._recovery_reload
                 self._recovery_reload = None
-                self.build_info = BuildInfo(
-                    path=path, name=self.build_info.name, context=context, state=BuildState.ERROR,
-                    error_message=self._engine_error,
-                )
-                self.build_changed.emit(self.build_info)
+                # Terminal for the baseline, the held Item Check and every status surface, like a failed load.
+                self._fail_baseline(self._engine_error)
             self.engine_failed.emit(self._engine_error)
             return
         if self._shutting_down:
@@ -2070,6 +2075,8 @@ class EvaluationController(QObject):
         )
         if capture.tree_ingest is not None:
             self.tree_view_model.apply_prepared_graph(capture.tree_ingest)
+            if self.tree_view_model.profile != self.settings.value_profile:
+                self.tree_view_model.rescore_profile(self.settings.value_profile)
         self._accept_tree = True
         self._configure_worker()
         self._recovery_attempted = False
@@ -2177,7 +2184,13 @@ class EvaluationController(QObject):
         # A reload that is still in flight (RELOADING) also has a good baseline behind it: a second request that
         # cannot read the file must keep that baseline, exactly as a request made while READY does.
         reloading = self.build_info.state in {BuildState.READY, BuildState.RELOADING}
-        same_build = reloading and self.build_info.path == resolved and self._last_good_source is not None
+        same_build = (
+            reloading
+            and self.build_info.path == resolved
+            and self._last_good_source is not None
+            # A replacement worker after a crash holds no build: there is no baseline to keep, only a load to retry.
+            and getattr(self._engine, "loaded_source", None) is not None
+        )
         started = time.perf_counter()
         # Read and validate before touching anything: a broken or half-saved file must
         # not tear down a build that works.
@@ -2241,6 +2254,11 @@ class EvaluationController(QObject):
         """
         context = context or self.settings.context
         resolved = str(Path(path).resolve())
+        if self._engine is None and self._recovery_reload is not None:
+            # The replacement worker of a crash recovery is still booting: the newest request is what gets loaded
+            # when it is up (its outcome is reported by that load), instead of failing "PoB engine is not started".
+            self._recovery_reload = (resolved, context)
+            return
         plan, reason = self._begin_build_load(resolved, context)
         if plan is None:
             self.build_load_finished.emit(False, resolved, reason)
@@ -2320,6 +2338,13 @@ class EvaluationController(QObject):
             prepare=prepare,
         )
         self._scheduler.submit(request)
+        live = {request_id}
+        active = self._scheduler.active
+        if active is not None:
+            live.add(getattr(active, "request_id", None))
+        live.update(getattr(queued, "request_id", None) for queued in self._scheduler.queued)
+        for stale_id in [job_id for job_id in self._baseline_jobs if job_id not in live]:
+            self._baseline_jobs.pop(stale_id, None)     # a queued load replaced by this one never runs
 
     def _keep_last_good_build(self, reason: str) -> None:
         """Keep the last loaded build active, but reject the check that saw newer bytes."""
@@ -2367,6 +2392,9 @@ class EvaluationController(QObject):
             self.load_build_async(self.build_info.path, context=context)
 
     def set_active_loadout(self, name: str) -> None:
+        if self._engine and self.build_info.state in {BuildState.LOADING, BuildState.RELOADING}:
+            self._pending_identity_switch = ("loadout", name)   # applied when the load in flight settles
+            return
         if not self._engine or not self.build_info.is_ready:
             return
         started = time.perf_counter()
@@ -2400,6 +2428,10 @@ class EvaluationController(QObject):
         )
 
     def set_active_item_set(self, item_set_id: str, *, follow_loadout: bool | None = None) -> None:
+        if self._engine and self.build_info.state in {BuildState.LOADING, BuildState.RELOADING}:
+            if not (follow_loadout if follow_loadout is not None else self.settings.item_set_follow_loadout):
+                self._pending_identity_switch = ("item_set", item_set_id)
+            return
         if not self._engine or not self.build_info.is_ready:
             return
         if follow_loadout is not None:
@@ -3044,14 +3076,27 @@ class EvaluationController(QObject):
             self._reload_warning = ""
         # A restored build makes the previous baseline usable again, but the Item Check that observed newer
         # bytes must not resume against it (it is rejected by _keep_last_good_build below).
-        self._apply_baseline_capture(
-            capture, job.path, job.context, started=job.started, resume_deferred=not restored
-        )
+        try:
+            self._apply_baseline_capture(
+                capture, job.path, job.context, started=job.started, resume_deferred=not restored
+            )
+        except Exception as exc:  # noqa: BLE001 - the synchronous load turned this into FAILED + a rejected check
+            logger.exception("build_load_apply_failed path=%s", job.path)
+            self._fail_baseline(str(exc))
+            self.build_load_finished.emit(False, job.path, str(exc))
+            return
         if restored:
             self._keep_last_good_build(str(extras.get("reason") or ""))
             self.build_load_finished.emit(False, job.path, str(extras.get("reason") or ""))
             return
         self.build_load_finished.emit(True, job.path, "")
+        pending, self._pending_identity_switch = self._pending_identity_switch, None
+        if pending is not None:
+            kind, value = pending
+            if kind == "loadout" and value != self._active_loadout:
+                self.set_active_loadout(value)
+            elif kind == "item_set":
+                self.set_active_item_set(value)
 
     def last_analysis(self) -> dict[str, Any] | None:
         return self._last_analysis
@@ -5635,11 +5680,15 @@ class EvaluationController(QObject):
             self._close_pinned_window(entry_id)
         self._heartbeat_timer.stop()
         self._thread.quit()
-        self._thread.wait(5000)
+        thread_done = self._thread.wait(5000)
         if self._tracked_loader is not None:
             self._tracked_loader.shutdown()
             self._tracked_loader = None
         self.shutdown_engine()
+        if not thread_done:
+            # A PoB call was still in flight (a load can take several seconds): stopping the worker process ends it,
+            # so give the thread a moment to unwind instead of leaving a running QThread to be destroyed.
+            self._thread.wait(3000)
 
     def diagnostic_report(self) -> str:
         from exilelens.app.diagnostics import render_global_diagnostics

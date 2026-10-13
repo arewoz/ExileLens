@@ -525,3 +525,220 @@ def test_worker_recovery_that_cannot_boot_reports_an_error_state(controller_and_
     assert controller.build_info.state is BuildState.FAILED
     assert "lua would not boot" in controller.build_info.error_message
     assert controller._recovery_reload is None
+
+
+# --- review findings: recovery/restart edges, apply failures, bookkeeping ------------------------------------------------
+
+
+def test_a_superseded_queued_load_leaves_no_bookkeeping_and_no_result(controller_and_engine) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    paths = []
+    for name in ("a", "b", "c"):
+        path = tmp_path / f"{name}.xml"
+        _write_build(path, f"build-{name}-" + "x" * len(paths))
+        paths.append(path)
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.load_build_async(str(paths[0]))
+    assert _pump(engine.entered.is_set)                 # A is inside PoB
+    controller.load_build_async(str(paths[1]))          # B queued behind it
+    controller.load_build_async(str(paths[2]))          # C replaces B in the queue
+    assert len(controller._baseline_jobs) == 2          # A (running) and C (queued); B left nothing behind
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller))
+    assert controller.build_info.path == str(paths[2].resolve())
+    assert controller.finished_log == [(True, str(paths[2].resolve()), "")]  # type: ignore[attr-defined]
+    assert controller._baseline_jobs == {}
+
+
+def test_an_exception_while_applying_a_capture_fails_the_load_and_the_held_check(controller_and_engine, monkeypatch) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build, submitted, errors = _ready_with_capture(controller, engine, tmp_path)
+    _write_build(build, "saved-in-pob-with-more-bytes")
+
+    def explode(*_args, **_kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(controller, "_persist_ready_build_cache", explode)
+    controller.finished_log.clear()  # type: ignore[attr-defined]
+    request_id = controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(1, 1))
+    assert _pump(lambda: _settled(controller) and errors)
+    assert errors[0][0] == request_id and submitted == []
+    assert controller.build_info.state is BuildState.FAILED
+    assert controller.finished_log[-1][0] is False                     # type: ignore[attr-defined]
+    assert controller._deferred_evaluation is None
+
+
+def test_a_boot_failure_during_recovery_is_terminal_for_the_baseline_and_the_held_check(controller_and_engine, monkeypatch) -> None:
+    from exilelens.errors import PobBootFailed
+
+    controller, engine, tmp_path = controller_and_engine
+    _build, submitted, errors = _ready_with_capture(controller, engine, tmp_path)
+    _fake_boot(monkeypatch)
+    gate = threading.Event()
+
+    def failing_start(self) -> None:
+        assert gate.wait(10)
+        raise PobBootFailed("lua would not boot")
+
+    monkeypatch.setattr(_HeldEngine, "start", failing_start)
+    controller._attempt_recovery(WorkerUnhealthy("worker exited", {}))
+    held = controller.submit_clipboard_text(_item("Held"), copy_anchor_screen_px=(1, 1))
+    gate.set()
+
+    assert _pump(lambda: errors)
+    assert errors[0][0] == held and submitted == []
+    assert controller.build_info.state is BuildState.FAILED
+    assert controller.baseline_state.state is BuildState.FAILED     # every status surface agrees
+    assert controller._deferred_evaluation is None
+
+
+def test_an_unreadable_file_after_a_crash_fails_instead_of_waiting_forever(controller_and_engine, monkeypatch) -> None:
+    import exilelens.app.controller as controller_module
+
+    controller, engine, tmp_path = controller_and_engine
+    _build, submitted, errors = _ready_with_capture(controller, engine, tmp_path)
+    _fake_boot(monkeypatch)
+
+    def unreadable(_path: str):
+        raise BuildParseFailed("The build file is incomplete")
+
+    monkeypatch.setattr(controller_module, "read_build_source", unreadable)
+    controller._attempt_recovery(WorkerUnhealthy("worker exited", {}))
+    assert _pump(lambda: controller.build_info.state is BuildState.FAILED)
+    assert "incomplete" in controller.build_info.error_message
+    assert submitted == []
+
+
+def test_a_build_change_during_the_recovery_boot_retargets_the_pending_reload(controller_and_engine, monkeypatch) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    _build, _submitted, _errors = _ready_with_capture(controller, engine, tmp_path)
+    boots = _fake_boot(monkeypatch)
+    _HeldEngine.boot_gate = threading.Event()
+    other = tmp_path / "other.xml"
+    _write_build(other, "other-build")
+    controller.finished_log.clear()  # type: ignore[attr-defined]
+    controller._attempt_recovery(WorkerUnhealthy("worker exited", {}))
+
+    controller.change_build(str(other))                              # while the replacement worker boots
+    assert controller.build_info.state is BuildState.RELOADING        # not FAILED("engine is not started")
+    _HeldEngine.boot_gate.set()
+    assert _pump(lambda: _settled(controller) and controller.build_info.state is BuildState.READY)
+    assert controller.build_info.path == str(other.resolve())
+    assert controller.finished_log == [(True, str(other.resolve()), "")]  # type: ignore[attr-defined]
+    assert len(boots) == 1
+
+
+def test_a_loadout_switch_asked_for_during_a_load_is_applied_when_it_settles(controller_and_engine) -> None:
+    controller, engine, tmp_path = controller_and_engine
+    build = tmp_path / "ring.xml"
+    from tests.test_stale_build_reload_controller import _write_build
+
+    _write_build(build, "ring")
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.load_build_async(str(build))
+    assert _pump(engine.entered.is_set)
+    controller.set_active_loadout("Boss")             # the tray click arrives while the build is still loading
+    assert controller._pending_identity_switch == ("loadout", "Boss")
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller) and controller.active_loadout == "Boss")
+    assert any(call.startswith("set_active_loadout:Boss") for call in engine.calls)
+    assert controller.build_info.state is BuildState.READY
+
+
+def test_a_value_profile_change_during_a_load_is_not_reverted_by_the_applied_capture(controller_and_engine) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build = tmp_path / "ring.xml"
+    _write_build(build, "ring")
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.load_build_async(str(build))
+    assert _pump(engine.entered.is_set)
+    controller.settings.value_profile = "OFFENSE_FOCUS"
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller))
+    assert controller.tree_view_model.profile == "OFFENSE_FOCUS"
+
+
+def test_shutdown_with_a_load_in_flight_stops_the_worker_thread(controller_and_engine) -> None:
+    controller, engine, tmp_path = controller_and_engine
+    build = tmp_path / "ring.xml"
+    from tests.test_stale_build_reload_controller import _write_build
+
+    _write_build(build, "ring")
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.load_build_async(str(build))
+    assert _pump(engine.entered.is_set)
+    threading.Timer(0.4, engine.hold.set).start()      # the in-flight PoB call ends shortly after shutdown begins
+    controller.shutdown()
+    assert not controller._thread.isRunning()
+
+
+def test_the_pending_flag_distinguishes_a_reconnect_from_a_queued_load(controller_and_engine) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build = tmp_path / "ring.xml"
+    _write_build(build, "ring")
+    assert controller.build_load_pending is False
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.load_build_async(str(build))
+    assert controller.build_load_pending is True
+    assert _pump(engine.entered.is_set)
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller))
+    assert controller.build_load_pending is False
+
+
+def test_startup_handler_loads_after_a_reconnect_but_not_while_recovery_already_queued_it(tmp_path, monkeypatch) -> None:
+    """restart_engine marks the build LOADING without queueing a load; the engine_ready handler must queue it."""
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    from exilelens.app.main import ExileLensApp
+    from exilelens.app.single_instance import InstanceLock
+    from exilelens.app.update_check import UpdateService
+    import exilelens.app.main as main_module
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    if sys.platform != "win32":
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QApplication.instance() or QApplication([])
+    monkeypatch.setattr(main_module, "acquire_single_instance_lock", lambda: InstanceLock(acquired=True, reason="t"))
+    monkeypatch.setattr(ExileLensApp, "_start_instance_server", lambda self: None)
+    monkeypatch.setattr(UpdateService, "start_automatic", lambda self: False)
+    build = tmp_path / "ring.xml"
+    from tests.test_stale_build_reload_controller import _write_build
+
+    _write_build(build, "ring")
+    shell = ExileLensApp()
+    shell._compose_primary_ui(quit_callback=lambda: None)
+    controller = shell.controller
+    loads: list[str] = []
+    try:
+        controller.load_build_async = lambda path, context=None, **kw: loads.append(path)  # type: ignore[method-assign]
+        monkeypatch.setattr(shell, "_resolve_startup_build_path", lambda: str(build))
+        controller.build_info = BuildInfo(path=str(build.resolve()), name="ring", context="MAP", state=BuildState.LOADING)
+
+        shell._on_engine_ready()                     # Reconnect: LOADING, nothing queued -> the load must be queued
+        assert loads == [str(build)]
+
+        loads.clear()
+        controller._recovery_reload = (str(build.resolve()), "MAP")   # crash recovery already owns the load
+        shell._on_engine_ready()
+        assert loads == []
+    finally:
+        controller._recovery_reload = None
+        controller.shutdown()

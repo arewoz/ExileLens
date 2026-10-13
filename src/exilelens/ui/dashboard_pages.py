@@ -702,9 +702,12 @@ class SettingsPage(ColumnPage):
         self.refresh_setup_status()
 
     def _on_build_load_finished(self, ok: bool, path: str, reason: str) -> None:
-        if getattr(self, "_awaiting_build_path", None) != path:
+        awaiting = getattr(self, "_awaiting_build_path", None)
+        if awaiting is None:
             return
-        self._awaiting_build_path = None
+        self._awaiting_build_path = None      # this outcome is for the awaited build, or it was superseded
+        if awaiting != path:
+            return
         if not ok:
             detail = reason or self.controller.last_build_error or "unknown error"
             QMessageBox.warning(self, "Build file", f"Couldn't load this build:\n{detail}")

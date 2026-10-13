@@ -124,7 +124,8 @@ def test_tree_snapshot_survives_non_utf8_worker_code_page(pob_config, monkeypatc
     (baseline reload -> Item Check) and checks the non-ASCII node name arrives
     intact, which also guards the silent U+FFFD corruption seen under cp1252.
     """
-    from exilelens.app.controller import BaselineReloadRequest, EvaluationRequest, _EvaluationWorker
+    from exilelens.app.baseline_capture import CaptureInputs
+    from exilelens.app.controller import BaselineLoadRequest, EvaluationRequest, _EvaluationWorker
     from exilelens.engine import Engine
 
     monkeypatch.setenv("PYTHONIOENCODING", "cp1251")
@@ -136,15 +137,24 @@ def test_tree_snapshot_survives_non_utf8_worker_code_page(pob_config, monkeypatc
         worker.finished_baseline.connect(lambda rid, payload, error: baselines.append((rid, payload, error)))
         worker.finished_eval.connect(lambda rid, payload, error: evaluations.append((rid, payload, error)))
 
-        worker.run_baseline_reload(BaselineReloadRequest(request_id=1, path=str(BUILD)))
+        # The production load path (PERF-01): the engine load + baseline capture run as one worker job.
+        inputs = CaptureInputs(
+            path=str(BUILD), context="MAP", generation=0, value_profile="BALANCED", selected_loadout="",
+            item_set_follow_loadout=True, selected_item_set_id="",
+        )
+        worker.run_baseline_load(BaselineLoadRequest(
+            request_id=1, baseline_generation=0, path=str(BUILD), context="MAP", engine=engine, inputs=inputs,
+            prepare=lambda eng, extras: eng.load_build(str(BUILD), context="MAP"),
+        ))
 
         assert len(baselines) == 1
         request_id, payload, error = baselines[0]
         assert error is None, repr(error)
-        assert request_id == 1 and payload["ok"] is True
-        assert payload["item_set_valid"] is True and payload["active_loadout"] == "Default"
-        assert payload["tree_set"]["tree_version"] == "0_5"
-        graph = payload["graph"]
+        capture = payload["capture"]
+        assert request_id == 1 and capture is not None
+        assert capture.active_item_set_id and capture.active_loadout == "Default"
+        assert capture.snapshot.tree_set["tree_version"] == "0_5"
+        graph = capture.graph
         assert graph["class"] == "Mercenary" and graph["ascendancy"] == "Gemling Legionnaire"
         nodes = {node["id"]: node for node in graph["nodes"]}
         assert nodes[NON_ASCII_NODE_ID]["name"] == NON_ASCII_NODE_NAME
@@ -172,7 +182,7 @@ def test_tree_snapshot_survives_non_utf8_worker_code_page(pob_config, monkeypatc
         # The controller defers the restore (PERF-02) and verifies it in
         # _finalize_deferred_restore before emitting; a failed restore would have
         # been emitted as the error above. Confirm the build is back to baseline.
-        assert engine.get_metrics()["fingerprint_hash"] == payload["fingerprint"]
+        assert engine.get_metrics()["fingerprint_hash"] == capture.metrics["fingerprint_hash"]
 
 
 def test_giants_blood_baseline_identity_and_active_weapon_set(real_pob_engine) -> None:
