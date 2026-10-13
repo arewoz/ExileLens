@@ -155,13 +155,32 @@ def breakpoints(base: str) -> dict[str, int]:
     ps = pools.pools_for(base)
     if not ps:
         return {}
+    # Bases with the same eligible tier levels share the same thresholds.
+    # Return a fresh mapping because CraftAssessment exposes it to callers.
+    return dict(_breakpoint_levels(tuple(p.levels for p in ps.values())))
+
+
+@lru_cache(maxsize=512)
+def _breakpoint_levels(levels: tuple[tuple[int, ...], ...]) -> tuple[tuple[str, int], ...]:
+    from bisect import bisect_right
+
+    def reached(level: int, target: float) -> bool:
+        # Keep the original summation order and weighting of each stat family.
+        return sum(bisect_right(tiers, level) / len(tiers) for tiers in levels) / len(levels) >= target
+
     out: dict[str, int] = {}
     for name, target in (("meaningful", .60), ("high", .85), ("premium", .95)):
-        for level in range(1, 101):
-            if sum(p.tiers_at(level) / len(p.levels) for p in ps.values()) / len(ps) >= target:
-                out[name] = level
-                break
-    return out
+        if not reached(100, target):
+            continue
+        low, high = 1, 100
+        while low < high:
+            middle = (low + high) // 2
+            if reached(middle, target):
+                high = middle
+            else:
+                low = middle + 1
+        out[name] = low
+    return tuple(out.items())
 
 
 def archetype_groups(base: str) -> tuple[str, ...]:

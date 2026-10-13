@@ -15,6 +15,7 @@ Build-aware item analysis for Path of Exile 2. Item Check compares the item you 
 - **Optional usage statistics and error reports.** Two separate switches in Settings, both off by default. Only a fixed list of anonymous values is ever sent; Settings shows exactly what. Item Check, Analyze Build and manual updates work without them and without any account.
 - **Clearer refusals.** Jewels and off-hand items that cannot be compared say why in plain words, without internal socket numbers.
 - **A more responsive app.** Build loading and reloads run in the background, keeping the desktop responsive. Repeated item checks avoid unnecessary work, and only the latest requested check is resumed after a build reload.
+- **Faster Filters and Diagnostics navigation.** Reopening Filters reuses its current preview, while a changed selection generates in the background. Diagnostics avoids repeated system queries. Installation waits for the current filter selection to finish generating.
 - **Reliability.** Item Check and Analyze Build were checked against a corpus of real public builds, covering weapons, off-hands, jewels, loadouts and weapon sets, and your build is restored exactly after every comparison.
 - **Fix:** crossbows with ammunition skills are measured on the skill that actually fires, so a stronger crossbow no longer shows no change.
 

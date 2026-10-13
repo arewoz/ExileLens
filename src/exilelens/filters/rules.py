@@ -152,8 +152,10 @@ class RuleGenerator:
         main_skill: str,
         defense_layer: DefenseLayer,
         intel: Any = None,
+        cooperate=None,
     ):
         self.intel = intel  # IntelContext (FILTER-08B) or None: no build, the general filter
+        self._cooperate = cooperate
         self.slot_priorities = slot_priorities
         self.profile = profile
         self.main_skill = main_skill
@@ -637,7 +639,9 @@ class RuleGenerator:
         relevant: Dict[int, List[str]] = defaultdict(list)
         low: List[str] = []
         unknown: List[str] = []
-        for base in load_base_properties():
+        for index, base in enumerate(load_base_properties()):
+            if self._cooperate is not None and index % 64 == 0:
+                self._cooperate()
             if native_class(base) not in ROLE_BY_CLASS:
                 continue
             assessment = ci.assess(base)
