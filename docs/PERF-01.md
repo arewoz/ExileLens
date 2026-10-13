@@ -58,6 +58,16 @@ small ring build (236 -> 248 ms).
 
 (The measured script's clock starts after the interpreter is up; about 1.9 s of module import is inside the first row on both sides.)
 
+### Packaged runtime smoke (Windows, canonical `scripts/build_exe.ps1`, commit `03156a7`)
+
+A single canonical build (onedir, Python 3.12.10, PyInstaller 6.22.2; provenance validated: 63 native binaries, 2 executables) was launched twice
+with an isolated profile pointing at `core04_player_ring.xml`, the network pinned to a dead local proxy, and quit through `ExileLens.exe --quit`.
+From the application's own log: tray visible about 1 s after launch, PoB engine ready about 1.5 s, build loaded and READY **2.8-3.0 s** after
+launch (`reload_ms` 695-752), Shift+C hook installed before the engine was ready, the preboot adopted by the controller (`engine_preboot_started` then
+one `engine_boot_started` that adopts it; one worker process), clean shutdown in about 0.9 s with no leftover `ExileLens.exe` / worker process.
+This is a functional smoke result with two samples and **no packaged baseline build was measured**, so it is not offered as a packaged
+before/after comparison. A real Item Check cannot be driven without the game window (the capture path requires PoE to be foreground).
+
 ### Other measured effects
 * Dashboard construction (`_compose_primary_ui`, isolated): 3.4-3.5 s -> 1.3-1.7 s from removing the parentless `setVisible(True)` native windows.
 * `get_skill_report` prewarm (interleaved 3 pairs, totem): first check 3 s after the load 1.62 s -> 1.01 s; first check 20 ms after the load
@@ -129,7 +139,7 @@ release; it is kept because it is what an explicit caller gets.)
 * **Source runs, not packaged performance.** Timings come from `python -m exilelens` style runs on Python 3.14 on a shared development machine
   (browser and game launcher running; absolute timings drift up to 3x between runs, which is why every table is interleaved and median-based).
   Import time (about 2 s) and the Windows `git`/WMI calls in the Diagnostics page are dev-only costs. The packaged build was smoke-tested
-  separately (see below) and its startup is **not** presented as a measured improvement.
+  separately (above) and its startup is **not** presented as a measured improvement.
 * **Hotkey and clipboard capture** (SendInput + clipboard poll) need a live game window and are not exercised by the harness; the harness
   starts at `submit_clipboard_text`.
 * **A running upgrade-path analysis** is cancelled through the controller-side analyzer only; the job already running on the worker uses the
