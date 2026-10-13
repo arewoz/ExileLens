@@ -1,4 +1,4 @@
-EXILELENS 0.7.0b1
+EXILELENS 1.0.0
 =================
 
 Build-aware item analysis for Path of Exile 2.

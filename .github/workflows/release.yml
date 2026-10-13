@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release tag (for example: v0.2.0b2)"
+        description: "Release tag (must match the checked-out app version)"
         required: true
         type: string
+        default: "v1.0.0"
       dry_run:
         description: "Run EVERYTHING (gates, build, production signing, verification under the production trust profile, release-notes check) but publish nothing: no tag, no release, no assets, no Discord post, no uploaded artifacts. Use on the exact release commit as a pre-flight; the real release is the same dispatch with this off."
         required: false
@@ -75,7 +76,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:RELEASE_VERSION -notmatch '^v\d+\.\d+\.\d+(b\d+)?$') {
-            throw "Version must use the ExileLens release format, for example v0.2.0b2: $env:RELEASE_VERSION"
+            throw "Version must use the ExileLens release format, for example v1.0.0: $env:RELEASE_VERSION"
+          }
+          $sourceVersion = (Select-String -LiteralPath 'src\exilelens\_version.py' -Pattern '^__version__ = "([^"]+)"$').Matches.Groups[1].Value
+          if ($env:RELEASE_VERSION -ne "v$sourceVersion") {
+            throw "Requested tag $env:RELEASE_VERSION does not match the checked-out source version v$sourceVersion."
           }
           $remoteTag = & git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_VERSION" 2>$null
           $tagExitCode = $LASTEXITCODE

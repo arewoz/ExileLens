@@ -1,78 +1,48 @@
-# ExileLens 0.7.0b1
+# ExileLens 1.0.0
 
-Early beta for Windows. Item Check uses your selected Path of Building for Path of Exile 2 and shows upgrade / downgrade guidance in an overlay.
+Build-aware item analysis for Path of Exile 2. Item Check compares the item you hover against your selected Path of Building for Path of Exile 2 build and shows an upgrade, downgrade, sidegrade or uncertain verdict in an overlay.
 
-## Highlights
+## What changed since 0.6.0
 
-### New in 0.7.0b1
+1.0.0 is the next public release after 0.6.0. The planned 0.7 release was not published.
 
-- **Optional usage statistics and error reports:** two separate switches in Settings, both **off by default**. Only a fixed list of enumerated, anonymous values is ever sent (no item text, builds, paths or account names); "See what is collected" shows the exact list and the next payload. Turning a switch off deletes the local queue and identifier and asks the server to forget it.
-- **Patreon supporter link (optional):** connect Patreon from Settings to enable seamless updates for eligible supporters. The app never receives your Patreon name or email.
-- **Seamless updates for supporters:** automatic download of verified releases and install when ExileLens closes. Everyone else keeps *Download & Install* and *Restart & Update* exactly as before.
-- **Safer updater:** production-only update signing trust, signed version/tag/URL binding, crash-safe journaled install with automatic rollback, and a result notice after restart.
-- **Everything works offline:** Item Check, Analyze Build and manual updates never depend on the cloud service.
-
-### Carried over from 0.6.0
-
-- **Can't-equip warning:** items whose level or attribute requirements you cannot meet are shown as NOT VIABLE.
-- **Build freshness:** the Overview warns when your PoB build file changed on disk or is old.
-- **PoB auto-detect:** Path of Building is found via the registry, shortcuts and common folders; a Detect button is available in Overview, Settings and Setup.
-- **Update awareness:** in-app update notice and a check when the dashboard opens.
-- **Build Intelligence:** Analyze Build opens with BUILD PRIORITIES measured from your own build.
-- **Fix:** clicking outside the tooltip now dismisses it even when an ExileLens window sits behind the game.
-
-### Diagnostics and support
-
-- **Diagnostics 2.0:** Application health summary, single **Copy diagnostics** action, optional support package export, and collapsible Advanced diagnostics (event history and technical report).
-- **Structured error codes:** Failures in Item Check, PoB connection, build loading, the calculation worker, and updates surface stable **EL-*** codes with plain-language recovery guidance in the overlay and Diagnostics.
-
-### Updates
-
-- **Unified release selection:** Automatic updates target the **newest verified** official release (beta or stable) using version ordering—not a separate channel picker.
-- **Settings → Updates:** Installed version, check/download progress, and restart-to-apply live in Settings; the dashboard footer and system tray show the same state.
-
-### Evaluation honesty
-
-- **UNCERTAIN / UNSUPPORTED** Item Check outcomes use a separate **evaluation limitation** catalog; they are not treated as application crashes.
-- Scoring, damage math, and truthfulness gates are unchanged from 0.4.0b1.
-
-### Setup and Item Check
-
-- **PoB2 auto-discovery** suggests a validated installation folder during setup when none is saved; manual Browse remains available.
-- **Stale build protection** rejects Item Check that observed newer or missing on-disk build bytes instead of evaluating against an outdated in-memory baseline.
+- **Item Check says what your build needs.** When an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result. The measured comparison against your equipped gear still decides the verdict.
+- **Analyze Build shows what to do next.** What to fix first, the stats your build responds to most, and up to three next actions, each with the change that was tested. When something could not be established, it says so.
+- **A redesigned desktop app.** A status panel shows your build and whether ExileLens is ready, with Overview, Analyze Build, Settings and Diagnostics beside it. A "What's new" dialog appears once after an update.
+- **Verified updates that roll back.** Updates are checked against a signed manifest before they install, installs are journaled and rolled back if they fail, and ExileLens tells you the result after restarting.
+- **Supporter convenience, nothing else.** Patreon supporters who link their account get more frequent checks, background download of verified updates and install when ExileLens closes. Everyone else keeps Download & install and Restart & update. It is the same signed release for everyone; there is no paid build and no DRM.
+- **Optional usage statistics and error reports.** Two separate switches in Settings, both off by default. Only a fixed list of anonymous values is ever sent; Settings shows exactly what. Item Check, Analyze Build and manual updates work without them and without any account.
+- **Clearer refusals.** Jewels and off-hand items that cannot be compared say why in plain words, without internal socket numbers.
+- **A more responsive app.** Build loading and reloads run in the background, keeping the desktop responsive. Repeated item checks avoid unnecessary work, and only the latest requested check is resumed after a build reload.
+- **Reliability.** Item Check and Analyze Build were checked against a corpus of real public builds, covering weapons, off-hands, jewels, loadouts and weapon sets, and your build is restored exactly after every comparison.
+- **Fix:** crossbows with ammunition skills are measured on the skill that actually fires, so a stronger crossbow no longer shows no change.
 
 ## Installation
 
-1. Download **ExileLens-v0.6.0-win64.zip** from the GitHub Release (after publish approval).
-2. Extract the full folder and run **ExileLens.exe**.
+1. Download **ExileLens-v1.0.0-win64.zip** and **SHA256SUMS.txt** from this GitHub release.
+2. Check the ZIP against `SHA256SUMS.txt` (PowerShell: `Get-FileHash .\ExileLens-v1.0.0-win64.zip -Algorithm SHA256`), then extract the full folder and run **ExileLens.exe**.
 3. On first launch, connect your **Path of Building Community (PoE2)** installation and select a saved build XML.
 
-Path of Building is **not** bundled. See `README.txt` in the ZIP for requirements, Shift+C usage, and troubleshooting.
+Path of Building is not bundled. `README.txt` in the ZIP covers requirements, Shift+C usage and troubleshooting. The ZIP also contains `LICENSE`, `THIRD_PARTY_NOTICES.txt` and `third_party_licenses\`.
 
-The distribution includes **ExileLensUpdater.exe** under `_internal\` for in-place secure updates.
+ExileLens is not signed with a paid Windows code-signing certificate, so Windows SmartScreen or antivirus software may warn about it. Download it only from this repository's GitHub Releases page.
 
-**Supported PoB source revision (tested):**
+**Supported PoB source revision (tested):** branch `dev`, commit `97cb973f8a114d32010bc1a4195c170628771714`.
 
-- branch: `dev`
-- commit: `97cb973f8a114d32010bc1a4195c170628771714`
+## Updating
 
-## Update system (packaged installs only)
-
-1. Open **Settings → Updates** and choose **Check for updates**.
-2. When a newer verified release is available, use **Download & Install**.
-3. When the download is verified, choose **Restart & Update** to apply via the external updater.
-
-Source/development runs do not self-update. If the newest release cannot be verified safely, ExileLens will **not** install an older release automatically.
+Packaged builds check GitHub shortly after start and then about once a day; there is no setting to turn the check off. To update, open **Settings -> Updates**, choose **Check for updates**, then **Download & install** and **Restart & update**. If that fails, close ExileLens, download the new ZIP from GitHub Releases, check it against `SHA256SUMS.txt` and extract it into a new folder; your settings stay in `%LOCALAPPDATA%\ExileLens`. Source and development runs do not self-update.
 
 ## Known limitations
 
-- **Path of Exile 2 game client** compatibility is **not verified** in this release.
-- Structured error coverage focuses on Item Check, PoB, build, worker, updates, and diagnostics export—not every experimental module (market hub, tree tools, gear optimizer).
-- Item Check evaluates **one hovered item** at a time.
-- Beta quality: report issues via **Diagnostics → Copy diagnostics** and GitHub Issues.
+- Some Path of Exile 2 mechanics are not fully modeled by Path of Building or ExileLens, so some results are partial or `UNCERTAIN`.
+- Jewels that change passive-tree connectivity cannot be evaluated.
+- Your Path of Building build is the comparison baseline, not your live in-game gear.
+- ExileLens does not show prices and does not contact the Path of Exile trade service.
+- Item Check evaluates one hovered item at a time.
 
 ## Feedback
 
 Discord: https://discord.gg/4jrhBbSwEn
 
-Bug reports: **Diagnostics → Report an issue** (GitHub) with reproduction steps and copied diagnostics.
+Bug reports: **Diagnostics -> Report an issue** (GitHub) with reproduction steps and copied diagnostics.

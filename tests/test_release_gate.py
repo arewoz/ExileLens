@@ -245,7 +245,9 @@ def test_release_workflow_executes_mandatory_regressions_before_build_and_public
 
 def test_committed_compatibility_manifest_matches_current_source_version() -> None:
     manifest = json.loads((ROOT / "ops" / "compatibility.json").read_text(encoding="utf-8"))
-    assert manifest["exilelens_version"] == "0.7.0b1"
+    from exilelens._version import __version__
+
+    assert manifest["exilelens_version"] == __version__
 
 
 def test_official_release_notes_heading_matches_canonical_version() -> None:
@@ -256,9 +258,11 @@ def test_official_release_notes_heading_matches_canonical_version() -> None:
 
 
 def test_stale_version_resource_blocks_release_gate(tmp_path: Path) -> None:
+    from exilelens._version import __version__
+
     root = _valid_root(tmp_path)
     version_path = root / "packaging" / "version_info.txt"
-    version_path.write_text(version_path.read_text(encoding="utf-8").replace("0.7.0b1", "9.9.9b9"), encoding="utf-8")
+    version_path.write_text(version_path.read_text(encoding="utf-8").replace(__version__, "9.9.9b9"), encoding="utf-8")
 
     report = evaluate_release_gate(root=root, allow_dirty=True)
 
