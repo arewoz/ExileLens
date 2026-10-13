@@ -27,7 +27,7 @@ The native registry separates ground items, synthetic PoB objects and non-ground
 - Styled coverage: 6,348 distinct item states, 126,960 decisions across five profiles, two build modes and campaign/maps; 339,200 Rare equipment evaluations. Zero visible unstyled fallthrough, known items in unknown safety, Rare equipment without styling or theme visibility differences.
 - Acceptance package: 80 profile/theme/mode files, manifest file/rule SHA-256 values, static preflight, exhaustive ground-base load filter and manual checklist. Synthetic Spark is a contract fixture, not a real gameplay gain measurement.
 - Application regression: 1,435 passed. UI/startup/installation suite: 90 passed. Production compatibility suite: 314 passed. Packaging/distribution/compliance contracts: 175 passed.
-- Full filter suite and final frozen smoke results are recorded after completion below.
+- Full filter suite: 414 passed, 8 skipped in 840.43 seconds. Six skips require an external PoB checkout/live analysis; two weapon-requirement cases do not apply to Wands/Sceptres and are covered by spell-build checks. Final frozen smoke is recorded after completion below.
 
 Run offline checks from the repository root:
 

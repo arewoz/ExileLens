@@ -78,6 +78,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python -m pytest -o addopts= -q tests/test_filter_product_safety.py tests/test_filter_native_basetype.py tests/test_filter_themed_visibility.py tests/test_filter_profile_system_v2.py tests/test_filter_visual_v4.py tests/test_filter09_crafting.py tests/test_filter09_basetype.py tests/test_filter08c_dashboard.py tests/test_filter08e_adapter.py tests/test_r1_analyze_build_ui.py
           if ($LASTEXITCODE -ne 0) { throw 'Experimental filter/Analyze Build contracts failed.' }
+          $filterReport = Join-Path $env:RUNNER_TEMP 'exilelens-filter-smoke.json'
+          python -m exilelens.app.main --exilelens-filter-report $filterReport
+          if ($LASTEXITCODE -ne 0) { throw 'Offline filter feature report failed.' }
+          if (-not (Get-Content -LiteralPath $filterReport -Raw | ConvertFrom-Json).ok) { throw 'Filter report did not pass.' }
 
       - name: Run secure update pipeline regressions
         shell: pwsh

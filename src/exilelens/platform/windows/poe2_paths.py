@@ -56,7 +56,8 @@ _SHGetKnownFolderPath.argtypes = [
     wintypes.HANDLE,        # hToken
     ctypes.POINTER(wintypes.LPWSTR),  # ppszPath
 ]
-_SHGetKnownFolderPath.restype = wintypes.HRESULT
+# HRESULT is a signed Windows LONG; wintypes.HRESULT is absent on Python 3.12.
+_SHGetKnownFolderPath.restype = ctypes.c_long
 
 # KF_FLAG_DEFAULT = 0x00000000
 KF_FLAG_DEFAULT = 0x00000000

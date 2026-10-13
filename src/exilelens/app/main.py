@@ -99,12 +99,17 @@ def _maybe_write_filter_report() -> None:
     if argument not in sys.argv:
         return
     import json
-    from exilelens.filters.product_smoke import report
     index = sys.argv.index(argument)
     if index + 1 >= len(sys.argv):
         raise SystemExit(2)
-    Path(sys.argv[index + 1]).write_text(json.dumps(report(), sort_keys=True), encoding="utf-8")
-    raise SystemExit(0)
+    try:
+        from exilelens.filters.product_smoke import report
+        payload = report()
+    except Exception:
+        import traceback
+        payload = {"ok": False, "error": traceback.format_exc()}
+    Path(sys.argv[index + 1]).write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    raise SystemExit(0 if payload.get("ok") else 1)
 
 
 _maybe_run_worker_subprocess()

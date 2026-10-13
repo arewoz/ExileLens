@@ -27,6 +27,8 @@ def test_unrelated_same_named_file_is_never_overwritten(tmp_path, content, batch
     result = call(content, tmp_path, 'Recommended', 'Void Gold')
     assert not result.success
     assert destination.read_bytes() == b'# My custom filter\nShow\n'
+    if not batch:
+        assert install.get_installed_filter_info(tmp_path) is None
 
 
 def test_replace_failure_keeps_the_previous_working_bytes(tmp_path, content, monkeypatch):
