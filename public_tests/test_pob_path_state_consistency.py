@@ -12,7 +12,8 @@ from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QObject, Signal
+import pytest
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from exilelens.app.settings import AppSettings
@@ -76,11 +77,31 @@ def _choose_folder(monkeypatch, page: SettingsPage, folder: Path) -> list[str]:
     return saved
 
 
+_LIVE: list[QObject] = []
+
+
+@pytest.fixture(autouse=True)
+def _destroy_qt_objects_before_interpreter_exit():
+    """Every SettingsPage built here is a parentless top-level widget. Left alone they are destroyed by garbage
+    collection at interpreter exit, in no defined order relative to the QApplication, which intermittently aborts the
+    process *after* pytest has already printed a green summary (seen with PySide6 6.12.0). Delete them while the
+    application is still alive and its event loop can run the deferred deletes."""
+    yield
+    while _LIVE:
+        _LIVE.pop().deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app = QApplication.instance()
+    if app is not None:
+        app.processEvents()
+
+
 def _page(settings: AppSettings, controller: _DummyController | None = None) -> SettingsPage:
     app = QApplication.instance() or QApplication([])
     assert app is not None
     controller = controller or _DummyController(settings)
-    return SettingsPage(settings, controller)
+    page = SettingsPage(settings, controller)
+    _LIVE.extend([page, controller])
+    return page
 
 
 def test_invalid_candidate_keeps_valid_connection(monkeypatch, tmp_path: Path) -> None:
