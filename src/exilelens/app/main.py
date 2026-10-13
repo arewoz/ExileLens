@@ -505,6 +505,9 @@ class ExileLensApp:
             # PERF-01: the PoB load runs on the PoB lane; the tray, hotkey and dashboard stay responsive while it
             # does, and the outcome (including the recovery decision below) arrives as build_load_finished.
             self._startup_build_path = str(Path(build_path).resolve())
+            info = self.controller.build_info
+            if info.state in {BuildState.LOADING, BuildState.RELOADING} and info.path == self._startup_build_path:
+                return   # crash recovery already queued this load; its completion is reported the same way
             self.controller.load_build_async(build_path, context=self.settings.context)
             return
         self._after_startup_build_load()

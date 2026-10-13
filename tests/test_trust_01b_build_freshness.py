@@ -86,7 +86,8 @@ def _controller(tmp_path, monkeypatch):
 
 
 def test_controller_reports_changed_then_clears_after_successful_reload(tmp_path, monkeypatch) -> None:
-    from tests.test_stale_build_reload_controller import _item, _write_build
+    from exilelens.app.build_state import BuildState
+    from tests.test_stale_build_reload_controller import _item, _settle, _write_build
 
     controller, _engine, build, _submitted = _controller(tmp_path, monkeypatch)
     try:
@@ -94,19 +95,23 @@ def test_controller_reports_changed_then_clears_after_successful_reload(tmp_path
         _write_build(build, "changed-on-disk-with-new-size")
         assert controller.build_freshness()["state"] == DISK_CHANGED
         controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(1, 1))
+        # The reload runs on the PoB lane: the call returns with the build visibly reloading, not frozen.
+        assert controller.build_info.state is BuildState.RELOADING
+        _settle(controller)
         assert controller.build_freshness()["state"] == CURRENT
     finally:
         controller.shutdown()
 
 
 def test_controller_failed_reload_reports_using_last_good_until_a_good_reload(tmp_path, monkeypatch) -> None:
-    from tests.test_stale_build_reload_controller import _item, _write_build
+    from tests.test_stale_build_reload_controller import _item, _settle, _write_build
 
     controller, engine, build, _submitted = _controller(tmp_path, monkeypatch)
     try:
         changed = _write_build(build, "worker-rejected-new-build")
         engine.reject_sha = changed.sha256
         controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(1, 1))
+        _settle(controller)
         assert controller.build_freshness()["state"] == USING_LAST_GOOD
         engine.reject_sha = ""
         controller.reload_build()

@@ -29,7 +29,7 @@ from exilelens.app.controller import EvaluationController, EvaluationRequest
 from exilelens.app.settings import AppSettings
 from exilelens.build_source import BuildSource, read_build_source
 from exilelens.build_sources import LocalPobBuildSource
-from exilelens.errors import BuildParseFailed
+from exilelens.errors import BuildParseFailed, WorkerUnhealthy
 
 pytestmark = pytest.mark.itemcheck
 
@@ -45,8 +45,12 @@ def _write_build(path: Path, name: str) -> BuildSource:
 class _HeldEngine:
     """Stub PoB engine. ``hold`` (when set) blocks load_build until released, on whichever thread calls it."""
 
-    def __init__(self) -> None:
+    boot_gate: threading.Event | None = None   # class-level: holds a replacement worker's boot (crash recovery)
+
+    def __init__(self, config=None, *, use_subprocess: bool = False) -> None:
         self.loaded_source: BuildSource | None = None
+        self.shut_down = False
+        self.unhealthy = False
         self.loaded_source_ref = None
         self.loaded_revision = None
         self.load_threads: list[str] = []
@@ -63,6 +67,8 @@ class _HeldEngine:
         self.entered.set()
         if self.hold is not None:
             assert self.hold.wait(10), "test never released the held load"
+        if self.unhealthy:
+            raise WorkerUnhealthy("worker exited", {"method": "load_build"})
         if source.sha256 in self.reject:
             raise BuildParseFailed("worker rejected build")
         self.loaded_source = source
@@ -95,8 +101,12 @@ class _HeldEngine:
     def get_build_info(self) -> dict:
         return {"name": Path(self.loaded_source.path).stem} if self.loaded_source else {}
 
+    def start(self) -> None:
+        if _HeldEngine.boot_gate is not None:
+            assert _HeldEngine.boot_gate.wait(10), "test never released the held engine boot"
+
     def shutdown(self) -> None:
-        return None
+        self.shut_down = True
 
 
 def _minimal_snapshot(*_args, **_kwargs):
@@ -125,7 +135,10 @@ def controller_and_engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     QApplication.instance() or QApplication([])
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "app-data"))
     monkeypatch.setattr(tree_mutations, "load_tree_snapshot", _minimal_snapshot)
-    controller = EvaluationController(AppSettings(context="MAP"), build_cache=BuildCache(tmp_path / "cache"))
+    _HeldEngine.boot_gate = None
+    controller = EvaluationController(
+        AppSettings(context="MAP", pob_path=str(tmp_path / "pob")), build_cache=BuildCache(tmp_path / "cache")
+    )
     engine = _HeldEngine()
     controller._engine = engine  # type: ignore[assignment]
     finished: list[tuple[bool, str, str]] = []
@@ -296,3 +309,219 @@ def test_the_synchronous_load_is_unchanged(controller_and_engine) -> None:
     controller.load_build(str(build))
     assert controller.build_info.state is BuildState.READY       # returned with the build loaded
     assert engine.load_threads == [threading.main_thread().name]  # and on the calling thread
+
+
+# --- Shift+C after saving the build in PoB: the reload is non-blocking and ordered ----------------------------------
+
+
+def _item(name: str = "Reload Ring") -> str:
+    from tests.test_stale_build_reload_controller import _item as item
+
+    return item(name)
+
+
+def _ready_with_capture(controller, engine, tmp_path: Path):
+    """A READY controller for ``selected.xml`` whose held Item Checks are recorded instead of evaluated."""
+    from tests.test_stale_build_reload_controller import _write_build
+
+    build = tmp_path / "selected.xml"
+    _write_build(build, "old")
+    controller.load_build_async(str(build))
+    assert _pump(lambda: controller.build_info.state is BuildState.READY)
+    submitted: list[EvaluationRequest] = []
+    controller._submit_evaluation_request = lambda request: submitted.append(request) or request.request_id  # type: ignore[method-assign]
+    errors: list[tuple[int, str]] = []
+    controller.evaluation_error.connect(lambda rid, message: errors.append((rid, message)))
+    return build, submitted, errors
+
+
+def _settled(controller) -> bool:
+    return not controller._baseline_jobs and controller._scheduler.active is None
+
+
+def test_shift_c_after_a_save_reloads_on_the_lane_and_resumes_once(controller_and_engine) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build, submitted, _errors = _ready_with_capture(controller, engine, tmp_path)
+    generation = controller.baseline_generation
+    changed = _write_build(build, "saved-in-pob-with-more-bytes")
+    engine.hold = threading.Event()
+    engine.entered.clear()
+
+    started = time.perf_counter()
+    request_id = controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(10, 20))
+    assert (time.perf_counter() - started) * 1000 < 500            # the held reload did not hold the Shift+C
+    assert controller.build_info.state is BuildState.RELOADING
+    assert controller.baseline_generation == generation + 1        # caches invalidated at once
+    assert controller._deferred_evaluation is not None and controller._deferred_evaluation.request_id == request_id
+    assert _pump(engine.entered.is_set)
+    assert submitted == []                                         # nothing evaluated against the old baseline
+
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller) and submitted)
+    assert [r.request_id for r in submitted] == [request_id]
+    assert submitted[0].baseline_generation == controller.baseline_generation
+    assert submitted[0].context_identity == controller._current_evaluation_identity().token
+    assert engine.load_calls[-1] == changed.sha256
+    assert engine.load_threads[-1] != threading.main_thread().name
+    assert controller.build_info.state is BuildState.READY
+
+
+def test_rapid_consecutive_item_checks_during_a_reload_resume_only_the_newest(controller_and_engine) -> None:
+    from exilelens.app.item_check_lifecycle import ItemCheckPhase
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build, submitted, errors = _ready_with_capture(controller, engine, tmp_path)
+    loads_before = len(engine.load_calls)
+    _write_build(build, "saved-in-pob-with-more-bytes")
+    engine.hold = threading.Event()
+
+    first = controller.submit_clipboard_text(_item("First"), copy_anchor_screen_px=(1, 1), clipboard_sequence=1)
+    second = controller.submit_clipboard_text(_item("Second"), copy_anchor_screen_px=(1, 1), clipboard_sequence=2)
+    third = controller.submit_clipboard_text(_item("Third"), copy_anchor_screen_px=(1, 1), clipboard_sequence=3)
+    assert first < second < third          # (the reload job takes an id from the same sequence)
+    engine.hold.set()
+
+    assert _pump(lambda: _settled(controller) and submitted)
+    assert [r.request_id for r in submitted] == [third]            # only the newest is resumed
+    assert len(engine.load_calls) == loads_before + 1              # one reload served all three
+    assert errors == []
+    for retired in (first, second):
+        assert controller._item_check_lifecycle.track(retired).phase is ItemCheckPhase.SUPERSEDED
+    assert controller._deferred_evaluation is None
+
+
+def test_a_second_save_during_the_reload_is_picked_up_by_the_next_check(controller_and_engine) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build, submitted, _errors = _ready_with_capture(controller, engine, tmp_path)
+    first_save = _write_build(build, "first-save")
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.submit_clipboard_text(_item("One"), copy_anchor_screen_px=(1, 1), clipboard_sequence=1)
+    assert _pump(engine.entered.is_set)
+    second_save = _write_build(build, "second-save-with-different-size")   # saved again mid-reload
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller) and len(submitted) == 1)
+    assert controller.baseline_state.source_revision == first_save.revision
+
+    engine.hold = None
+    controller.submit_clipboard_text(_item("Two"), copy_anchor_screen_px=(1, 1), clipboard_sequence=2)
+    assert _pump(lambda: _settled(controller) and len(submitted) == 2)
+    assert engine.load_calls[-2:] == [first_save.sha256, second_save.sha256]
+    assert controller.baseline_state.source_revision == second_save.revision
+
+
+def test_a_worker_failure_during_the_reload_fails_the_load_and_the_held_check(controller_and_engine) -> None:
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build, submitted, errors = _ready_with_capture(controller, engine, tmp_path)
+    _write_build(build, "saved-in-pob-with-more-bytes")
+    engine.unhealthy = True                                        # the restore of the last good bytes fails too
+
+    request_id = controller.submit_clipboard_text(_item(), copy_anchor_screen_px=(1, 1))
+    assert _pump(lambda: _settled(controller) and errors)
+    assert submitted == []
+    assert errors[0][0] == request_id
+    assert controller.build_info.state is BuildState.FAILED
+    assert controller._deferred_evaluation is None
+
+
+def test_an_unreadable_file_while_a_reload_is_in_flight_keeps_that_baseline(controller_and_engine, monkeypatch) -> None:
+    import exilelens.app.controller as controller_module
+    from tests.test_stale_build_reload_controller import _write_build
+
+    controller, engine, tmp_path = controller_and_engine
+    build, _submitted, _errors = _ready_with_capture(controller, engine, tmp_path)
+    saved = _write_build(build, "saved-in-pob-with-more-bytes")
+    engine.hold = threading.Event()
+    engine.entered.clear()
+    controller.finished_log.clear()  # type: ignore[attr-defined]
+    controller.reload_evaluation_build()
+    assert _pump(engine.entered.is_set)
+    generation = controller.baseline_generation
+
+    def unreadable(_path: str):
+        raise BuildParseFailed("The build file kept changing while it was read")
+
+    monkeypatch.setattr(controller_module, "read_build_source", unreadable)
+    controller.reload_evaluation_build()                           # second request while the first is in flight
+    assert controller.baseline_generation == generation            # no new transaction: the baseline is kept
+    assert controller.build_info.state is BuildState.RELOADING
+    assert controller._auto_reload_status == "FAILED_KEPT_PREVIOUS"
+
+    engine.hold.set()
+    assert _pump(lambda: _settled(controller))
+    assert controller.build_info.state is BuildState.READY
+    assert controller.baseline_state.source_revision == saved.revision
+    results = [entry[0] for entry in controller.finished_log]      # type: ignore[attr-defined]
+    assert results == [False, True]                                # the refused request, then the in-flight load
+
+
+# --- worker recovery ---------------------------------------------------------------------------------------------------
+
+
+def _fake_boot(monkeypatch) -> list[_HeldEngine]:
+    import exilelens.app.controller as controller_module
+
+    engines: list[_HeldEngine] = []
+
+    def make(config, *, use_subprocess: bool = False) -> _HeldEngine:
+        engine = _HeldEngine(config, use_subprocess=use_subprocess)
+        engines.append(engine)
+        return engine
+
+    monkeypatch.setattr(controller_module, "Engine", make)
+    monkeypatch.setattr(controller_module, "validate_pob_path", lambda config: None)
+    return engines
+
+
+def test_worker_recovery_boots_off_the_ui_thread_holds_checks_and_reloads(controller_and_engine, monkeypatch) -> None:
+    controller, engine, tmp_path = controller_and_engine
+    build, submitted, errors = _ready_with_capture(controller, engine, tmp_path)
+    boots = _fake_boot(monkeypatch)
+    _HeldEngine.boot_gate = threading.Event()
+    generation = controller.baseline_generation
+    crash = WorkerUnhealthy("worker exited", {"method": "evaluate_item_slots"})
+
+    started = time.perf_counter()
+    controller._attempt_recovery(crash)
+    assert (time.perf_counter() - started) * 1000 < 500            # no 4 s boot on the calling (UI) thread
+    assert engine.shut_down                                        # the dead worker was released
+    assert controller.engine is None and controller.engine_status() == "starting"
+    assert controller.build_info.state is BuildState.RELOADING
+    assert controller.baseline_generation > generation
+
+    held = controller.submit_clipboard_text(_item("During recovery"), copy_anchor_screen_px=(1, 1))
+    assert controller._deferred_evaluation is not None and controller._deferred_evaluation.request_id == held
+    assert submitted == []                                         # never reaches the dead worker
+
+    _HeldEngine.boot_gate.set()
+    assert _pump(lambda: _settled(controller) and submitted)
+    assert len(boots) == 1 and controller.engine is boots[0]
+    assert controller.build_info.state is BuildState.READY
+    assert [r.request_id for r in submitted] == [held]
+    assert submitted[0].baseline_generation == controller.baseline_generation
+    assert controller._recovery_attempted is False                 # a later crash may recover again
+    assert errors == []
+
+
+def test_worker_recovery_that_cannot_boot_reports_an_error_state(controller_and_engine, monkeypatch) -> None:
+    from exilelens.errors import PobBootFailed
+
+    controller, engine, tmp_path = controller_and_engine
+    _build, _submitted, _errors = _ready_with_capture(controller, engine, tmp_path)
+    _fake_boot(monkeypatch)
+    failures: list[str] = []
+    controller.engine_failed.connect(failures.append)
+    monkeypatch.setattr(_HeldEngine, "start", lambda self: (_ for _ in ()).throw(PobBootFailed("lua would not boot")))
+
+    controller._attempt_recovery(WorkerUnhealthy("worker exited", {}))
+    assert _pump(lambda: bool(failures))
+    assert controller.build_info.state is BuildState.FAILED
+    assert "lua would not boot" in controller.build_info.error_message
+    assert controller._recovery_reload is None

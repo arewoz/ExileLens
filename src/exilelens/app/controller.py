@@ -1079,6 +1079,8 @@ class EvaluationController(QObject):
         self._analysis_cancelled = False
         self._baseline_wait_loop = None
         self._baseline_jobs: dict[int, _BaselineLoadJob] = {}
+        #: (path, context) to reload once the replacement worker of a crash recovery is up.
+        self._recovery_reload: tuple[str, str] | None = None
         self._build_file_revision: BuildFileRevision | None = None
         self._deferred_evaluation: EvaluationRequest | None = None
         self._auto_reload_status = "UNCHANGED"
@@ -1821,6 +1823,14 @@ class EvaluationController(QObject):
             detail = getattr(error, "message", None) or str(error or "unknown error")
             self._engine_error = f"Path of Building could not start: {detail}"
             logger.error("engine_failed reason=%s", detail)
+            if self._recovery_reload is not None:
+                path, context = self._recovery_reload
+                self._recovery_reload = None
+                self.build_info = BuildInfo(
+                    path=path, name=self.build_info.name, context=context, state=BuildState.ERROR,
+                    error_message=self._engine_error,
+                )
+                self.build_changed.emit(self.build_info)
             self.engine_failed.emit(self._engine_error)
             return
         if self._shutting_down:
@@ -1829,6 +1839,9 @@ class EvaluationController(QObject):
         self._engine = engine  # type: ignore[assignment]
         self._worker_generation += 1
         logger.info("engine_ready")
+        pending, self._recovery_reload = self._recovery_reload, None
+        if pending is not None:
+            self.load_build_async(pending[0], context=pending[1])
         self.engine_ready.emit()
 
     def _refresh_loadout_catalog(self) -> None:
@@ -2100,7 +2113,9 @@ class EvaluationController(QObject):
         if self._engine is None:
             self._fail_baseline("PoB engine is not started")
             return None, "PoB engine is not started"
-        reloading = self.build_info.state == BuildState.READY
+        # A reload that is still in flight (RELOADING) also has a good baseline behind it: a second request that
+        # cannot read the file must keep that baseline, exactly as a request made while READY does.
+        reloading = self.build_info.state in {BuildState.READY, BuildState.RELOADING}
         same_build = reloading and self.build_info.path == resolved and self._last_good_source is not None
         started = time.perf_counter()
         # Read and validate before touching anything: a broken or half-saved file must
@@ -2518,7 +2533,7 @@ class EvaluationController(QObject):
             self._auto_reload_status = "RELOADED"
             self._reload_status_message = "PoB build changed on disk — reloading..."
             self.state_message.emit(self._reload_status_message)
-            self._deferred_evaluation = request
+            self._defer_evaluation(request)
             self._begin_eval_feedback(request_id)
             logger.info(
                 "item_check_submit deferred request_id=%s reason=disk_revision build_state=%s",
@@ -2526,11 +2541,14 @@ class EvaluationController(QObject):
                 self.build_info.state.value,
             )
             if self.build_info.state not in {BuildState.RELOADING, BuildState.LOADING}:
-                self.load_build(build_path, context=self.build_info.context)
+                # PERF-01: the analyzing placeholder is requested above; reloading on the PoB lane keeps the UI
+                # thread free to paint it. The held request resumes against the new baseline (or is rejected,
+                # keeping the last good build) when the load settles.
+                self.load_build_async(build_path, context=self.build_info.context)
             return request_id
 
         if self.build_info.state in {BuildState.RELOADING, BuildState.LOADING}:
-            self._deferred_evaluation = request
+            self._defer_evaluation(request)
             self._begin_eval_feedback(request_id)
             logger.info(
                 "item_check_submit deferred request_id=%s reason=build_loading build_state=%s",
@@ -2547,6 +2565,15 @@ class EvaluationController(QObject):
             clipboard_sequence,
         )
         return self._submit_evaluation_request(request)
+
+    def _defer_evaluation(self, request: EvaluationRequest) -> None:
+        """Hold ``request`` until the build load settles. Only the newest held request is ever resumed, so an
+        older one is retired here instead of being left to a watchdog."""
+        previous = self._deferred_evaluation
+        if previous is not None and previous.request_id != request.request_id:
+            self._stop_item_check_watchdog(previous.request_id)
+            self._item_check_lifecycle.advance(previous.request_id, ItemCheckPhase.SUPERSEDED)
+        self._deferred_evaluation = request
 
     def copy_anchor_for_request(self, request_id: int) -> tuple[int, int] | None:
         return self._request_anchors.get(request_id)
@@ -2872,6 +2899,8 @@ class EvaluationController(QObject):
     def _settle_baseline_job(
         self, job: _BaselineLoadJob, request_id: int, payload: object, error: Exception | None
     ) -> None:
+        if self._shutting_down:
+            return
         if job.generation != self._baseline_generation:
             # A newer load / loadout / item-set transaction owns the controller state. This result describes a
             # baseline that has been replaced: it is neither shown nor allowed to fail the newer one.
@@ -5470,12 +5499,18 @@ class EvaluationController(QObject):
             self.evaluation_error.emit(self._latest_request_id, "Worker unhealthy — reload build from tray.")
             return
         self._recovery_attempted = True
+        path, context = self.build_info.path, self.build_info.context
         try:
             self.shutdown_engine()
-            self.start_engine()
-            if self.build_info.path:
-                self.load_build(self.build_info.path, context=self.build_info.context)
+            if path:
+                # PERF-01: the replacement worker boots off the UI thread (about 4 s) and the build is reloaded as
+                # soon as it is up. Until then the build is RELOADING with caches invalidated, so an Item Check
+                # arriving in the window is held instead of reaching the dead worker.
+                self._begin_reload_transaction(path, context, reloading=True)
+                self._recovery_reload = (path, context)
+            self.start_engine_async()
         except Exception as exc:
+            self._recovery_reload = None
             self.build_info = BuildInfo(
                 path=self.build_info.path,
                 state=BuildState.ERROR,
