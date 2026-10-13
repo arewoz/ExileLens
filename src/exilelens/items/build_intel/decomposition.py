@@ -10,6 +10,15 @@ from exilelens.items.build_intel.models import GroupContribution, SynergyFinding
 from exilelens.items.ranking import enrich_slot_comparison
 from exilelens.items.value_profiles import ValueProfile
 
+#: PERF-01: whether a normal Item Check starts the leave-one-group decomposition after the tooltip is painted.
+#: It is off. The probes (up to eight sequential PoB transactions, 2 s on a small build and 10 s on a heavy one) hold
+#: the single PoB lane, and what they produce has no consumer in the product: ``marginal`` / ``measured`` on the
+#: "most important" rows are never rendered (the rows show their stars and label only), the synergy findings and the
+#: intel confidence are read by nothing, and neither changes a verdict. The only visible trace was the words
+#: "details pending" / "Decomposition: PENDING", which now say SKIPPED. ``run_bounded_decomposition`` and
+#: ``attach_decomposition`` are unchanged for an explicit caller that wants the measured contributions.
+AUTO_RUN_AFTER_ITEM_CHECK = False
+
 MAX_GROUP_PROBES = 5
 MAX_SYNERGY_PAIRS = 2
 MAX_TOTAL_RECALCS = 8

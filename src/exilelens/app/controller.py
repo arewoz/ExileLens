@@ -169,6 +169,18 @@ class BaselineLoadRequest:
 
 
 @dataclass
+class PrewarmRequest:
+    """PERF-01: low-priority lane job that pays a loaded build's one-time native report pass while idle."""
+
+    request_id: int
+    engine: Any
+    context: str
+    baseline_generation: int = 0
+    kind: str = "prewarm"
+    priority: int = 0
+
+
+@dataclass
 class _BaselineLoadJob:
     """UI-thread bookkeeping for one in-flight :class:`BaselineLoadRequest`."""
 
@@ -310,6 +322,8 @@ class _EvaluationWorker(QObject):
     gear_optimization = Signal(object)
     market_capture_eval = Signal(object)
     reload_baseline = Signal(object)
+    prewarm = Signal(object)
+    finished_prewarm = Signal(int, object, object)
     upgrade_path = Signal(object)
     build_decomp = Signal(object)
     finished_eval = Signal(int, object, object)  # request_id, (result, timing)|None, error|None
@@ -357,6 +371,7 @@ class _EvaluationWorker(QObject):
         self.gear_optimization.connect(self.run_gear_optimization)
         self.market_capture_eval.connect(self.run_market_capture_eval)
         self.reload_baseline.connect(self.run_baseline_load)
+        self.prewarm.connect(self.run_prewarm)
         self.upgrade_path.connect(self.run_upgrade_path)
         self.build_decomp.connect(self.run_build_decomp)
 
@@ -403,6 +418,16 @@ class _EvaluationWorker(QObject):
         self._market_cache.invalidate()
         if self._tree_cache is not None:
             self._tree_cache.invalidate()
+
+    def run_prewarm(self, request: PrewarmRequest) -> None:
+        from exilelens.items.prewarm import prewarm_native_report
+
+        try:
+            warmed = prewarm_native_report(request.engine, context=request.context)
+        except Exception as exc:  # noqa: BLE001 - a prewarm is only an optimisation; Item Check repeats it if needed
+            self.finished_prewarm.emit(request.request_id, None, exc)
+            return
+        self.finished_prewarm.emit(request.request_id, warmed, None)
 
     def run_baseline_load(self, request: BaselineLoadRequest) -> None:
         """Run the engine half of a build load on the PoB lane and hand a plain capture to the UI thread."""
@@ -993,6 +1018,7 @@ class EvaluationController(QObject):
         self._worker.finished_gear.connect(self._on_gear_finished)
         self._worker.finished_market_capture.connect(self._on_market_capture_finished)
         self._worker.finished_baseline.connect(self._on_baseline_finished)
+        self._worker.finished_prewarm.connect(self._on_prewarm_finished)
         self._worker.finished_upgrade_path.connect(self._on_upgrade_path_finished)
         self._worker.finished_build_decomp.connect(self._on_build_decomp_finished)
         self._worker.analysis_progress.connect(self._on_analysis_progress)
@@ -2029,6 +2055,7 @@ class EvaluationController(QObject):
             self._baseline_wait_loop.quit()
         if resume_deferred:
             self._resume_deferred_evaluation()
+        self._schedule_prewarm()
 
     def _record_build_revision(self, path: str, *, source: Any = None) -> None:
         if source is None:
@@ -2719,6 +2746,9 @@ class EvaluationController(QObject):
         if kind == "baseline":
             self._worker.reload_baseline.emit(request)
             return
+        if kind == "prewarm":
+            self._worker.prewarm.emit(request)
+            return
         if kind == "market_capture":
             self._worker.market_capture_eval.emit(request)
             return
@@ -2880,6 +2910,29 @@ class EvaluationController(QObject):
         else:
             self._finish_progress("analysis", status=OperationStatus.COMPLETE)
         self.analysis_finished.emit(payload)
+
+    def _schedule_prewarm(self) -> None:
+        """Queue the idle-time native report pass for the build that was just loaded (see items/prewarm.py)."""
+        engine = self._engine
+        if engine is None or not hasattr(engine, "_call") or self._shutting_down:
+            return
+        if not is_enabled(FeatureModule.ITEM_CHECK):
+            return
+        self._request_id += 1
+        self._scheduler.submit(
+            PrewarmRequest(
+                request_id=self._request_id,
+                engine=engine,
+                context=self.build_info.context or self.settings.context,
+                baseline_generation=self._baseline_generation,
+            )
+        )
+
+    def _on_prewarm_finished(self, request_id: int, payload: object, error: Exception | None) -> None:
+        self._scheduler.complete_by_id(request_id)
+        self._sync_pending_request_id()
+        if error is not None:
+            logger.info("item_check_prewarm_failed request_id=%s error=%s", request_id, error)
 
     def _on_baseline_finished(self, request_id: int, payload: object, error: Exception | None) -> None:
         job = self._baseline_jobs.pop(request_id, None)
@@ -5393,6 +5446,11 @@ class EvaluationController(QObject):
             logger.exception("market evidence application failed")
 
     def _maybe_schedule_build_decomp(self, request_id: int, result: dict[str, Any]) -> None:
+        # PERF-01: not started by a normal Item Check (see decomposition.AUTO_RUN_AFTER_ITEM_CHECK).
+        from exilelens.items.build_intel import decomposition as decomposition_module
+
+        if not decomposition_module.AUTO_RUN_AFTER_ITEM_CHECK:
+            return
         if not self._engine:
             return
         intel = result.get("build_comparison") or {}

@@ -442,23 +442,14 @@ def _evaluate_item_steps(
         # PoB's normal output has only the selected group. For an explicitly
         # multi-skill build, one cached diagnostic pass reads other native PoB
         # outputs; only the selected components are recalculated per item.
-        report_cache = getattr(engine, "_native_component_report_cache", None)
-        if report_cache is None:
-            report_cache = {}
-            setattr(engine, "_native_component_report_cache", report_cache)
-        # PoB's cheap hit/minion flags narrow most reports. Skill-DoT and
-        # ailments need the full enabled list: some native DoT stat sets have
-        # no hit/dot hint until that group itself is calculated.
-        broad_dot = primary_metric.semantic_quantity in {DamageQuantity.SKILL_DOT, DamageQuantity.AILMENT_DPS}
-        report_indices = None if broad_dot else build_info.get("native_damage_group_indices") or []
-        report_key = (baseline_fingerprint, context, build_info.get("main_socket_group"),
-                      build_info.get("weapon_set", 1), str(build_info.get("active_skill_set_id") or ""),
-                      tuple(report_indices or ()))
         try:
-            report = report_cache.get(report_key)
-            if report is None:
-                report = engine._call("get_skill_report", {"indices": report_indices} if report_indices else {})
-                report_cache[report_key] = report
+            report = cached_native_component_report(
+                engine,
+                build_info=build_info,
+                primary_metric=primary_metric,
+                baseline_fingerprint=baseline_fingerprint,
+                context=context,
+            )
             reported_primary = (report.get("metrics") or {}).get(primary_metric.pob_field)
             original_primary = baseline_metrics.get(primary_metric.pob_field)
             if reported_primary is not None and original_primary is not None and abs(
@@ -946,6 +937,37 @@ def _classify_localization_failure(raw_text: str, error: EngineError) -> EngineE
             "original_error": {"code": error.code, "message": error.message},
         },
     )
+
+
+def cached_native_component_report(
+    engine: Any,
+    *,
+    build_info: dict[str, Any],
+    primary_metric: Any,
+    baseline_fingerprint: Any,
+    context: str,
+) -> dict[str, Any]:
+    """The cached native ``get_skill_report`` for this baseline (one PoB diagnostic pass, then reused).
+
+    Shared by Item Check and by the idle prewarm after a build load, so both always agree on the cache key.
+    """
+    report_cache = getattr(engine, "_native_component_report_cache", None)
+    if report_cache is None:
+        report_cache = {}
+        setattr(engine, "_native_component_report_cache", report_cache)
+    # PoB's cheap hit/minion flags narrow most reports. Skill-DoT and
+    # ailments need the full enabled list: some native DoT stat sets have
+    # no hit/dot hint until that group itself is calculated.
+    broad_dot = primary_metric.semantic_quantity in {DamageQuantity.SKILL_DOT, DamageQuantity.AILMENT_DPS}
+    report_indices = None if broad_dot else build_info.get("native_damage_group_indices") or []
+    report_key = (baseline_fingerprint, context, build_info.get("main_socket_group"),
+                  build_info.get("weapon_set", 1), str(build_info.get("active_skill_set_id") or ""),
+                  tuple(report_indices or ()))
+    report = report_cache.get(report_key)
+    if report is None:
+        report = engine._call("get_skill_report", {"indices": report_indices} if report_indices else {})
+        report_cache[report_key] = report
+    return report
 
 
 def evaluate_item(raw_text: str, engine, **kwargs: Any) -> dict[str, Any]:

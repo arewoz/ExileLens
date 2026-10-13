@@ -138,7 +138,8 @@ def _confidence(
     if base == EvaluationConfidence.LOW:
         return BuildConfidence.LOW.value, list(reasons)
     if decomposition_status != "COMPLETE":
-        extra = list(reasons) + ["semantic decomposition pending"]
+        pending = decomposition_status == "PENDING"
+        extra = list(reasons) + ["semantic decomposition pending" if pending else "semantic decomposition not run"]
         return BuildConfidence.ASSISTED.value, extra
     if base == EvaluationConfidence.HIGH:
         return BuildConfidence.HIGH.value, list(reasons) or ["exact PoB evaluation succeeded"]
@@ -233,7 +234,9 @@ def compare_slot(
     )
     mods = assign_build_mods(semantic, axes=axes, thresholds=thresholds, resist=resist)
     synergy = candidate_synergy(semantic)
-    decomp_status = "PENDING" if rank_groups_for_decomposition(mods) else "SKIPPED"
+    from exilelens.items.build_intel.decomposition import AUTO_RUN_AFTER_ITEM_CHECK
+
+    decomp_status = "PENDING" if AUTO_RUN_AFTER_ITEM_CHECK and rank_groups_for_decomposition(mods) else "SKIPPED"
 
     confidence, confidence_reasons = _confidence(
         comparison,

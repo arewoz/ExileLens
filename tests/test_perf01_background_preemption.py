@@ -199,4 +199,62 @@ def test_the_controller_points_the_worker_probe_at_the_scheduler_flag(monkeypatc
         controller._scheduler.yield_requested = True
         assert probe() is True
     finally:
+        controller._engine = None
+        controller.shutdown()
+
+
+# --- the decomposition is not started by a normal Item Check -----------------------------------------------------------
+
+
+def _intel_result(monkeypatch, *, auto_run: bool) -> dict:
+    from exilelens.items.build_intel.engine import compare_slot
+    from tests.test_complex_damage_truthfulness_guardrail import _enriched
+
+    monkeypatch.setattr(decomp, "AUTO_RUN_AFTER_ITEM_CHECK", auto_run)
+    intel = compare_slot(_enriched(200.0), raw_text=RING).to_dict()
+    return {
+        "recommendation": {"pob_slot": "Ring 1", "build_comparison": intel},
+        "build_comparison": intel,
+        "raw_input": {"raw_text": RING, "content_hash": "h"},
+        "request_meta": {"presentation_generation": 1},
+    }
+
+
+def test_the_auto_run_gate_is_off_and_the_status_says_so(monkeypatch) -> None:
+    assert decomp.AUTO_RUN_AFTER_ITEM_CHECK is False
+    result = _intel_result(monkeypatch, auto_run=False)
+    intel = result["build_comparison"]
+    assert intel["mods"], "the fixture must have mods, otherwise SKIPPED proves nothing"
+    assert intel["decomposition_status"] == "SKIPPED"
+    assert not any("decomposition pending" in reason for reason in intel["confidence_reasons"])
+
+
+def test_enabling_the_gate_restores_the_pending_status_and_the_scheduling(monkeypatch, tmp_path) -> None:
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    from exilelens.app.controller import EvaluationController
+    from exilelens.app.settings import AppSettings
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    if sys.platform != "win32":
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    QApplication.instance() or QApplication([])
+    controller = EvaluationController(AppSettings())
+    try:
+        controller._engine = object()  # type: ignore[assignment]
+        submitted: list[object] = []
+        monkeypatch.setattr(controller._scheduler, "submit", lambda request: submitted.append(request) or True)
+
+        off = _intel_result(monkeypatch, auto_run=False)
+        controller._maybe_schedule_build_decomp(5, off)
+        assert submitted == []                                      # nothing queued behind the user's next check
+
+        on = _intel_result(monkeypatch, auto_run=True)
+        assert on["build_comparison"]["decomposition_status"] == "PENDING"
+        controller._maybe_schedule_build_decomp(5, on)
+        assert len(submitted) == 1 and getattr(submitted[0], "kind", "") == "build_decomp"
+    finally:
+        controller._engine = None
         controller.shutdown()

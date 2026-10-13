@@ -431,6 +431,8 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(cm, "load_tree_snapshot"):
         pass
 
+    if args.no_prewarm and hasattr(C, "_schedule_prewarm"):
+        C._schedule_prewarm = lambda self: None  # type: ignore[method-assign]
     monitor = StallMonitor(rec, threshold_ms=args.stall_ms)
     monitor.start()
     out: dict[str, Any] = {"qpa": os.environ.get("QT_QPA_PLATFORM", "windows"), "builds": {}, "boot": {}}
@@ -545,7 +547,7 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
         ok_ready = _pump(app, lambda: controller.build_info.state in {BuildState.READY, BuildState.FAILED}, 180)
         entry["load_to_ready_ms"] = round(rec.now() - t_load, 1)
         entry["ready"] = bool(ok_ready and controller.build_info.state is BuildState.READY)
-        _drain(app, 80)
+        _drain(app, args.settle_ms)
         rec.phase = "idle"
         load_spans = rec.spans[span_mark:]
         entry["load_spans"] = {
@@ -669,6 +671,8 @@ def main() -> int:
     e.add_argument("--passes", type=int, default=1)
     e.add_argument("--stall-ms", type=float, default=40.0)
     e.add_argument("--gap-ms", type=float, default=0.0, help="extra pause before each warm check (user think time)")
+    e.add_argument("--settle-ms", type=float, default=80.0, help="pause between a build becoming ready and the first check")
+    e.add_argument("--no-prewarm", action="store_true", help="disable the idle native-report prewarm (A/B)")
     e.add_argument("--qpa", default="")
     e.add_argument("--out", default="artifacts/perf01/session.json")
     r = sub.add_parser("report")
