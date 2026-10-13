@@ -47,7 +47,7 @@ from exilelens.items.loot_review import LootReviewSession
 from exilelens.items.persistent_history import PersistentItemHistory
 from exilelens.items.potential import UpgradePotentialAnalyzer
 from exilelens.items.primary_metric import resolve_primary_metric
-from exilelens.items.build_intel.decomposition import run_bounded_decomposition
+from exilelens.items.build_intel.decomposition import DecompositionYielded, run_bounded_decomposition
 from exilelens.items.build_intel.engine import attach_decomposition
 from exilelens.items.build_intel.item_semantics import parse_item_semantics
 from exilelens.items.build_intel.relevance import rank_groups_for_decomposition
@@ -312,6 +312,10 @@ class _EvaluationWorker(QObject):
         self._offense_coverage_cache: dict[str, dict[str, Any]] = {}
         self._offense_coverage: dict[str, Any] | None = None
         self._potential_analyzer: UpgradePotentialAnalyzer | None = None
+        #: PERF-01: asked by background Build Intelligence work between PoB probes. True when a
+        #: higher-priority request (a new Item Check, a build load) is waiting for the single PoB lane.
+        #: Set by the controller to read the scheduler's own flag, so there is no second flag to race.
+        self.yield_probe: Callable[[], bool] | None = None
         self.evaluate.connect(self.run_evaluation)
         self.analyze.connect(self.run_analysis)
         self.market_search.connect(self.run_market_search)
@@ -856,6 +860,11 @@ class _EvaluationWorker(QObject):
             groups = rank_groups_for_decomposition(mods)
             if not groups:
                 groups = list((semantic_payload.get("groups") or semantic.groups or {}).keys())[:5]
+
+            def should_yield() -> bool:
+                probe = self.yield_probe
+                return bool(probe is not None and probe())
+
             primary = snapshot.get("primary_metric") or {}
             recommendation = snapshot.get("recommendation") or {}
             payload = run_bounded_decomposition(
@@ -871,6 +880,7 @@ class _EvaluationWorker(QObject):
                 primary_confidence=primary.get("confidence") or "high",
                 offense_coverage=snapshot.get("offense_coverage"),
                 cache=self._upgrade_path_cache,
+                should_yield=should_yield,
             )
             self.finished_build_decomp.emit(
                 request.request_id,
@@ -888,6 +898,11 @@ class _EvaluationWorker(QObject):
                 },
                 None,
             )
+        except DecompositionYielded:
+            # PERF-01: a newer Item Check or a build load is waiting for the PoB lane. The result of this
+            # decomposition would be discarded (the presentation/baseline generation moved on), so it is
+            # abandoned between probes instead of holding the lane. No payload, no cache entry, no error.
+            self.finished_build_decomp.emit(request.request_id, None, None)
         except Exception as exc:
             self.finished_build_decomp.emit(request.request_id, None, exc)
 
@@ -1059,6 +1074,7 @@ class EvaluationController(QObject):
         self._tracked_tree_error = ""
         self._heartbeat_state = HeartbeatState()
         self._scheduler = BoundedEvaluationScheduler(self._dispatch_to_worker)
+        self._worker.yield_probe = lambda: self._scheduler.yield_requested
         self._heartbeat_timer = QTimer(self)
         self._heartbeat_timer.timeout.connect(self._on_heartbeat)
         self._heartbeat_timer.start(1000)
@@ -1535,6 +1551,9 @@ class EvaluationController(QObject):
         self._analysis_resume = None
         self._analysis_cancelled = True
         self._worker.request_yield()
+        # PERF-01: a running upgrade-path analysis belongs to the build that is being replaced; stop it
+        # between probes so the load does not wait for it (its result is dropped by generation anyway).
+        self._cancel_upgrade_path_work()
         self._baseline_generation += 1
         self._tree_analysis_generation += 1
         self._history.mark_historical()
