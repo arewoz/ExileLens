@@ -37,6 +37,7 @@ from exilelens.ui.window_policy import WindowInteractionPolicy, apply_native_ext
 PAGE_IDS = (
     "overview",
     "build_analysis",
+    "filters",
     "settings",
     "diagnostics",
 )
@@ -54,8 +55,9 @@ PAGE_ALIASES = {
 _PAGE_SHORTCUTS = (
     ("Ctrl+1", "overview"),
     ("Ctrl+2", "build_analysis"),
-    ("Ctrl+3", "settings"),
-    ("Ctrl+4", "diagnostics"),
+    ("Ctrl+3", "filters"),
+    ("Ctrl+4", "settings"),
+    ("Ctrl+5", "diagnostics"),
     ("Ctrl+,", "settings"),
 )
 
@@ -139,6 +141,9 @@ class DashboardWindow(ManagedToolWindow):
             AnalysisWindow(controller, embedded=True, navigate=self.navigate)
             if is_enabled(FeatureModule.BUILD_ANALYSIS) else None
         )
+        # Load offline filter snapshots only when the user opens the feature.
+        self._filters_page = None
+        self._filters_placeholder = QWidget()
         self._market = MarketHubPage(controller, settings) if is_enabled(FeatureModule.MARKET) else None
         self._tree = TreeWorkspace(controller, embed_mode=True) if is_enabled(FeatureModule.TREE_TOOLS) else None
         self._gear = GearOptimizerPage(controller) if is_enabled(FeatureModule.GEAR_OPTIMIZER) else None
@@ -149,6 +154,7 @@ class DashboardWindow(ManagedToolWindow):
         for page_id, widget in (
             ("overview", self._overview),
             ("build_analysis", self._analysis),
+            ("filters", self._filters_placeholder),
             ("market", self._market),
             ("tree", self._tree),
             ("gear_optimizer", self._gear),
@@ -163,7 +169,7 @@ class DashboardWindow(ManagedToolWindow):
         # --- status rail ---------------------------------------------------------------
         from exilelens._version import __version__
 
-        primary = [("overview", "Overview", "home"), ("build_analysis", "Analyze Build", "chart")]
+        primary = [("overview", "Overview", "home"), ("build_analysis", "Analyze Build", "chart"), ("filters", "Loot Filters", "filter")]
         for page_id, label in (("market", "Market"), ("tree", "Tree"), ("gear_optimizer", "Gear Optimizer")):
             if page_id in self._pages:  # parked modules: only present when explicitly unparked
                 primary.append((page_id, label, "chart"))
@@ -242,9 +248,19 @@ class DashboardWindow(ManagedToolWindow):
         page_id = PAGE_ALIASES.get(page_id, page_id)
         if page_id not in self._pages:
             page_id = PAGE_IDS[0]
+        if page_id == "filters" and self._filters_page is None:
+            from exilelens.ui.filters_page import FiltersPage
+            self._filters_page = FiltersPage(self.controller, self.settings)
+            index = self._stack.indexOf(self._filters_placeholder)
+            self._stack.removeWidget(self._filters_placeholder)
+            self._filters_placeholder.deleteLater()
+            self._stack.insertWidget(index, self._filters_page)
+            self._pages["filters"] = self._filters_page
         self._stack.setCurrentWidget(self._pages[page_id])
         self._rail.set_current(page_id)
         self.settings.dashboard_last_page = page_id
+        if page_id == "filters":
+            self._filters_page.on_page_shown()
         if page_id == "tree" and self._tree is not None:
             self._tree.on_page_shown()
         if page_id == "diagnostics":

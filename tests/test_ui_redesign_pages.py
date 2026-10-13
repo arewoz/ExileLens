@@ -47,11 +47,13 @@ def _status_word(harness) -> str:
     return harness.window._rail.status().label
 
 
-def test_destinations_are_the_four_agreed_pages(harness) -> None:
+def test_destinations_include_both_experimental_features(harness) -> None:
     from exilelens.ui import dashboard_window
 
     window = harness.window
-    assert dashboard_window.PAGE_IDS == ("overview", "build_analysis", "settings", "diagnostics")
+    assert dashboard_window.PAGE_IDS == ("overview", "build_analysis", "filters", "settings", "diagnostics")
+    for page_id in ("build_analysis", "filters"):
+        assert window._rail.nav_buttons()[page_id]._experimental.text() == "Experimental"
     for alias, page in (("build", "overview"), ("items", "overview"), ("analyze", "build_analysis"), ("analysis", "build_analysis")):
         window.navigate(alias)
         assert window.current_page_id() == page
@@ -144,7 +146,7 @@ def test_keyboard_shortcuts_switch_pages(harness) -> None:
 
     window = harness.window
     window.activateWindow()
-    for key, page in ((Qt.Key.Key_2, "build_analysis"), (Qt.Key.Key_3, "settings"), (Qt.Key.Key_4, "diagnostics"), (Qt.Key.Key_1, "overview")):
+    for key, page in ((Qt.Key.Key_2, "build_analysis"), (Qt.Key.Key_3, "filters"), (Qt.Key.Key_4, "settings"), (Qt.Key.Key_5, "diagnostics"), (Qt.Key.Key_1, "overview")):
         QTest.keyClick(window, key, Qt.KeyboardModifier.ControlModifier)
         _settle(harness)
         assert window.current_page_id() == page
@@ -238,7 +240,7 @@ def test_text_scale_is_identity_at_100_percent(text_scale) -> None:
     css = "QLabel { font-size: 13px; } QPushButton { font-size: 13.5px; min-height: 32px; }"
     theme.apply_text_scale(1.0)
     assert theme.scale_stylesheet(css) == css
-    assert (theme.CONTROL_HEIGHT, theme.NAV_ITEM_HEIGHT, theme.RAIL_WIDTH, theme.scaled_px(13)) == (32, 34, 208, 13)
+    assert (theme.CONTROL_HEIGHT, theme.NAV_ITEM_HEIGHT, theme.RAIL_WIDTH, theme.scaled_px(13)) == (32, 34, 232, 13)
 
 
 def test_text_scale_grows_text_and_text_bearing_sizes_only(text_scale) -> None:
@@ -246,15 +248,15 @@ def test_text_scale_grows_text_and_text_bearing_sizes_only(text_scale) -> None:
     theme.apply_text_scale(1.25)
     css = theme.scale_stylesheet("QLabel { font-size: 13px; border-radius: 4px; padding: 0 14px; }")
     assert "font-size: 16px" in css and "border-radius: 4px" in css and "padding: 0 14px" in css
-    assert theme.CONTROL_HEIGHT == 40 and theme.RAIL_WIDTH == 260
+    assert theme.CONTROL_HEIGHT == 40 and theme.RAIL_WIDTH == 290
     assert theme.COMPACT_RAIL_WIDTH == 64  # the icon rail holds no text
     theme.apply_text_scale(1.0)  # scaling is always computed from the 100% values, never compounded
-    assert theme.CONTROL_HEIGHT == 32 and theme.RAIL_WIDTH == 208
+    assert theme.CONTROL_HEIGHT == 32 and theme.RAIL_WIDTH == 232
 
 
 def test_rail_never_takes_over_the_window_at_huge_text(text_scale) -> None:
     text_scale.apply_text_scale(2.25)
-    assert text_scale.RAIL_WIDTH == int(round(208 * 1.5))
+    assert text_scale.RAIL_WIDTH == int(round(232 * 1.5))
 
 
 @pytest.mark.parametrize("stored, expected", [(None, 1.0), (100, 1.0), (125, 1.25), (225, 2.25), (500, 2.25), (50, 1.0)])
@@ -295,7 +297,7 @@ def test_dashboard_follows_the_windows_text_size(harness, monkeypatch) -> None:
         label = window._overview._build_name
         label.ensurePolished()
         assert QFontInfo(label.font()).pixelSize() == 35  # 28px build name * 1.25
-        assert window._rail.width() == 260
+        assert window._rail.width() == 290
         assert window._overview._primary_btn.minimumHeight() >= 40
     finally:
         window.close()

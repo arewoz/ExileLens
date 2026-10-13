@@ -1,0 +1,41 @@
+{
+ "schema_version": 1,
+ "pob_version": "0.23.1",
+ "pob_commit": "97cb973f8a114d32010bc1a4195c170628771714",
+ "source": "https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2",
+ "game_version_hint": "0.5",
+ "counts": {
+  "bases": 1769,
+  "classes": 33,
+  "pool_signatures": 426,
+  "mods": 2927,
+  "skills": 825,
+  "families": 36
+ },
+ "validation": {
+  "problems": [],
+  "passed": true
+ },
+ "files": {
+  "poe2_bases.json": {
+   "sha256": "9f2ff76adb817173c67c6933837274766cdf3febca83e8cf942e99140f7f0c24",
+   "bytes": 69926
+  },
+  "poe2_base_properties.json": {
+   "sha256": "795a00d3c905161b9749c74a0cf5422efb3f6bf752306f9e7d06a335c05d0072",
+   "bytes": 383994
+  },
+  "poe2_item_catalog.json": {
+   "sha256": "f4b12cb642574859d0a6ef1195cc99365132758f309ecb4f0f45a8d2298864d5",
+   "bytes": 842207
+  },
+  "poe2_affix_pools.json": {
+   "sha256": "5c6e8d0652fcab77557624c639efbe6f023724adcae769f28742496aa19a3d83",
+   "bytes": 867405
+  },
+  "poe2_skill_facts.json": {
+   "sha256": "72ff52808f77ac4f16192958b46614ea08ba5ba7e43e55926c32154c44db5741",
+   "bytes": 237444
+  }
+ }
+}

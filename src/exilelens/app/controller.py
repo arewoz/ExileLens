@@ -306,6 +306,8 @@ class AnalysisRequest:
     scope: str = "frontier"
     node_ids: list[int] | None = None
     priority: int = 0
+    # Optional extra defence probes for filters; standard Analyze Build remains unchanged.
+    defence_probes: bool = False
 
 
 @dataclass
@@ -621,6 +623,9 @@ class _EvaluationWorker(QObject):
             elif request.slot:
                 result = analyze_slot(self._engine, slot=request.slot, **kwargs)
             else:
+                if request.defence_probes:
+                    from exilelens.filters.probe_policy import FilterProbeCatalog
+                    kwargs["catalog"] = FilterProbeCatalog()
                 result = analyze_build(self._engine, **kwargs)
             result["request_meta"] = {
                 "request_id": request.request_id,
@@ -2858,7 +2863,7 @@ class EvaluationController(QObject):
             return "tree_visible"
         return "tree_frontier"
 
-    def submit_analyze_build(self, *, slot: str | None = None) -> int | None:
+    def submit_analyze_build(self, *, slot: str | None = None, defence_probes: bool = False) -> int | None:
         if not self._require_module(FeatureModule.BUILD_ANALYSIS, message="Build Analysis is disabled in current module preset."):
             return None
         if not self.build_info.is_ready:
@@ -2871,6 +2876,7 @@ class EvaluationController(QObject):
             baseline_generation=self._baseline_generation,
             profile=self.settings.value_profile,
             slot=slot,
+            defence_probes=defence_probes,
         )
         self._analysis_resume = request
         self._analysis_cancelled = False

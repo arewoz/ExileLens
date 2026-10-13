@@ -1,0 +1,412 @@
+{
+ "all_emitted_ground_valid": true,
+ "ambiguous": 0,
+ "builds": [
+  "bow",
+  "melee",
+  "minion",
+  "no_build",
+  "spark"
+ ],
+ "by_status": {
+  "GROUND_FILTER_VALID": 1784
+ },
+ "combinations": 200,
+ "confidence": {
+  "high": 1772,
+  "medium": 12
+ },
+ "evidence_source": {
+  "poe2db:class-listing+item-page": 1784
+ },
+ "excluded_by_generator": [],
+ "generation_failures": [],
+ "profiles": [
+  "Recommended",
+  "Relaxed",
+  "Strict",
+  "Uber Strict",
+  "Very Strict"
+ ],
+ "registry": {
+  "by_status": {
+   "GROUND_FILTER_VALID": 1784,
+   "NON_GROUND_GAME_OBJECT": 15,
+   "POB_SYNTHETIC": 5,
+   "STALE_OBSOLETE": 1
+  },
+  "counts": {
+   "GROUND_FILTER_VALID": 1784,
+   "NON_GROUND_GAME_OBJECT": 15,
+   "POB_SYNTHETIC": 5,
+   "STALE_OBSOLETE": 1
+  },
+  "entries": 1805,
+  "evidence_retrieved": "2026-10-12",
+  "evidence_source": "https://poe2db.tw/us/",
+  "ground_by_scope": {
+   "any": 1772,
+   "unique_only": 12
+  },
+  "pob_commit": "97cb973f8a114d32010bc1a4195c170628771714",
+  "pob_version": "0.23.1",
+  "registry_version": "NATIVE-GROUND-BASES-1",
+  "schema_version": 1,
+  "sources": {
+   "curated:non-ground": "PoE2DB item page shows a real BaseItemTypes name that no item carries on the ground (see note)",
+   "none": "no independent evidence",
+   "poe2db:acquisition": "PoE2DB item page: Acquisition = Not in game",
+   "poe2db:class-listing+item-page": "PoE2DB (https://poe2db.tw/us) item-class listing and item page: the game's BaseItemTypes (BaseType, Class, DropLevel, Tags)",
+   "poe2db:page-absent": "PoE2DB has no page for the name; PoB2 builds it in code"
+  }
+ },
+ "registry_audit": {
+  "by_status": {
+   "GROUND_FILTER_VALID": 1749,
+   "NON_GROUND_GAME_OBJECT": 15,
+   "POB_SYNTHETIC": 5
+  },
+  "game_names_missing_from_pob_catalog (listed on PoE2DB, not generated; the SAFETY catch-all covers them)": [
+   "Abyss Tablet",
+   "Energy Blade",
+   "Golden Bracers",
+   "Golden Greaves",
+   "Golden Plate",
+   "Golden Shield",
+   "Kulemak's Invitation",
+   "Runeforged Crescent Quarterstaff",
+   "Runeforged Gothic Quarterstaff",
+   "Runeforged Long Quarterstaff",
+   "Runeforged Steelpoint Quarterstaff",
+   "Runeforged Wrapped Quarterstaff",
+   "Runemastered Gothic Quarterstaff",
+   "Runemastered Long Quarterstaff"
+  ],
+  "ground_valid_scope": {
+   "any": 1737,
+   "unique_only": 12
+  },
+  "not_default_entries": {
+   "Calm Leg": {
+    "confidence": "high",
+    "note": "game class `Transcendent Leg` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Caster Arm": {
+    "confidence": "high",
+    "note": "game class `Transcendent Arm` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Combat Arm": {
+    "confidence": "high",
+    "note": "game class `Transcendent Arm` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Commanding Arm": {
+    "confidence": "high",
+    "note": "game class `Transcendent Arm` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Decrepifying Arm": {
+    "confidence": "high",
+    "note": "game class `Transcendent Arm` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Deflective Arm": {
+    "confidence": "high",
+    "note": "game class `Transcendent Arm` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Diamond": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Jewel",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Energy Blade One Handed": {
+    "confidence": "high",
+    "game_name": "Energy Blade",
+    "note": "PoB synthesises it in Item.lua / ImportTab.lua for Energy Blade calculations; the game's base is `Energy Blade` (a skill-spawned weapon, not_for_sale) and PoE2DB has no such page",
+    "pob_class": "One Hand Sword",
+    "scope": "",
+    "source": "poe2db:page-absent",
+    "status": "POB_SYNTHETIC"
+   },
+   "Energy Blade Two Handed": {
+    "confidence": "high",
+    "game_name": "Energy Blade",
+    "note": "same as `Energy Blade One Handed`",
+    "pob_class": "Two Hand Sword",
+    "scope": "",
+    "source": "poe2db:page-absent",
+    "status": "POB_SYNTHETIC"
+   },
+   "Ethereal Blade": {
+    "confidence": "medium",
+    "note": "tagged not_for_sale; no unique or drop source found in the item pages",
+    "pob_class": "Dagger",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Evasive Leg": {
+    "confidence": "high",
+    "note": "game class `Transcendent Leg` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Fishing Rod": {
+    "confidence": "medium",
+    "note": "fishing tool of class `Fishing Rods` (not_for_sale); not an equipment drop and not a generated-filter class",
+    "pob_class": "Fishing Rod",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Golden Caligae": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Boots",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Golden Flame": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Shield",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Golden Hoop": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Ring",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Golden Mantle": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Body Armour",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Golden Obi": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Belt",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Golden Wreath": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Helmet",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Guarding Arm": {
+    "confidence": "high",
+    "note": "game class `Transcendent Arm` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Keyblade": {
+    "confidence": "medium",
+    "note": "developer item (metadata `TwoHandSwordDev`), tagged not_for_sale",
+    "pob_class": "Two Hand Sword",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Restorative Leg": {
+    "confidence": "high",
+    "note": "game class `Transcendent Leg` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Shrine Sceptre (Purity of Cold)": {
+    "confidence": "high",
+    "game_name": "Shrine Sceptre",
+    "note": "PoB splits the one game base `Shrine Sceptre` by granted skill; the game name carries no parenthesis",
+    "pob_class": "Sceptre",
+    "scope": "",
+    "source": "poe2db:page-absent",
+    "status": "POB_SYNTHETIC"
+   },
+   "Shrine Sceptre (Purity of Fire)": {
+    "confidence": "high",
+    "game_name": "Shrine Sceptre",
+    "note": "same as `Shrine Sceptre (Purity of Cold)`",
+    "pob_class": "Sceptre",
+    "scope": "",
+    "source": "poe2db:page-absent",
+    "status": "POB_SYNTHETIC"
+   },
+   "Shrine Sceptre (Purity of Lighting)": {
+    "confidence": "high",
+    "game_name": "Shrine Sceptre",
+    "note": "same as `Shrine Sceptre (Purity of Cold)`",
+    "pob_class": "Sceptre",
+    "scope": "",
+    "source": "poe2db:page-absent",
+    "status": "POB_SYNTHETIC"
+   },
+   "Sprinters Leg": {
+    "confidence": "high",
+    "note": "game class `Transcendent Leg` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Sturdy Leg": {
+    "confidence": "high",
+    "note": "game class `Transcendent Leg` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Surefooted Leg": {
+    "confidence": "high",
+    "note": "game class `Transcendent Leg` (incursion limb): unique-generation only, never a ground item",
+    "pob_class": "Transcendent Limb",
+    "scope": "",
+    "source": "curated:non-ground",
+    "status": "NON_GROUND_GAME_OBJECT"
+   },
+   "Time-Lost Diamond": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Jewel",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Time-Lost Emerald": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Jewel",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Time-Lost Ruby": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Jewel",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Time-Lost Sapphire": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Jewel",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   },
+   "Timeless Jewel": {
+    "confidence": "medium",
+    "note": "not_for_sale base that exists for a unique item: only ever seen as Rarity Unique",
+    "pob_class": "Jewel",
+    "scope": "unique_only",
+    "source": "poe2db:class-listing+item-page",
+    "status": "GROUND_FILTER_VALID"
+   }
+  },
+  "pob_bases_audited": 1769,
+  "runeforged_runemastered": {
+   "ground_valid": 732,
+   "pob_names": 732
+  },
+  "specials_audited": {
+   "Alchemy Shard": "STALE_OBSOLETE",
+   "Arcanist's Etcher": "GROUND_FILTER_VALID",
+   "Armourer's Scrap": "GROUND_FILTER_VALID",
+   "Artificer's Orb": "GROUND_FILTER_VALID",
+   "Artificer's Shard": "GROUND_FILTER_VALID",
+   "Blacksmith's Whetstone": "GROUND_FILTER_VALID",
+   "Chaos Orb": "GROUND_FILTER_VALID",
+   "Divine Orb": "GROUND_FILTER_VALID",
+   "Exalted Orb": "GROUND_FILTER_VALID",
+   "Gemcutter's Prism": "GROUND_FILTER_VALID",
+   "Gnawed Collarbone": "GROUND_FILTER_VALID",
+   "Gnawed Jawbone": "GROUND_FILTER_VALID",
+   "Gnawed Rib": "GROUND_FILTER_VALID",
+   "Greater Chaos Orb": "GROUND_FILTER_VALID",
+   "Greater Exalted Orb": "GROUND_FILTER_VALID",
+   "Greater Orb of Augmentation": "GROUND_FILTER_VALID",
+   "Greater Orb of Transmutation": "GROUND_FILTER_VALID",
+   "Greater Regal Orb": "GROUND_FILTER_VALID",
+   "Hinekora's Lock": "GROUND_FILTER_VALID",
+   "Lesser Jeweller's Orb": "GROUND_FILTER_VALID",
+   "Mirror of Kalandra": "GROUND_FILTER_VALID",
+   "Orb of Alchemy": "GROUND_FILTER_VALID",
+   "Orb of Augmentation": "GROUND_FILTER_VALID",
+   "Orb of Transmutation": "GROUND_FILTER_VALID",
+   "Perfect Chaos Orb": "GROUND_FILTER_VALID",
+   "Perfect Exalted Orb": "GROUND_FILTER_VALID",
+   "Perfect Orb of Augmentation": "GROUND_FILTER_VALID",
+   "Perfect Orb of Transmutation": "GROUND_FILTER_VALID",
+   "Perfect Regal Orb": "GROUND_FILTER_VALID",
+   "Preserved Jawbone": "GROUND_FILTER_VALID",
+   "Regal Orb": "GROUND_FILTER_VALID",
+   "Regal Shard": "GROUND_FILTER_VALID",
+   "Scroll of Wisdom": "GROUND_FILTER_VALID",
+   "Transmutation Shard": "GROUND_FILTER_VALID",
+   "Vaal Orb": "GROUND_FILTER_VALID",
+   "Vaal Siphoner": "GROUND_FILTER_VALID"
+  }
+ },
+ "rejected": {},
+ "rejected_synthetic": 0,
+ "text_violations": 0,
+ "themes": [
+  "Abyssal Covenant",
+  "Arcane Prism",
+  "Blood Sigil",
+  "Emberforge",
+  "Eternal Empire",
+  "Verdant Relic",
+  "Void Gold",
+  "Wraeclast Ashes"
+ ],
+ "unique_emitted_base_types": 1784,
+ "unknown": 0,
+ "verified_valid": 1784
+}

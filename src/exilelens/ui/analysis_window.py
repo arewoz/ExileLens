@@ -32,7 +32,8 @@ from exilelens.analysis.view import build_analysis_view, build_slot_view, displa
 from exilelens.ui import theme
 import re
 
-from exilelens.ui.components import StatusValue, ThemedCheckBox, make_button
+from exilelens.ui.components import Disclosure, StatusValue, ThemedCheckBox, make_button
+from PySide6.QtWidgets import QSizePolicy
 from exilelens.ui.dashboard_widgets import ColumnPage, MeasureRow, SettingsGroup, WrapLabel, set_property
 from exilelens.ui.redesign_style import REDESIGN_STYLESHEET
 from exilelens.ui.styles import DASHBOARD_STYLESHEET, apply_exile_lens_chrome
@@ -46,8 +47,16 @@ _INTRO = (
 _MAX_FIX_FIRST = 4
 
 
+def _present(text: Any) -> str:
+    shown = str(text or "")
+    for raw, label in (("RING_1", "Ring 1"), ("RING_2", "Ring 2"), ("BODY_ARMOUR", "Body armour"),
+                       ("WEAPON_1", "Main hand"), ("WEAPON_2", "Off hand"), ("EHP", "Effective health")):
+        shown = shown.replace(raw, label)
+    return shown
+
+
 def _esc(text: Any) -> str:
-    return html.escape(str(text or ""))
+    return html.escape(_present(text))
 
 
 class _ResponseRow(MeasureRow):
@@ -65,15 +74,16 @@ class _ResponseRow(MeasureRow):
         self._raw_caption = caption  # the view model's own wording, kept for text()
         # Captions arrive upper-case from the view model ("EHP · MAX HIT"); the page shows sentence case.
         shown = caption.title().replace("Ehp", "EHP") if caption.isupper() else caption
-        self.caption.setText(shown)
+        self.caption.setText("Survivability" if caption.upper().startswith("EHP") else _present(shown))
+        self.caption.setToolTip(_present(caption))
         measured = bool(tile.get("measured"))
         value = str(tile.get("value") or "")
         self.value.setText(value or "—")
         set_property(self.value, "tone", "" if measured else "muted")
         self.change.setText(str(tile.get("change") or ""))
         self.note.setText(str(tile.get("note") or ""))
-        self.note.setVisible(bool(self.note.text()))
-        self.setToolTip(str(tile.get("tested_change") or ""))  # the exact tested line behind the short form
+        self.note.setVisible(False)
+        self.setToolTip("\n".join(str(tile.get(key) or "") for key in ("tested_change", "note")))
 
     def text(self) -> str:
         parts = (getattr(self, "_raw_caption", self.caption.text()), self.value.text() if self.value.text() != "—" else "", self.change.text(), self.note.text())
@@ -89,7 +99,7 @@ class _ActionRow(MeasureRow):
         match = self._RESULT.search(summary or "")
         value = match.group(1) if match else ""
         sub = self._RESULT.sub("", summary or "") if match else (summary or "")
-        super().__init__(f"{number}", title, sub, value, lead_width=22, tone="ok" if value else "", title_name="fieldLabel", parent=parent)
+        super().__init__(f"{number}", _present(title), _present(sub), value, lead_width=22, tone="ok" if value else "", title_name="fieldLabel", parent=parent)
         self._plain = f"{number}. {title} — {summary}"
         self.setObjectName("settingsRow")
         self.setProperty("fix", bool(fix))
@@ -148,6 +158,8 @@ class AnalysisWindow(ColumnPage):
         self._diagnostics_btn.setVisible(False)
         self._header = self.header.subtitle_label  # "[build] · [main skill] · [context]"; the full path is its tooltip
         self._header.setVisible(True)
+        self._header.setWordWrap(True)
+        self._header.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self._status = StatusValue("Not analyzed yet", "neutral")
         self._status.set_word_wrap(False)
         self.header.actions.addWidget(self._status)
@@ -228,13 +240,17 @@ class AnalysisWindow(ColumnPage):
         self._strongest_note.setContentsMargins(0, 8, 0, 0)
         strongest_layout.addWidget(self._strongest_note)
         self.column.addWidget(self._strongest_host)
+        # Lead with measured responses, then the actionable issue and priorities.
+        self.column.removeWidget(self._overview_host)
+        self.column.addWidget(self._overview_host)
+        self._measurement_details = Disclosure("Evidence & limitations")
 
         # --- build health --------------------------------------------------------------------------
         self._health_host, health_layout = section("Build health")
         self._health_group = SettingsGroup()
         health_layout.addWidget(self._health_group)
         self._health_lines: list[_HealthLine] = []
-        self.column.addWidget(self._health_host)
+        self._measurement_details.add_widget(self._health_host)
 
         # --- analysis coverage -----------------------------------------------------------------------
         self._coverage_host, coverage_layout = section("Analysis coverage")
@@ -242,7 +258,7 @@ class AnalysisWindow(ColumnPage):
         self._coverage_lines.setContentsMargins(0, 0, 0, 0)
         self._coverage_lines.setSpacing(4)
         coverage_layout.addLayout(self._coverage_lines)
-        self.column.addWidget(self._coverage_host)
+        self._measurement_details.add_widget(self._coverage_host)
 
         # --- upgrade opportunities and details ------------------------------------------------------------
         self._list = QListWidget()
@@ -297,6 +313,7 @@ class AnalysisWindow(ColumnPage):
         body.addLayout(footer)
         self._body.setVisible(False)
         self.column.addWidget(self._body)
+        self.column.addWidget(self._measurement_details)
         self.finish()
 
         self._list.currentRowChanged.connect(self._show_slot)
@@ -349,7 +366,8 @@ class AnalysisWindow(ColumnPage):
         self._analyze_btn.setEnabled(ready and state != RUNNING)
         if state == RUNNING:
             self._analyze_btn.setText("Analyzing…")
-            self._status.set_value("Analyzing in the background — Item Check stays available", "neutral")
+            self._status.set_value("Analyzing…", "neutral")
+            self._status.setToolTip("Analysis runs in the background. Item Check stays available.")
             self._progress.setText(detail or self._progress.text())
         elif state == CURRENT:
             self._analyze_btn.setText("Re-analyze")
@@ -358,11 +376,12 @@ class AnalysisWindow(ColumnPage):
             self._progress.setText(detail)
         elif state == STALE:
             self._analyze_btn.setText("Re-analyze")
-            self._status.set_value("Out of date — your build changed after this analysis", "warn")
+            self._status.set_value("Analysis outdated", "warn")
+            self._status.setToolTip("Your build changed after this analysis. Re-analyze to update it.")
             self._progress.setText("Showing the previous analysis. Item Check does not use it until you re-analyze.")
         elif state == ERROR:
             self._analyze_btn.setText("Retry")
-            self._status.set_value("Analysis could not complete", "error")
+            self._status.set_value("Analysis failed", "error")
             self._progress.setText(f"{detail or 'Path of Building did not finish the analysis'}. Item Check still works.")
         else:
             self._analyze_btn.setText("Analyze Build")
@@ -444,7 +463,7 @@ class AnalysisWindow(ColumnPage):
             row.setVisible(index < len(tiles))
             if index < len(tiles):
                 row.set_tile(tiles[index])
-        self._strongest_note.setText(str(self._view.get("caveat") or ""))
+        self._strongest_note.setText("Measured in PoB at the tested amounts; in-game results may differ.")
         self._strongest_note.setToolTip(f"{self._view.get('basis')} {self._view.get('caveat')}".strip())
         self._strongest_host.setVisible(bool(tiles))
 
@@ -494,10 +513,11 @@ class AnalysisWindow(ColumnPage):
         self._focus_title_raw = str(focus["title"])  # the view model's wording; the page shows sentence case
         self._focus_title.setText(self._focus_title_raw.capitalize())
         self._focus_card.setProperty("issue", bool(focus["issue"]))
-        self._focus_headline.setText(focus["headline"])
+        self._focus_headline.setText(_present(focus["headline"]))
         self._focus_detail.setText(focus["detail"])
-        self._focus_detail.setVisible(bool(focus["detail"]))
-        actions = view.get("actions") or []
+        self._focus_detail.setVisible(False)
+        self._focus_headline.setToolTip(focus["detail"])
+        actions = (view.get("actions") or [])[:3]
         for action in actions:
             row = _ActionRow(action["number"], action["title"], action["summary"], bool(action["fix"]))
             row.setObjectName("settingsRow")
@@ -631,6 +651,9 @@ class AnalysisWindow(ColumnPage):
     def _refresh_advanced(self) -> None:
         """Copy Search Intent and Export JSON are advanced: offered only alongside the measurement details."""
         advanced = self._details_toggle.isChecked()
+        for row in self._tiles:
+            row.note.setVisible(advanced and bool(row.note.text()))
+        self._focus_detail.setVisible(advanced and bool(self._focus_detail.text()))
         self._copy_btn.setVisible(advanced and self._slot_selected)
         self._export_btn.setVisible(advanced)
 
