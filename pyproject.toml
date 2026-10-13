@@ -32,6 +32,9 @@ poe2value-gui = "exilelens.app.main:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"exilelens.filters" = ["data/*.json", "data/loot_ground.png"]
+
 [tool.setuptools.dynamic]
 version = { attr = "exilelens._version.__version__" }
 

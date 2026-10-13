@@ -9,7 +9,11 @@
 | Usage | Normal installed distribution or developer checkout invoked headlessly |
 | Tested revision | `97cb973f8a114d32010bc1a4195c170628771714` |
 
-PoB ships `lua51.dll` (PUC-Rio Lua / LuaJIT-compatible runtime). This product loads that DLL, PoB's Lua modules, data, and assets from the configured installation at runtime; those components are not copied into ExileLens.
+PoB ships `lua51.dll` (PUC-Rio Lua / LuaJIT-compatible runtime). This product loads that DLL, PoB's Lua modules and assets from the configured installation at runtime. The PoB application and runtime are not copied into ExileLens. Loot Filters bundles derived offline item-base, affix-pool and skill-fact JSON snapshots from the MIT-licensed revision listed above; the same upstream copyright and permission notice is shipped in `THIRD_PARTY_NOTICES.txt`.
+
+The native ground-base registry also records factual BaseType/class/acquisition evidence from [PoE2DB](https://poe2db.tw/us/), retrieved 2026-10-12. It includes source and evidence status in the accompanying JSON, without copied branding, filter artwork, descriptive pages or external styling assets. These facts are evidence for static validation; native client acceptance remains separate.
+
+The filter preview ground image is original artwork generated for ExileLens using the built-in image generation tool. It contains no game screenshot, external filter artwork or branding. Visual V4 styling and preview geometry are implemented by ExileLens.
 
 PoB's installer intentionally excludes `src/HeadlessWrapper.lua` and `src/_SimpleGraphic.def.lua`. ExileLens therefore ships an adapted headless bootstrap and a vendored copy of the SimpleGraphic headless API definitions from the tested upstream revision. PoB is MIT-licensed, permitting use, modification, and redistribution provided the copyright and permission notice is included. The release package includes that notice in `THIRD_PARTY_NOTICES.txt`.
 

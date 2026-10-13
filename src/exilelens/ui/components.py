@@ -53,6 +53,22 @@ def status_glyph(status: str) -> str:
     return _STATUS_GLYPHS.get(status, _STATUS_GLYPHS["neutral"])
 
 
+class ExperimentalBadge(QLabel):
+    """Restrained maturity label shared by application navigation entries."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__("Experimental", parent)
+        self.setObjectName("experimentalBadge")
+        self.setAccessibleName("Experimental")
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setStyleSheet(
+            f"color:{theme.TEXT_BODY}; background:{theme.SURFACE_2}; "
+            f"border:1px solid {theme.TEXT_DISABLED}; border-radius:3px; "
+            f"font-size:{theme.scaled_px(11)}px; font-weight:400; padding:2px 4px;"
+        )
+        self.adjustSize()
+
+
 class StatusDot(QWidget):
     """A small filled circle. Always paired with text -- never used on its own."""
 
@@ -169,7 +185,7 @@ class Section(QWidget):
     def __init__(self, title: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("section")
-        self._title = SectionHeader(title)
+        self._title = SectionHeader(title, self)
         # An empty title means the content is its own heading; adding a label just
         # for structural symmetry ("NEXT") reads as noise.
         self._title.setVisible(bool(title))

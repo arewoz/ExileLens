@@ -94,10 +94,24 @@ def _maybe_defer_to_updater() -> None:
         logging.getLogger(__name__).exception("update_startup_guard_failed")
 
 
+def _maybe_write_filter_report() -> None:
+    argument = "--exilelens-filter-report"
+    if argument not in sys.argv:
+        return
+    import json
+    from exilelens.filters.product_smoke import report
+    index = sys.argv.index(argument)
+    if index + 1 >= len(sys.argv):
+        raise SystemExit(2)
+    Path(sys.argv[index + 1]).write_text(json.dumps(report(), sort_keys=True), encoding="utf-8")
+    raise SystemExit(0)
+
+
 _maybe_run_worker_subprocess()
 _maybe_run_updater_subprocess()
 _maybe_write_update_trust_report()
 _maybe_write_whats_new_report()
+_maybe_write_filter_report()
 _maybe_defer_to_updater()
 
 from PySide6.QtCore import Qt, QTimer

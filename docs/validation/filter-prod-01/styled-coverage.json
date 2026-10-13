@@ -1,0 +1,1793 @@
+{
+ "builds": [
+  "no_build",
+  "spark"
+ ],
+ "by_config": {
+  "no_build|Recommended|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2497,
+    "SHOW": 2490,
+    "SHOW+": 1361
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 143,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Recommended|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 1672,
+     "EXPLICIT_STYLED_SHOW": 3203
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 86,
+     "EXPLICIT_STYLED_SHOW": 208
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 237,
+     "EXPLICIT_STYLED_SHOW": 344
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1110,
+     "EXPLICIT_STYLED_SHOW": 952
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 864,
+     "EXPLICIT_STYLED_SHOW": 1181
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 21,
+     "EXPLICIT_STYLED_SHOW": 1461
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 1995,
+    "QUIET": 1501,
+    "SHOW": 2362,
+    "SHOW+": 490
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 1995,
+    "EXPLICIT_STYLED_SHOW": 4353,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 143,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Relaxed|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2497,
+    "SHOW": 2490,
+    "SHOW+": 1361
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 131,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Relaxed|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2497,
+    "SHOW": 2535,
+    "SHOW+": 1316
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 131,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Strict|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2497,
+    "SHOW": 2490,
+    "SHOW+": 1361
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 185,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Strict|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 2563,
+     "EXPLICIT_STYLED_SHOW": 2312
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 161,
+     "EXPLICIT_STYLED_SHOW": 133
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 248,
+     "EXPLICIT_STYLED_SHOW": 333
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1664,
+     "EXPLICIT_STYLED_SHOW": 398
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 1277,
+     "EXPLICIT_STYLED_SHOW": 768
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 31,
+     "EXPLICIT_STYLED_SHOW": 1451
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 2972,
+    "QUIET": 835,
+    "SHOW": 2413,
+    "SHOW+": 128
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 2972,
+    "EXPLICIT_STYLED_SHOW": 3376,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 185,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Uber Strict|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2497,
+    "SHOW": 2490,
+    "SHOW+": 1361
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 241,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Uber Strict|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_HIDE": 253,
+     "EXPLICIT_STYLED_SHOW": 94
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 3620,
+     "EXPLICIT_STYLED_SHOW": 1255
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 204,
+     "EXPLICIT_STYLED_SHOW": 90
+    },
+    "gem": {
+     "EXPLICIT_HIDE": 51,
+     "EXPLICIT_STYLED_SHOW": 6
+    },
+    "jewel": {
+     "EXPLICIT_HIDE": 112,
+     "EXPLICIT_STYLED_SHOW": 26
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 337,
+     "EXPLICIT_STYLED_SHOW": 244
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_HIDE": 30,
+     "EXPLICIT_STYLED_SHOW": 18
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1924,
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 1817,
+     "EXPLICIT_STYLED_SHOW": 228
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 866,
+     "EXPLICIT_STYLED_SHOW": 616
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 4607,
+    "QUIET": 1165,
+    "SHOW": 542,
+    "SHOW+": 34
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 4607,
+    "EXPLICIT_STYLED_SHOW": 1741,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 241,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Very Strict|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2497,
+    "SHOW": 2490,
+    "SHOW+": 1361
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 240,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "no_build|Very Strict|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_HIDE": 40,
+     "EXPLICIT_STYLED_SHOW": 307
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 3215,
+     "EXPLICIT_STYLED_SHOW": 1660
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 161,
+     "EXPLICIT_STYLED_SHOW": 133
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 267,
+     "EXPLICIT_STYLED_SHOW": 314
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_HIDE": 30,
+     "EXPLICIT_STYLED_SHOW": 18
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1814,
+     "EXPLICIT_STYLED_SHOW": 248
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 1364,
+     "EXPLICIT_STYLED_SHOW": 681
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 535,
+     "EXPLICIT_STYLED_SHOW": 947
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 3713,
+    "QUIET": 1897,
+    "SHOW": 704,
+    "SHOW+": 34
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 3713,
+    "EXPLICIT_STYLED_SHOW": 2635,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 240,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Recommended|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2482,
+    "SHOW": 2305,
+    "SHOW+": 1561
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 196,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Recommended|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 1663,
+     "EXPLICIT_STYLED_SHOW": 3212
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 86,
+     "EXPLICIT_STYLED_SHOW": 208
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 212,
+     "EXPLICIT_STYLED_SHOW": 369
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1089,
+     "EXPLICIT_STYLED_SHOW": 973
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 851,
+     "EXPLICIT_STYLED_SHOW": 1194
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 21,
+     "EXPLICIT_STYLED_SHOW": 1461
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 1961,
+    "QUIET": 1420,
+    "SHOW": 2241,
+    "SHOW+": 726
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 1961,
+    "EXPLICIT_STYLED_SHOW": 4387,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 196,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Relaxed|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2482,
+    "SHOW": 2305,
+    "SHOW+": 1561
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 183,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Relaxed|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2482,
+    "SHOW": 2350,
+    "SHOW+": 1516
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 183,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Strict|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2482,
+    "SHOW": 2305,
+    "SHOW+": 1561
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 289,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Strict|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 2474,
+     "EXPLICIT_STYLED_SHOW": 2401
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 161,
+     "EXPLICIT_STYLED_SHOW": 133
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 223,
+     "EXPLICIT_STYLED_SHOW": 358
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1598,
+     "EXPLICIT_STYLED_SHOW": 464
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 1229,
+     "EXPLICIT_STYLED_SHOW": 816
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 31,
+     "EXPLICIT_STYLED_SHOW": 1451
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 2858,
+    "QUIET": 817,
+    "SHOW": 2545,
+    "SHOW+": 128
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 2858,
+    "EXPLICIT_STYLED_SHOW": 3490,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 289,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Uber Strict|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2482,
+    "SHOW": 2305,
+    "SHOW+": 1561
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 345,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Uber Strict|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_HIDE": 253,
+     "EXPLICIT_STYLED_SHOW": 94
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 3484,
+     "EXPLICIT_STYLED_SHOW": 1391
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 204,
+     "EXPLICIT_STYLED_SHOW": 90
+    },
+    "gem": {
+     "EXPLICIT_HIDE": 51,
+     "EXPLICIT_STYLED_SHOW": 6
+    },
+    "jewel": {
+     "EXPLICIT_HIDE": 112,
+     "EXPLICIT_STYLED_SHOW": 26
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 297,
+     "EXPLICIT_STYLED_SHOW": 284
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_HIDE": 30,
+     "EXPLICIT_STYLED_SHOW": 18
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1835,
+     "EXPLICIT_STYLED_SHOW": 227
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 1744,
+     "EXPLICIT_STYLED_SHOW": 301
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 852,
+     "EXPLICIT_STYLED_SHOW": 630
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 4431,
+    "QUIET": 1341,
+    "SHOW": 542,
+    "SHOW+": 34
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 4431,
+    "EXPLICIT_STYLED_SHOW": 1917,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 345,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Very Strict|campaign": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_STYLED_SHOW": 347
+    },
+    "equipment": {
+     "EXPLICIT_STYLED_SHOW": 4875
+    },
+    "flask_charm": {
+     "EXPLICIT_STYLED_SHOW": 294
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_STYLED_SHOW": 581
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_STYLED_SHOW": 48
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_STYLED_SHOW": 2062
+    },
+    "Normal": {
+     "EXPLICIT_STYLED_SHOW": 2045
+    },
+    "Rare": {
+     "EXPLICIT_STYLED_SHOW": 1482
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "QUIET": 2482,
+    "SHOW": 2305,
+    "SHOW+": 1561
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 6348,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 344,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  },
+  "spark|Very Strict|maps": {
+   "by_family": {
+    "currency": {
+     "EXPLICIT_HIDE": 40,
+     "EXPLICIT_STYLED_SHOW": 307
+    },
+    "equipment": {
+     "EXPLICIT_HIDE": 3108,
+     "EXPLICIT_STYLED_SHOW": 1767
+    },
+    "flask_charm": {
+     "EXPLICIT_HIDE": 161,
+     "EXPLICIT_STYLED_SHOW": 133
+    },
+    "gem": {
+     "EXPLICIT_STYLED_SHOW": 57
+    },
+    "jewel": {
+     "EXPLICIT_STYLED_SHOW": 138
+    },
+    "jewellery": {
+     "EXPLICIT_HIDE": 242,
+     "EXPLICIT_STYLED_SHOW": 339
+    },
+    "special": {
+     "EXPLICIT_STYLED_SHOW": 8
+    },
+    "waystone": {
+     "EXPLICIT_HIDE": 30,
+     "EXPLICIT_STYLED_SHOW": 18
+    }
+   },
+   "by_rarity": {
+    "Magic": {
+     "EXPLICIT_HIDE": 1731,
+     "EXPLICIT_STYLED_SHOW": 331
+    },
+    "Normal": {
+     "EXPLICIT_HIDE": 1316,
+     "EXPLICIT_STYLED_SHOW": 729
+    },
+    "Rare": {
+     "EXPLICIT_HIDE": 534,
+     "EXPLICIT_STYLED_SHOW": 948
+    },
+    "Unique": {
+     "EXPLICIT_STYLED_SHOW": 759
+    }
+   },
+   "by_state": {
+    "HIDE": 3581,
+    "QUIET": 1816,
+    "SHOW": 917,
+    "SHOW+": 34
+   },
+   "failure_examples": {},
+   "fallback_rows": {
+    "known_generic_fallback": 142
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 3581,
+    "EXPLICIT_STYLED_SHOW": 2767,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "rules": 344,
+   "states": 6348,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visible_decisions": {}
+  }
+ },
+ "contexts": {
+  "campaign": 30,
+  "maps": 82
+ },
+ "corpus_item_states": 6348,
+ "evaluations": 126960,
+ "known_in_unknown_safety": 0,
+ "profiles": [
+  "Relaxed",
+  "Recommended",
+  "Strict",
+  "Very Strict",
+  "Uber Strict"
+ ],
+ "rare_equipment_audit": {
+  "no_build|Recommended|campaign": {
+   "by_state": {
+    "SHOW": 13568,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Recommended|maps": {
+   "by_state": {
+    "QUIET": 7278,
+    "SHOW": 6290,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Relaxed|campaign": {
+   "by_state": {
+    "SHOW": 13568,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Relaxed|maps": {
+   "by_state": {
+    "SHOW": 13568,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Strict|campaign": {
+   "by_state": {
+    "SHOW": 13568,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Strict|maps": {
+   "by_state": {
+    "QUIET": 7278,
+    "SHOW": 9682
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Uber Strict|campaign": {
+   "by_state": {
+    "SHOW": 13568,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Uber Strict|maps": {
+   "by_state": {
+    "HIDE": 10680,
+    "QUIET": 2888,
+    "SHOW": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 10680,
+    "EXPLICIT_STYLED_SHOW": 6280,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Very Strict|campaign": {
+   "by_state": {
+    "SHOW": 13568,
+    "SHOW+": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "no_build|Very Strict|maps": {
+   "by_state": {
+    "HIDE": 7278,
+    "QUIET": 4642,
+    "SHOW": 5040
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 7278,
+    "EXPLICIT_STYLED_SHOW": 9682,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Recommended|campaign": {
+   "by_state": {
+    "SHOW": 12536,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Recommended|maps": {
+   "by_state": {
+    "QUIET": 7236,
+    "SHOW": 5300,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Relaxed|campaign": {
+   "by_state": {
+    "SHOW": 12536,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Relaxed|maps": {
+   "by_state": {
+    "SHOW": 12536,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Strict|campaign": {
+   "by_state": {
+    "SHOW": 12536,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Strict|maps": {
+   "by_state": {
+    "QUIET": 7236,
+    "SHOW": 9724
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Uber Strict|campaign": {
+   "by_state": {
+    "SHOW": 12536,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Uber Strict|maps": {
+   "by_state": {
+    "HIDE": 10540,
+    "QUIET": 3028,
+    "SHOW": 3392
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 10540,
+    "EXPLICIT_STYLED_SHOW": 6420,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Very Strict|campaign": {
+   "by_state": {
+    "SHOW": 12536,
+    "SHOW+": 4424
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 0,
+    "EXPLICIT_STYLED_SHOW": 16960,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  },
+  "spark|Very Strict|maps": {
+   "by_state": {
+    "HIDE": 7236,
+    "QUIET": 4344,
+    "SHOW": 5380
+   },
+   "known_in_unknown_safety": 0,
+   "outcomes": {
+    "EXPLICIT_HIDE": 7236,
+    "EXPLICIT_STYLED_SHOW": 9724,
+    "KNOWN_IN_UNKNOWN_SAFETY": 0,
+    "UNKNOWN_SAFETY": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:no_rule": 0,
+    "UNSTYLED_VISIBLE_FALLTHROUGH:show_without_style": 0
+   },
+   "states": 16960,
+   "unstyled_visible_fallthrough": 0
+  }
+ },
+ "rare_equipment_states": 339200,
+ "rare_equipment_unstyled": 0,
+ "themes": {
+  "Abyssal Covenant": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Arcane Prism": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Blood Sigil": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Emberforge": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Eternal Empire": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Verdant Relic": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Void Gold": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  },
+  "Wraeclast Ashes": {
+   "known_in_unknown_safety": 0,
+   "unstyled_visible_fallthrough": 0,
+   "valid": true,
+   "visibility_identical_to_first_theme": true
+  }
+ },
+ "themes_unstyled": 0,
+ "themes_visibility_identical": true,
+ "unstyled_visible_fallthrough": 0
+}

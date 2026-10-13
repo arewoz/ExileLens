@@ -205,7 +205,8 @@ def test_page_renders_strongest_responses_fix_first_and_priorities() -> None:
     strongest = window.strongest_text()
     assert strongest[0] == "DAMAGE +8.7% +1 Spell Skill Level"
     assert any(line.startswith("MULTI-IMPACT Damage +2.1%") for line in strongest)
-    assert "not a per-point comparison" in window._strongest_note.text()
+    assert "in-game results may differ" in window._strongest_note.text()
+    assert "not a per-point comparison" in window._strongest_note.toolTip()
     # R1.5: the urgent problem is the current focus and action #1, ahead of any optimisation.
     assert window.focus_text()[:2] == ["BIGGEST CURRENT ISSUE", "Fire Resistance is below cap."]
     assert window.actions_text()[0] == "1. Cap Fire Resistance — +17% reaches cap"
@@ -222,11 +223,11 @@ def test_page_renders_strongest_responses_fix_first_and_priorities() -> None:
 def test_fix_first_panel_and_empty_lanes_leave_no_empty_shells() -> None:
     window, _controller = _window()
     window.show_result(_analysis([_probe("LIFE", "Life", "+50 to maximum Life", 50.0, family="defense", ehp=2.4)]))
-    assert window.focus_text()[:2] == ["CURRENT FOCUS", "Improve EHP"]
+    assert window.focus_text()[:2] == ["CURRENT FOCUS", "Improve Effective health"]
     assert window.focus_text()[2].startswith("No critical issue detected. Life gives")
     assert window.actions_text() == ["1. Improve EHP — Life · +50 Life → +2.4%"]
     detail = window._detail.toPlainText()
-    assert "EHP" in detail and "DAMAGE" not in detail and "MOVEMENT" not in detail and "MAX HIT" not in detail
+    assert "Effective health" in detail and "DAMAGE" not in detail and "MOVEMENT" not in detail and "MAX HIT" not in detail
     window.show_result(_analysis([]))
     assert "No measured response among the tested stats." in window._detail.toPlainText()
 
@@ -245,7 +246,8 @@ def test_running_state_is_clear_and_does_not_block_the_page() -> None:
     window._rerun()
     assert controller.submitted == 1 and window.state == RUNNING
     assert window._analyze_btn.text() == "Analyzing…" and not window._analyze_btn.isEnabled()
-    assert "Item Check stays available" in window._status.text()
+    assert window._status.text() == "Analyzing…"
+    assert "Item Check stays available" in window._status.toolTip()
     controller.analysis_progress.emit({"stage": "probe", "probe_id": "CAST_SPEED"})
     assert window._progress.text() == "Testing Cast Speed"
     controller.analysis_progress.emit({"kind": "tree_visible", "stage": "node"})  # another feature's progress is ignored
@@ -260,7 +262,7 @@ def test_stale_state_keeps_the_old_analysis_readable_but_marked() -> None:
     assert window.state == IDLE  # nothing to be stale about yet
     controller.analysis_finished.emit(_analysis())
     controller.analysis_stale.emit()
-    assert window.state == PAGE_STALE and "Out of date" in window._status.text()
+    assert window.state == PAGE_STALE and "Analysis outdated" in window._status.text()
     assert "does not use it" in window._progress.text() and window._analyze_btn.text() == "Re-analyze"
     assert window.strongest_text() and "+1 to Level of all Spell Skills" in window._detail.toPlainText()
 
@@ -271,7 +273,7 @@ def test_error_state_explains_and_offers_retry_without_an_empty_window() -> None
     assert window.state == IDLE
     window._rerun()
     controller.analysis_error.emit("PoB worker stopped responding.")
-    assert window.state == ERROR and window._status.text() == "Analysis could not complete"
+    assert window.state == ERROR and window._status.text() == "Analysis failed"
     assert "PoB worker stopped responding. Item Check still works." in window._progress.text()
     assert window._analyze_btn.text() == "Retry" and window._analyze_btn.isEnabled()
     window._rerun()
@@ -456,7 +458,7 @@ def test_selected_slot_reads_as_guidance_built_from_existing_data() -> None:
                      "Life is among this build's strongest measured EHP / Max Hit responses", "Your current item adds little damage",
                      "USEFUL STATS", "Chaos Resistance · Life · Cast Speed · Strength", "MEASURED ON THIS SLOT",
                      "10% Cast Speed → Damage +4.7%", "+50 Life → EHP +2.4%"):
-        assert expected in detail, expected
+        assert expected.replace("EHP", "Effective health") in detail, expected
     assert "Mana" not in detail and "+0.0" not in detail and "Fire Resistance" not in detail  # no wall of zero responses
     assert "LIMITATIONS" not in detail
     window._list.setCurrentRow(3)
@@ -482,7 +484,7 @@ def test_technical_values_remain_available_behind_measurement_details() -> None:
     for expected in ("MEASUREMENT DETAILS", "Opportunity ordering: MEDIUM 57", "Driver: addresses LOW_CHAOS_RES",
                      "+50 to maximum Mana → Damage +0.0% · EHP +0.0% · Build Value +0.0", "Build Value +6.7",
                      "Search Intent required: chaos_res", "Search Intent low_value: Mana", f"Build file: {WINDOWS_PATH}"):
-        assert expected in detail, expected
+        assert expected.replace("EHP", "Effective health") in detail, expected
     assert not window._copy_btn.isHidden() and not window._export_btn.isHidden()
     window._copy_intent()
     assert json.loads(QApplication.clipboard().text())["slot"] == "GLOVES"
@@ -607,7 +609,7 @@ def test_overview_answers_what_is_wrong_what_to_do_and_what_matters() -> None:
                      "STAT PRIORITIES", "next step +7.8% · Response remains similar", "next step +3.8% · Response weakens",
                      "STAT FOCUS", "OFFENSE FOCUS", "DEFENCE FOCUS", "HYBRID FOCUS", "ANALYSIS COVERAGE", "Partial",
                      "8 / 9 relevant measurements established."):
-        assert expected in detail, expected
+        assert expected.replace("EHP", "Effective health") in detail, expected
     assert "WHAT CHANGED" not in detail and "MEASUREMENT DETAILS" not in detail  # nothing to compare with yet; details are opt-in
     for hidden in ("of the first step", "HOLDS", "NEEDS_ATTENTION", "HIGH", "score"):
         assert hidden not in detail
@@ -685,8 +687,8 @@ def test_hybrid_overlap_is_not_rendered_as_a_duplicate_package_and_raw_data_is_i
     window.show_result(result)
     detail = window._detail.toPlainText()
     assert "DEFENCE FOCUS" in detail and "HYBRID FOCUS" not in detail
-    assert "+50 to maximum Energy Shield · Max Hit +1.8% · EHP +1.8% · also moves Damage and Mana" in detail
+    assert "+50 to maximum Energy Shield · Max Hit +1.8% · Effective health +1.8% · also moves Damage and Mana" in detail
     assert detail.count("+50 to maximum Energy Shield · ") == 1  # once, under Defence
     window._details_toggle.setChecked(True)
     technical = window._detail.toPlainText()
-    assert "Hybrid Focus (all multi-impact stats): +50 to maximum Energy Shield → Damage +3.2% · EHP +1.8% · Max Hit +1.8% · Mana +1.8%" in technical
+    assert "Hybrid Focus (all multi-impact stats): +50 to maximum Energy Shield → Damage +3.2% · Effective health +1.8% · Max Hit +1.8% · Mana +1.8%" in technical
