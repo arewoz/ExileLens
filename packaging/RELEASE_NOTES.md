@@ -7,8 +7,9 @@ Build-aware item analysis for Path of Exile 2. Item Check compares the item you 
 1.0.0 is the next public release after 0.6.0. The planned 0.7 release was not published.
 
 - **Item Check says what your build needs.** When an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result. The measured comparison against your equipped gear still decides the verdict.
-- **Analyze Build shows what to do next.** What to fix first, the stats your build responds to most, and up to three next actions, each with the change that was tested. When something could not be established, it says so.
-- **A redesigned desktop app.** A status panel shows your build and whether ExileLens is ready, with Overview, Analyze Build, Settings and Diagnostics beside it. A "What's new" dialog appears once after an update.
+- **Loot Filters (Experimental).** Choose from five strictness profiles and eight themes, inspect the preview, then Generate & Install. General filters work offline without a connected build; a current build analysis adds personalization. Each profile has its own installed file.
+- **Analyze Build (Experimental) shows what to do next.** What to fix first, the stats your build responds to most, and up to three next actions, each with the change that was tested. When something could not be established, it says so.
+- **A redesigned desktop app with clear feature labels.** Loot Filters and Analyze Build carry an **Experimental** badge in navigation and on their pages. A status panel shows your build and whether ExileLens is ready, with Overview, Analyze Build, Settings and Diagnostics beside it. A "What's new" dialog appears once after an update.
 - **Verified updates that roll back.** Updates are checked against a signed manifest before they install, installs are journaled and rolled back if they fail, and ExileLens tells you the result after restarting.
 - **Supporter convenience, nothing else.** Patreon supporters who link their account get more frequent checks, background download of verified updates and install when ExileLens closes. Everyone else keeps Download & install and Restart & update. It is the same signed release for everyone; there is no paid build and no DRM.
 - **Optional usage statistics and error reports.** Two separate switches in Settings, both off by default. Only a fixed list of anonymous values is ever sent; Settings shows exactly what. Item Check, Analyze Build and manual updates work without them and without any account.
@@ -34,6 +35,8 @@ ExileLens is not signed with a paid Windows code-signing certificate, so Windows
 Packaged builds check GitHub shortly after start and then about once a day; there is no setting to turn the check off. To update, open **Settings -> Updates**, choose **Check for updates**, then **Download & install** and **Restart & update**. If that fails, close ExileLens, download the new ZIP from GitHub Releases, check it against `SHA256SUMS.txt` and extract it into a new folder; your settings stay in `%LOCALAPPDATA%\ExileLens`. Source and development runs do not self-update.
 
 ## Known limitations
+
+- **Loot Filters and Analyze Build are Experimental.** Generated filters pass offline checks; acceptance by the live PoE2 client remains unverified. After installation, select or reload the filter in PoE2 yourself.
 
 - Some Path of Exile 2 mechanics are not fully modeled by Path of Building or ExileLens, so some results are partial or `UNCERTAIN`.
 - Jewels that change passive-tree connectivity cannot be evaluated.

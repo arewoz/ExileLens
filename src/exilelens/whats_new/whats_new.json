@@ -7,16 +7,24 @@
       "previous": "0.6.0",
       "highlights": [
         {
-          "id": "build-context-in-item-check",
-          "title": "Item Check says what your build needs",
-          "text": "When an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result.",
+          "id": "experimental-loot-filters",
+          "title": "Loot Filters (Experimental)",
+          "text": "Choose from five strictness profiles and eight themes, inspect the preview, then Generate & Install. General filters work offline; a current build analysis adds personalization.",
           "introduced": "1.0.0",
           "priority": 1,
           "link": null
         },
         {
+          "id": "build-context-in-item-check",
+          "title": "Item Check says what your build needs",
+          "text": "When an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result.",
+          "introduced": "1.0.0",
+          "priority": 3,
+          "link": null
+        },
+        {
           "id": "analyze-build-next-actions",
-          "title": "Analyze Build shows what to do next",
+          "title": "Analyze Build (Experimental)",
           "text": "See what to fix first, which stats your build responds to most, and up to three next actions, each with the change that was tested.",
           "introduced": "1.0.0",
           "priority": 2,
@@ -24,14 +32,6 @@
             "label": "Open Analyze Build",
             "destination": "build_analysis"
           }
-        },
-        {
-          "id": "redesigned-desktop-app",
-          "title": "A redesigned desktop app",
-          "text": "A status panel on the left shows your build and whether ExileLens is ready, with Overview, Analyze Build, Settings and Diagnostics beside it.",
-          "introduced": "1.0.0",
-          "priority": 3,
-          "link": null
         },
         {
           "id": "verified-updates",
@@ -67,8 +67,8 @@
           "introduced": "1.0.0"
         },
         {
-          "id": "diagnostics-attention-count",
-          "text": "The Diagnostics entry shows how many things need your attention.",
+          "id": "experimental-feature-labels",
+          "text": "The redesigned desktop app now includes Loot Filters. Both Loot Filters and Analyze Build carry an Experimental badge.",
           "introduced": "1.0.0"
         },
         {
@@ -80,7 +80,7 @@
       "limitations": [
         {
           "id": "partial-mechanics",
-          "text": "Some Path of Exile 2 mechanics are not fully modeled, so some results are marked partial or uncertain.",
+          "text": "Some mechanics are only partially modeled; jewels that change passive-tree connectivity cannot be evaluated.",
           "introduced": "1.0.0"
         },
         {
@@ -89,8 +89,8 @@
           "introduced": "1.0.0"
         },
         {
-          "id": "connectivity-jewels",
-          "text": "Jewels that change passive-tree connectivity cannot be evaluated.",
+          "id": "experimental-filter-acceptance",
+          "text": "Loot Filters is Experimental. Live PoE2 client acceptance is unverified. Select or reload the installed filter in PoE2 yourself.",
           "introduced": "1.0.0"
         }
       ],

@@ -2,6 +2,8 @@
 
 1.0.0 is the next public release after 0.6.0. The 0.7.0b1 candidate was never published. The application version, both Windows executable version resources, compatibility manifest, packaged README, changelog, GitHub release notes and in-app What's New now identify 1.0.0. The in-app notes cover updates from both 0.6.0 and the internal 0.7.0b1 candidate.
 
+The release preparation includes the Loot Filters integration from PR #84. Loot Filters and Analyze Build are labeled Experimental; native PoE2 filter acceptance remains unverified, as recorded in `docs/FILTER-PROD-01.md`.
+
 The active release body is `packaging/RELEASE_NOTES.md`; the bundled update notes are `src/exilelens/whats_new/whats_new.json`. The three `*_DRAFT` files in this directory are historical preparation material. The notes use 2026-10-13 as the preparation date; update `released` in the bundled JSON if publication is postponed.
 
 ## Manual GitHub Action
