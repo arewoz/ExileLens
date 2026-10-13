@@ -16,7 +16,7 @@ from exilelens.app.controller import EvaluationController
 from exilelens.app.settings import AppSettings
 from exilelens.filters.build_needs import BuildNeedsSnapshot, Coverage
 from exilelens.filters.fingerprint import BuildFingerprintExtractor
-from exilelens.filters.install import TEST_FILTER_FILENAME, get_installed_filter_info, install_test_filter, open_filter_folder
+from exilelens.filters.install import get_installed_filter_info, install_test_filter, open_filter_folder
 from exilelens.filters.intel_generate import filter_body_sha256, generate as generate_filter
 from exilelens.filters.intel_status import IntelState, describe, is_build_analysis, is_current
 from exilelens.filters.preview import preview_decision, preview_scene_items, visible_preview_entries
@@ -720,13 +720,16 @@ class FiltersPage(QWidget):
             self._status.setText("Could not open the filter folder.")
 
     def _update_installed(self) -> None:
-        info = get_installed_filter_info(self._filter_dir) if self._filter_dir else None
+        profile = self._profile.currentData()
+        profile = getattr(profile, "value", profile)
+        info = get_installed_filter_info(self._filter_dir, profile) if self._filter_dir else None
         if info:
-            installed_at = datetime.fromtimestamp((self._filter_dir / TEST_FILTER_FILENAME).stat().st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
+            installed_path = self._filter_dir / info['path']
+            installed_at = datetime.fromtimestamp(installed_path.stat().st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
             self._installed.setText(f"Installed file {installed_at} · {info.get('profile', 'Unknown')} / {info.get('theme', 'Unknown')}\n"
-                                    f"Build Intelligence: {info.get('intelligence', 'none (legacy file)')}\n{self._filter_dir / TEST_FILTER_FILENAME}")
+                                    f"Build Intelligence: {info.get('intelligence', 'none (legacy file)')}\n{installed_path}")
         else:
-            self._installed.setText("No ExileLens test filter installed in this folder.")
+            self._installed.setText("No ExileLens filter installed for this profile.")
         selected = (getattr(self._profile.currentData(), "value", self._profile.currentData()),
                     getattr(self._theme.currentData(), "value", self._theme.currentData()))
         generated = self._last_generated

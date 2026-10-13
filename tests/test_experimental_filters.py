@@ -1,7 +1,7 @@
 """Focused checks for the experimental preview and safe test installation."""
 from __future__ import annotations
 
-from exilelens.filters.install import (TEST_FILTER_FILENAME, get_installed_filter_info,
+from exilelens.filters.install import (TEST_FILTER_FILENAME, get_filter_path, get_installed_filter_info,
                                        install_test_filter, install_batch_filters)
 from exilelens.filters.validation import validate_all, validate_base_types
 from exilelens.filters.profiles import BaseTier, DefenseLayer, FilterProfileName, FilterThemeName, ProductSlot, SlotPriority, get_profile_with_theme
@@ -40,7 +40,7 @@ def test_install_preserves_unrelated_test_file(tmp_path):
 def test_install_replaces_own_file_and_verifies(tmp_path):
     content = "# ExileLens Build-Aware Loot Filter\n" + "# heading\n" * 10 + "Show\n\tClass \"Currency\"\n"
     first = install_test_filter(content, tmp_path, "Recommended", "Void Gold")
-    second = install_test_filter(content + "# updated\n", tmp_path, "Strict", "Blood Sigil")
+    second = install_test_filter(content + "# updated\n", tmp_path, "Recommended", "Blood Sigil")
     assert first.success and first.verified and second.success and second.verified
     assert second.destination.read_bytes() == (content + "# updated\n").encode("utf-8")
 
@@ -140,7 +140,7 @@ def test_native_action_error_blocks_install_and_preserves_existing_file(tmp_path
     corrupt = original.replace("PlayEffect Orange", "PlayEffect Gold", 1)
     rejected = install_test_filter(corrupt, tmp_path, "Endgame", "Emberforge")
     assert not rejected.success and "PlayEffect" in rejected.error_message
-    assert (tmp_path / TEST_FILTER_FILENAME).read_text(encoding="utf-8") == original
+    assert get_filter_path(tmp_path, "Very Strict").read_text(encoding="utf-8") == original
 
 
 def test_missing_snapshot_fails_closed(monkeypatch):

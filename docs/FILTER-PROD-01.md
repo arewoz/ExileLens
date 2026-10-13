@@ -19,6 +19,8 @@ Loot Filters shows profile/theme, compact personalization state, preview and one
 
 Without PoB, generation is full and offline. Current analysis adds measured opportunities; missing/incomplete/stale analysis degrades conservatively. No market request or consent is needed. Installation validates before writing, checks ownership on every entry point, stages/flushes in the destination directory, replaces atomically and restores prior bytes after a verification failure. Folder inspection never overwrites a probe file; application verification never claims that PoE2 reloaded the filter.
 
+Generated application files use `ExileLens_<Strictness>.filter`, for example `ExileLens_Recommended.filter` and `ExileLens_Very_Strict.filter`. Different profiles stay separately selectable; theme/build changes update only that profile. Legacy `ExileLens_Test.filter` is preserved and can still be inspected. The naming follow-up passed 31 focused installation/UI checks; it does not change generated filter bytes. New acceptance packages put strictness before theme/mode; the previously supplied acceptance package remains intact.
+
 ## Evidence and reproduction
 
 The native registry separates ground items, synthetic PoB objects and non-ground objects. A dated registry establishes bounded evidence, not permanent game compatibility. Exact BaseType serialization and a separate unknown safety rule prevent substring collisions and default known-equipment presentation. There is no Soldier Cuirass special case.

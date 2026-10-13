@@ -19,6 +19,28 @@ def test_batch_filename_cannot_escape_filter_directory(tmp_path):
         install.get_batch_filter_path(tmp_path, 'Recommended', '../../other')
 
 
+def test_profiles_have_separate_readable_files_and_preserve_legacy(tmp_path, content):
+    legacy = tmp_path / install.LEGACY_FILTER_FILENAME
+    legacy.write_text(content, encoding='utf-8')
+    names = []
+    for profile in ('Relaxed', 'Recommended', 'Strict', 'Very Strict', 'Uber Strict'):
+        result = install.install_test_filter(content, tmp_path, profile, 'Void Gold')
+        assert result.success and result.verified
+        assert result.filter_name == f"ExileLens_{profile.replace(' ', '_')}.filter"
+        info = install.get_installed_filter_info(tmp_path, profile)
+        assert info['path'] == result.filter_name
+        names.append(result.filter_name)
+    assert len(set(names)) == 5
+    assert legacy.read_text(encoding='utf-8') == content
+    assert all((tmp_path / name).read_text(encoding='utf-8') == content for name in names)
+    assert install.get_filter_path(tmp_path, 'Endgame').name == 'ExileLens_Very_Strict.filter'
+
+
+def test_legacy_installation_is_still_detected_until_profile_is_installed(tmp_path, content):
+    (tmp_path / install.LEGACY_FILTER_FILENAME).write_text(content, encoding='utf-8')
+    assert install.get_installed_filter_info(tmp_path)['path'] == install.LEGACY_FILTER_FILENAME
+
+
 @pytest.mark.parametrize('batch', [False, True])
 def test_unrelated_same_named_file_is_never_overwritten(tmp_path, content, batch):
     destination = install.get_batch_filter_path(tmp_path, 'Recommended', 'Void Gold') if batch else tmp_path / install.TEST_FILTER_FILENAME

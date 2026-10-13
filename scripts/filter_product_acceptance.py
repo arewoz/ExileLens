@@ -35,7 +35,7 @@ def main():
                 if not result.valid:
                     raise ValueError(result.errors)
                 assert all(has_required_style(r) for r in result.rules if 'Show' in [line.strip() for line in r.lines])
-                filename = f'ExileLens_{mode}_{profile.value}_{theme.value}.filter'.replace(' ', '_')
+                filename = f'ExileLens_{profile.value}_{theme.value}_{mode}.filter'.replace(' ', '_')
                 raw = result.text.encode('utf-8')
                 (args.out / filename).write_bytes(raw)
                 manifest['filters'].append({'file': filename, 'mode': mode, 'profile': profile.value, 'theme': theme.value,

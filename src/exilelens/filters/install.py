@@ -41,16 +41,23 @@ class BatchInstallationResult:
         return self.failed == 0
 
 
-# Default test filter filename
-TEST_FILTER_FILENAME = "ExileLens_Test.filter"
+# The normal application keeps one selectable file per strictness level.
+DEFAULT_FILTER_FILENAME = "ExileLens_Recommended.filter"
+LEGACY_FILTER_FILENAME = "ExileLens_Test.filter"
+TEST_FILTER_FILENAME = DEFAULT_FILTER_FILENAME  # compatibility for existing developer callers
 
 # Batch filter filename pattern
 BATCH_FILTER_PATTERN = "ExileLens_{profile}_{theme}.filter"
 
 
-def get_test_filter_path(filter_dir: Path) -> Path:
-    """Get the path for the single test filter file."""
-    return filter_dir / TEST_FILTER_FILENAME
+def get_filter_path(filter_dir: Path, profile: str = "Recommended") -> Path:
+    """Return a safe, recognizable name using the approved strictness level."""
+    from exilelens.filters.profile_policy import normalize_level
+    level, _ = normalize_level(profile)
+    return Path(filter_dir) / f"ExileLens_{level.replace(' ', '_')}.filter"
+
+
+get_test_filter_path = get_filter_path  # compatibility for existing developer callers
 
 
 def get_batch_filter_path(filter_dir: Path, profile: str, theme: str) -> Path:
@@ -59,8 +66,8 @@ def get_batch_filter_path(filter_dir: Path, profile: str, theme: str) -> Path:
     from exilelens.filters.profile_policy import normalize_level
     level, _ = normalize_level(profile)
     native_theme = FilterThemeName(theme).value
-    filename = BATCH_FILTER_PATTERN.format(profile=level.lower().replace(" ", "_"),
-                                          theme=native_theme.lower().replace(" ", "_"))
+    filename = BATCH_FILTER_PATTERN.format(profile=level.replace(" ", "_"),
+                                          theme=native_theme.replace(" ", "_"))
     return Path(filter_dir) / filename
 
 
@@ -163,10 +170,10 @@ def install_test_filter(
     profile: str,
     theme: str
 ) -> InstallationResult:
-    """Install the single test filter (ExileLens_Test.filter).
+    """Install ExileLens_<Strictness>.filter.
 
-    This is the primary testing workflow - the user selects this file once
-    in the game, and subsequent updates overwrite the same file.
+    Changing theme or build replaces that profile's owned file. Different
+    strictness levels remain separately selectable in the game.
 
     Args:
         filter_text: Generated filter content
@@ -177,23 +184,23 @@ def install_test_filter(
     Returns:
         InstallationResult with success status and details
     """
-    destination = get_test_filter_path(Path(filter_dir))
+    destination = get_filter_path(filter_dir, profile)
     if destination.exists():
         try:
             if "# ExileLens Build-Aware Loot Filter" not in destination.read_text(encoding="utf-8"):
                 return InstallationResult(False, destination.name, destination, profile, theme,
-                                          error_message="Existing test filter is not owned by ExileLens")
+                                          error_message="Existing file is not owned by ExileLens")
         except (OSError, UnicodeError) as exc:
             return InstallationResult(False, destination.name, destination, profile, theme,
                                       error_message=f"Cannot verify existing file: {exc}")
 
-    success, bytes_written, error = write_filter_safely(filter_text, Path(filter_dir) / "ExileLens_Test.filter")
+    success, bytes_written, error = write_filter_safely(filter_text, destination)
 
     if success:
         verified = True
         return InstallationResult(
             success=True,
-            filter_name="ExileLens_Test.filter",
+            filter_name=destination.name,
             destination=destination,
             profile=profile,
             theme=theme,
@@ -203,8 +210,8 @@ def install_test_filter(
     else:
         return InstallationResult(
             success=False,
-            filter_name="ExileLens_Test.filter",
-            destination=Path(filter_dir) / "ExileLens_Test.filter",
+            filter_name=destination.name,
+            destination=destination,
             profile=profile,
             theme=theme,
             error_message=error
@@ -298,13 +305,15 @@ def install_batch_filter(
         )
 
 
-def get_installed_filter_info(filter_dir: Path) -> Optional[dict]:
-    """Get information about the currently installed test filter.
+def get_installed_filter_info(filter_dir: Path, profile: str = "Recommended") -> Optional[dict]:
+    """Inspect the selected profile's file, or the untouched legacy file.
 
     Returns:
         Dict with filter info, or None if not installed.
     """
-    test_path = Path(filter_dir) / "ExileLens_Test.filter"
+    test_path = get_filter_path(filter_dir, profile)
+    if not test_path.exists():
+        test_path = Path(filter_dir) / LEGACY_FILTER_FILENAME
     if not test_path.exists():
         return None
 
@@ -317,7 +326,7 @@ def get_installed_filter_info(filter_dir: Path) -> Optional[dict]:
 
         # Extract metadata from header
         info = {
-            "path": str(Path("ExileLens_Test.filter")),
+            "path": test_path.name,
             "size": len(raw),
             "sha256": hashlib.sha256(raw).hexdigest(),
         }
