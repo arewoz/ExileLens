@@ -25,6 +25,76 @@ from exilelens.tree.ranking import _sort_key, rescore_tree_results
 from exilelens.tree.value import score_tree_metrics
 
 
+@dataclass(frozen=True)
+class PreparedGraphIngest:
+    """PERF-01: everything about ingesting a tree graph that is a pure function of the payload.
+
+    Building the snapshot, its geometry, the frontier classification (a shortest-path search per frontier
+    node) and the reachable-target sets is the expensive part of a build load's UI work; none of it touches the
+    view model, so it can run anywhere. :meth:`TreeCoachViewModel.apply_prepared_graph` is the cheap, stateful half.
+    """
+
+    snapshot: PassiveTreeSnapshot
+    geometry: dict[int, tuple[float, float]]
+    frontier_ids: frozenset[int]
+    frontier_valid: frozenset[int]
+    targets3: frozenset[int]
+    targets5: frozenset[int]
+
+
+def prepare_graph_ingest(snapshot: PassiveTreeSnapshot) -> PreparedGraphIngest:
+    frontier = get_frontier_nodes(snapshot)
+    frontier_ids = {int(r["node_id"]) for r in frontier}
+    frontier_valid = {int(r["node_id"]) for r in frontier if r.get("status") == EvalStatus.VALID.value}
+    costs = unallocated_costs(snapshot)
+    targets3: set[int] = set()
+    targets5: set[int] = set()
+    for node in snapshot.nodes.values():
+        if node.allocated or node.type not in {NodeType.NOTABLE, NodeType.KEYSTONE}:
+            continue
+        if node.support != "SUPPORTED":
+            continue
+        cost = costs.get(node.id)
+        if cost is None or cost <= 0:
+            continue
+        if cost <= 3:
+            targets3.add(node.id)
+        if cost <= 5:
+            targets5.add(node.id)
+    return PreparedGraphIngest(
+        snapshot=snapshot,
+        geometry=geometry_map(snapshot),
+        frontier_ids=frozenset(frontier_ids),
+        frontier_valid=frozenset(frontier_valid),
+        targets3=frozenset(targets3),
+        targets5=frozenset(targets5),
+    )
+
+
+def prepare_graph_payload(payload: dict[str, Any], *, default_profile: str) -> PreparedGraphIngest | None:
+    """Pure half of ``TreeCoachViewModel.ingest_graph_payload``; ``None`` when the payload carries no baseline."""
+    from exilelens.tree.models import snapshot_from_payload
+
+    source = dict(payload.get("graph") or payload)
+    baseline_raw = source.get("baseline") or payload.get("baseline")
+    if not baseline_raw:
+        return None
+    fields = TreeBaseline.__dataclass_fields__
+    kwargs = {key: baseline_raw.get(key) for key in fields}
+    kwargs.setdefault("build_path", "")
+    kwargs.setdefault("build_name", "")
+    kwargs.setdefault("loadout", "")
+    kwargs.setdefault("tree_set", "Default")
+    kwargs.setdefault("item_set", "")
+    kwargs.setdefault("context", "MAP")
+    kwargs.setdefault("profile", default_profile)
+    kwargs.setdefault("generation", 0)
+    kwargs.setdefault("fingerprint", "")
+    kwargs.setdefault("tree_fingerprint", "")
+    baseline = TreeBaseline(**kwargs)
+    return prepare_graph_ingest(snapshot_from_payload(source, baseline=baseline))
+
+
 @dataclass
 class TreeCoachFilters:
     show_allocated: bool = True
@@ -177,28 +247,16 @@ class TreeCoachViewModel:
         self.tracking_geometry = geometry_map(snapshot) if snapshot is not None else {}
 
     def ingest_graph_payload(self, payload: dict[str, Any]) -> None:
-        from exilelens.tree.models import snapshot_from_payload
-
-        source = dict(payload.get("graph") or payload)
-        baseline_raw = source.get("baseline") or payload.get("baseline")
-        if not baseline_raw:
-            return
-        fields = TreeBaseline.__dataclass_fields__
-        kwargs = {key: baseline_raw.get(key) for key in fields}
-        kwargs.setdefault("build_path", "")
-        kwargs.setdefault("build_name", "")
-        kwargs.setdefault("loadout", "")
-        kwargs.setdefault("tree_set", "Default")
-        kwargs.setdefault("item_set", "")
-        kwargs.setdefault("context", "MAP")
-        kwargs.setdefault("profile", self.profile)
-        kwargs.setdefault("generation", 0)
-        kwargs.setdefault("fingerprint", "")
-        kwargs.setdefault("tree_fingerprint", "")
-        baseline = TreeBaseline(**kwargs)
-        self.ingest_snapshot(snapshot_from_payload(source, baseline=baseline))
+        prepared = prepare_graph_payload(payload, default_profile=self.profile)
+        if prepared is not None:
+            self.apply_prepared_graph(prepared)
 
     def ingest_snapshot(self, snapshot: PassiveTreeSnapshot) -> None:
+        self.apply_prepared_graph(prepare_graph_ingest(snapshot))
+
+    def apply_prepared_graph(self, prepared: PreparedGraphIngest) -> None:
+        """The stateful half of an ingest: cheap, and always on the thread that owns the view model."""
+        snapshot = prepared.snapshot
         previous = self.snapshot
         if previous is not None and is_tree_stale(previous.baseline, snapshot.baseline):
             self.evaluations.clear()
@@ -206,28 +264,12 @@ class TreeCoachViewModel:
             self.pending_ids.clear()
             self.stale = False
         self.snapshot = snapshot
-        self.geometry = geometry_map(snapshot)
+        self.geometry = dict(prepared.geometry)
         self.profile = snapshot.baseline.profile
-        frontier = get_frontier_nodes(snapshot)
-        self._frontier_ids = {int(r["node_id"]) for r in frontier}
-        self._frontier_valid = {
-            int(r["node_id"]) for r in frontier if r.get("status") == EvalStatus.VALID.value
-        }
-        costs = unallocated_costs(snapshot)
-        self._targets3 = set()
-        self._targets5 = set()
-        for node in snapshot.nodes.values():
-            if node.allocated or node.type not in {NodeType.NOTABLE, NodeType.KEYSTONE}:
-                continue
-            if node.support != "SUPPORTED":
-                continue
-            cost = costs.get(node.id)
-            if cost is None or cost <= 0:
-                continue
-            if cost <= 3:
-                self._targets3.add(node.id)
-            if cost <= 5:
-                self._targets5.add(node.id)
+        self._frontier_ids = set(prepared.frontier_ids)
+        self._frontier_valid = set(prepared.frontier_valid)
+        self._targets3 = set(prepared.targets3)
+        self._targets5 = set(prepared.targets5)
 
     def reset_for_baseline(self) -> None:
         self.snapshot = None

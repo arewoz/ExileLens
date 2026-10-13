@@ -393,6 +393,7 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
     C = controller_module.EvaluationController
     for name in (
         "load_build", "_capture_ready_baseline", "submit_clipboard_text", "_ensure_offense_coverage",
+        "load_build_async", "_begin_build_load", "_apply_baseline_capture", "_settle_baseline_job",
         "_submit_evaluation_request", "_begin_eval_feedback", "_on_worker_finished", "_deliver_evaluation_result",
         "_maybe_schedule_upgrade_path", "_maybe_schedule_build_decomp", "_maybe_schedule_market_evidence",
         "_apply_optional_presentation_enrichment", "_store_evaluation_cache", "_item_check_build_context",
@@ -402,7 +403,7 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
     ):
         wrap(rec, C, name, f"ctrl.{name}")
     wrap(rec, controller_module._EvaluationWorker, "run_evaluation", "worker.run_evaluation")
-    for name in ("run_build_decomp", "run_upgrade_path", "run_analysis", "run_baseline_reload"):
+    for name in ("run_build_decomp", "run_upgrade_path", "run_analysis", "run_baseline_load"):
         wrap(rec, controller_module._EvaluationWorker, name, f"worker.{name}")
     for name in ("show_analyzing", "show_result", "_resolve_presentation", "_render_presentation",
                  "_position_and_show", "_apply_layout_refresh", "_run_layout_refresh", "paintEvent", "show_warming"):
@@ -521,7 +522,9 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
         rec.phase = f"load:{build}"
         t_load = rec.now()
         if previous is None:
-            controller.load_build(path, context=controller.settings.context)
+            # The shipped startup path; falls back to the blocking load on a tree without the async API.
+            loader = getattr(controller, "load_build_async", controller.load_build)
+            loader(path, context=controller.settings.context)
         else:
             controller.change_build(path)
         t_returned = rec.now()

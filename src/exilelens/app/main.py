@@ -205,6 +205,8 @@ class ExileLensApp:
         self._tray_retries_left = 0
         self._setup_dialog: OnboardingDialog | None = None
         self._refine_dialog = None
+        #: PERF-01: the build whose startup load is in flight; its outcome decides whether recovery UI opens.
+        self._startup_build_path: str | None = None
     def _record_fresh_install_release_notes(self, load_result) -> None:
         """A brand-new profile starts "caught up": What's New is for people who already had ExileLens."""
         try:
@@ -285,6 +287,7 @@ class ExileLensApp:
         self._wire_signals()
         self.controller.engine_ready.connect(self._on_engine_ready)
         self.controller.engine_failed.connect(self._on_engine_failed)
+        self.controller.build_load_finished.connect(self._on_build_load_finished)
 
         assert self.clipboard is not None
         self.clipboard.clipboard_event.connect(self._on_clipboard_event)
@@ -485,7 +488,23 @@ class ExileLensApp:
             if self.settings.build_path != build_path:
                 self.settings.build_path = build_path
                 save_settings(self.settings)
-            self.controller.load_build(build_path, context=self.settings.context)
+            # PERF-01: the PoB load runs on the PoB lane; the tray, hotkey and dashboard stay responsive while it
+            # does, and the outcome (including the recovery decision below) arrives as build_load_finished.
+            self._startup_build_path = str(Path(build_path).resolve())
+            self.controller.load_build_async(build_path, context=self.settings.context)
+            return
+        self._after_startup_build_load()
+
+    def _on_build_load_finished(self, ok: bool, path: str, _reason: str) -> None:
+        pending = self._startup_build_path
+        if pending is None or path != pending:
+            return
+        self._startup_build_path = None
+        self._after_startup_build_load()
+
+    def _after_startup_build_load(self) -> None:
+        if self.controller is None:
+            return
         # The first-run dialog observes the same controller. Returning users get the
         # compact recovery page instead of a welcome-flow replay.
         info = self.controller.build_info

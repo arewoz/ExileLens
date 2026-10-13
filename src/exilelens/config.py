@@ -180,8 +180,24 @@ def load_config() -> PobConfig:
     return PobConfig(pob_path=Path(raw).resolve() if raw else Path())
 
 
+@dataclass(frozen=True)
+class _PinnedLayoutConfig(PobConfig):
+    """A PobConfig whose layout was probed once. Every derived path depends on the layout, and the plain
+    property re-reads Launch.lua / manifest.xml on each access."""
+
+    pinned_layout: str = "unknown"
+
+    @property
+    def layout(self) -> str:
+        return self.pinned_layout
+
+
 def required_pob_files(config: PobConfig) -> dict[str, Path]:
     """Files supplied by PoB and ExileLens that the headless worker needs."""
+    # PERF-01: one layout probe instead of one per path (a dozen per call, per refresh of every status widget).
+    config = _PinnedLayoutConfig(
+        pob_path=config.pob_path, supported_head=config.supported_head, pinned_layout=config.layout
+    )
     return {
         "pob_root": config.pob_path,
         "Launch.lua": config.program_path / "Launch.lua",
