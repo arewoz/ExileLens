@@ -46,6 +46,10 @@ See [`SECURITY.md`](SECURITY.md) for details about the application's security mo
 
 ExileLens copies the hovered item's text using Path of Exile 2's normal copy-item functionality, evaluates it against your selected PoB2 build and displays the result in the overlay. The hotkey can be changed under Dashboard → Settings → Hotkey.
 
+## Experimental features in the 1.0 scope
+
+Analyze Build and Loot Filters carry an Experimental badge in the dashboard. Loot Filters works offline without PoB; a current Build Intelligence analysis adds optional personalization. Choose one of five profiles and eight themes, preview the same sample, then Generate & Install. See the [feature guide](docs/EXPERIMENTAL-FEATURES.md) for installation, patch updates and limitations.
+
 ## Requirements
 
 - Windows 10 or Windows 11, 64-bit
@@ -53,7 +57,7 @@ ExileLens copies the hovered item's text using Path of Exile 2's normal copy-ite
 - Path of Building Community for Path of Exile 2
 - A saved Path of Building 2 build
 
-> **Path of Building 2 is currently required and is not bundled with ExileLens.**
+> **Path of Building 2 is required for item comparison and Analyze Build; general Loot Filters works without it. PoB2 is not bundled with ExileLens.**
 
 ExileLens uses your selected PoB2 build as the comparison baseline.
 

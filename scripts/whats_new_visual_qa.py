@@ -163,6 +163,8 @@ def main(argv=None) -> int:
     from exilelens.whats_new import content
 
     fixtures = _fixtures()
+    from exilelens._version import __version__
+
     real = content.packaged_catalog()
     with tempfile.TemporaryDirectory(prefix="exilelens-whatsnew-qa-") as tmp:
         h = Harness(Path(tmp))
@@ -170,18 +172,18 @@ def main(argv=None) -> int:
         for size_name, size in SIZES.items():
             sfx = args.suffix
             _dialog_scene(h, f"A-stable-0.7.0{sfx}", size, out, catalog=fixtures["stable"], installed="0.7.0", last_seen="0.6.0")
-            _dialog_scene(h, f"B-prerelease-0.7.0b1{sfx}", size, out, catalog=real, installed="0.7.0b1", last_seen="0.6.0")
-            _dialog_scene(h, f"B2-prerelease-legacy-profile{sfx}", size, out, catalog=real, installed="0.7.0b1", last_seen="")
+            _dialog_scene(h, f"B-current-{__version__}{sfx}", size, out, catalog=real, installed=__version__, last_seen="0.6.0")
+            _dialog_scene(h, f"B2-current-legacy-profile{sfx}", size, out, catalog=real, installed=__version__, last_seen="")
             _dialog_scene(h, f"C-since-0.6.0{sfx}", size, out, catalog=fixtures["cumulative"], installed="0.8.0", last_seen="0.6.0")
             _dialog_scene(h, f"D-long{sfx}", size, out, catalog=fixtures["long"], installed="0.8.0", last_seen="0.7.0")
             _dialog_scene(h, f"E-action{sfx}", size, out, catalog=fixtures["action"], installed="0.8.0", last_seen="0.7.0")
-            _dialog_scene(h, f"F-manual-reopen{sfx}", size, out, catalog=real, installed="0.7.0b1", last_seen="0.7.0b1", manual=True)
+            _dialog_scene(h, f"F-manual-reopen{sfx}", size, out, catalog=real, installed=__version__, last_seen=__version__, manual=True)
             # G: Settings > Updates, with and without packaged notes
             flow = h.window.release_notes
             flow._catalog_provider = lambda: real
             from exilelens.app.updates.version import ExileLensVersion
 
-            flow.installed = ExileLensVersion.parse("0.7.0b1")
+            flow.installed = ExileLensVersion.parse(__version__)
             h.window._sync_whats_new_entry()
             h.update("ahead", "0.6.0")
             h.scroll_settings("Updates")

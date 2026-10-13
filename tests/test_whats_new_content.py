@@ -48,10 +48,10 @@ def history() -> content.Catalog:
 def test_packaged_file_loads_and_has_real_0_7_0b1_content() -> None:
     catalog = content.load_catalog()
     assert catalog is not None
-    release = catalog.get(V("0.7.0b1"))
+    release = catalog.get(V("1.0.0"))
     assert release is not None and release.previous == V("0.6.0")
     assert 1 <= len(release.highlights) <= 4 and len(release.minor) <= 6
-    assert content.lint_catalog(catalog, V("0.7.0b1")) == []
+    assert content.lint_catalog(catalog, V("1.0.0")) == []
 
 
 def test_every_packaged_link_is_an_allowlisted_destination() -> None:

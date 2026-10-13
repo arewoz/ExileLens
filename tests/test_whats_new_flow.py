@@ -14,6 +14,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="the dashboard harness uses Windows-only capture helpers")
 _ROOT = Path(__file__).resolve().parents[1]
 
+from exilelens._version import __version__  # noqa: E402
 from exilelens.app.updates.version import ExileLensVersion  # noqa: E402
 from exilelens.whats_new import content  # noqa: E402
 
@@ -220,7 +221,7 @@ def test_missing_or_unmatched_notes_fail_closed(harness, provider) -> None:
     _open_dashboard(harness)          # re-syncs the entry points
     assert harness.flow.dialog is None and not harness.flow.has_notes() and not harness.flow.show_manual()
     assert not harness.window._rail.version_button().is_interactive()
-    assert harness.window._rail.version_text() == "ExileLens 0.7.0b1"
+    assert harness.window._rail.version_text() == f"ExileLens {__version__}"
 
 
 # ------------------------------------------------------------------------------------------------ seen semantics
@@ -399,7 +400,7 @@ def test_rail_version_opens_the_installed_notes_for_the_installed_version_only(h
     harness.flow.dialog.close()
     _settle(harness)
     button = harness.window._rail.version_button()
-    assert button.is_interactive() and button.toolTip() == "What's new in 0.8.0" and button.text() == "ExileLens 0.7.0b1"
+    assert button.is_interactive() and button.toolTip() == "What's new in 0.8.0" and button.text() == f"ExileLens {__version__}"
     button.click()
     _settle(harness)
     dialog = harness.flow.dialog

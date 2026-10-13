@@ -201,10 +201,10 @@ def test_the_current_public_copy_has_no_ai_marketing_phrases():
         assert not [word for word in banned if word in text], (rel, [word for word in banned if word in text])
 
 
-def test_the_application_version_is_unchanged_by_1_0_a():
+def test_the_application_version_is_the_final_1_0_release():
     from exilelens._version import __version__ as version
 
-    assert version == "0.7.0b1"
+    assert version == "1.0.0"
 
 
 # ------------------------------------------------------------------------------------------------- 1.0 drafts (not active)
@@ -235,13 +235,15 @@ def test_the_whats_new_draft_is_lint_clean_for_1_0_0_and_describes_0_6_to_1_0():
     assert "TBD-AT-RELEASE" in raw, "no final release date is set in the draft"
 
 
-def test_the_drafts_are_not_active():
+def test_the_final_content_replaces_the_unpublished_0_7_candidate():
     import json
 
     live = json.loads((ROOT / "src" / "exilelens" / "whats_new" / "whats_new.json").read_text(encoding="utf-8"))
-    assert [row["version"] for row in live["releases"]] == ["0.7.0b1"]
-    assert (ROOT / "packaging" / "RELEASE_NOTES.md").read_text(encoding="utf-8").splitlines()[0] == "# ExileLens 0.7.0b1"
-    assert "1.0.0" not in (ROOT / "packaging" / "CHANGELOG.txt").read_text(encoding="utf-8")
+    assert [row["version"] for row in live["releases"]] == ["1.0.0"]
+    assert live["releases"][0]["previous"] == "0.6.0"
+    assert (ROOT / "packaging" / "RELEASE_NOTES.md").read_text(encoding="utf-8").splitlines()[0] == "# ExileLens 1.0.0"
+    changelog = (ROOT / "packaging" / "CHANGELOG.txt").read_text(encoding="utf-8")
+    assert "\n1.0.0\n" in changelog and "\n0.7.0b1\n" not in changelog
 
 
 def test_the_drafts_pass_the_same_copy_rules_and_do_not_advertise_the_market():

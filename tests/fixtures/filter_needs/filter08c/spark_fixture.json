@@ -1,0 +1,389 @@
+{
+ "coverage": "MEASURED PERSONALIZATION",
+ "coverage_reasons": [
+  "offense and defence lanes measured with adequate confidence"
+ ],
+ "dimension_coverage": {
+  "defence": "MEASURED",
+  "offense": "MEASURED",
+  "resistances_attributes": "MEASURED",
+  "weapon_class": "VERIFIED_UNRESTRICTED"
+ },
+ "equipped": {
+  "BELT": "Fine Belt",
+  "WEAPON_1": "Attuned Wand"
+ },
+ "fix_first": [
+  {
+   "detail": "+20% reaches cap",
+   "kind": "RESISTANCE_CAP",
+   "severity": "high",
+   "source": "audit",
+   "title": "Chaos Resistance"
+  }
+ ],
+ "identity": {
+  "baseline_fingerprint": "h",
+  "build_name": "T",
+  "build_path": "b.xml",
+  "context": "MAP",
+  "generation": 1,
+  "item_set": "1",
+  "loadout": "L"
+ },
+ "label": "Synthetic Spark",
+ "limitations": [
+  "Measured stats are responses to a bounded probe catalog at one tested increment each, not a ranking of all PoE2 stats.",
+  "The native filter cannot see unidentified modifiers; pool hits are opportunities, not possession."
+ ],
+ "measured_at": "",
+ "observed_defence": {
+  "armour": 100.0,
+  "energy_shield": 900.0,
+  "evasion": 0.0
+ },
+ "offense": {
+  "confidence": "HIGH",
+  "limited_confidence": false,
+  "metric": "CombinedDPS",
+  "owner": "PLAYER"
+ },
+ "resource_context": {},
+ "schema_version": 1,
+ "signals": [
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Spell Skill Levels",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "SPELL_SKILL_LEVELS",
+   "relevance": "STRONG",
+   "responses": {
+    "offense": 11.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+1 to Level of all Spell Skills"
+  },
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Cast Speed",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "CAST_SPEED",
+   "relevance": "STRONG",
+   "responses": {
+    "offense": 4.0
+   },
+   "status": "MEASURED",
+   "tested_change": "10% increased Cast Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Spell Damage",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "SPELL_DAMAGE",
+   "relevance": "STRONG",
+   "responses": {
+    "offense": 3.0
+   },
+   "status": "MEASURED",
+   "tested_change": "20% increased Spell Damage"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Energy Shield",
+   "lanes": [
+    "ehp"
+   ],
+   "note": "",
+   "probe_id": "ENERGY_SHIELD",
+   "relevance": "STRONG",
+   "responses": {
+    "ehp": 3.0,
+    "energy_shield": 5.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Energy Shield"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Life",
+   "lanes": [
+    "ehp"
+   ],
+   "note": "",
+   "probe_id": "LIFE",
+   "relevance": "STRONG",
+   "responses": {
+    "ehp": 2.0,
+    "life": 2.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Life"
+  },
+  {
+   "category": "utility",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Movement Speed",
+   "lanes": [
+    "mobility"
+   ],
+   "note": "single-candidate lane carries no ranking",
+   "probe_id": "MOVEMENT_SPEED",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "movement": 7.0
+   },
+   "status": "MEASURED",
+   "tested_change": "10% increased Movement Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Attack Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "ATTACK_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "10% increased Attack Speed"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Mana",
+   "lanes": [],
+   "note": "",
+   "probe_id": "MANA",
+   "relevance": "NO_RESPONSE",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Mana"
+  },
+  {
+   "category": "resistance",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Fire Resistance",
+   "lanes": [],
+   "note": "",
+   "probe_id": "FIRE_RES",
+   "relevance": "MARGINAL",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20% to Fire Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Cold Resistance",
+   "lanes": [],
+   "note": "",
+   "probe_id": "COLD_RES",
+   "relevance": "MARGINAL",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20% to Cold Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Lightning Resistance",
+   "lanes": [],
+   "note": "",
+   "probe_id": "LIGHTNING_RES",
+   "relevance": "MARGINAL",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20% to Lightning Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "HIGH",
+   "fix_first": {
+    "detail": "+20% reaches cap",
+    "kind": "RESISTANCE_CAP",
+    "severity": "high",
+    "source": "audit",
+    "title": "Chaos Resistance"
+   },
+   "label": "Chaos Resistance",
+   "lanes": [],
+   "note": "+20% reaches cap",
+   "probe_id": "CHAOS_RES",
+   "relevance": "FIX_FIRST",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20% to Chaos Resistance"
+  },
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Attack Damage",
+   "lanes": [],
+   "note": "",
+   "probe_id": "ATTACK_DAMAGE",
+   "relevance": "NO_RESPONSE",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "20% increased Attack Damage"
+  },
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Projectile Skill Levels",
+   "lanes": [],
+   "note": "",
+   "probe_id": "PROJECTILE_SKILL_LEVELS",
+   "relevance": "NO_RESPONSE",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+1 to Level of all Projectile Skills"
+  },
+  {
+   "category": "utility",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Strength",
+   "lanes": [],
+   "note": "",
+   "probe_id": "STRENGTH",
+   "relevance": "MARGINAL",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Strength"
+  },
+  {
+   "category": "utility",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Dexterity",
+   "lanes": [],
+   "note": "",
+   "probe_id": "DEXTERITY",
+   "relevance": "MARGINAL",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Dexterity"
+  },
+  {
+   "category": "utility",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Intelligence",
+   "lanes": [],
+   "note": "",
+   "probe_id": "INTELLIGENCE",
+   "relevance": "MARGINAL",
+   "responses": {
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Intelligence"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Armour",
+   "lanes": [],
+   "note": "",
+   "probe_id": "ARMOUR",
+   "relevance": "NO_RESPONSE",
+   "responses": {
+    "ehp": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+200 to Armour"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Evasion",
+   "lanes": [],
+   "note": "",
+   "probe_id": "EVASION",
+   "relevance": "NO_RESPONSE",
+   "responses": {
+    "ehp": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+200 to Evasion"
+  }
+ ],
+ "skill": {
+  "elements": [
+   "Lightning"
+  ],
+  "mode": "SPELL",
+  "mode_basis": "PoB2 skill type: Spell",
+  "name": "Spark",
+  "owner": "PLAYER",
+  "skill_id": "SparkPlayer",
+  "types": [
+   "Damage",
+   "Duration",
+   "Invokable",
+   "Lightning",
+   "Mineable",
+   "Multicastable",
+   "Projectile",
+   "ProjectilesFromUser",
+   "Spell",
+   "Totemable",
+   "Trappable",
+   "Triggerable",
+   "Unleashable",
+   "UsableWhileMoving"
+  ],
+  "verified": true,
+  "weapon_classes": null
+ },
+ "slot_contributions": {}
+}

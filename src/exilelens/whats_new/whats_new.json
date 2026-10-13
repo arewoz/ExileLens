@@ -2,23 +2,31 @@
   "schema": 1,
   "releases": [
     {
-      "version": "0.7.0b1",
-      "released": "2026-10-04",
+      "version": "1.0.0",
+      "released": "2026-10-13",
       "previous": "0.6.0",
       "highlights": [
         {
-          "id": "desktop-redesign",
-          "title": "A redesigned desktop app",
-          "text": "A status panel on the left shows your build and whether ExileLens is ready, with Overview, Settings and Diagnostics beside it.",
-          "introduced": "0.7.0b1",
+          "id": "experimental-loot-filters",
+          "title": "Loot Filters (Experimental)",
+          "text": "Choose from five strictness profiles and eight themes, inspect the preview, then Generate & Install. General filters work offline; a current build analysis adds personalization.",
+          "introduced": "1.0.0",
           "priority": 1,
           "link": null
         },
         {
-          "id": "analyze-build-in-app",
-          "title": "Analyze Build is part of the main app",
-          "text": "Your strongest measured improvements and next actions now sit beside Overview, Settings and Diagnostics.",
-          "introduced": "0.7.0b1",
+          "id": "build-context-in-item-check",
+          "title": "Item Check says what your build needs",
+          "text": "When an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result.",
+          "introduced": "1.0.0",
+          "priority": 3,
+          "link": null
+        },
+        {
+          "id": "analyze-build-next-actions",
+          "title": "Analyze Build (Experimental)",
+          "text": "See what to fix first, which stats your build responds to most, and up to three next actions, each with the change that was tested.",
+          "introduced": "1.0.0",
           "priority": 2,
           "link": {
             "label": "Open Analyze Build",
@@ -26,11 +34,11 @@
           }
         },
         {
-          "id": "supporter-seamless-updates",
-          "title": "Seamless automatic updates",
-          "text": "Patreon supporters can have verified updates downloaded automatically and installed when ExileLens closes. Manual updates stay free.",
-          "introduced": "0.7.0b1",
-          "priority": 3,
+          "id": "verified-updates",
+          "title": "Verified updates that can roll back",
+          "text": "Updates are checked before they install and are rolled back if something fails. Patreon supporters can have them download in the background and install when ExileLens closes. Manual updates stay free.",
+          "introduced": "1.0.0",
+          "priority": 4,
           "link": {
             "label": "Learn about supporter updates",
             "destination": "supporter"
@@ -39,27 +47,53 @@
       ],
       "minor": [
         {
-          "id": "optional-privacy-switches",
-          "text": "Usage stats and crash reports are optional and off until you turn them on; Settings shows exactly what would be sent.",
-          "introduced": "0.7.0b1"
+          "id": "plainer-refusals",
+          "text": "Jewels and off-hand items that cannot be compared now say why in plain words, without internal socket numbers.",
+          "introduced": "1.0.0"
         },
         {
-          "id": "prerelease-update-status",
-          "text": "Pre-release versions now show their update status correctly.",
-          "introduced": "0.7.0b1"
+          "id": "crossbow-ammo",
+          "text": "Crossbows with ammunition skills are measured on the skill that actually fires, so a stronger crossbow no longer shows no change.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "optional-privacy-switches",
+          "text": "Usage stats and crash reports are optional and off until you turn them on; Settings shows exactly what would be sent.",
+          "introduced": "1.0.0"
         },
         {
           "id": "update-result-notice",
           "text": "After an update, ExileLens tells you whether it installed or the previous version was restored.",
-          "introduced": "0.7.0b1"
+          "introduced": "1.0.0"
         },
         {
-          "id": "diagnostics-attention-count",
-          "text": "The Diagnostics entry shows how many things need your attention.",
-          "introduced": "0.7.0b1"
+          "id": "experimental-feature-labels",
+          "text": "The redesigned desktop app now includes Loot Filters. Both Loot Filters and Analyze Build carry an Experimental badge.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "responsive-build-loading",
+          "text": "Build loading and reloads run in the background, keeping the app responsive. Repeated item checks avoid unnecessary work.",
+          "introduced": "1.0.0"
         }
       ],
-      "limitations": [],
+      "limitations": [
+        {
+          "id": "partial-mechanics",
+          "text": "Some mechanics are only partially modeled; jewels that change passive-tree connectivity cannot be evaluated.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "build-baseline",
+          "text": "Your Path of Building build is the comparison baseline, not your live in-game gear.",
+          "introduced": "1.0.0"
+        },
+        {
+          "id": "experimental-filter-acceptance",
+          "text": "Loot Filters is Experimental. Live PoE2 client acceptance is unverified. Select or reload the installed filter in PoE2 yourself.",
+          "introduced": "1.0.0"
+        }
+      ],
       "action": null
     }
   ]

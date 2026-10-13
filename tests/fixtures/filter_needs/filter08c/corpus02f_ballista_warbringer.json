@@ -1,0 +1,570 @@
+{
+ "coverage": "MEASURED PERSONALIZATION",
+ "coverage_reasons": [
+  "offense and defence lanes measured with adequate confidence"
+ ],
+ "dimension_coverage": {
+  "defence": "MEASURED",
+  "offense": "MEASURED",
+  "resistances_attributes": "PARTIAL",
+  "weapon_class": "VERIFIED"
+ },
+ "equipped": {
+  "AMULET": "Bloodstone Amulet",
+  "BELT": "Utility Belt",
+  "BODY_ARMOUR": "Slipstrike Vest",
+  "BOOTS": "Runemastered Cinched Boots",
+  "GLOVES": "Runeforged Polished Bracers",
+  "HELMET": "Freebooter Cap",
+  "RING_1": "Breach Ring",
+  "RING_2": "Breach Ring",
+  "WEAPON_1": "Siege Crossbow"
+ },
+ "fix_first": [],
+ "identity": {
+  "generation": 1,
+  "build_path": "fixture.xml",
+  "baseline_fingerprint": "fixture"
+ },
+ "label": "corpus02f_ballista_warbringer",
+ "limitations": [
+  "Measured stats are responses to a bounded probe catalog at one tested increment each, not a ranking of all PoE2 stats.",
+  "The native filter cannot see unidentified modifiers; pool hits are opportunities, not possession."
+ ],
+ "meta": {
+  "ascendancy": "Warbringer",
+  "class": "Warrior",
+  "seconds": 42.4
+ },
+ "observed_defence": {
+  "armour": 22.0,
+  "energy_shield": 0.0,
+  "evasion": 15948.0
+ },
+ "offense": {
+  "confidence": "HIGH",
+  "limited_confidence": false,
+  "metric": "CombinedDPS",
+  "owner": "PLAYER"
+ },
+ "resource_context": {},
+ "schema_version": 1,
+ "signals": [
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Cast Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "CAST_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "10% increased Cast Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Spell Damage",
+   "lanes": [],
+   "note": "",
+   "probe_id": "SPELL_DAMAGE",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "20% increased Spell Damage"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Life",
+   "lanes": [
+    "ehp",
+    "max_hit"
+   ],
+   "note": "",
+   "probe_id": "LIFE",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 2.38,
+    "evasion": 0.0,
+    "life": 2.919,
+    "mana": 0.0,
+    "max_hit": 2.667,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Life"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Energy Shield",
+   "lanes": [
+    "max_hit"
+   ],
+   "note": "",
+   "probe_id": "ENERGY_SHIELD",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 1.93,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 2.425,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Energy Shield"
+  },
+  {
+   "category": "defense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Mana",
+   "lanes": [],
+   "note": "",
+   "probe_id": "MANA",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 7.692,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Mana"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Fire Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "FIRE_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Fire Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Cold Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "COLD_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Cold Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Lightning Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "LIGHTNING_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Lightning Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Chaos Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "CHAOS_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Chaos Resistance"
+  },
+  {
+   "category": "utility",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Movement Speed",
+   "lanes": [
+    "mobility"
+   ],
+   "note": "single-candidate lane carries no ranking",
+   "probe_id": "MOVEMENT_SPEED",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 8.663,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "10% increased Movement Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Spell Skill Levels",
+   "lanes": [],
+   "note": "",
+   "probe_id": "SPELL_SKILL_LEVELS",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+1 to Level of all Spell Skills"
+  },
+  {
+   "category": "offense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Attack Damage",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "ATTACK_DAMAGE",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 4.843,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "20% increased Attack Damage"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Attack Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "ATTACK_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "10% increased Attack Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Projectile Skill Levels",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "PROJECTILE_SKILL_LEVELS",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 7.975,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+1 to Level of all Projectile Skills"
+  },
+  {
+   "category": "utility",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Strength",
+   "lanes": [
+    "max_hit"
+   ],
+   "note": "",
+   "probe_id": "STRENGTH",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 2.035,
+    "evasion": 0.0,
+    "life": 2.496,
+    "mana": 0.0,
+    "max_hit": 2.286,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Strength"
+  },
+  {
+   "category": "utility",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Dexterity",
+   "lanes": [],
+   "note": "",
+   "probe_id": "DEXTERITY",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 1.555,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Dexterity"
+  },
+  {
+   "category": "utility",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Intelligence",
+   "lanes": [],
+   "note": "",
+   "probe_id": "INTELLIGENCE",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 6.577,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Intelligence"
+  },
+  {
+   "category": "offense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Critical Hit Chance",
+   "lanes": [],
+   "note": "",
+   "probe_id": "CRIT_CHANCE",
+   "relevance": "MARGINAL",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.444,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "5% increased Critical Hit Chance"
+  },
+  {
+   "category": "offense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Critical Damage Bonus",
+   "lanes": [],
+   "note": "",
+   "probe_id": "CRIT_MULTIPLIER",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 2.128,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "20% increased Critical Damage Bonus"
+  },
+  {
+   "category": "offense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Ignite Magnitude",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "IGNITE_MAGNITUDE",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 69.413,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "100% increased Ignite Magnitude"
+  },
+  {
+   "category": "defense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Armour",
+   "lanes": [
+    "ehp"
+   ],
+   "note": "",
+   "probe_id": "ARMOUR",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 1259.091,
+    "ehp": 12.61,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.97,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+200 to Armour"
+  },
+  {
+   "category": "defense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Evasion",
+   "lanes": [
+    "ehp"
+   ],
+   "note": "",
+   "probe_id": "EVASION",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 3.86,
+    "evasion": 5.01,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0,
+    "speed": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+200 to Evasion"
+  }
+ ],
+ "skill": {
+  "elements": [
+   "Fire"
+  ],
+  "mode": "ATTACK",
+  "mode_basis": "PoB2 skill type: Attack",
+  "name": "Explosive Grenade",
+  "owner": "PLAYER",
+  "skill_id": "ExplosiveGrenadePlayer",
+  "types": [
+   "Area",
+   "Attack",
+   "Cooldown",
+   "DetonatesAfterTime",
+   "Detonator",
+   "Fire",
+   "Grenade",
+   "MirageArcherCanUse",
+   "Projectile",
+   "ProjectileNumber",
+   "ProjectileSpeed",
+   "RangedAttack",
+   "UsableWhileMoving"
+  ],
+  "verified": true,
+  "weapon_classes": [
+   "Crossbows"
+  ]
+ },
+ "slot_contributions": {
+  "AMULET": {
+   "ehp_percent": -12.180289604909078,
+   "method": "strip_explicits",
+   "offense_percent": -21.30906009413761
+  },
+  "BELT": {
+   "ehp_percent": -19.47006128979548,
+   "method": "strip_explicits",
+   "offense_percent": -10.121241198568253
+  },
+  "BODY_ARMOUR": {
+   "ehp_percent": -42.00829101674899,
+   "method": "strip_explicits",
+   "offense_percent": 0.0
+  },
+  "BOOTS": {
+   "ehp_percent": -6.562492991489588,
+   "method": "strip_explicits",
+   "offense_percent": 0.0
+  },
+  "GLOVES": {
+   "ehp_percent": -9.54697139591757,
+   "method": "strip_explicits",
+   "offense_percent": -3.4762904378817905
+  },
+  "HELMET": {
+   "ehp_percent": -29.41008416621431,
+   "method": "strip_explicits",
+   "offense_percent": -0.7761905188139906
+  },
+  "RING_1": {
+   "ehp_percent": -40.53846242772139,
+   "method": "strip_explicits",
+   "offense_percent": -20.066040207465498
+  },
+  "RING_2": {
+   "ehp_percent": -42.7170295563305,
+   "method": "strip_explicits",
+   "offense_percent": -22.54026502742883
+  }
+ }
+}

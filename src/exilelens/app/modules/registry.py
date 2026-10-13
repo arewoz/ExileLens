@@ -9,6 +9,7 @@ from enum import Enum
 class FeatureModule(str, Enum):
     ITEM_CHECK = "ITEM_CHECK"
     BUILD_ANALYSIS = "BUILD_ANALYSIS"
+    FILTERS = "FILTERS"
     TREE_TOOLS = "TREE_TOOLS"
     MARKET = "MARKET"
     MARKET_ASSISTANT = "MARKET_ASSISTANT"
@@ -18,7 +19,7 @@ class FeatureModule(str, Enum):
 
 # R1: Build Analysis (Analyze Build: strongest measured responses, FIX FIRST, Build Priorities) is a supported module.
 # It only ever runs on the explicit Analyze Build action; Item Check reads its cached result and never starts it.
-SUPPORTED_MODULES = frozenset({FeatureModule.ITEM_CHECK, FeatureModule.BUILD_ANALYSIS})
+SUPPORTED_MODULES = frozenset({FeatureModule.ITEM_CHECK, FeatureModule.BUILD_ANALYSIS, FeatureModule.FILTERS})
 PARKED_MODULES = frozenset(set(FeatureModule) - set(SUPPORTED_MODULES))
 
 

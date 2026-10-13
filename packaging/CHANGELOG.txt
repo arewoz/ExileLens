@@ -1,15 +1,20 @@
 EXILELENS CHANGELOG
 ===================
 
-
-0.7.0b1
+1.0.0
 -------
 
-- **Optional usage statistics and error reports:** two separate switches in Settings, both **off by default**. Only a fixed list of enumerated, anonymous values is ever sent (no item text, builds, paths or account names); "See what is collected" shows the exact list and the next payload. Turning a switch off deletes the local queue and identifier and asks the server to forget it.
-- **Patreon supporter link (optional):** connect Patreon from Settings to enable seamless updates for eligible supporters. The app never receives your Patreon name or email.
-- **Seamless updates for supporters:** automatic download of verified releases and install when ExileLens closes. Everyone else keeps *Download & Install* and *Restart & Update* exactly as before.
-- **Safer updater:** production-only update signing trust, signed version/tag/URL binding, crash-safe journaled install with automatic rollback, and a result notice after restart.
-- **Everything works offline:** Item Check, Analyze Build and manual updates never depend on the cloud service.
+- **Item Check says what your build needs:** when an item fixes a resistance cap or another current priority of your build, the tooltip says so next to the measured result. The measured comparison against your equipped gear still decides the verdict.
+- **Loot Filters (Experimental):** five strictness profiles, eight themes, preview and Generate & Install. Full general filters work offline; current build analysis adds personalization. Profiles install as separate files.
+- **Analyze Build (Experimental) shows what to do next:** what to fix first, the stats your build responds to most, and up to three next actions, each with the change that was tested. It tells you when it could not establish something.
+- **Redesigned desktop app:** Loot Filters and Analyze Build are labeled Experimental. a status panel shows your build and whether ExileLens is ready, with Overview, Analyze Build, Settings and Diagnostics beside it. A "What's new" dialog appears once after an update.
+- **Verified updates that roll back:** updates are checked against a signed manifest before they install, installs are journaled and rolled back if they fail, and ExileLens tells you the result after restarting. Patreon supporters who link their account can have updates download in the background and install when ExileLens closes; manual updates stay free and work the same for everyone.
+- **Optional usage statistics and error reports:** two separate switches in Settings, both off by default. Only a fixed list of anonymous values is ever sent (no item text, builds, paths or account names); Settings shows exactly what would be sent. Everything else in ExileLens works without them and without any account.
+- **Clearer refusals:** jewels and off-hand items that cannot be compared now say why in plain words, without internal socket numbers.
+- **Reliability:** Item Check and Analyze Build were checked against a corpus of real public builds, covering weapons, off-hands, jewels, loadouts and weapon sets; results restore your build exactly after every comparison.
+- **Fix:** crossbows with ammunition skills are measured on the skill that actually fires, so a stronger crossbow no longer shows no change.
+- **Diagnostics:** the Diagnostics entry shows how many things need your attention.
+- **Responsiveness:** build loading and reloads run in the background; repeated Item Check avoids unnecessary work and resumes only the latest check after a reload.
 
 0.6.0
 -------

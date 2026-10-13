@@ -180,6 +180,10 @@ class AppSettings:
     update_channel: str = "stable"
     update_last_error: str = ""
     diagnostic_verbose_until: float = 0.0
+    filter_profile: str = "Recommended"
+    filter_profile_notice: str = ""
+    filter_theme: str = "Void Gold"
+    filter_directory: str = ""
     # R2 optional cloud services. Two independent opt-ins, both OFF by default. Neither implies the other,
     # and neither is required for any ExileLens feature.
     send_usage_stats: bool = False
@@ -265,6 +269,7 @@ class AppSettings:
             dashboard_width=_as_int(data.get("dashboard_width"), 1280, minimum=1),
             dashboard_height=_as_int(data.get("dashboard_height"), 860, minimum=1),
             dashboard_last_page=_normalize_dashboard_page(data.get("dashboard_last_page")),
+            **_normalize_filter_settings(data),
             settings_dialog_x=_as_opt_int(data.get("settings_dialog_x")),
             settings_dialog_y=_as_opt_int(data.get("settings_dialog_y")),
             settings_dialog_width=_as_int(data.get("settings_dialog_width"), 560, minimum=1),
@@ -410,6 +415,21 @@ def _normalize_baseline_mode(raw: Any) -> str:
     if value == BaselineMode.POB_BUILD_GEAR.value:
         return BaselineMode.POB_BUILD_GEAR.value
     return BaselineMode.POB_BUILD_GEAR.value
+
+
+def _normalize_filter_settings(data: dict[str, Any]) -> dict[str, str]:
+    from exilelens.filters.profile_policy import ENDGAME_NOTICE, MIGRATED_NAMES, normalize_level
+    from exilelens.filters.profiles import FilterThemeName
+    raw = str(data.get("filter_profile") or "Recommended")
+    level, _ = normalize_level(raw)
+    notice = str(data.get("filter_profile_notice") or "")
+    if raw.strip().lower() in MIGRATED_NAMES:
+        notice = ENDGAME_NOTICE
+    theme = str(data.get("filter_theme") or "Void Gold")
+    if theme not in {t.value for t in FilterThemeName}:
+        theme = "Void Gold"
+    return dict(filter_profile=level, filter_profile_notice=notice, filter_theme=theme,
+                filter_directory=str(data.get("filter_directory") or ""))
 
 
 def _normalize_dashboard_page(raw: Any) -> str:

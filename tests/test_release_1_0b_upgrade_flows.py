@@ -141,9 +141,15 @@ def test_malformed_history_never_crashes_the_app(raw):
 # --- What's New on upgrade ----------------------------------------------------------------------------------------------
 
 
-def test_live_catalog_still_has_no_1_0_notes():
+def test_live_catalog_shows_1_0_notes_after_public_or_internal_upgrade():
     live = content.packaged_catalog()
-    assert live is not None and live.get(INSTALLED) is None  # the 1.0.0 What's New stays a draft until 1.0-E
+    assert live is not None and live.get(INSTALLED) is not None
+    for previous in (None, ExileLensVersion.parse("0.6.0"), ExileLensVersion.parse("0.7.0b1")):
+        summary = content.automatic_summary(live, INSTALLED, previous)
+        assert summary is not None and summary.version == INSTALLED
+        assert summary.highlights and "Pre-release" not in summary.meta
+        assert summary.github_url.endswith("/releases/tag/v1.0.0")
+    assert content.automatic_summary(live, INSTALLED, INSTALLED) is None
 
 
 def test_a_060_profile_without_a_stored_version_sees_the_notes_once():

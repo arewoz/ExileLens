@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from exilelens.ui import theme
-from exilelens.ui.components import ElidedLabel, StatusDot
+from exilelens.ui.components import ElidedLabel, ExperimentalBadge, StatusDot
 from exilelens.ui.dashboard_widgets import set_property
 from exilelens.ui.status_model import AppStatus, derive_status
 from exilelens.ui.ui_icons import apply_button_icon, outline_icon
@@ -60,6 +60,9 @@ class _NavButton(QPushButton):
         self._count_label.hide()
         self._compact = False
         self._count = 0
+        self._experimental = ExperimentalBadge(self) if page_id in {"build_analysis", "filters"} else None
+        if self._experimental:
+            self.setAccessibleDescription("Experimental feature")
 
     def label(self) -> str:
         return self._label
@@ -81,7 +84,12 @@ class _NavButton(QPushButton):
             self.setIconSize(QSize(20, 20))
             self.setText("")
             self.setToolTip(self._label)
-            self.setFixedSize(44, theme.NAV_ITEM_HEIGHT + 4)
+            self.setFixedSize(112 if self._experimental else 44,
+                              theme.scaled_px(58) if self._experimental else theme.NAV_ITEM_HEIGHT + 4)
+            if self._experimental:
+                self.setIcon(QIcon())
+                self.setText(self._label)
+                self.setStyleSheet(f"text-align:left; font-size:{theme.scaled_px(11)}px; padding:0 4px 18px 4px;")
         else:
             self.setIcon(QIcon())
             self.setText(self._label)
@@ -89,8 +97,20 @@ class _NavButton(QPushButton):
             self.setMinimumWidth(0)
             self.setMaximumWidth(16777215)
             self.setFixedHeight(theme.NAV_ITEM_HEIGHT + 4)
+            if self._experimental:
+                self.setStyleSheet(f"font-size:{theme.scaled_px(12)}px; text-align:left; padding-left:10px;")
         self._sync_count()
         self._place_count()
+        self._place_experimental()
+
+    def _place_experimental(self) -> None:
+        if getattr(self, "_experimental", None):
+            self._experimental.adjustSize()
+            if self._compact:
+                self._experimental.move(4, self.height() - self._experimental.height() - 3)
+            else:
+                self._experimental.move(self.width() - self._experimental.width() - 7,
+                                        (self.height() - self._experimental.height()) // 2)
 
     def _sync_count(self) -> None:
         if self._count <= 0:
@@ -109,6 +129,8 @@ class _NavButton(QPushButton):
         self._count_label.show()
         self._place_count()
 
+        self._place_experimental()
+
     def _place_count(self) -> None:
         if self._count <= 0:
             return
@@ -121,6 +143,7 @@ class _NavButton(QPushButton):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         self._place_count()
+        self._place_experimental()
 
 
 class _StatusBlock(QPushButton):
@@ -423,7 +446,8 @@ class StatusRail(QWidget):
 
     def set_compact(self, compact: bool) -> None:
         self._compact = compact
-        self.setFixedWidth(theme.COMPACT_RAIL_WIDTH if compact else theme.RAIL_WIDTH)
+        # Retain readable feature names and maturity badges in the narrower rail.
+        self.setFixedWidth(136 if compact else theme.RAIL_WIDTH)
         layout = self.layout()
         if compact:
             layout.setContentsMargins(10, 10, 10, 12)

@@ -2,8 +2,10 @@ EXILELENS THIRD-PARTY NOTICES
 =============================
 
 ExileLens (Windows x64) bundles the third-party components below. The
-Path of Building application, runtime DLLs, data, and assets are NOT bundled;
-you must install Path of Building separately.
+Path of Building application, runtime DLLs and artwork are NOT bundled;
+you must install Path of Building separately. Loot Filters includes derived
+offline item-base, affix-pool and skill-fact JSON snapshots (see the MIT
+notice below), plus factual native-base evidence attributed to PoE2DB.
 
 Bundled with this distribution
 ------------------------------
@@ -89,10 +91,12 @@ _internal, _internal\PySide6 and _internal\shiboken6)
 Other files that Python, PyInstaller and PySide6 pull in (Windows system APIs)
 are distributed under their respective upstream licenses.
 
-Path of Building Community (PoE2) headless support definitions
+Path of Building Community (PoE2) headless support definitions and filter data
   Files adapted/vendored from:
     src/HeadlessWrapper.lua
     src/_SimpleGraphic.def.lua
+    Derived item-base, affix-pool and skill-fact JSON snapshots in
+    exilelens/filters/data (for offline Loot Filters generation)
   Upstream revision: 97cb973f8a114d32010bc1a4195c170628771714
   Copyright (c) 2016 David Gowor
   License: MIT
@@ -118,6 +122,12 @@ Path of Building Community (PoE2) headless support definitions
 
 External (not bundled)
 ----------------------
+
+PoE2DB native item facts
+  Source: https://poe2db.tw/us/ (retrieved 2026-10-12)
+  Factual BaseType, class and acquisition evidence is recorded in the
+  native filter registry and its provenance JSON. No page descriptions,
+  external filter branding or styling assets are bundled.
 
 Path of Building for Path of Exile 2
   Required separately. ExileLens loads the installed PoB Lua engine and data

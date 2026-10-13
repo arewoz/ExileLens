@@ -1,0 +1,536 @@
+{
+ "coverage": "MEASURED PERSONALIZATION",
+ "coverage_reasons": [
+  "offense and defence lanes measured with adequate confidence"
+ ],
+ "dimension_coverage": {
+  "defence": "MEASURED",
+  "offense": "MEASURED",
+  "resistances_attributes": "MEASURED",
+  "weapon_class": "VERIFIED_UNRESTRICTED"
+ },
+ "equipped": {
+  "AMULET": "Lament Amulet",
+  "BELT": "Heavy Belt",
+  "BODY_ARMOUR": "Vile Robe",
+  "BOOTS": "Runeforged Sekhema Sandals",
+  "GLOVES": "Vaal Gloves",
+  "HELMET": "Ancestral Tiara",
+  "RING_1": "Unset Ring",
+  "RING_2": "Ruby Ring",
+  "WEAPON_1": "Rattling Sceptre",
+  "WEAPON_2": "Sacred Focus"
+ },
+ "fix_first": [
+  {
+   "detail": "+75% reaches cap",
+   "kind": "RESISTANCE_CAP",
+   "severity": "high",
+   "source": "sensitivity",
+   "title": "Chaos Resistance"
+  }
+ ],
+ "identity": {
+  "generation": 1,
+  "build_path": "fixture.xml",
+  "baseline_fingerprint": "fixture"
+ },
+ "label": "corpus02b_varashta_djinn",
+ "limitations": [
+  "Measured stats are responses to a bounded probe catalog at one tested increment each, not a ranking of all PoE2 stats.",
+  "The native filter cannot see unidentified modifiers; pool hits are opportunities, not possession."
+ ],
+ "meta": {
+  "ascendancy": "Disciple of Varashta",
+  "class": "Sorceress",
+  "seconds": 47.3
+ },
+ "observed_defence": {
+  "armour": 429.0,
+  "energy_shield": 12298.0,
+  "evasion": 11.0
+ },
+ "offense": {
+  "confidence": "HIGH",
+  "limited_confidence": false,
+  "metric": "Minion.CombinedDPS",
+  "owner": "MINION"
+ },
+ "resource_context": {},
+ "schema_version": 1,
+ "signals": [
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Cast Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "CAST_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "10% increased Cast Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Spell Damage",
+   "lanes": [],
+   "note": "",
+   "probe_id": "SPELL_DAMAGE",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "20% increased Spell Damage"
+  },
+  {
+   "category": "defense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Life",
+   "lanes": [],
+   "note": "",
+   "probe_id": "LIFE",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+50 to maximum Life"
+  },
+  {
+   "category": "defense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Energy Shield",
+   "lanes": [
+    "ehp",
+    "max_hit"
+   ],
+   "note": "",
+   "probe_id": "ENERGY_SHIELD",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 2.276,
+    "energy_shield": 2.285,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 2.243,
+    "movement": 0.0,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Energy Shield"
+  },
+  {
+   "category": "defense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Mana",
+   "lanes": [],
+   "note": "",
+   "probe_id": "MANA",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 3.84,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+50 to maximum Mana"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Fire Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "FIRE_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Fire Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Cold Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "COLD_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Cold Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Lightning Resistance",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "LIGHTNING_RES",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20% to Lightning Resistance"
+  },
+  {
+   "category": "resistance",
+   "confidence": "HIGH",
+   "fix_first": {
+    "detail": "+75% reaches cap",
+    "kind": "RESISTANCE_CAP",
+    "severity": "high",
+    "source": "sensitivity",
+    "title": "Chaos Resistance"
+   },
+   "label": "Chaos Resistance",
+   "lanes": [],
+   "note": "+75% reaches cap",
+   "probe_id": "CHAOS_RES",
+   "relevance": "FIX_FIRST",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20% to Chaos Resistance"
+  },
+  {
+   "category": "utility",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Movement Speed",
+   "lanes": [
+    "mobility"
+   ],
+   "note": "single-candidate lane carries no ranking",
+   "probe_id": "MOVEMENT_SPEED",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 7.328,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "10% increased Movement Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Spell Skill Levels",
+   "lanes": [],
+   "note": "",
+   "probe_id": "SPELL_SKILL_LEVELS",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+1 to Level of all Spell Skills"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Attack Damage",
+   "lanes": [],
+   "note": "",
+   "probe_id": "ATTACK_DAMAGE",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "20% increased Attack Damage"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Attack Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "ATTACK_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "10% increased Attack Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Projectile Skill Levels",
+   "lanes": [],
+   "note": "",
+   "probe_id": "PROJECTILE_SKILL_LEVELS",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+1 to Level of all Projectile Skills"
+  },
+  {
+   "category": "utility",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Strength",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "STRENGTH",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20 to Strength"
+  },
+  {
+   "category": "utility",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Dexterity",
+   "lanes": [],
+   "note": "currently satisfied; maintenance stat",
+   "probe_id": "DEXTERITY",
+   "relevance": "MARGINAL",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "+20 to Dexterity"
+  },
+  {
+   "category": "utility",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Intelligence",
+   "lanes": [],
+   "note": "",
+   "probe_id": "INTELLIGENCE",
+   "relevance": "RESPONSIVE",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 3.2,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+20 to Intelligence"
+  },
+  {
+   "category": "offense",
+   "confidence": "HIGH",
+   "fix_first": null,
+   "label": "Minion Damage",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "MINION_DAMAGE",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 3.49
+   },
+   "status": "MEASURED",
+   "tested_change": "20% increased Minion Damage"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Minion Attack Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "MINION_ATTACK_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "Minions have 10% increased Attack Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "UNSUPPORTED",
+   "fix_first": null,
+   "label": "Minion Cast Speed",
+   "lanes": [],
+   "note": "",
+   "probe_id": "MINION_CAST_SPEED",
+   "relevance": "NO_RESPONSE",
+   "responses": {},
+   "status": "NO_SIGNAL",
+   "tested_change": "Minions have 10% increased Cast Speed"
+  },
+  {
+   "category": "offense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Minion Skill Levels",
+   "lanes": [
+    "offense"
+   ],
+   "note": "",
+   "probe_id": "MINION_SKILL_LEVELS",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 0.0,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 11.64
+   },
+   "status": "MEASURED",
+   "tested_change": "+1 to Level of all Minion Skills"
+  },
+  {
+   "category": "defense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Armour",
+   "lanes": [
+    "ehp",
+    "max_hit"
+   ],
+   "note": "",
+   "probe_id": "ARMOUR",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 69.93,
+    "ehp": 10.06,
+    "energy_shield": 0.0,
+    "evasion": 0.0,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.215,
+    "movement": 0.0,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+200 to Armour"
+  },
+  {
+   "category": "defense",
+   "confidence": "MEDIUM",
+   "fix_first": null,
+   "label": "Evasion",
+   "lanes": [
+    "ehp"
+   ],
+   "note": "",
+   "probe_id": "EVASION",
+   "relevance": "STRONG",
+   "responses": {
+    "armour": 0.0,
+    "ehp": 3.266,
+    "energy_shield": 0.0,
+    "evasion": 2727.273,
+    "life": 0.0,
+    "mana": 0.0,
+    "max_hit": 0.0,
+    "movement": 0.0,
+    "offense": 0.0
+   },
+   "status": "MEASURED",
+   "tested_change": "+200 to Evasion"
+  }
+ ],
+ "skill": {
+  "elements": [
+   "Cold"
+  ],
+  "mode": "MINION",
+  "mode_basis": "production offense owner is MINION",
+  "name": "Navira, the Last Mirage",
+  "owner": "MINION",
+  "skill_id": "SummonWaterDjinnPlayer",
+  "types": [
+   "Cold",
+   "CommandableMinion",
+   "CreatesMinion",
+   "HasReservation",
+   "Minion",
+   "MinionsAreUndamagable",
+   "Persistent",
+   "ReserveInAllSets"
+  ],
+  "verified": true,
+  "weapon_classes": null
+ },
+ "slot_contributions": {
+  "AMULET": {
+   "ehp_percent": -15.7907202123858,
+   "method": "strip_explicits",
+   "offense_percent": -43.53432867206431
+  },
+  "BELT": {
+   "ehp_percent": -16.966659734997826,
+   "method": "strip_explicits",
+   "offense_percent": -20.088494024463465
+  },
+  "BODY_ARMOUR": {
+   "ehp_percent": -26.657894028100372,
+   "method": "strip_explicits",
+   "offense_percent": 0.0
+  },
+  "BOOTS": {
+   "ehp_percent": -20.802001790421077,
+   "method": "strip_explicits",
+   "offense_percent": 0.0
+  },
+  "GLOVES": {
+   "ehp_percent": -28.989328656192438,
+   "method": "strip_explicits",
+   "offense_percent": 0.0
+  },
+  "HELMET": {
+   "ehp_percent": -13.869087756458743,
+   "method": "strip_explicits",
+   "offense_percent": -20.088494024463465
+  },
+  "RING_1": {
+   "ehp_percent": -4.324696493262515,
+   "method": "strip_explicits",
+   "offense_percent": -11.25644453470953
+  },
+  "RING_2": {
+   "ehp_percent": -14.918136921905989,
+   "method": "strip_explicits",
+   "offense_percent": -10.99467026364258
+  }
+ }
+}

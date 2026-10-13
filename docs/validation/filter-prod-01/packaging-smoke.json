@@ -1,0 +1,220 @@
+{
+ "exe_sha256": "a92bafc44071fbe653f7aa1d8df8fab63b7b52f52a116b33ad75b7057df09e96",
+ "executables_validated": 2,
+ "experimental_navigation": {
+  "build_analysis": "Experimental",
+  "filters": "Experimental"
+ },
+ "filter_page_constructed": true,
+ "general_generations": [
+  {
+   "profile": "Relaxed",
+   "theme": "Void Gold",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Blood Sigil",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Arcane Prism",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Verdant Relic",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Emberforge",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Abyssal Covenant",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Eternal Empire",
+   "valid": true
+  },
+  {
+   "profile": "Relaxed",
+   "theme": "Wraeclast Ashes",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Void Gold",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Blood Sigil",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Arcane Prism",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Verdant Relic",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Emberforge",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Abyssal Covenant",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Eternal Empire",
+   "valid": true
+  },
+  {
+   "profile": "Recommended",
+   "theme": "Wraeclast Ashes",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Void Gold",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Blood Sigil",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Arcane Prism",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Verdant Relic",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Emberforge",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Abyssal Covenant",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Eternal Empire",
+   "valid": true
+  },
+  {
+   "profile": "Strict",
+   "theme": "Wraeclast Ashes",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Void Gold",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Blood Sigil",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Arcane Prism",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Verdant Relic",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Emberforge",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Abyssal Covenant",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Eternal Empire",
+   "valid": true
+  },
+  {
+   "profile": "Very Strict",
+   "theme": "Wraeclast Ashes",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Void Gold",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Blood Sigil",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Arcane Prism",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Verdant Relic",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Emberforge",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Abyssal Covenant",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Eternal Empire",
+   "valid": true
+  },
+  {
+   "profile": "Uber Strict",
+   "theme": "Wraeclast Ashes",
+   "valid": true
+  }
+ ],
+ "mode": "onedir",
+ "native_binaries_validated": 63,
+ "native_client_acceptance": "UNVERIFIED",
+ "ok": true,
+ "preview_background_present": true,
+ "pyinstaller": "6.22.2",
+ "python": "3.12.10",
+ "release_published": false,
+ "source_commit": "12628465e70bf931c366e9a0f919b0f52e5aea72"
+}
