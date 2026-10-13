@@ -35,7 +35,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("PERF01_TREE") or Path(__file__).resolve().parents[1]).resolve()
 CORPUS = ROOT / "fixtures" / "builds" / "public_corpus"
 
 # build id -> equipped slot cloned with +100 maximum Life as the Item Check candidate (same corpus as r4_gate_measure)
@@ -109,7 +109,9 @@ class Recorder:
 
 def wrap(rec: Recorder, owner: Any, name: str, label: str | None = None) -> None:
     """Replace ``owner.name`` with a timing wrapper that records one span per call."""
-    original = getattr(owner, name)
+    original = getattr(owner, name, None)
+    if original is None:  # an API the tree under test does not have (A/B against an older tree)
+        return
     span_label = label or f"{type(owner).__name__ if not isinstance(owner, type) else owner.__name__}.{name}"
 
     def timed(*args: Any, **kwargs: Any):
@@ -243,6 +245,9 @@ def run_startup_once(build: str, stall_ms: float) -> dict[str, Any]:
         wrap(rec, ExileLensApp, name, f"app.{name}")
     wrap(rec, controller_module.EvaluationController, "load_build", "ctrl.load_build")
     wrap(rec, controller_module.EvaluationController, "_capture_ready_baseline", "ctrl._capture_ready_baseline")
+    for optional in ("load_build_async", "_apply_baseline_capture", "_settle_baseline_job", "_begin_build_load"):
+        if hasattr(controller_module.EvaluationController, optional):
+            wrap(rec, controller_module.EvaluationController, optional, f"ctrl.{optional}")
     wrap(rec, controller_module.EvaluationController, "_on_engine_boot_result", "ctrl._on_engine_boot_result")
     wrap(rec, controller_module.EvaluationController, "start_engine_async", "ctrl.start_engine_async")
     wrap(rec, Engine, "start", "engine.start")
@@ -271,9 +276,7 @@ def run_startup_once(build: str, stall_ms: float) -> dict[str, Any]:
         engine = getattr(self.controller, "_engine", None)
         if engine is not None and "engine" not in calls_holder:
             calls_holder["engine"] = _instrument_engine_calls(rec, engine)
-        original_ready(self)
-        rec.mark("startup_build_load_returned", state=str(self.controller.build_info.state.value))
-        rec.phase = "idle"
+        done = {"marked": False}
 
         def _finish() -> None:
             rec.mark("finished")
@@ -282,7 +285,17 @@ def run_startup_once(build: str, stall_ms: float) -> dict[str, Any]:
 
             QApplication.instance().quit()
 
-        QTimer.singleShot(400, _finish)
+        def _on_changed(info) -> None:
+            if done["marked"] or str(getattr(info.state, "value", info.state)) != "READY":
+                return
+            done["marked"] = True
+            rec.mark("build_ready", state="READY")
+            rec.phase = "idle"
+            QTimer.singleShot(400, _finish)
+
+        self.controller.build_changed.connect(_on_changed)
+        original_ready(self)
+        rec.mark("engine_ready_handler_returned", state=str(self.controller.build_info.state.value))
 
     ExileLensApp._on_engine_ready = _ready  # type: ignore[method-assign]
     rec.mark("run_begin")
@@ -323,7 +336,7 @@ def cmd_startup(args: argparse.Namespace) -> int:
         print(
             f"run {index}: wall={wall:.0f}ms app_constructed={marks.get('app_constructed')} "
             f"first_task={marks.get('event_loop_first_task')} engine_ready={marks.get('engine_ready')} "
-            f"build_loaded={marks.get('startup_build_load_returned')} max_stall={data['stalls'].get('max_ms')}ms "
+            f"build_ready={marks.get('build_ready')} max_stall={data['stalls'].get('max_ms')}ms "
             f"stalls={data['stalls'].get('count')}",
             flush=True,
         )
@@ -604,7 +617,7 @@ def _pct(values: list[float], p: float) -> float:
 def cmd_report(args: argparse.Namespace) -> int:
     data = json.loads(Path(args.file).read_text(encoding="utf-8"))
     if data["mode"] == "startup":
-        keys = ["app_constructed", "event_loop_first_task", "engine_ready", "startup_build_load_returned", "finished"]
+        keys = ["app_constructed", "event_loop_first_task", "engine_ready", "build_ready", "finished"]
         print(f"startup build={data['build']} runs={len(data['runs'])}")
         for key in keys:
             vals = [next(m["t"] for m in r["marks"] if m["label"] == key) for r in data["runs"] if any(m["label"] == key for m in r["marks"])]

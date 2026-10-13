@@ -1762,24 +1762,40 @@ class EvaluationController(QObject):
             return f"failed: {self._engine_error}"
         return "stopped"
 
-    def start_engine_async(self) -> bool:
+    def start_engine_async(self, preboot: Any = None) -> bool:
         """Boot the PoB worker off the GUI thread.
 
         Startup used to block here before the tray existed, so a slow or hung worker
         left a process with no window, no tray and the single-instance lock held.
         Emits ``engine_ready`` or ``engine_failed`` on the GUI thread.
+
+        ``preboot`` is an :class:`~exilelens.app.engine_preboot.EnginePreboot` started while the UI was being
+        built; its result is delivered through the same signals instead of booting a second worker.
         """
         if self._engine is not None:
+            if preboot is not None:
+                preboot.discard()
             self.engine_ready.emit()
             return True
         if self._engine_booting:
+            if preboot is not None:
+                preboot.discard()
             return True
         self._engine_booting = True
         self._engine_error = ""
         config = PobConfig(pob_path=Path(self.settings.pob_path))
         logger.info("engine_boot_started pob_path=%s", config.pob_path)
 
+        if preboot is not None and not preboot.matches(str(config.pob_path)):
+            # The PoB folder changed after the preboot began: that engine is for a folder nobody wants now.
+            preboot.discard()
+            preboot = None
+
         def _boot() -> None:
+            if preboot is not None:
+                engine, error = preboot.wait()
+                self._engine_boot_result.emit(engine, error)  # a failed preboot already cleaned up after itself
+                return
             engine: Engine | None = None
             try:
                 validate_pob_path(config)

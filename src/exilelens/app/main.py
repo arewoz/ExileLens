@@ -207,6 +207,8 @@ class ExileLensApp:
         self._refine_dialog = None
         #: PERF-01: the build whose startup load is in flight; its outcome decides whether recovery UI opens.
         self._startup_build_path: str | None = None
+        #: PERF-01: the PoB worker boots while the UI is built; adopted by the controller on the first loop turn.
+        self._engine_preboot = None
     def _record_fresh_install_release_notes(self, load_result) -> None:
         """A brand-new profile starts "caught up": What's New is for people who already had ExileLens."""
         try:
@@ -258,6 +260,17 @@ class ExileLensApp:
 
         if overlay_disabled():
             self.settings.overlay_enabled = False
+        # PERF-01: the PoB worker is a separate process; boot it while the UI is being built instead of after.
+        # Only a configured folder boots here (first run goes through setup); a failure is reported through the
+        # normal engine_failed path when the controller adopts it.
+        if self.settings.pob_path:
+            try:
+                from exilelens.app.engine_preboot import preboot_for
+
+                self._engine_preboot = preboot_for(self.settings.pob_path)
+            except Exception:  # noqa: BLE001 - never worse than the sequential boot
+                logger.exception("engine_preboot_unavailable")
+                self._engine_preboot = None
         self._compose_primary_ui()
         from exilelens.diagnostics.wiring import (
             attach_controller_diagnostics,
@@ -478,7 +491,8 @@ class ExileLensApp:
         if self.controller is None:
             return
         self._refresh_league_catalog_at_startup()
-        self.controller.start_engine_async()
+        preboot, self._engine_preboot = self._engine_preboot, None
+        self.controller.start_engine_async(preboot)
 
     def _on_engine_ready(self) -> None:
         if self.controller is None:
@@ -1441,6 +1455,9 @@ class ExileLensApp:
         if self.cloud is not None:
             self._shutdown_step("cloud_services", self.cloud.stop)  # bounded local writes; never the network
         # 5-6: workers, PoB subprocesses, pinned/overlay windows.
+        if getattr(self, "_engine_preboot", None) is not None:
+            self._shutdown_step("engine_preboot", self._engine_preboot.discard)
+            self._engine_preboot = None
         if self.controller:
             self._shutdown_step("controller", self.controller.shutdown)
         for window in (self.overlay, getattr(self, "market_assist_overlay", None), getattr(self, "tree_overlay", None)):
