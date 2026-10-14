@@ -49,6 +49,12 @@ UTC day, batch and event-count caps). IP is only an optional coarse outer guard 
 
 ## Local development
 
+`package.json` overrides Miniflare's transitive `sharp` and `undici` dependencies to
+patched versions (`0.35.5` and `7.29.1`). Both Wrangler and the Workers test pool
+use Miniflare. Keep these overrides until both dependency paths resolve patched
+versions without them; validate any change with `npm audit`, `npm run typecheck`,
+and `npm test`.
+
 ```
 cd cloud
 npm install

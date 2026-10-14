@@ -12,6 +12,12 @@
     "report": "node scripts/report.mjs",
     "migrate:patreon:local": "wrangler d1 migrations apply PATREON_DB --local"
   },
+  "overrides": {
+    "miniflare": {
+      "sharp": "0.35.5",
+      "undici": "7.29.1"
+    }
+  },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^5.20261003.1",
