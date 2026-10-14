@@ -175,6 +175,22 @@ def test_only_upstream_ci_account_names_are_tolerated_and_only_in_third_party_na
     assert leak_scan.UPSTREAM_CI_ACCOUNTS == {b"qt", b"runneradmin"}
 
 
+def test_runner_profile_literal_is_tolerated_only_in_third_party_native_files(tmp_path):
+    profile = "C:" + "\\Users\\" + "runneradmin"
+    workspace = "D:" + "\\a\\ExileLens\\ExileLens"
+    upstream = (profile + "\\.cargo\\registry\\src").encode()
+    _write(tmp_path, "_internal/cryptography/_rust.pyd", b"MZ\x00" + upstream + b"\x00")
+    assert scan_package(tmp_path, literals=(workspace, profile)) == []
+    for rel, data in (
+        ("ExileLens.exe", upstream),  # nothing is tolerated in an executable ExileLens builds
+        ("_internal/other.dll", workspace.encode()),  # the workspace path is never tolerated
+        ("notes.txt", upstream),  # nor the same text in an ordinary file
+    ):
+        folder = tmp_path / ("case-" + rel.replace("/", "_"))
+        _write(folder, rel, b"MZ\x00" + data + b"\x00")
+        assert "build-machine-path" in _categories(scan_package(folder, literals=(workspace, profile))), rel
+
+
 def test_a_bare_pem_delimiter_constant_is_not_key_material(tmp_path):
     """Parsers (Qt Network's QSslKey, TLS backends) carry the BEGIN/END delimiters as NUL-separated constants."""
     constants = b"\x00".join([PEM_HEADER.encode(), b"-----BEGIN RSA " + b"PRIVATE KEY-----", b"-----END " + b"PRIVATE KEY-----"])
