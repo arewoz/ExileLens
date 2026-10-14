@@ -138,6 +138,13 @@ def scan_bytes(
     return found
 
 
+def _is_upstream_ci_profile(literal: bytes) -> bool:
+    """True when a build-machine literal is just an upstream CI account's profile folder (the runner's USERPROFILE)."""
+    bare = literal.rstrip(b"\\/")
+    match = _USER_PATH.match(bare + b"\\")
+    return bool(match) and match.end() == len(bare) + 1 and match.group("user").lower() in UPSTREAM_CI_ACCOUNTS
+
+
 def _scan_named(rel: str, data: bytes, literals: tuple[bytes, ...], paths: bool, findings: list[Finding]) -> None:
     name = rel.replace("\\", "/").rsplit("/", 1)[-1]
     for category, glob in _FILENAME_RULES:
@@ -145,6 +152,9 @@ def _scan_named(rel: str, data: bytes, literals: tuple[bytes, ...], paths: bool,
             findings.append(Finding(category, rel, 1))
     third_party_native = name.lower().endswith(_THIRD_PARTY_NATIVE_SUFFIXES) and not name.lower().startswith("exilelens")
     ignore = UPSTREAM_CI_ACCOUNTS if third_party_native else frozenset()
+    if third_party_native:
+        # The runner's own profile folder (a --literal) also sits inside upstream binaries built on the same CI image.
+        literals = tuple(item for item in literals if not _is_upstream_ci_profile(item))
     for category, count in sorted(scan_bytes(data, literals=literals, paths=paths, ignore_users=ignore).items()):
         if not _allowed(category, rel):
             findings.append(Finding(category, rel, count))
