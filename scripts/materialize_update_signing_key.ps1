@@ -45,7 +45,7 @@ $acl.SetAccessRuleProtection($true, $false)
 $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
 $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
     [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
-    "Read",
+    "Read, Delete, WriteAttributes",
     "Allow"
 )
 $acl.AddAccessRule($rule)

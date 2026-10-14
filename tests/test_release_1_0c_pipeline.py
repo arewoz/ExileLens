@@ -146,6 +146,13 @@ def test_cloudflare_credentials_are_step_scoped_not_job_scoped():
             assert "secrets." not in step
 
 
+def test_signing_key_acl_lets_the_runner_delete_it_in_the_always_cleanup_step():
+    script = _read("scripts/materialize_update_signing_key.ps1")
+    # A Read-only ACL made the cleanup step fail with "Access ... is denied"; Remove-Item -Force also needs WriteAttributes.
+    assert '"Read, Delete, WriteAttributes"' in script
+    assert "SetAccessRuleProtection($true, $false)" in script  # still current user only, no inherited access
+
+
 def test_no_secret_is_echoed_by_the_signing_materializer():
     script = _read("scripts/materialize_update_signing_key.ps1")
     assert "PEM contents not logged" in script
