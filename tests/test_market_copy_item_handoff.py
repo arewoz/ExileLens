@@ -62,7 +62,6 @@ def _evaluate(text: str, sequence: int | None, *, previous_sequence: int | None 
         _candidate(text, sequence),
         previous_sequence=previous_sequence,
         hotkey_owns_sequence=kwargs.get("hotkey_owns_sequence", lambda _seq: False),
-        poe_foreground=kwargs.get("poe_foreground", lambda: True),
     )
 
 
@@ -117,15 +116,6 @@ def test_foreign_ctrl_c_copy_is_ignored() -> None:
     decision, recognition = _evaluate(_market_ring_text(), 41)
 
     assert decision is ExternalClipboardDecision.IGNORED_FOREIGN_CTRL_C
-    assert recognition is None
-
-
-def test_background_window_copy_is_ignored() -> None:
-    decision, recognition = _evaluate(
-        _market_ring_text(), 41, poe_foreground=lambda: False
-    )
-
-    assert decision is ExternalClipboardDecision.IGNORED_FOREGROUND
     assert recognition is None
 
 

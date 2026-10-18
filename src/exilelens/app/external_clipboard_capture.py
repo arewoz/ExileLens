@@ -16,7 +16,6 @@ from exilelens.items.raw_input import ItemInputSource, RawItemInput
 from exilelens.items.language_detect import detect_poe_item_language
 from exilelens.items.recognition import RecognitionResult, recognize_input
 from exilelens.platform.windows.clipboard_identity import is_duplicate_clipboard_event
-from exilelens.platform.windows.foreground_info import is_poe_foreground
 from exilelens.platform.windows.user_clipboard_copy import (
     last_foreign_ctrl_c_source,
     should_suppress_passive_item_clipboard,
@@ -27,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 class ExternalClipboardDecision(str, Enum):
     ACCEPTED = "accepted"
+    # No longer produced: passive capture works from any foreground window
+    # (browser "Copy Item" on the desktop). Kept for stored diagnostics/counters.
     IGNORED_FOREGROUND = "foreground_not_poe"
     IGNORED_NOT_ITEM = "not_item"
     IGNORED_DUPLICATE = "duplicate"
@@ -55,7 +56,6 @@ class ExternalClipboardRouter:
         *,
         previous_sequence: int | None,
         hotkey_owns_sequence: Callable[[int | None], bool],
-        poe_foreground: Callable[[], bool] | None = None,
     ) -> tuple[ExternalClipboardDecision, RecognitionResult | None]:
         sequence = candidate.sequence
         logger.info(
@@ -75,15 +75,6 @@ class ExternalClipboardRouter:
                 sequence,
             )
             return ExternalClipboardDecision.IGNORED_FOREIGN_CTRL_C, None
-
-        foreground_fn = poe_foreground or is_poe_foreground
-        try:
-            poe_active = bool(foreground_fn())
-        except Exception:
-            poe_active = False
-        if not poe_active:
-            logger.info("clipboard_candidate ignored reason=foreground_not_poe sequence=%s", sequence)
-            return ExternalClipboardDecision.IGNORED_FOREGROUND, None
 
         logger.info("clipboard_candidate source=external sequence=%s", sequence)
 
